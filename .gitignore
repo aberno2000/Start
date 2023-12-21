@@ -1,0 +1,8 @@
+build/
+*.xyz
+main
+*.out
+*.o
+*.o*
+.vscode/*
+
