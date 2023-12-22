@@ -93,6 +93,9 @@ public:
     MathVector operator*(double scalar) const { return MathVector(x * scalar, y * scalar, z * scalar); }
     double operator*(MathVector const &other) const { return (x * other.x + y * other.y + z * other.z); }
 
+    /* /// Division operator. Vector / value. \\\ */
+    MathVector operator/(double value) { return MathVector(x / value, y / value, z / value); }
+
     /* <=> Comparison operators <=> */
     auto operator<=>(MathVector const &other) const
     {
@@ -120,7 +123,7 @@ public:
     }
 };
 
-/* --> Aliases for human readability. <--*/
+/* --> Aliases for human readability. <-- */
 using PositionVector = MathVector;
 using VelocityVector = MathVector;
 

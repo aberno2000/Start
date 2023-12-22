@@ -2,6 +2,7 @@
 #define PARTICLE_HPP
 
 #include <aabb/AABB.h>
+#include <vector>
 
 #include "MathVector.hpp"
 
@@ -43,13 +44,21 @@ public:
      */
     bool overlaps(Particle const &other) const;
 
-    /* === Getters for particle params === */
+    /**
+     * @brief Checks if the particle out of specified bounds.
+     * @return `true` if the particle out of bounds, otherwise `false`.
+     */
+    bool isOutOfBounds() const;
+
+    /* === Getters for particle params. === */
     constexpr double getX() const { return m_cords.getX(); }
     constexpr double getY() const { return m_cords.getY(); }
     constexpr double getZ() const { return m_cords.getZ(); }
+    constexpr double getPositionModule() const { return m_cords.module(); }
     constexpr double getVx() const { return m_velocity.getX(); }
     constexpr double getVy() const { return m_velocity.getY(); }
     constexpr double getVz() const { return m_velocity.getZ(); }
+    constexpr double getVelocityModule() const { return m_velocity.module(); }
     constexpr double getRadius() const { return m_radius; }
     constexpr double getMinBoundary() const { return m_minBoundary; }
     constexpr double getMaxBoundary() const { return m_maxBoundary; }
@@ -57,6 +66,9 @@ public:
     constexpr VelocityVector const &getVelocityVector() const { return m_velocity; }
     constexpr aabb::AABB const &getBoundingBox() const { return m_boundingBox; }
 };
+
+/* --> Alias for many of particles. <-- */
+using Particles = std::vector<Particle>;
 
 // TODO: 1. Make `Particle` abstract; 2. Add more specific classes
 

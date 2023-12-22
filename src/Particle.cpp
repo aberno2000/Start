@@ -50,23 +50,12 @@ void Particle::updatePosition(double dt)
 
   double newX{getX() + getVx() * dt},
       newY{getY() + getVy() * dt},
-      newZ = getZ() + getVz() * dt;
+      newZ{getZ() + getVz() * dt};
 
-  // Check if the new position exceeds the boundaries
-  if (newX < m_minBoundary || newX > m_maxBoundary ||
-      newY < m_minBoundary || newY > m_maxBoundary ||
-      newZ < m_minBoundary || newZ > m_maxBoundary)
-  {
-    ERRMSG(std::format("Particle with R = {} out of bounds\nLast cords: {} {} {}", m_radius,
-                       newX, newY, newZ));
-  }
-  else
-  {
-    // Update particle position
-    m_cords.setX(newX);
-    m_cords.setY(newY);
-    m_cords.setZ(newZ);
-  }
+  // Update particle position
+  m_cords.setX(newX);
+  m_cords.setY(newY);
+  m_cords.setZ(newZ);
 }
 
 bool Particle::overlaps(Particle const &other) const
@@ -79,4 +68,11 @@ bool Particle::overlaps(Particle const &other) const
                        distance_, m_radius + other.m_radius));
 #endif
   return distance_ < (m_radius + other.m_radius);
+}
+
+bool Particle::isOutOfBounds() const
+{
+  return getX() < m_minBoundary || getX() > m_maxBoundary ||
+         getY() < m_minBoundary || getY() > m_maxBoundary ||
+         getZ() < m_minBoundary || getZ() > m_maxBoundary;
 }

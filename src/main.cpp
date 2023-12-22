@@ -9,7 +9,27 @@
 #include "../include/RealNumberGenerator.hpp"
 #include "../include/Settings.hpp"
 
-#define N 1'000
+#define N 10'000
+
+void writeInFile(Particle particle, std::string_view filename)
+{
+    std::ofstream ofs(std::string(filename).c_str(), std::ios_base::app);
+    if (!ofs.is_open())
+    {
+#ifdef LOG
+        ERRMSG(std::format("Can't open file {}", filename));
+#endif
+        return;
+    }
+
+    ofs << std::format("{} {} {}\n",
+                       particle.getX(), particle.getY(), particle.getZ());
+    ofs.close();
+
+#ifdef LOG
+    LOGMSG(std::format("File {} filled successfully", filename));
+#endif
+}
 
 void writeInFile(std::span<Particle const> particles, std::string_view filename)
 {
@@ -37,7 +57,37 @@ void writeInFile(std::span<Particle const> particles, std::string_view filename)
 int main()
 {
     RealNumberGenerator rng;
-    std::vector<Particle> particles(N);
+    Particles v(N);
+
+    for (size_t i{}; i < N; ++i)
+    {
+        v[i] = Particle(rng.get_double(0, 100),
+                        rng.get_double(0, 100),
+                        rng.get_double(0, 100),
+                        rng.get_double(0, 5),
+                        rng.get_double(0, 5),
+                        rng.get_double(0, 5),
+                        rng.get_double(0.5, 1));
+    }
+
+    double time{}, time_step{0.01};
+    while (time < 10)
+    {
+        for (auto it{v.begin()}, end{v.end()}; it != end; ++it)
+        {
+            it->updatePosition(time_step);
+            if (it->isOutOfBounds())
+            {
+                writeInFile(*it, "OutOfBounds.txt");
+                v.erase(it);
+            }
+            time += time_step;
+        }
+    }
+
+    std::cout << std::format("Remains {} particles\n", v.size());
+
+    /* std::vector<Particle> particles(N);
     for (size_t i{}; i < N; ++i)
         particles[i] = Particle(rng.get_double(0, 100),
                                 rng.get_double(0, 100),
@@ -91,6 +141,6 @@ int main()
         }
     }
 
-    writeInFile(std::span<Particle const>(particles.data(), particles.size()), "particles.txt");
+    writeInFile(std::span<Particle const>(particles.data(), particles.size()), "particles.txt"); */
     return EXIT_SUCCESS;
 }
