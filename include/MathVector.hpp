@@ -16,32 +16,13 @@
 class MathVector
 {
 private:
-    double x{},
-        y{},
-        z{};
-
-    void prvt_copy(MathVector const &other)
-    {
-        x = other.x;
-        y = other.y;
-        z = other.z;
-    }
+    double x{}, // X-axis component of the math vector.
+        y{},    // Y-axis component of the math vector.
+        z{};    // Z-axis component of the math vector.
 
 public:
-    /// @brief Ctor.
     MathVector() {}
-
-    /// @brief Ctor with params.
     MathVector(double x_, double y_, double z_) : x(x_), y(y_), z(z_) {}
-
-    /// @brief Copy-assignment operator.
-    MathVector &operator=(MathVector const &other)
-    {
-        if (this == &other)
-            return *this;
-        prvt_copy(*this);
-        return *this;
-    }
 
     /**
      * @brief Assignment operator with custom double.
@@ -54,24 +35,6 @@ public:
         z = value;
         return *this;
     }
-
-    /// @brief Move-assignment operator.
-    MathVector &operator=(MathVector &&other) noexcept
-    {
-        if (this == &other)
-            return *this;
-        prvt_copy(std::move(other));
-        return *this;
-    }
-
-    /// @brief Copy ctor.
-    MathVector(MathVector const &other) { prvt_copy(other); }
-
-    /// @brief Move ctor.
-    MathVector(MathVector &&other) noexcept { prvt_copy(std::move(other)); }
-
-    /// @brief Dtor.
-    ~MathVector() { clear(); }
 
     /**
      * @brief Fills `MathVector` object with specified values.
