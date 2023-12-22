@@ -5,4 +5,5 @@ main
 *.o
 *.o*
 .vscode/*
-
+*.txt
+test
