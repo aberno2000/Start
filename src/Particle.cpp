@@ -6,6 +6,7 @@
 #include <utility>
 
 #include "../include/Particle.hpp"
+#include "../include/Settings.hpp"
 
 Particle::Particle(double x_, double y_, double z_, double vx_, double vy_, double vz_, double radius_,
                    double minBoundary_, double maxBoundary_)
@@ -45,26 +46,37 @@ Particle::Particle(PositionVector posvec, VelocityVector velvec,
 
 void Particle::updatePosition(double dt)
 {
-    // TODO: Velocity changing by collision
+  // TODO: Velocity changing by collision
 
-    m_cords.setX(m_cords.getX() + m_velocity.getX() * dt);
-    m_cords.setY(m_cords.getY() + m_velocity.getY() * dt);
-    m_cords.setZ(m_cords.getZ() + m_velocity.getZ() * dt);
+  double newX{getX() + getVx() * dt},
+      newY{getY() + getVy() * dt},
+      newZ = getZ() + getVz() * dt;
 
-    // Ensure particles stay within the boundaries
-    m_cords.setX(std::min(std::max(m_cords.getX(), m_minBoundary), m_maxBoundary));
-    m_cords.setY(std::min(std::max(m_cords.getY(), m_minBoundary), m_maxBoundary));
-    m_cords.setZ(std::min(std::max(m_cords.getZ(), m_minBoundary), m_maxBoundary));
+  // Check if the new position exceeds the boundaries
+  if (newX < m_minBoundary || newX > m_maxBoundary ||
+      newY < m_minBoundary || newY > m_maxBoundary ||
+      newZ < m_minBoundary || newZ > m_maxBoundary)
+  {
+    ERRMSG(std::format("Particle with R = {} out of bounds\nLast cords: {} {} {}", m_radius,
+                       newX, newY, newZ));
+  }
+  else
+  {
+    // Update particle position
+    m_cords.setX(newX);
+    m_cords.setY(newY);
+    m_cords.setZ(newZ);
+  }
 }
 
 bool Particle::overlaps(Particle const &other) const
 {
-    // Distance between particles
-    double distance_{m_cords.distance(other.m_cords)};
+  // Distance between particles
+  double distance_{m_cords.distance(other.m_cords)};
 #ifdef LOG
-    if (distance_ < (m_radius + other.m_radius))
-        LOGMSG(std::format("\033[1;36m{:.6f} < {:.6f}\033[0m\033[1m",
-                           distance_, m_radius + other.m_radius));
+  if (distance_ < (m_radius + other.m_radius))
+    LOGMSG(std::format("\033[1;36m{:.6f} < {:.6f}\033[0m\033[1m",
+                       distance_, m_radius + other.m_radius));
 #endif
-    return distance_ < (m_radius + other.m_radius);
+  return distance_ < (m_radius + other.m_radius);
 }

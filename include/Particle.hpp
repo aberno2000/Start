@@ -47,6 +47,9 @@ public:
     constexpr double getX() const { return m_cords.getX(); }
     constexpr double getY() const { return m_cords.getY(); }
     constexpr double getZ() const { return m_cords.getZ(); }
+    constexpr double getVx() const { return m_velocity.getX(); }
+    constexpr double getVy() const { return m_velocity.getY(); }
+    constexpr double getVz() const { return m_velocity.getZ(); }
     constexpr double getRadius() const { return m_radius; }
     constexpr double getMinBoundary() const { return m_minBoundary; }
     constexpr double getMaxBoundary() const { return m_maxBoundary; }

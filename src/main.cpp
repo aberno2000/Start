@@ -1,7 +1,5 @@
-#include <format>
 #include <fstream>
 #include <iomanip>
-#include <iostream>
 #include <span>
 #include <string>
 #include <string_view>
@@ -11,7 +9,9 @@
 #include "../include/RealNumberGenerator.hpp"
 #include "../include/Settings.hpp"
 
-void writeInXYZ(std::span<Particle const> particles, std::string_view filename)
+#define N 1'000
+
+void writeInFile(std::span<Particle const> particles, std::string_view filename)
 {
     std::ofstream ofs(std::string(filename).c_str());
     if (!ofs.is_open())
@@ -22,10 +22,11 @@ void writeInXYZ(std::span<Particle const> particles, std::string_view filename)
         return;
     }
 
-    ofs << particles.size() - 1 << '\n';
     for (auto const &particle : particles)
-        ofs << std::format("0 {} {} {}\n",
-                           particle.getX(), particle.getY(), particle.getZ());
+        ofs << std::format("{} {} {} {} {} {} {}\n",
+                           particle.getX(), particle.getY(), particle.getZ(),
+                           particle.getVx(), particle.getVy(), particle.getVz(),
+                           particle.getRadius());
     ofs.close();
 
 #ifdef LOG
@@ -33,13 +34,10 @@ void writeInXYZ(std::span<Particle const> particles, std::string_view filename)
 #endif
 }
 
-#define N 10'000
-
 int main()
 {
     RealNumberGenerator rng;
     std::vector<Particle> particles(N);
-
     for (size_t i{}; i < N; ++i)
         particles[i] = Particle(rng.get_double(0, 100),
                                 rng.get_double(0, 100),
@@ -53,41 +51,46 @@ int main()
     LOGMSG(std::format("Filled {} particles", particles.size()));
 #endif
 
-    // O(n^2)
-    for (size_t i{}; i < particles.size(); ++i)
+    // Simulating movement
+    double time{}, time_step{0.1};
+    while (time < 10)
     {
-        const aabb::AABB &currentAABB{particles[i].getBoundingBox()};
-        particles[i].updatePosition();
-
-        for (auto j{i + 1}; j < particles.size(); ++j)
+        // O(n^2)
+        for (size_t i{}; i < particles.size(); ++i)
         {
-            if (currentAABB.overlaps(particles[j].getBoundingBox(), true))
+            const aabb::AABB &currentAABB{particles[i].getBoundingBox()};
+            particles[i].updatePosition(time_step);
+            time += time_step;
+
+            for (auto j{i + 1}; j < particles.size(); ++j)
             {
                 // If AABBs overlap, perform detailed collision check
-                if (particles[i].overlaps(particles[j]))
+                if (currentAABB.overlaps(particles[j].getBoundingBox(), true))
                 {
-                    // TODO: if overlap -> update velocity
+                    if (particles[i].overlaps(particles[j]))
+                    {
+                        // TODO: if overlap -> update velocity
 #ifdef LOG
-                    LOGMSG(std::format("\033[1;33mOverlap detected: \033[1;34m{}<--->{}\033[0m\033[1m", i, j));
-                    LOGMSG(std::format("\033[1;34m{} particle\033[0m\033[1m: x = {:.6f}\ty = {:.6f}\tz = {:.6f}\tradius = {:.6f}",
-                                       i,
-                                       particles[i].getX(),
-                                       particles[i].getY(),
-                                       particles[i].getZ(),
-                                       particles[i].getRadius()));
-                    LOGMSG(std::format("\033[1;34m{} particle\033[0m\033[1m: x = {:.6f}\ty = {:.6f}\tz = {:.6f}\tradius = {:.6f}",
-                                       j,
-                                       particles[j].getX(),
-                                       particles[j].getY(),
-                                       particles[j].getZ(),
-                                       particles[j].getRadius()));
+                        LOGMSG(std::format("\033[1;33mOverlap detected: \033[1;34m{}<--->{}\033[0m\033[1m", i, j));
+                        LOGMSG(std::format("\033[1;34m{} particle\033[0m\033[1m: x = {:.6f}\ty = {:.6f}\tz = {:.6f}\tradius = {:.6f}",
+                                           i,
+                                           particles[i].getX(),
+                                           particles[i].getY(),
+                                           particles[i].getZ(),
+                                           particles[i].getRadius()));
+                        LOGMSG(std::format("\033[1;34m{} particle\033[0m\033[1m: x = {:.6f}\ty = {:.6f}\tz = {:.6f}\tradius = {:.6f}",
+                                           j,
+                                           particles[j].getX(),
+                                           particles[j].getY(),
+                                           particles[j].getZ(),
+                                           particles[j].getRadius()));
 #endif
+                    }
                 }
             }
         }
     }
 
-    writeInXYZ(std::span<Particle const>(particles.data(), particles.size()), "trajectory.xyz");
-
+    writeInFile(std::span<Particle const>(particles.data(), particles.size()), "particles.txt");
     return EXIT_SUCCESS;
 }

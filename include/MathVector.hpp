@@ -59,12 +59,12 @@ public:
     constexpr double getY() const { return y; }
     constexpr double getZ() const { return z; }
 
-    /* === Getters for each coordinate. === */
+    /* === Setters for each coordinate. === */
     constexpr void setX(double x_) { x = x_; }
     constexpr void setY(double y_) { y = y_; }
     constexpr void setZ(double z_) { z = z_; }
 
-    /// @brief Calculates the module of the coordinate vector.
+    /// @brief Calculates the module of the vector.
     constexpr double module() const { return std::sqrt(x * x + y * y + z * z); }
 
     /// @brief Calculates the distance between two vectors.
