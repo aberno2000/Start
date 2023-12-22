@@ -54,12 +54,12 @@ public:
         return cords;
     }
 
-    /* === Getters for each coordinate. === */
+    /* === Getters for each component. === */
     constexpr double getX() const { return x; }
     constexpr double getY() const { return y; }
     constexpr double getZ() const { return z; }
 
-    /* === Setters for each coordinate. === */
+    /* === Setters for each component. === */
     constexpr void setX(double x_) { x = x_; }
     constexpr void setY(double y_) { y = y_; }
     constexpr void setZ(double z_) { z = z_; }
@@ -77,28 +77,60 @@ public:
 
     /**
      * @brief Checker for empty vector (are all values null).
-     * @return `true` if vector is null, otherwise `false`
+     * @return `true` if vector is null, otherwise `false`.
      */
-    constexpr bool empty() const { return (x == 0 && y == 0 && z == 0); }
+    constexpr bool isNull() const { return (x == 0 && y == 0 && z == 0); }
+
+    /**
+     * @brief Checks if vectors are parallel.
+     * `a` is parallel to `b` if `a = k⋅b` or `b=k⋅a` for some scalar `k`.
+     * @brief `true` if vectors are parallel, otherwise `false`.
+     */
+    bool isParallel(MathVector const &other) const { return *this == other * 2; }
+
+    /**
+     * @brief Checks if vectors are orthogonal.
+     * `a` is orthogonal to `b` if their dot (scalar) product is equals to 0.
+     * @brief `true` if vectors are orthogonal, otherwise `false`.
+     */
+    bool isOrthogonal(MathVector const &other) const { return dotProduct(other) == 0; }
+
+    /**
+     * @brief Checks if vectors are intersects.
+     * Two vectors are intersect if they are neither parallel nor perpendicular.
+     * @brief `true` if one vector intersects other, otherwise `false`.
+     */
+    bool isIntersects(MathVector const &other) const { return not isParallel(other) && not isOrthogonal(other); }
+
+    /// @brief Overload of unary minus. Negates all components of vector.
+    MathVector operator-() { return MathVector(-x, -y, -z); }
 
     /* +++ Subtract and sum of two vectors correspondingly. +++ */
     MathVector operator-(MathVector const &other) const { return MathVector(x - other.x, y - other.y, z - other.z); }
     MathVector operator+(MathVector const &other) const { return MathVector(x + other.x, y + other.y, z + other.z); }
 
-    /* +++ Subtract and sum of value to vector +++ */
+    /* +++ Subtract and sum of value to vector. +++ */
     MathVector operator-(double value) const { return MathVector(x - value, y - value, z - value); }
     MathVector operator+(double value) const { return MathVector(x + value, y + value, z + value); }
 
     /* *** Scalar and vector multiplication correspondingly. *** */
     MathVector operator*(double scalar) const { return MathVector(x * scalar, y * scalar, z * scalar); }
     double operator*(MathVector const &other) const { return (x * other.x + y * other.y + z * other.z); }
+    double dotProduct(MathVector const &other) const { return (*this) * other; }
+    MathVector crossProduct(MathVector const &other) const { return MathVector(y * other.z - z * other.y, z * other.x - x * other.z, x * other.y - y * other.x); }
 
     /* /// Division operator. Vector / value. \\\ */
-    MathVector operator/(double value) { return MathVector(x / value, y / value, z / value); }
+    MathVector operator/(double value) const { return MathVector(x / value, y / value, z / value); }
 
-    /* <=> Comparison operators <=> */
+    /* <=> Comparison operators. <=> */
     auto operator<=>(MathVector const &other) const
     {
+        /**
+         * Compares the components of two vectors (x, y, and z) in a
+         * lexicographical order (first by x, then y, and finally z).
+         * The `std::strong_ordering::equal` ensures that the comparison
+         * result is specific and conforms to the ordering requirements.
+         */
         if (auto cmp{x <=> other.x}; cmp != std::strong_ordering::equal)
             return cmp;
         if (auto cmp{y <=> other.y}; cmp != std::strong_ordering::equal)
@@ -108,14 +140,14 @@ public:
     constexpr bool operator==(MathVector const &other) const { return x == other.x && y == other.y && z == other.z; }
     constexpr bool operator!=(MathVector const &other) const { return !(*this == other); }
 
-    /* << Output stream operator << */
+    /* << Output stream operator. << */
     friend std::ostream &operator<<(std::ostream &os, MathVector const &vector)
     {
         os << std::format("{} {} {}", vector.x, vector.y, vector.z);
         return os;
     }
 
-    /* >> Input stream operator >> */
+    /* >> Input stream operator. >> */
     friend std::istream &operator>>(std::istream &is, MathVector &vector)
     {
         is >> vector.x >> vector.y >> vector.z;
