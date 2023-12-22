@@ -2,6 +2,9 @@
 #define MATHVECTOR_HPP
 
 #include <cmath>
+#include <compare>
+#include <format>
+#include <iostream>
 
 /**
  * Description of the mathematical vector. In the simplest case, a
@@ -17,9 +20,58 @@ private:
         y{},
         z{};
 
+    void prvt_copy(MathVector const &other)
+    {
+        x = other.x;
+        y = other.y;
+        z = other.z;
+    }
+
 public:
+    /// @brief Ctor.
     MathVector() {}
+
+    /// @brief Ctor with params.
     MathVector(double x_, double y_, double z_) : x(x_), y(y_), z(z_) {}
+
+    /// @brief Copy-assignment operator.
+    MathVector &operator=(MathVector const &other)
+    {
+        if (this == &other)
+            return *this;
+        prvt_copy(*this);
+        return *this;
+    }
+
+    /**
+     * @brief Assignment operator with custom double.
+     * Sets all components of vector to custom value.
+     */
+    MathVector &operator=(double value)
+    {
+        x = value;
+        y = value;
+        z = value;
+        return *this;
+    }
+
+    /// @brief Move-assignment operator.
+    MathVector &operator=(MathVector &&other) noexcept
+    {
+        if (this == &other)
+            return *this;
+        prvt_copy(std::move(other));
+        return *this;
+    }
+
+    /// @brief Copy ctor.
+    MathVector(MathVector const &other) { prvt_copy(other); }
+
+    /// @brief Move ctor.
+    MathVector(MathVector &&other) noexcept { prvt_copy(std::move(other)); }
+
+    /// @brief Dtor.
+    ~MathVector() { clear(); }
 
     /**
      * @brief Fills `MathVector` object with specified values.
@@ -57,15 +109,52 @@ public:
                                                                                 (y - other.y) * (y - other.y) +
                                                                                 (z - other.z) * (z - other.z)); }
 
+    /// @brief Clears the vector (Sets all components to null).
+    void clear() noexcept { *this = 0; }
+
+    /**
+     * @brief Checker for empty vector (are all values null).
+     * @return `true` if vector is null, otherwise `false`
+     */
+    constexpr bool empty() const { return (x == 0 && y == 0 && z == 0); }
+
     /* +++ Subtract and sum of two vectors correspondingly. +++ */
     MathVector operator-(MathVector const &other) const { return MathVector(x - other.x, y - other.y, z - other.z); }
     MathVector operator+(MathVector const &other) const { return MathVector(x + other.x, y + other.y, z + other.z); }
+
+    /* +++ Subtract and sum of value to vector +++ */
     MathVector operator-(double value) const { return MathVector(x - value, y - value, z - value); }
     MathVector operator+(double value) const { return MathVector(x + value, y + value, z + value); }
 
     /* *** Scalar and vector multiplication correspondingly. *** */
     MathVector operator*(double scalar) const { return MathVector(x * scalar, y * scalar, z * scalar); }
     double operator*(MathVector const &other) const { return (x * other.x + y * other.y + z * other.z); }
+
+    /* <=> Comparison operators <=> */
+    auto operator<=>(MathVector const &other) const
+    {
+        if (auto cmp{x <=> other.x}; cmp != std::strong_ordering::equal)
+            return cmp;
+        if (auto cmp{y <=> other.y}; cmp != std::strong_ordering::equal)
+            return cmp;
+        return z <=> other.z;
+    }
+    constexpr bool operator==(MathVector const &other) const { return x == other.x && y == other.y && z == other.z; }
+    constexpr bool operator!=(MathVector const &other) const { return !(*this == other); }
+
+    /* << Output stream operator << */
+    friend std::ostream &operator<<(std::ostream &os, MathVector const &vector)
+    {
+        os << std::format("{} {} {}", vector.x, vector.y, vector.z);
+        return os;
+    }
+
+    /* >> Input stream operator >> */
+    friend std::istream &operator>>(std::istream &is, MathVector &vector)
+    {
+        is >> vector.x >> vector.y >> vector.z;
+        return is;
+    }
 };
 
 /* --> Aliases for human readability. <--*/
