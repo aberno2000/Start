@@ -65,11 +65,31 @@ public:
     constexpr PositionVector const &getPositionVector() const { return m_cords; }
     constexpr VelocityVector const &getVelocityVector() const { return m_velocity; }
     constexpr aabb::AABB const &getBoundingBox() const { return m_boundingBox; }
+
+    void Colide(double xi, double phi, double p_mass, double t_mass);
+
+    /* === Virtual getters for specific particles like Argon, Beryllium, etc. === */
+    // virtual constexpr double getWeigth() const = 0;
+    // virtual constexpr double getScattering() const = 0;
 };
+
+// TODO: 1. Make `Particle` abstract; 2. Add more specific classes
+
+/* class ParticleArgon : public Particle
+{
+public:
+    constexpr double getWeigth() const override { return 6.6335209e-26; }
+    constexpr double getScattering() const override { return ...; }
+};
+
+class ParticleBeryllium : public Particle
+{
+public:
+    constexpr double getWeigth() const override { return 1.4965076e-26; }
+    constexpr double getScattering() const override { return ...; }
+}; */
 
 /* --> Alias for many of particles. <-- */
 using Particles = std::vector<Particle>;
-
-// TODO: 1. Make `Particle` abstract; 2. Add more specific classes
 
 #endif // !PARTICLE_HPP
