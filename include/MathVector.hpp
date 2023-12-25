@@ -120,7 +120,12 @@ public:
     MathVector crossProduct(MathVector const &other) const { return MathVector(y * other.z - z * other.y, z * other.x - x * other.z, x * other.y - y * other.x); }
 
     /* /// Division operator. Vector / value. \\\ */
-    MathVector operator/(double value) const { return MathVector(x / value, y / value, z / value); }
+    MathVector operator/(double value) const
+    {
+        if (value == 0.0)
+            throw std::overflow_error("Division by null: Elements of vector can't be divided by 0");
+        return MathVector(x / value, y / value, z / value);
+    }
 
     /* <=> Comparison operators. <=> */
     auto operator<=>(MathVector const &other) const
