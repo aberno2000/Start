@@ -80,23 +80,22 @@ bool Particle::isOutOfBounds() const
 
 void Particle::Colide(double xi, double phi, double p_mass, double t_mass)
 {
-  double x = sin(xi) * cos(phi);
-  double y = sin(xi) * sin(phi);
-  double z = cos(xi);
-  VelocityVector dir_vec(x, y, z);
+  double x{sin(xi) * cos(phi)},
+      y{sin(xi) * sin(phi)},
+      z{cos(xi)},
+      mass_cp{p_mass / (t_mass + p_mass)},
+      mass_ct{t_mass / (t_mass + p_mass)}; // V centre mass
+
+  VelocityVector dir_vec(x, y, z),
+      cm_vel(m_velocity * mass_cp),
+      new_vel(dir_vec * (mass_ct * m_velocity.module())),
+      upd_vel(new_vel + cm_vel);
+
+  // Updating velocity vector of the current particle
+  m_velocity = upd_vel;
+
   std::cout << "Dir_vec: " << dir_vec << '\n';
-
-  // v center of mass
-  double mass_cp = p_mass / (t_mass + p_mass);
-  double mass_ct = t_mass / (t_mass + p_mass);
-
-  VelocityVector cm_vel = m_velocity * mass_cp;
   std::cout << "cm_vel: " << cm_vel << '\n';
-  VelocityVector new_vel = dir_vec * (mass_ct * m_velocity.module());
   std::cout << "new_vel: " << cm_vel << '\n';
-
-  VelocityVector updated_vel = new_vel + cm_vel;
-  m_velocity = updated_vel;
-
-  std::cout << m_velocity << "\n";
+  std::cout << "Current velocity: " << m_velocity << "\n";
 }
