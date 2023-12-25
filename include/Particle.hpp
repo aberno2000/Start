@@ -66,7 +66,14 @@ public:
     constexpr VelocityVector const &getVelocityVector() const { return m_velocity; }
     constexpr aabb::AABB const &getBoundingBox() const { return m_boundingBox; }
 
-    void Colide(double xi, double phi, double p_mass, double t_mass);
+    /**
+     * @brief Calculates the collision of a particle with another particle or object.
+     * @param xi The angle of incidence in radians.
+     * @param phi The azimuthal angle in radians.
+     * @param p_mass The mass of the particle.
+     * @param t_mass The mass of the target object.
+     */
+    void colide(double xi, double phi, double p_mass, double t_mass);
 
     /* === Virtual getters for specific particles like Argon, Beryllium, etc. === */
     // virtual constexpr double getWeigth() const = 0;

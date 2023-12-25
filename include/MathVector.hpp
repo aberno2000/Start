@@ -112,9 +112,11 @@ public:
     /* +++ Subtract and sum of value to vector. +++ */
     MathVector operator-(double value) const { return MathVector(x - value, y - value, z - value); }
     MathVector operator+(double value) const { return MathVector(x + value, y + value, z + value); }
+    friend MathVector operator+(double value, MathVector const &other) { return MathVector(other.x + value, other.y + value, other.z + value); }
 
     /* *** Scalar and vector multiplication correspondingly. *** */
-    MathVector operator*(double scalar) const { return MathVector(x * scalar, y * scalar, z * scalar); }
+    MathVector operator*(double value) const { return MathVector(x * value, y * value, z * value); }
+    friend MathVector operator*(double value, MathVector const &other) { return MathVector(other.x * value, other.y * value, other.z * value); }
     double operator*(MathVector const &other) const { return (x * other.x + y * other.y + z * other.z); }
     double dotProduct(MathVector const &other) const { return (*this) * other; }
     MathVector crossProduct(MathVector const &other) const { return MathVector(y * other.z - z * other.y, z * other.x - x * other.z, x * other.y - y * other.x); }

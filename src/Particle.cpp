@@ -78,7 +78,7 @@ bool Particle::isOutOfBounds() const
          getZ() < m_minBoundary || getZ() > m_maxBoundary;
 }
 
-void Particle::Colide(double xi, double phi, double p_mass, double t_mass)
+void Particle::colide(double xi, double phi, double p_mass, double t_mass)
 {
   double x{sin(xi) * cos(phi)},
       y{sin(xi) * sin(phi)},
@@ -91,11 +91,6 @@ void Particle::Colide(double xi, double phi, double p_mass, double t_mass)
       new_vel(dir_vec * (mass_ct * m_velocity.module())),
       upd_vel(new_vel + cm_vel);
 
-  // Updating velocity vector of the current particle
+  // Updating velocity vector of the current particle after collision
   m_velocity = upd_vel;
-
-  std::cout << "Dir_vec: " << dir_vec << '\n';
-  std::cout << "cm_vel: " << cm_vel << '\n';
-  std::cout << "new_vel: " << cm_vel << '\n';
-  std::cout << "Current velocity: " << m_velocity << "\n";
 }
