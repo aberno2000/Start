@@ -12,7 +12,7 @@
 
 #define N 10'000
 
-void writeInFile(Particle particle, std::string_view filename)
+void writeInFile(ParticleGeneric particle, std::string_view filename)
 {
     std::ofstream ofs(std::string(filename).c_str(), std::ios_base::app);
     if (!ofs.is_open())
@@ -32,7 +32,7 @@ void writeInFile(Particle particle, std::string_view filename)
 #endif
 }
 
-void writeInFile(std::span<Particle const> particles, std::string_view filename)
+void writeInFile(std::span<ParticleGeneric const> particles, std::string_view filename)
 {
     std::ofstream ofs(std::string(filename).c_str());
     if (!ofs.is_open())
@@ -55,26 +55,26 @@ void writeInFile(std::span<Particle const> particles, std::string_view filename)
 #endif
 }
 
-Particles createParticles(size_t count)
+ParticlesGeneric createParticles(size_t count)
 {
     RealNumberGenerator rng;
-    Particles particles(count);
+    ParticlesGeneric particles(count);
 
     for (size_t i{}; i < count; ++i)
-        particles[i] = Particle(rng.get_double(0, 100),
-                                rng.get_double(0, 100),
-                                rng.get_double(0, 100),
-                                rng.get_double(0, 5),
-                                rng.get_double(0, 5),
-                                rng.get_double(0, 5),
-                                rng.get_double(1, 2.5));
+        particles[i] = ParticleGeneric(rng.get_double(0, 100),
+                                       rng.get_double(0, 100),
+                                       rng.get_double(0, 100),
+                                       rng.get_double(0, 5),
+                                       rng.get_double(0, 5),
+                                       rng.get_double(0, 5),
+                                       rng.get_double(1, 2.5));
     return particles;
 }
 
 void simulateOutOfBounds()
 {
     RealNumberGenerator rng;
-    Particles particles(createParticles(N));
+    ParticlesGeneric particles(createParticles(N));
 
     double time{}, time_step{0.01};
 
@@ -106,7 +106,7 @@ void simulateOutOfBounds()
 void simulateCollision()
 {
     RealNumberGenerator rng;
-    Particles particles(createParticles(N));
+    ParticlesGeneric particles(createParticles(N));
 
     double time{}, time_step{0.01};
     while (time < 10)
@@ -147,33 +147,23 @@ void simulateCollision()
         }
     }
 
-    writeInFile(std::span<Particle const>(particles.data(), particles.size()), "particles.txt");
+    writeInFile(std::span<ParticleGeneric const>(particles.data(), particles.size()), "particles.txt");
 }
 
 void showSizes()
 {
-    std::cout << std::format("sizeof(Particle) = {} bytes:\nsizeof(MathVector) = {}x2\nsizeof(AABB) = {}\nsizeof(double) = {}x3\n",
-                             sizeof(Particle), sizeof(MathVector), sizeof(aabb::AABB), sizeof(double));
+    std::cout << std::format(R"(sizeof(ParticleGeneric) = {} bytes
+sizeof(MathVector) = {}x2
+sizeof(AABB) = {}
+sizeof(double) = {}x3
+sizeof(ParticleArgon) = {}
+sizeof(ParticleAluminium) = {}
+)",
+                             sizeof(ParticleGeneric), sizeof(MathVector), sizeof(aabb::AABB),
+                             sizeof(double), sizeof(ParticleArgon), sizeof(ParticleAluminium));
 }
 
 int main()
 {
-    /* Particles particles(createParticles(N));
-    std::ofstream ofs("particles.txt");
-    if (!ofs)
-        return EXIT_FAILURE;
-    for (auto const &particle : particles)
-        ofs << std::format("{} {} {} {}\n",
-                           particle.getX(), particle.getY(), particle.getZ(),
-                           particle.getRadius());
-    ofs.close(); */
-
-    RealNumberGenerator rng;
-    Particles v(createParticles(100));
-    for (auto &particle : v)
-        particle.Colide(rng.get_double(0, std::numbers::pi),
-                        rng.get_double(0, 2 * std::numbers::pi),
-                        1, 1);
-
     return EXIT_SUCCESS;
 }

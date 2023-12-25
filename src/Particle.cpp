@@ -8,8 +8,8 @@
 #include "../include/Particle.hpp"
 #include "../include/Settings.hpp"
 
-Particle::Particle(double x_, double y_, double z_, double vx_, double vy_, double vz_, double radius_,
-                   double minBoundary_, double maxBoundary_)
+ParticleGeneric::ParticleGeneric(double x_, double y_, double z_, double vx_, double vy_, double vz_, double radius_,
+                                 double minBoundary_, double maxBoundary_)
     : m_cords(MathVector(x_, y_, z_)),
       m_velocity(MathVector(vx_, vy_, vz_)),
       m_radius(radius_),
@@ -17,8 +17,8 @@ Particle::Particle(double x_, double y_, double z_, double vx_, double vy_, doub
       m_boundingBox({x_ - radius_, y_ - radius_, z_ - radius_},
                     {x_ + radius_, y_ + radius_, z_ + radius_}) {}
 
-Particle::Particle(PositionVector posvec, double vx_, double vy_, double vz_, double radius_,
-                   double minBoundary_, double maxBoundary_)
+ParticleGeneric::ParticleGeneric(PositionVector posvec, double vx_, double vy_, double vz_, double radius_,
+                                 double minBoundary_, double maxBoundary_)
     : m_cords(posvec),
       m_velocity(MathVector(vx_, vy_, vz_)),
       m_radius(radius_),
@@ -26,8 +26,8 @@ Particle::Particle(PositionVector posvec, double vx_, double vy_, double vz_, do
       m_boundingBox({m_cords.getX() - radius_, m_cords.getY() - radius_, m_cords.getZ() - radius_},
                     {m_cords.getX() + radius_, m_cords.getY() + radius_, m_cords.getZ() + radius_}) {}
 
-Particle::Particle(double x_, double y_, double z_, VelocityVector velvec, double radius_,
-                   double minBoundary_, double maxBoundary_)
+ParticleGeneric::ParticleGeneric(double x_, double y_, double z_, VelocityVector velvec, double radius_,
+                                 double minBoundary_, double maxBoundary_)
     : m_cords(MathVector(x_, y_, z_)),
       m_velocity(velvec),
       m_radius(radius_),
@@ -35,8 +35,8 @@ Particle::Particle(double x_, double y_, double z_, VelocityVector velvec, doubl
       m_boundingBox({x_ - radius_, y_ - radius_, z_ - radius_},
                     {x_ + radius_, y_ + radius_, z_ + radius_}) {}
 
-Particle::Particle(PositionVector posvec, VelocityVector velvec,
-                   double radius_, double minBoundary_, double maxBoundary_)
+ParticleGeneric::ParticleGeneric(PositionVector posvec, VelocityVector velvec,
+                                 double radius_, double minBoundary_, double maxBoundary_)
     : m_cords(posvec),
       m_velocity(velvec),
       m_radius(radius_),
@@ -44,22 +44,15 @@ Particle::Particle(PositionVector posvec, VelocityVector velvec,
       m_boundingBox({m_cords.getX() - radius_, m_cords.getY() - radius_, m_cords.getZ() - radius_},
                     {m_cords.getX() + radius_, m_cords.getY() + radius_, m_cords.getZ() + radius_}) {}
 
-void Particle::updatePosition(double dt)
+void ParticleGeneric::updatePosition(double dt)
 {
-  // TODO: Velocity changing by collision
-
-  // Getting new positions
-  double newX{getX() + getVx() * dt},
-      newY{getY() + getVy() * dt},
-      newZ{getZ() + getVz() * dt};
-
-  // Update particle position
-  m_cords.setX(newX);
-  m_cords.setY(newY);
-  m_cords.setZ(newZ);
+  // Update particle positions: x = x + Vx ⋅ Δt
+  m_cords.setXYZ(getX() + getVx() * dt,
+                 getY() + getVy() * dt,
+                 getZ() + getVz() * dt);
 }
 
-bool Particle::overlaps(Particle const &other) const
+bool ParticleGeneric::overlaps(ParticleGeneric const &other) const
 {
   // Distance between particles
   double distance_{m_cords.distance(other.m_cords)};
@@ -71,26 +64,26 @@ bool Particle::overlaps(Particle const &other) const
   return distance_ < (m_radius + other.m_radius);
 }
 
-bool Particle::isOutOfBounds() const
+bool ParticleGeneric::isOutOfBounds() const
 {
   return getX() < m_minBoundary || getX() > m_maxBoundary ||
          getY() < m_minBoundary || getY() > m_maxBoundary ||
          getZ() < m_minBoundary || getZ() > m_maxBoundary;
 }
 
-void Particle::colide(double xi, double phi, double p_mass, double t_mass)
+void ParticleGeneric::colide(double xi, double phi, double p_mass, double t_mass)
 {
   double x{sin(xi) * cos(phi)},
       y{sin(xi) * sin(phi)},
       z{cos(xi)},
       mass_cp{p_mass / (t_mass + p_mass)},
-      mass_ct{t_mass / (t_mass + p_mass)}; // V centre mass
+      mass_ct{t_mass / (t_mass + p_mass)};
 
   VelocityVector dir_vec(x, y, z),
       cm_vel(m_velocity * mass_cp),
-      new_vel(dir_vec * (mass_ct * m_velocity.module())),
-      upd_vel(new_vel + cm_vel);
+      new_vel(dir_vec * (mass_ct * m_velocity.module()));
 
   // Updating velocity vector of the current particle after collision
-  m_velocity = upd_vel;
+  // Updated velocity = [directory vector ⋅ (mass_ct ⋅ |old velocity|)] + (old velocity * mass_cp)
+  m_velocity = new_vel + cm_vel;
 }
