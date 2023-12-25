@@ -63,6 +63,12 @@ public:
     constexpr void setX(double x_) { x = x_; }
     constexpr void setY(double y_) { y = y_; }
     constexpr void setZ(double z_) { z = z_; }
+    void setXYZ(double x_, double y_, double z_)
+    {
+        x = x_;
+        y = y_;
+        z = z_;
+    }
 
     /// @brief Calculates the module of the vector.
     constexpr double module() const { return std::sqrt(x * x + y * y + z * z); }

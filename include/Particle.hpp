@@ -2,12 +2,13 @@
 #define PARTICLE_HPP
 
 #include <aabb/AABB.h>
+#include <limits>
 #include <vector>
 
 #include "MathVector.hpp"
 
 /// @brief Represents a particle in a simulation.
-class Particle
+class ParticleGeneric
 {
 private:
     PositionVector m_cords;                                    // Position in Cartesian coordinates (x, y, z).
@@ -20,16 +21,16 @@ private:
         kdefault_max_boundary{100.0};
 
 public:
-    Particle() {}
-    Particle(double x_, double y_, double z_, double vx_, double vy_, double vz_, double radius_,
-             double minBoundary_ = kdefault_min_boundary, double maxBoundary_ = kdefault_max_boundary);
-    Particle(PositionVector posvec, double vx_, double vy_, double vz_, double radius_,
-             double minBoundary_ = kdefault_min_boundary, double maxBoundary_ = kdefault_max_boundary);
-    Particle(double x_, double y_, double z_, VelocityVector velvec, double radius_,
-             double minBoundary_ = kdefault_min_boundary, double maxBoundary_ = kdefault_max_boundary);
-    Particle(PositionVector posvec, VelocityVector velvec,
-             double radius_, double minBoundary_ = kdefault_min_boundary, double maxBoundary_ = kdefault_max_boundary);
-    ~Particle() {}
+    ParticleGeneric() {}
+    ParticleGeneric(double x_, double y_, double z_, double vx_, double vy_, double vz_, double radius_,
+                    double minBoundary_ = kdefault_min_boundary, double maxBoundary_ = kdefault_max_boundary);
+    ParticleGeneric(PositionVector posvec, double vx_, double vy_, double vz_, double radius_,
+                    double minBoundary_ = kdefault_min_boundary, double maxBoundary_ = kdefault_max_boundary);
+    ParticleGeneric(double x_, double y_, double z_, VelocityVector velvec, double radius_,
+                    double minBoundary_ = kdefault_min_boundary, double maxBoundary_ = kdefault_max_boundary);
+    ParticleGeneric(PositionVector posvec, VelocityVector velvec,
+                    double radius_, double minBoundary_ = kdefault_min_boundary, double maxBoundary_ = kdefault_max_boundary);
+    virtual ~ParticleGeneric() {}
 
     /**
      * @brief Updates the position of the particle after a time interval.
@@ -42,7 +43,7 @@ public:
      * @param other The other Particle to check against.
      * @return `true` if the particles overlap, otherwise `false`.
      */
-    bool overlaps(Particle const &other) const;
+    bool overlaps(ParticleGeneric const &other) const;
 
     /**
      * @brief Checks if the particle out of specified bounds.
@@ -76,27 +77,28 @@ public:
     void colide(double xi, double phi, double p_mass, double t_mass);
 
     /* === Virtual getters for specific particles like Argon, Beryllium, etc. === */
-    // virtual constexpr double getWeigth() const = 0;
-    // virtual constexpr double getScattering() const = 0;
+    /// @return Minimal value of `double` type as a default value.
+    virtual constexpr double getMass() const { return std::numeric_limits<double>::min(); };
+    // virtual constexpr double getScattering() const { return 0; };
 };
 
-// TODO: 1. Make `Particle` abstract; 2. Add more specific classes
-
-/* class ParticleArgon : public Particle
+class ParticleArgon final : public ParticleGeneric
 {
 public:
-    constexpr double getWeigth() const override { return 6.6335209e-26; }
-    constexpr double getScattering() const override { return ...; }
+    constexpr double getMass() const override { return 6.6335209e-26; }
+    // constexpr double getScattering() const override { return ...; }
 };
 
-class ParticleBeryllium : public Particle
+class ParticleAluminium final : public ParticleGeneric
 {
 public:
-    constexpr double getWeigth() const override { return 1.4965076e-26; }
-    constexpr double getScattering() const override { return ...; }
-}; */
+    constexpr double getMass() const override { return 4.4803831e-26; }
+    // constexpr double getScattering() const override { return ...; }
+};
 
 /* --> Alias for many of particles. <-- */
-using Particles = std::vector<Particle>;
+using ParticlesGeneric = std::vector<ParticleGeneric>;
+using ParticlesArgon = std::vector<ParticleArgon>;
+using ParticlesAluminium = std::vector<ParticleAluminium>;
 
 #endif // !PARTICLE_HPP
