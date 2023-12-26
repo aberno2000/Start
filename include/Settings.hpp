@@ -74,4 +74,15 @@ namespace settings
     }
 }
 
+/* --- Constants --- */
+static constexpr double P{1};                                      // [Pa]
+static constexpr double R{8.314};                                  // [J/k*mol]
+static constexpr double V{1};                                      // [vol]
+static constexpr double T{300};                                    // [k]
+static constexpr double N_av{6.22e23};                             // Avogadro number
+static constexpr double KE_eV{1};                                  // [eV]
+static constexpr double KE_J{1.602176565e-19};                     // [J]
+static constexpr double dt{1e-6};                                  // [s] - time step
+static constexpr double n_concentration{(P * V / (T * R)) * N_av}; // [1/m^3]
+
 #endif // !SETTINGS_HPP
