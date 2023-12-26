@@ -17,6 +17,7 @@ private:
         m_minBoundary{}, m_maxBoundary{kdefault_max_boundary}; // Min and max boundaries.
     aabb::AABB m_boundingBox;                                  // Axis-aligned bounding box
 
+protected:
     static constexpr double kdefault_min_boundary{},
         kdefault_max_boundary{100.0};
 
@@ -84,14 +85,49 @@ public:
 
 class ParticleArgon final : public ParticleGeneric
 {
+private:
+    static constexpr double radius{98e-12};
+
 public:
+    ParticleArgon() : ParticleGeneric() {}
+    ParticleArgon(double x_, double y_, double z_, double vx_, double vy_, double vz_, double radius_ = radius,
+                  double minBoundary_ = kdefault_min_boundary, double maxBoundary_ = kdefault_max_boundary)
+        : ParticleGeneric(x_, y_, z_, vx_, vy_, vz_, radius_, minBoundary_, maxBoundary_) {}
+    ParticleArgon(PositionVector posvec, double vx_, double vy_, double vz_, double radius_ = radius,
+                  double minBoundary_ = kdefault_min_boundary, double maxBoundary_ = kdefault_max_boundary)
+        : ParticleGeneric(posvec, vx_, vy_, vz_, radius_, minBoundary_, maxBoundary_) {}
+    ParticleArgon(double x_, double y_, double z_, VelocityVector velvec, double radius_ = radius,
+                  double minBoundary_ = kdefault_min_boundary, double maxBoundary_ = kdefault_max_boundary)
+        : ParticleGeneric(x_, y_, z_, velvec, radius_, minBoundary_, maxBoundary_) {}
+    ParticleArgon(PositionVector posvec, VelocityVector velvec,
+                  double radius_ = radius, double minBoundary_ = kdefault_min_boundary, double maxBoundary_ = kdefault_max_boundary)
+        : ParticleGeneric(posvec, velvec, radius_, minBoundary_, maxBoundary_) {}
+
     constexpr double getMass() const override { return 6.6335209e-26; }
     // constexpr double getScattering() const override { return ...; }
 };
 
 class ParticleAluminium final : public ParticleGeneric
 {
+private:
+    static constexpr double radius{143e-12};
+    static constexpr double kdefault_max_boundary{10};
+
 public:
+    ParticleAluminium() : ParticleGeneric() {}
+    ParticleAluminium(double x_, double y_, double z_, double vx_, double vy_, double vz_, double radius_ = radius,
+                      double minBoundary_ = kdefault_min_boundary, double maxBoundary_ = kdefault_max_boundary)
+        : ParticleGeneric(x_, y_, z_, vx_, vy_, vz_, radius_, minBoundary_, maxBoundary_) {}
+    ParticleAluminium(PositionVector posvec, double vx_, double vy_, double vz_, double radius_ = radius,
+                      double minBoundary_ = kdefault_min_boundary, double maxBoundary_ = kdefault_max_boundary)
+        : ParticleGeneric(posvec, vx_, vy_, vz_, radius_, minBoundary_, maxBoundary_) {}
+    ParticleAluminium(double x_, double y_, double z_, VelocityVector velvec, double radius_ = radius,
+                      double minBoundary_ = kdefault_min_boundary, double maxBoundary_ = kdefault_max_boundary)
+        : ParticleGeneric(x_, y_, z_, velvec, radius_, minBoundary_, maxBoundary_) {}
+    ParticleAluminium(PositionVector posvec, VelocityVector velvec,
+                      double radius_ = radius, double minBoundary_ = kdefault_min_boundary, double maxBoundary_ = kdefault_max_boundary)
+        : ParticleGeneric(posvec, velvec, radius_, minBoundary_, maxBoundary_) {}
+
     constexpr double getMass() const override { return 4.4803831e-26; }
     // constexpr double getScattering() const override { return ...; }
 };
