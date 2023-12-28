@@ -1,12 +1,27 @@
+# Visual Studio Code files
+.vscode/
+
+# Build files
 build/
+
+# Ignoring python cache files
+__pycache__/
+
+# VMD files
 *.xyz
+
+# Executive files
 main
+test
 *.out
 *.o
-*.o*
-.vscode/*
-*.txt
-test
+
+# ROOT CERN files
+*.root
+
+# GMSH files
 *.msh
 *.pos
-*.root
+
+# Other
+*.txt
