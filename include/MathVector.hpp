@@ -5,6 +5,8 @@
 #include <compare>
 #include <format>
 #include <iostream>
+#include <random>
+#include <stdexcept>
 
 /**
  * Description of the mathematical vector. In the simplest case, a
@@ -54,6 +56,20 @@ public:
         return cords;
     }
 
+    /**
+     * @brief Creates a random MathVector within the specified range for each coordinate.
+     * @param from The lower bound of the range for random values (default: -1000.0).
+     * @param to The upper bound of the range for random values (default: 1000.0).
+     * @return A randomly generated MathVector.
+     */
+    static MathVector createRandomVector(double from = -1000.0, double to = 1000.0)
+    {
+        std::random_device rd;
+        std::mt19937 gen(rd.entropy() ? rd() : time(nullptr));
+        std::uniform_real_distribution<double> dis(from, to);
+        return MathVector(dis(gen), dis(gen), dis(gen));
+    }
+
     /* === Getters for each component. === */
     constexpr double getX() const { return x; }
     constexpr double getY() const { return y; }
@@ -92,7 +108,11 @@ public:
      * `a` is parallel to `b` if `a = k⋅b` or `b=k⋅a` for some scalar `k`.
      * @brief `true` if vectors are parallel, otherwise `false`.
      */
-    bool isParallel(MathVector const &other) const { return *this == other * 2; }
+    bool isParallel(MathVector const &other) const
+    {
+        double koef{x / other.x};
+        return (y == koef * other.y) && (z == koef * other.z);
+    }
 
     /**
      * @brief Checks if vectors are orthogonal.
@@ -100,13 +120,6 @@ public:
      * @brief `true` if vectors are orthogonal, otherwise `false`.
      */
     bool isOrthogonal(MathVector const &other) const { return dotProduct(other) == 0; }
-
-    /**
-     * @brief Checks if vectors are intersects.
-     * Two vectors are intersect if they are neither parallel nor perpendicular.
-     * @brief `true` if one vector intersects other, otherwise `false`.
-     */
-    bool isIntersects(MathVector const &other) const { return not isParallel(other) && not isOrthogonal(other); }
 
     /// @brief Overload of unary minus. Negates all components of vector.
     MathVector operator-() { return MathVector(-x, -y, -z); }
