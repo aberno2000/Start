@@ -8,4 +8,5 @@ main
 *.txt
 test
 *.msh
+*.pos
 *.root
