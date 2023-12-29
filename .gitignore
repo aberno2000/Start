@@ -25,3 +25,6 @@ test
 
 # Other
 *.txt
+
+# HDF5 format
+*.hdf5
