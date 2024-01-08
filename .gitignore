@@ -28,3 +28,7 @@ test
 
 # HDF5 format
 *.hdf5
+*.h5
+
+# There is no need to commit results directory
+results/
