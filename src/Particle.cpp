@@ -8,39 +8,39 @@
 #include "../include/Particle.hpp"
 #include "../include/Settings.hpp"
 
-ParticleGeneric::ParticleGeneric(double x_, double y_, double z_, double vx_, double vy_, double vz_, double radius_,
-                                 double minBoundary_, double maxBoundary_)
+ParticleGeneric::ParticleGeneric(double x_, double y_, double z_,
+                                 double vx_, double vy_, double vz_,
+                                 double radius_)
     : m_cords(MathVector(x_, y_, z_)),
       m_velocity(MathVector(vx_, vy_, vz_)),
       m_radius(radius_),
-      m_minBoundary(minBoundary_), m_maxBoundary(maxBoundary_),
       m_boundingBox({x_ - radius_, y_ - radius_, z_ - radius_},
                     {x_ + radius_, y_ + radius_, z_ + radius_}) {}
 
-ParticleGeneric::ParticleGeneric(PositionVector posvec, double vx_, double vy_, double vz_, double radius_,
-                                 double minBoundary_, double maxBoundary_)
+ParticleGeneric::ParticleGeneric(PositionVector posvec,
+                                 double vx_, double vy_, double vz_,
+                                 double radius_)
     : m_cords(posvec),
       m_velocity(MathVector(vx_, vy_, vz_)),
       m_radius(radius_),
-      m_minBoundary(minBoundary_), m_maxBoundary(maxBoundary_),
       m_boundingBox({m_cords.getX() - radius_, m_cords.getY() - radius_, m_cords.getZ() - radius_},
                     {m_cords.getX() + radius_, m_cords.getY() + radius_, m_cords.getZ() + radius_}) {}
 
-ParticleGeneric::ParticleGeneric(double x_, double y_, double z_, VelocityVector velvec, double radius_,
-                                 double minBoundary_, double maxBoundary_)
+ParticleGeneric::ParticleGeneric(double x_, double y_, double z_,
+                                 VelocityVector velvec,
+                                 double radius_)
     : m_cords(MathVector(x_, y_, z_)),
       m_velocity(velvec),
       m_radius(radius_),
-      m_minBoundary(minBoundary_), m_maxBoundary(maxBoundary_),
       m_boundingBox({x_ - radius_, y_ - radius_, z_ - radius_},
                     {x_ + radius_, y_ + radius_, z_ + radius_}) {}
 
-ParticleGeneric::ParticleGeneric(PositionVector posvec, VelocityVector velvec,
-                                 double radius_, double minBoundary_, double maxBoundary_)
+ParticleGeneric::ParticleGeneric(PositionVector posvec,
+                                 VelocityVector velvec,
+                                 double radius_)
     : m_cords(posvec),
       m_velocity(velvec),
       m_radius(radius_),
-      m_minBoundary(minBoundary_), m_maxBoundary(maxBoundary_),
       m_boundingBox({m_cords.getX() - radius_, m_cords.getY() - radius_, m_cords.getZ() - radius_},
                     {m_cords.getX() + radius_, m_cords.getY() + radius_, m_cords.getZ() + radius_}) {}
 
@@ -64,11 +64,14 @@ bool ParticleGeneric::overlaps(ParticleGeneric const &other) const
   return distance_ < (m_radius + other.m_radius);
 }
 
-bool ParticleGeneric::isOutOfBounds() const
+bool ParticleGeneric::isOutOfBounds(aabb::AABB const &bounding_volume) const
 {
-  return getX() < m_minBoundary || getX() > m_maxBoundary ||
-         getY() < m_minBoundary || getY() > m_maxBoundary ||
-         getZ() < m_minBoundary || getZ() > m_maxBoundary;
+  return (m_boundingBox.lowerBound[0] <= bounding_volume.lowerBound[0] ||
+          m_boundingBox.upperBound[0] >= bounding_volume.upperBound[0] ||
+          m_boundingBox.lowerBound[1] <= bounding_volume.lowerBound[1] ||
+          m_boundingBox.upperBound[1] >= bounding_volume.upperBound[1] ||
+          m_boundingBox.lowerBound[2] <= bounding_volume.lowerBound[2] ||
+          m_boundingBox.upperBound[2] >= bounding_volume.upperBound[2]);
 }
 
 void ParticleGeneric::colide(double xi, double phi, double p_mass, double t_mass)
