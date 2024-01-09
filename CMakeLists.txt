@@ -16,6 +16,7 @@ set(CMAKE_CXX_FLAGS "-Wall -Wpedantic -Wextra -laabb -O2 ${ROOT_FLAGS}")
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(ROOT_DIR "/usr/share/root")
+set(HDF5_DIR "/usr/share/hdf5/1.14.3")
 
 set(SOURCES
     src/main.cpp
@@ -25,8 +26,9 @@ set(SOURCES
 )
 
 include_directories(${CMAKE_SOURCE_DIR}/include
-                    ${ROOT_DIR})
+                    ${ROOT_DIR}
+                    ${HDF5_DIR})
 add_executable(main ${SOURCES})
 
 set_target_properties(main PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}")
-target_link_libraries(main PRIVATE aabb)
+target_link_libraries(main PRIVATE aabb hdf5)
