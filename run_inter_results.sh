@@ -16,7 +16,9 @@ else
 fi
 
 rm a.out
+mkdir -p intermediateResults/rootFiles/
+mv intermediateResults/*.root intermediateResults/rootFiles/
 echo -e "To view results of a running file \e[1m$1\e[0m, you need to run the following commands:"
 echo -e "\e[1;32mroot\e[0m"
-echo -e "\e[1;34mnew TBrowser\e[0m"
-echo -e "Then, select \e[1mfile.root\e[0m in TBrowser"
+echo -e "\e[1;34mTBrowser tb\e[0m"
+echo -e "Then, select the correspoing \e[1m.root\e[0m file in TBrowser"
