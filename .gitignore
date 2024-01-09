@@ -22,6 +22,7 @@ test
 # GMSH files
 *.msh
 *.pos
+*.geo
 
 # Other
 *.txt
