@@ -73,7 +73,7 @@ namespace settings
         return oss.str();
     }
 
-    namespace phtsical_constants
+    namespace physical_constants
     {
         static constinit const double P{1};                                      // [Pa]
         static constinit const double R{8.314};                                  // [J/k*mol]
