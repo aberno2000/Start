@@ -9,7 +9,6 @@
 #include <TH2D.h>
 #include <TH3D.h>
 
-#include "../include/MathVector.hpp"
 #include "../include/Particle.hpp"
 #include "../include/RealNumberGenerator.hpp"
 
@@ -19,19 +18,16 @@ std::vector<T> createParticles(size_t count)
     RealNumberGenerator rng;
     std::vector<T> particles(count);
 
-    double Vx{rng.get_double(1, 5)},
-        Vy{rng.get_double(1, 5)},
-        Vz{rng.get_double(1, 5)};
     for (size_t i{}; i < count; ++i)
     {
-        double scalar{rng.get_double(1, 5)};
-        std::cout << scalar << '\n';
-        VelocityVector v(Vx, Vy, Vz);
+        double x{rng.get_double(-1, 1)},
+            theta{acos(x)},
+            phi{rng.get_double(0, 2 * std::numbers::pi)};
 
-        particles[i] = T(0, 0, 0,
-                         v.getX() * scalar,
-                         v.getY() * scalar,
-                         v.getZ() * scalar);
+        particles[i] = T(50, 50, 50,
+                         sin(theta) * cos(phi),
+                         sin(theta) * sin(phi),
+                         cos(theta));
     }
     return particles;
 }
@@ -50,7 +46,7 @@ int main()
     }
 
     RealNumberGenerator rng;
-    ParticlesAluminium p_Al(createParticles<ParticleAluminium>(1'000));
+    ParticlesAluminium p_Al(createParticles<ParticleAluminium>(1'000'000));
     ParticleArgon p_Ar;
 
     constexpr int frames{10};
@@ -63,7 +59,12 @@ int main()
     while (cur_time < time_interval)
     {
         for (size_t i{}; i < p_Al.size(); ++i)
+        {
             p_Al[i].updatePosition(time_step / 50);
+            if (rng() < 0.5)
+                p_Al[i].colide(rng.get_double(0, std::numbers::pi), rng.get_double(0, 2 * std::numbers::pi),
+                               p_Al[0].getMass(), p_Ar.getMass());
+        }
 
         // Each 100-th iteration - snapshot
         if (cur_time % 100 == 0)

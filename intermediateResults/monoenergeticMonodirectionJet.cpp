@@ -1,5 +1,6 @@
 #include <array>
 #include <numbers>
+#include <source_location>
 #include <string>
 #include <vector>
 
@@ -30,7 +31,11 @@ std::vector<T> createParticles(size_t count)
 
 int main()
 {
-    TFile *file{new TFile("file.root", "recreate")};
+    std::string root_file{std::source_location::current().file_name()};
+    root_file.erase(root_file.find(".cpp"));
+    root_file += ".root";
+
+    TFile *file{new TFile(root_file.c_str(), "recreate")};
     if (!file->IsOpen())
     {
         std::cout << std::format("Error: can't open file {}\n", file->GetName());
