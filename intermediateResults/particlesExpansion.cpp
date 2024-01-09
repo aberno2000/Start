@@ -18,12 +18,16 @@ std::vector<T> createParticles(size_t count)
     std::vector<T> particles(count);
 
     for (size_t i{}; i < count; ++i)
-        particles[i] = T(50,                    // x
-                         50,                    // y
-                         50,                    // z
-                         rng.get_double(0, 2),  // Vx
-                         rng.get_double(0, 2),  // Vy
-                         rng.get_double(0, 2)); // Vz
+    {
+        double x{rng.get_double(-1, 1)},
+            theta{acos(x)},
+            phi{rng.get_double(0, 2 * std::numbers::pi)};
+
+        particles[i] = T(50, 50, 50,
+                         sin(theta) * cos(phi),
+                         sin(theta) * sin(phi),
+                         cos(theta));
+    }
     return particles;
 }
 
@@ -37,7 +41,7 @@ int main()
     }
 
     RealNumberGenerator rng;
-    ParticlesAluminium p_Al(createParticles<ParticleAluminium>(10000));
+    ParticlesAluminium p_Al(createParticles<ParticleAluminium>(1'000'000));
     ParticleArgon p_Ar;
 
     constexpr int frames{10};
