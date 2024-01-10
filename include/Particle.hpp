@@ -15,20 +15,33 @@ class ParticleGeneric
 private:
     PositionVector m_cords;    // Position in Cartesian coordinates (x, y, z).
     VelocityVector m_velocity; // Velocity vector (Vx, Vy, Vz).
-    double m_radius{};         // Particle radius.
+    double m_radius{},         // Particle radius.
+        m_energy{};            // Particle energy [J].
     aabb::AABB m_boundingBox;  // Axis-aligned bounding box
+
+    /**
+     * @brief Calculates velocity module from energy of particle and then
+     * calculates Vx, Vy, Vz from this module using random numbers.
+     * Formula:
+     * |V| = √(2⋅E/mass)
+     * @param energy Energy of the particle in [J].
+     * @return Velocity module.
+     */
+    void calculateVelocityFromEnergy_J();
 
 public:
     ParticleGeneric() {}
+    ParticleGeneric(double x_, double y_, double z_, double energy_, double radius_);
     ParticleGeneric(double x_, double y_, double z_, double vx_, double vy_, double vz_, double radius_);
     ParticleGeneric(PositionVector posvec, double vx_, double vy_, double vz_, double radius_);
+    ParticleGeneric(PositionVector posvec, double energy_, double radius_);
     ParticleGeneric(double x_, double y_, double z_, VelocityVector velvec, double radius_);
     ParticleGeneric(PositionVector posvec, VelocityVector velvec, double radius_);
     virtual ~ParticleGeneric() {}
 
     /**
      * @brief Updates the position of the particle after a time interval.
-     * @param dt Time interval for the update (default = 1).
+     * @param dt Time interval for the update (default = 1) [s].
      */
     void updatePosition(double dt = 1);
 
@@ -51,6 +64,8 @@ public:
     constexpr double getY() const { return m_cords.getY(); }
     constexpr double getZ() const { return m_cords.getZ(); }
     constexpr double getPositionModule() const { return m_cords.module(); }
+    constexpr double getEnergy_J() const { return m_energy; }
+    constexpr double getEnergy_eV() const { return m_energy * settings::physical_constants::J_eV; }
     constexpr double getVx() const { return m_velocity.getX(); }
     constexpr double getVy() const { return m_velocity.getY(); }
     constexpr double getVz() const { return m_velocity.getZ(); }

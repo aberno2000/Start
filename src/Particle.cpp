@@ -6,7 +6,36 @@
 #include <utility>
 
 #include "../include/Particle.hpp"
+#include "../include/RealNumberGenerator.hpp"
 #include "../include/Settings.hpp"
+
+void ParticleGeneric::calculateVelocityFromEnergy_J()
+{
+  // TODO: Here we need to calculate the velocity vector not only for sphere distribution
+  // Example below:
+
+  RealNumberGenerator rng;
+  double v{std::sqrt(2 * m_energy / getMass())},
+      theta{rng.get_double(0 - std::numeric_limits<long double>::min(),
+                           std::numbers::pi + std::numeric_limits<long double>::min())},
+      phi{rng.get_double(0 - std::numeric_limits<long double>::min(),
+                         2 * std::numbers::pi + std::numeric_limits<long double>::min())},
+      vx{m_radius * sin(theta) * cos(phi)},
+      vy{m_radius * sin(theta) * sin(phi)},
+      vz{m_radius * cos(theta)};
+
+  m_velocity = VelocityVector(vx, vy, vz);
+}
+
+ParticleGeneric::ParticleGeneric(double x_, double y_, double z_,
+                                 double energy_, double radius_)
+    : m_cords(MathVector(x_, y_, z_)),
+      m_radius(radius_),
+      m_boundingBox({x_ - radius_, y_ - radius_, z_ - radius_},
+                    {x_ + radius_, y_ + radius_, z_ + radius_})
+{
+  calculateVelocityFromEnergy_J();
+}
 
 ParticleGeneric::ParticleGeneric(double x_, double y_, double z_,
                                  double vx_, double vy_, double vz_,
@@ -25,6 +54,15 @@ ParticleGeneric::ParticleGeneric(PositionVector posvec,
       m_radius(radius_),
       m_boundingBox({m_cords.getX() - radius_, m_cords.getY() - radius_, m_cords.getZ() - radius_},
                     {m_cords.getX() + radius_, m_cords.getY() + radius_, m_cords.getZ() + radius_}) {}
+
+ParticleGeneric::ParticleGeneric(PositionVector posvec, double energy_, double radius_)
+    : m_cords(posvec),
+      m_radius(radius_),
+      m_boundingBox({m_cords.getX() - radius_, m_cords.getY() - radius_, m_cords.getZ() - radius_},
+                    {m_cords.getX() + radius_, m_cords.getY() + radius_, m_cords.getZ() + radius_})
+{
+  calculateVelocityFromEnergy_J();
+}
 
 ParticleGeneric::ParticleGeneric(double x_, double y_, double z_,
                                  VelocityVector velvec,
