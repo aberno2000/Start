@@ -2,7 +2,9 @@
 #define PARTICLE_HPP
 
 #include <aabb/AABB.h>
+#include <concepts>
 #include <limits>
+#include <tuple>
 #include <vector>
 
 #include "MathVector.hpp"
@@ -116,6 +118,15 @@ public:
 };
 
 /* --> Alias for many of particles. <-- */
+template <typename T>
+concept ParticleConcept = std::tuple_size_v<T> == 7ul &&
+                          std::is_floating_point_v<std::tuple_element_t<0, T>>;
+
+/// @brief x, y, z, Vx, Vy, Vz, radius
+using ParticleVector = std::vector<std::tuple<double, double, double,
+                                              double, double, double,
+                                              double>>;
+
 using ParticlesGeneric = std::vector<ParticleGeneric>;
 using ParticlesArgon = std::vector<ParticleArgon>;
 using ParticlesAluminium = std::vector<ParticleAluminium>;
