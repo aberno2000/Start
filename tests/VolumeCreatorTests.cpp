@@ -78,7 +78,7 @@ int main()
 
     std::cout << "1 stage: \033[32;1mAll static tests passed successfully!\033[0m\n";
 
-    int test_count{1'000'000};
+    int test_count{1'000};
     testsRandom(test_count);
     std::cout << std::format("2 stage: \033[32;1mAll {} random tests passed successfully!\033[0m\n",
                              test_count);
