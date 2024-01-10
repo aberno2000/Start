@@ -75,15 +75,10 @@ namespace settings
 
     namespace physical_constants
     {
-        static constinit const double P{1};                                      // [Pa]
-        static constinit const double R{8.314};                                  // [J/k*mol]
-        static constinit const double V{1};                                      // [vol]
-        static constinit const double T{300};                                    // [k]
-        static constinit const double N_av{6.22e23};                             // Avogadro number
-        static constinit const double KE_eV{1};                                  // [eV]
-        static constinit const double KE_J{1.602176565e-19};                     // [J]
-        static constinit const double dt{1e-6};                                  // [s] - time step
-        static constinit const double n_concentration{(P * V / (T * R)) * N_av}; // [1/m^3]
+        static constinit const double R{8.314};                 // [J/k*mol]
+        static constinit const double T{300};                   // [k]
+        static constinit const double N_av{6.22e23};            // Avogadro number
+        static constinit const double eV_to_J{1.602176565e-19}; // Conversion factor of eV to J
     }
 }
 
