@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "MathVector.hpp"
+#include "Settings.hpp"
 
 /// @brief Represents a particle in a simulation.
 class ParticleGeneric
