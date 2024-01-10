@@ -15,7 +15,7 @@ public:
 };
 
 template <typename T>
-concept SphereConcept = std::tuple_size<T>::value == 4 &&
+concept SphereConcept = std::tuple_size_v<T> == 4 &&
                         std::is_floating_point_v<std::tuple_element_t<0, T>>;
 
 using SphereVector = std::vector<std::tuple<double, double, double, double>>;
