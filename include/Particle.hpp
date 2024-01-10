@@ -66,7 +66,7 @@ public:
     constexpr double getZ() const { return m_cords.getZ(); }
     constexpr double getPositionModule() const { return m_cords.module(); }
     constexpr double getEnergy_J() const { return m_energy; }
-    constexpr double getEnergy_eV() const { return m_energy * settings::physical_constants::J_eV; }
+    double getEnergy_eV() const { return m_energy * settings::physical_constants::J_eV; }
     constexpr double getVx() const { return m_velocity.getX(); }
     constexpr double getVy() const { return m_velocity.getY(); }
     constexpr double getVz() const { return m_velocity.getZ(); }

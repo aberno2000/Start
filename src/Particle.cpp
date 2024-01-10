@@ -15,7 +15,7 @@ void ParticleGeneric::calculateVelocityFromEnergy_J()
   // Example below:
 
   RealNumberGenerator rng;
-  double v{std::sqrt(2 * m_energy / getMass())},
+  [[maybe_unused]] double v{std::sqrt(2 * m_energy / getMass())},
       theta{rng.get_double(0 - std::numeric_limits<long double>::min(),
                            std::numbers::pi + std::numeric_limits<long double>::min())},
       phi{rng.get_double(0 - std::numeric_limits<long double>::min(),
@@ -30,11 +30,12 @@ void ParticleGeneric::calculateVelocityFromEnergy_J()
 ParticleGeneric::ParticleGeneric(double x_, double y_, double z_,
                                  double energy_, double radius_)
     : m_cords(MathVector(x_, y_, z_)),
-      m_radius(radius_),
-      m_boundingBox({x_ - radius_, y_ - radius_, z_ - radius_},
-                    {x_ + radius_, y_ + radius_, z_ + radius_})
+      m_energy(energy_)
 {
   calculateVelocityFromEnergy_J();
+  m_radius = radius_;
+  m_boundingBox = aabb::AABB({x_ - radius_, y_ - radius_, z_ - radius_},
+                             {x_ + radius_, y_ + radius_, z_ + radius_});
 }
 
 ParticleGeneric::ParticleGeneric(double x_, double y_, double z_,
@@ -57,11 +58,12 @@ ParticleGeneric::ParticleGeneric(PositionVector posvec,
 
 ParticleGeneric::ParticleGeneric(PositionVector posvec, double energy_, double radius_)
     : m_cords(posvec),
-      m_radius(radius_),
-      m_boundingBox({m_cords.getX() - radius_, m_cords.getY() - radius_, m_cords.getZ() - radius_},
-                    {m_cords.getX() + radius_, m_cords.getY() + radius_, m_cords.getZ() + radius_})
+      m_energy(energy_)
 {
   calculateVelocityFromEnergy_J();
+  m_radius = radius_;
+  m_boundingBox = aabb::AABB({m_cords.getX() - radius_, m_cords.getY() - radius_, m_cords.getZ() - radius_},
+                             {m_cords.getX() + radius_, m_cords.getY() + radius_, m_cords.getZ() + radius_});
 }
 
 ParticleGeneric::ParticleGeneric(double x_, double y_, double z_,
