@@ -12,7 +12,7 @@
  * id,  x1,     y1,     z1,     x2,     y2,     z2,     x3,     y3,     z3,     dS,     counter.
  * `counter` is counter of settled objects on specific triangle (defines by its `id` field).
  */
-using TriangleMeshParams = std::vector<std::tuple<int, double, double, double,
+using TriangleMeshParams = std::vector<std::tuple<long unsigned int, double, double, double,
                                                   double, double, double,
                                                   double, double, double,
                                                   double, int>>;
@@ -27,7 +27,7 @@ public:
      * The mesh size factor controls the size of mesh elements in the mesh.
      * @param meshSizeFactor The factor to set for mesh size.
      */
-    void setMeshSize(double meshSizeFactor);
+    static void setMeshSize(double meshSizeFactor);
 
     /**
      * @brief Retrieves parameters from a Gmsh mesh file.
@@ -36,7 +36,9 @@ public:
      * @param msh_filename The filename of the Gmsh .msh file to parse.
      * @return TriangleMeshParams A vector containing information about each triangle in the mesh.
      */
-    TriangleMeshParams getMeshParams(std::string_view msh_filename);
+    static TriangleMeshParams getMeshParams(std::string_view msh_filename);
 };
+
+#include "MeshImpl.hpp"
 
 #endif // !MESH_HPP
