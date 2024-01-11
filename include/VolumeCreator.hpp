@@ -7,6 +7,8 @@
 #include <tuple>
 #include <vector>
 
+#include "MathVector.hpp"
+
 /// @brief Interface for volume creation in GMSH.
 class IVolume
 {
@@ -37,14 +39,12 @@ public:
  * and radius in the form of a tuple.
  */
 template <typename T>
-concept SphereConcept = std::tuple_size_v<T> == 4 &&
-                        std::is_floating_point_v<std::tuple_element_t<0, T>> &&
-                        std::is_floating_point_v<std::tuple_element_t<1, T>> &&
-                        std::is_floating_point_v<std::tuple_element_t<2, T>> &&
-                        std::is_floating_point_v<std::tuple_element_t<3, T>>;
+concept SphereConcept = std::tuple_size_v<T> == 2 &&
+                        is_mathvector_v<std::tuple_element_t<0, T>> &&
+                        std::is_floating_point_v<std::tuple_element_t<1, T>>;
 
-using SphereVector = std::vector<std::tuple<double, double, double, double>>;
-using SphereSpan = std::span<std::tuple<double, double, double, double> const>;
+using SphereVector = std::vector<std::tuple<PositionVector, double>>;
+using SphereSpan = std::span<std::tuple<PositionVector, double> const>;
 
 /// @brief Represents Box volume.
 class Box final : public IVolume

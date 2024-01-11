@@ -30,10 +30,13 @@ std::vector<int> VolumeCreator::createSpheres(std::span<T const> spheres)
 {
     std::vector<int> dimTags;
     for (auto const &sphere : spheres)
-        dimTags.emplace_back(VolumeCreator::createSphere(std::get<0>(sphere),
-                                                         std::get<1>(sphere),
-                                                         std::get<2>(sphere),
-                                                         std::get<3>(sphere)));
+    {
+        PositionVector pos{std::get<0>(sphere)};
+        dimTags.emplace_back(VolumeCreator::createSphere(pos.getX(),
+                                                         pos.getY(),
+                                                         pos.getZ(),
+                                                         std::get<1>(sphere)));
+    }
     return dimTags;
 }
 
