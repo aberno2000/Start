@@ -164,6 +164,9 @@ using ParticleVectorWithVelocities = std::vector<std::tuple<double, double, doub
 /// @brief x, y, z, E, radius
 using ParticleVectorWithEnergy = std::vector<std::tuple<double, double, double,
                                                         double, double>>;
+/// @brief x, y, z, radius
+using ParticleVectorSimple = std::vector<std::tuple<double, double, double, double>>;
+using ParticleSimple = std::tuple<double, double, double, double>;
 
 /* --> Aliases for many of specific kind particles. <-- */
 using ParticlesGeneric = std::vector<ParticleGeneric>;
