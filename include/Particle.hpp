@@ -98,10 +98,14 @@ private:
 
 public:
     ParticleArgon() : ParticleGeneric() {}
+    ParticleArgon(double x_, double y_, double z_, double energy_, double radius_)
+        : ParticleGeneric(x_, y_, z_, energy_, radius_ = radius) {}
     ParticleArgon(double x_, double y_, double z_, double vx_, double vy_, double vz_, double radius_ = radius)
         : ParticleGeneric(x_, y_, z_, vx_, vy_, vz_, radius_) {}
     ParticleArgon(PositionVector posvec, double vx_, double vy_, double vz_, double radius_ = radius)
         : ParticleGeneric(posvec, vx_, vy_, vz_, radius_) {}
+    ParticleArgon(PositionVector posvec, double energy_, double radius_)
+        : ParticleGeneric(posvec, energy_, radius_ = radius) {}
     ParticleArgon(double x_, double y_, double z_, VelocityVector velvec, double radius_ = radius)
         : ParticleGeneric(x_, y_, z_, velvec, radius_) {}
     ParticleArgon(PositionVector posvec, VelocityVector velvec,
@@ -120,10 +124,14 @@ private:
 
 public:
     ParticleAluminium() : ParticleGeneric() {}
+    ParticleAluminium(double x_, double y_, double z_, double energy_, double radius_)
+        : ParticleGeneric(x_, y_, z_, energy_, radius_ = radius) {}
     ParticleAluminium(double x_, double y_, double z_, double vx_, double vy_, double vz_, double radius_ = radius)
         : ParticleGeneric(x_, y_, z_, vx_, vy_, vz_, radius_) {}
     ParticleAluminium(PositionVector posvec, double vx_, double vy_, double vz_, double radius_ = radius)
         : ParticleGeneric(posvec, vx_, vy_, vz_, radius_) {}
+    ParticleAluminium(PositionVector posvec, double energy_, double radius_)
+        : ParticleGeneric(posvec, energy_, radius_ = radius) {}
     ParticleAluminium(double x_, double y_, double z_, VelocityVector velvec, double radius_ = radius)
         : ParticleGeneric(x_, y_, z_, velvec, radius_) {}
     ParticleAluminium(PositionVector posvec, VelocityVector velvec, double radius_ = radius)
@@ -133,16 +141,32 @@ public:
     // constexpr double getScattering() const override { return ...; }
 };
 
-/* --> Alias for many of particles. <-- */
+/* ::: Concepts for particles defined with energy and with velocity components. ::: */
 template <typename T>
-concept ParticleConcept = std::tuple_size_v<T> == 7ul &&
-                          std::is_floating_point_v<std::tuple_element_t<0, T>>;
+concept ParticleConceptWithEnergy = std::tuple_size_v<T> == 4ul &&
+                                    std::is_floating_point_v<std::tuple_element_t<0, T>> &&
+                                    std::is_floating_point_v<std::tuple_element_t<1, T>> &&
+                                    std::is_floating_point_v<std::tuple_element_t<2, T>> &&
+                                    std::is_floating_point_v<std::tuple_element_t<3, T>>;
+template <typename T>
+concept ParticleConceptWithVelocities = std::tuple_size_v<T> == 7ul &&
+                                        std::is_floating_point_v<std::tuple_element_t<0, T>> &&
+                                        std::is_floating_point_v<std::tuple_element_t<1, T>> &&
+                                        std::is_floating_point_v<std::tuple_element_t<2, T>> &&
+                                        std::is_floating_point_v<std::tuple_element_t<3, T>> &&
+                                        std::is_floating_point_v<std::tuple_element_t<4, T>> &&
+                                        std::is_floating_point_v<std::tuple_element_t<5, T>> &&
+                                        std::is_floating_point_v<std::tuple_element_t<6, T>>;
 
 /// @brief x, y, z, Vx, Vy, Vz, radius
-using ParticleVector = std::vector<std::tuple<double, double, double,
-                                              double, double, double,
-                                              double>>;
+using ParticleVectorWithVelocities = std::vector<std::tuple<double, double, double,
+                                                            double, double, double,
+                                                            double>>;
+/// @brief x, y, z, E, radius
+using ParticleVectorWithEnergy = std::vector<std::tuple<double, double, double,
+                                                        double, double>>;
 
+/* --> Aliases for many of specific kind particles. <-- */
 using ParticlesGeneric = std::vector<ParticleGeneric>;
 using ParticlesArgon = std::vector<ParticleArgon>;
 using ParticlesAluminium = std::vector<ParticleAluminium>;
