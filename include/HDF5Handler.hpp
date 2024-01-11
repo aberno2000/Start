@@ -19,7 +19,7 @@ public:
     // void saveParticlesToHDF5(ParticleVector const &particles);
 
     void saveMeshToHDF5(TriangleMeshParams const &triangles);
-    TriangleMeshParams readMeshFromHDF5(std::string_view filename);
+    TriangleMeshParams readMeshFromHDF5();
 };
 
 // Count of settled particles on certain triangle

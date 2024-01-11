@@ -2,10 +2,11 @@
 #define MESHIMPL_HPP
 
 #include <gmsh.h>
+#include <iostream>
 
-void Mesh::setMeshSize(double meshSizeFactor) { gmsh::option::setNumber("Mesh.MeshSizeFactor", meshSizeFactor); }
+inline void Mesh::setMeshSize(double meshSizeFactor) { gmsh::option::setNumber("Mesh.MeshSizeFactor", meshSizeFactor); }
 
-TriangleMeshParams Mesh::getMeshParams(std::string_view msh_filename)
+inline TriangleMeshParams Mesh::getMeshParams(std::string_view msh_filename)
 {
     TriangleMeshParams result;
     try

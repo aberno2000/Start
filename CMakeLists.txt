@@ -25,6 +25,7 @@ set(SOURCES
     src/Particle.cpp
     src/RealNumberGenerator.cpp
     src/Settings.cpp
+    src/HDF5Handler.cpp
 )
 
 include_directories(${CMAKE_SOURCE_DIR}/include

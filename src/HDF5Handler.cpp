@@ -11,7 +11,7 @@ void HDF5Handler::saveMeshToHDF5(TriangleMeshParams const &triangles)
 {
     for (auto const &triangle : triangles)
     {
-        int id{std::get<0>(triangle)};
+        auto id{std::get<0>(triangle)};
 
         // Create a group for each triangle using the triangle ID as the group name
         hid_t grp_id{H5Gcreate2(m_file_id, ("Triangle_" + std::to_string(id)).c_str(),
@@ -43,7 +43,7 @@ void HDF5Handler::saveMeshToHDF5(TriangleMeshParams const &triangles)
     }
 }
 
-TriangleMeshParams HDF5Handler::readMeshFromHDF5(std::string_view filename)
+TriangleMeshParams HDF5Handler::readMeshFromHDF5()
 {
     TriangleMeshParams mesh;
 
@@ -67,7 +67,7 @@ TriangleMeshParams HDF5Handler::readMeshFromHDF5(std::string_view filename)
 
         mesh.emplace_back(std::make_tuple(i, coordinates[0], coordinates[1], coordinates[2],
                                           coordinates[3], coordinates[4], coordinates[5],
-                                          coordinates[6], coordinates[7], coordinates[8], area));
+                                          coordinates[6], coordinates[7], coordinates[8], area, 0));
 
         H5Gclose(grp_id);
     }
