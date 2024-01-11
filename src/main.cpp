@@ -1,14 +1,4 @@
-#include <aabb/AABB.h>
-#include <algorithm>
-#include <cstring>
-#include <format>
 #include <fstream>
-#include <gmsh.h>
-#include <hdf5.h>
-#include <iostream>
-#include <ranges>
-#include <span>
-#include <string_view>
 
 #include "../include/HDF5Handler.hpp"
 #include "../include/Mesh.hpp"
@@ -31,10 +21,10 @@ void writeInFile(std::span<ParticleGeneric const> particles, std::string_view fi
     ofs.close();
 }
 
-ParticlesGeneric createParticles(size_t count)
+ParticleGenericVector createParticles(size_t count)
 {
     RealNumberGenerator rng;
-    ParticlesGeneric particles(count);
+    ParticleGenericVector particles(count);
 
     for (size_t i{}; i < count; ++i)
         particles[i] = ParticleGeneric(rng.get_double(10, 100),
@@ -47,21 +37,31 @@ ParticlesGeneric createParticles(size_t count)
     return particles;
 }
 
-ParticleVectorSimple truncateParticlesToXYZR(ParticlesGeneric particles)
+ParticleVectorSimple truncateParticlesToXYZR(ParticleGenericVector particles)
 {
     ParticleVectorSimple filtered;
     for (auto const &particle : particles)
-        filtered.push_back({particle.getX(), particle.getY(), particle.getZ(), particle.getRadius()});
+        filtered.push_back({PositionVector{particle.getX(), particle.getY(), particle.getZ()},
+                            particle.getRadius()});
     return filtered;
 }
 
-void simulateMovement(ParticlesGeneric &pgs, aabb::AABB const &bounding_volume, double dt, double total_time)
+ParticleGenericVector simulateMovement(ParticleGenericVector &pgs,
+                                       aabb::AABB const &bounding_volume,
+                                       double dt, double total_time)
 {
+    ParticleGenericVector settled;
     for (double t{}; t <= total_time; t += dt)
-        pgs.erase(std::remove_if(pgs.begin(), pgs.end(), [dt, bounding_volume](auto &p)
+    {
+        pgs.erase(std::remove_if(pgs.begin(), pgs.end(), [dt, bounding_volume, &settled](auto &p)
                                  {
             p.updatePosition(dt);
-            return p.isOutOfBounds(bounding_volume); }));
+            bool issettled{p.isOutOfBounds(bounding_volume)};
+            if (issettled)
+                settled.emplace_back(p);
+            return issettled; }));
+    }
+    return settled;
 }
 
 int main(int argc, char *argv[])
@@ -69,8 +69,8 @@ int main(int argc, char *argv[])
     gmsh::initialize();
 
     aabb::AABB bounding_box({0, 0, 0}, {100, 100, 100});
-    ParticlesGeneric pgs(createParticles(1'000)); // 1'000'000 for Intel(R) Core(TM) i5-5300U CPU @ 2.30GHz
-                                                  // is harmful if synchronize models in gmsh
+    ParticleGenericVector pgs(createParticles(1'000)); // 1'000'000 for Intel(R) Core(TM) i5-5300U CPU @ 2.30GHz
+                                                       // is harmful if synchronize models in gmsh
 
     VolumeCreator::createBox();
     Mesh::setMeshSize(0.75);
@@ -82,27 +82,39 @@ int main(int argc, char *argv[])
     gmsh::model::occ::synchronize();
 
     gmsh::write("results/mesh.msh");
-    TriangleMeshParams meshParams{Mesh::getMeshParams("results/mesh.msh")};
+    TriangleMeshParamVector mesh{Mesh::getMeshParams("results/mesh.msh")};
     HDF5Handler hdf5handler("results/mesh.hdf5");
-    hdf5handler.saveMeshToHDF5(meshParams);
+    hdf5handler.saveMeshToHDF5(mesh);
 
-    // settled = simulate_movement_of_particles(particles, triangles, 0.1, 0.3)
-    // save_settled_to_hdf5(settled, "../results/settled.hdf5")
-    // settled = read_settled_hdf5("../results/settled.hdf5")
-    // for x in settled:
-    //     print(" ".join(str(val) for val in x) + "\n")
+    ParticleGenericVector settled{simulateMovement(pgs, bounding_box, 0.1, 1.0)};
+    std::unordered_map<long unsigned, int> triangleCounters;
+    for (auto const &particle : settled)
+    {
+        for (auto const &triangle : mesh)
+        {
+            if (particle.isParticleInsideTriangle(triangle) != -1)
+            {
+                // Assume, that particle can settle only on one triangle of the mesh
+                triangleCounters[std::get<0>(triangle)]++;
+                break;
+            }
+        }
+    }
+    hdf5handler.updateParticleCounters(triangleCounters);
+    TriangleMeshParamVector meshForSettled(hdf5handler.readMeshFromHDF5(std::get<0>(mesh[0])));
+    for (auto const &triangle : meshForSettled)
+        if (std::get<5>(triangle) > 0)
+            std::cout << std::format("Triangle[{}] has {} particles\n", std::get<0>(triangle),
+                                     std::get<5>(triangle));
 
     bool ispopup{true};
-    for (int argid{1}; argid < argc; ++argid)
-        if (strcmp(argv[argid], "-nopopup") == 0)
-            ispopup = false;
+    if (std::find(argv, argv + argc, std::string("-nopopup")) != argv + argc)
+        ispopup = false;
 
     if (ispopup)
         gmsh::fltk::run();
 
     gmsh::finalize();
-
-    // simulateMovement(pgs, bounding_box, 0.1, 1);
 
     return EXIT_SUCCESS;
 }
