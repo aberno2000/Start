@@ -169,8 +169,8 @@ using ParticleVectorSimple = std::vector<std::tuple<double, double, double, doub
 using ParticleSimple = std::tuple<double, double, double, double>;
 
 /* --> Aliases for many of specific kind particles. <-- */
-using ParticlesGeneric = std::vector<ParticleGeneric>;
-using ParticlesArgon = std::vector<ParticleArgon>;
-using ParticlesAluminium = std::vector<ParticleAluminium>;
+using ParticleGenericVector = std::vector<ParticleGeneric>;
+using ParticleArgonVector = std::vector<ParticleArgon>;
+using ParticleAluminiumVector = std::vector<ParticleAluminium>;
 
 #endif // !PARTICLE_HPP
