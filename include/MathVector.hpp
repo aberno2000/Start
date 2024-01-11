@@ -7,6 +7,7 @@
 #include <iostream>
 #include <random>
 #include <stdexcept>
+#include <type_traits>
 
 /**
  * Description of the mathematical vector. In the simplest case, a
@@ -106,7 +107,7 @@ public:
     /**
      * @brief Checks if vectors are parallel.
      * `a` is parallel to `b` if `a = k⋅b` or `b=k⋅a` for some scalar `k`.
-     * @brief `true` if vectors are parallel, otherwise `false`.
+     * @return `true` if vectors are parallel, otherwise `false`.
      */
     bool isParallel(MathVector const &other) const
     {
@@ -117,7 +118,7 @@ public:
     /**
      * @brief Checks if vectors are orthogonal.
      * `a` is orthogonal to `b` if their dot (scalar) product is equals to 0.
-     * @brief `true` if vectors are orthogonal, otherwise `false`.
+     * @return `true` if vectors are orthogonal, otherwise `false`.
      */
     bool isOrthogonal(MathVector const &other) const { return dotProduct(other) == 0; }
 
@@ -184,5 +185,43 @@ public:
 /* --> Aliases for human readability. <-- */
 using PositionVector = MathVector;
 using VelocityVector = MathVector;
+
+/**
+ * @brief Custom type trait to determine if a type is MathVector.
+ *
+ * Inherits from std::false_type by default, indicating that the default
+ * behavior for any type is not to be a MathVector.
+ *
+ * @tparam T The type to be checked.
+ */
+template <typename T>
+struct is_mathvector : std::false_type
+{
+};
+
+/**
+ * @brief Specialization of the is_mathvector for the MathVector type.
+ *
+ * This specialization changes the inheritance to std::true_type,
+ * specifically for the MathVector type. It effectively states that
+ * MathVector is indeed a 'mathvector' type, distinguishing it
+ * from other types.
+ */
+template <>
+struct is_mathvector<MathVector> : std::true_type
+{
+};
+
+/**
+ * @brief Variable template for checking if a type is MathVector.
+ *
+ * Provides a convenient shorthand for accessing the value member
+ * of the is_mathvector type trait. It simplifies the syntax needed
+ * to check if a type is MathVector.
+ *
+ * @tparam T The type to be checked.
+ */
+template <typename T>
+inline constexpr bool is_mathvector_v = is_mathvector<T>::value;
 
 #endif // !MATHVECTOR_HPP
