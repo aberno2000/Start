@@ -120,7 +120,6 @@ class ParticleAluminium final : public ParticleGeneric
 {
 private:
     static constexpr double radius{143e-12};
-    static constexpr double kdefault_max_boundary{10};
 
 public:
     ParticleAluminium() : ParticleGeneric() {}
