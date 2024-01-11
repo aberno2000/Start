@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "MathVector.hpp"
+#include "Mesh.hpp"
 #include "Settings.hpp"
 
 /// @brief Represents a particle in a simulation.
@@ -59,6 +60,21 @@ public:
      * @return `true` if the particle out of bounds, otherwise `false`.
      */
     bool isOutOfBounds(aabb::AABB const &bounding_volume) const;
+
+    /**
+     * @brief Checks if the particle is inside a specified triangle.
+     * @details This function determines whether the particle is inside the triangle
+     *          defined by the vertices in 'triangleVertices'. It uses a geometric
+     *          algorithm suitable for 3D space to check if the particle lies
+     *          within the boundaries of the triangle.
+     * @param mesh A tuple representing the vertices of the triangle.
+     *        Each vertex is a 'PositionVector' defining a point in 3D space.
+     * @return The ID of the triangle where the particle has settled, as indicated
+     *         by the first element of 'mesh', if the particle is inside the triangle.
+     *         Returns `-1` if the particle is not inside the triangle or if it does not
+     *         lie in the same plane as the triangle.
+     */
+    int isParticleInsideTriangle(TriangleMeshParam const &mesh) const;
 
     /* === Getters for particle params. === */
     constexpr double getX() const { return m_cords.getX(); }
@@ -140,33 +156,16 @@ public:
     // constexpr double getScattering() const override { return ...; }
 };
 
-/* ::: Concepts for particles defined with energy and with velocity components. ::: */
-template <typename T>
-concept ParticleConceptWithEnergy = std::tuple_size_v<T> == 4ul &&
-                                    std::is_floating_point_v<std::tuple_element_t<0, T>> &&
-                                    std::is_floating_point_v<std::tuple_element_t<1, T>> &&
-                                    std::is_floating_point_v<std::tuple_element_t<2, T>> &&
-                                    std::is_floating_point_v<std::tuple_element_t<3, T>>;
-template <typename T>
-concept ParticleConceptWithVelocities = std::tuple_size_v<T> == 7ul &&
-                                        std::is_floating_point_v<std::tuple_element_t<0, T>> &&
-                                        std::is_floating_point_v<std::tuple_element_t<1, T>> &&
-                                        std::is_floating_point_v<std::tuple_element_t<2, T>> &&
-                                        std::is_floating_point_v<std::tuple_element_t<3, T>> &&
-                                        std::is_floating_point_v<std::tuple_element_t<4, T>> &&
-                                        std::is_floating_point_v<std::tuple_element_t<5, T>> &&
-                                        std::is_floating_point_v<std::tuple_element_t<6, T>>;
-
 /// @brief x, y, z, Vx, Vy, Vz, radius
-using ParticleVectorWithVelocities = std::vector<std::tuple<double, double, double,
+using ParticleVectorWithVelocities = std::vector<std::tuple<PositionVector,
                                                             double, double, double,
                                                             double>>;
 /// @brief x, y, z, E, radius
-using ParticleVectorWithEnergy = std::vector<std::tuple<double, double, double,
+using ParticleVectorWithEnergy = std::vector<std::tuple<PositionVector,
                                                         double, double>>;
 /// @brief x, y, z, radius
-using ParticleVectorSimple = std::vector<std::tuple<double, double, double, double>>;
-using ParticleSimple = std::tuple<double, double, double, double>;
+using ParticleVectorSimple = std::vector<std::tuple<PositionVector, double>>;
+using ParticleSimple = std::tuple<PositionVector, double>;
 
 /* --> Aliases for many of specific kind particles. <-- */
 using ParticleGenericVector = std::vector<ParticleGeneric>;

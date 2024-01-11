@@ -114,6 +114,34 @@ bool ParticleGeneric::isOutOfBounds(aabb::AABB const &bounding_volume) const
           m_boundingBox.upperBound[2] >= bounding_volume.upperBound[2]);
 }
 
+int ParticleGeneric::isParticleInsideTriangle(TriangleMeshParam const &mesh) const
+{
+  PositionVector v0{std::get<2>(mesh) - std::get<1>(mesh)},
+      v1{std::get<3>(mesh) - std::get<1>(mesh)},
+      v2{m_cords - std::get<1>(mesh)};
+
+  PositionVector normal{v0.crossProduct(v1)};
+
+  // Check if the point lies on the same plane as the triangle
+  // 1e-6 - tolerance value
+  if (std::fabs(v2.dotProduct(normal)) > 1e-6)
+    return false;
+
+  double dot00{v0.dotProduct(v0)},
+      dot01{v0.dotProduct(v1)},
+      dot11{v1.dotProduct(v1)},
+      dot20{v2.dotProduct(v0)},
+      dot21{v2.dotProduct(v1)};
+
+  // Calculating barycentric coordinates
+  double denom{dot00 * dot11 - dot01 * dot01},
+      u{(dot11 * dot20 - dot01 * dot21) / denom},
+      v{(dot00 * dot21 - dot01 * dot20) / denom};
+
+  // Check if point is in triangle
+  return ((u >= 0) && (v >= 0) && (u + v <= 1)) ? std::get<0>(mesh) : -1;
+}
+
 void ParticleGeneric::colide(double xi, double phi, double p_mass, double t_mass)
 {
   double x{sin(xi) * cos(phi)},
