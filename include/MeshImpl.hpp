@@ -49,9 +49,9 @@ inline TriangleMeshParams Mesh::getMeshParams(std::string_view msh_filename)
             double s{(a + b + c) / 2},
                 dS{std::sqrt(s * (s - a) * (s - b) * (s - c))};
 
-            result.push_back(std::make_tuple(triangleId, xyz1[0], xyz1[1], xyz1[2],
-                                             xyz2[0], xyz2[1], xyz2[2],
-                                             xyz3[0], xyz3[1], xyz3[2], dS, 0));
+            result.emplace_back(std::make_tuple(triangleId, PositionVector(xyz1[0], xyz1[1], xyz1[2]),
+                                                PositionVector(xyz2[0], xyz2[1], xyz2[2]),
+                                                PositionVector(xyz3[0], xyz3[1], xyz3[2]), dS, 0));
             totalSurfaceArea += dS;
         }
 
