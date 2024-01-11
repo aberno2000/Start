@@ -6,9 +6,9 @@
 
 inline void Mesh::setMeshSize(double meshSizeFactor) { gmsh::option::setNumber("Mesh.MeshSizeFactor", meshSizeFactor); }
 
-inline TriangleMeshParams Mesh::getMeshParams(std::string_view msh_filename)
+inline TriangleMeshParamVector Mesh::getMeshParams(std::string_view msh_filename)
 {
-    TriangleMeshParams result;
+    TriangleMeshParamVector result;
     try
     {
         gmsh::open(msh_filename.data());

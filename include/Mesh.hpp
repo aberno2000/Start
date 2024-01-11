@@ -14,10 +14,14 @@
  * id,  x1,     y1,     z1,     x2,     y2,     z2,     x3,     y3,     z3,     dS,     counter.
  * `counter` is counter of settled objects on specific triangle (defines by its `id` field).
  */
-using TriangleMeshParams = std::vector<std::tuple<long unsigned int, PositionVector,
-                                                  PositionVector,
-                                                  PositionVector,
-                                                  double, int>>;
+using TriangleMeshParamVector = std::vector<std::tuple<long unsigned int, PositionVector,
+                                                       PositionVector,
+                                                       PositionVector,
+                                                       double, int>>;
+using TriangleMeshParam = std::tuple<long unsigned int, PositionVector,
+                                     PositionVector,
+                                     PositionVector,
+                                     double, int>;
 
 /// @brief Represents GMSH mesh.
 class Mesh
@@ -38,7 +42,7 @@ public:
      * @param msh_filename The filename of the Gmsh .msh file to parse.
      * @return TriangleMeshParams A vector containing information about each triangle in the mesh.
      */
-    static TriangleMeshParams getMeshParams(std::string_view msh_filename);
+    static TriangleMeshParamVector getMeshParams(std::string_view msh_filename);
 };
 
 #include "MeshImpl.hpp"
