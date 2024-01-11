@@ -5,7 +5,6 @@
 #include <string_view>
 
 #include "Mesh.hpp"
-#include "Particle.hpp"
 
 class HDF5Handler final
 {
@@ -16,7 +15,9 @@ public:
     explicit HDF5Handler(std::string_view filename);
     ~HDF5Handler();
 
-    void saveParticlesToHDF5(ParticleVector const &particles);
+    // !Maybe useless method!
+    // void saveParticlesToHDF5(ParticleVector const &particles);
+
     void saveMeshToHDF5(TriangleMeshParams const &triangles);
     TriangleMeshParams readMeshFromHDF5(std::string_view filename);
 };

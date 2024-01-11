@@ -1,5 +1,3 @@
-#include <string>
-
 #include "../include/HDF5Handler.hpp"
 
 HDF5Handler::HDF5Handler(std::string_view filename) : m_file_id(H5Fcreate(filename.data(),
@@ -8,33 +6,6 @@ HDF5Handler::HDF5Handler(std::string_view filename) : m_file_id(H5Fcreate(filena
                                                                           H5P_DEFAULT)) {}
 
 HDF5Handler::~HDF5Handler() { H5Fclose(m_file_id); }
-
-// TODO: !!!
-void HDF5Handler::saveParticlesToHDF5(ParticleVector const &particles)
-{
-    for (size_t id{}; id < particles.size(); ++id)
-    {
-        auto const &particle{particles[id]};
-
-        hid_t grp_id = H5Gcreate2(m_file_id, ("Particle_" + std::to_string(id)).c_str(),
-                                  H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-
-        double particleData[7] = {
-            particle.getX(), particle.y, particle.z,
-            particle.Vx, particle.Vy, particle.Vz,
-            particle.radius};
-
-        hsize_t dims[1] = {7};
-        hid_t dataspace = H5Screate_simple(1, dims, NULL);
-        hid_t dataset = H5Dcreate2(grp_id, "Data", H5T_NATIVE_DOUBLE, dataspace,
-                                   H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-        H5Dwrite(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, particleData);
-        H5Dclose(dataset);
-        H5Sclose(dataspace);
-
-        H5Gclose(grp_id);
-    }
-}
 
 void HDF5Handler::saveMeshToHDF5(TriangleMeshParams const &triangles)
 {
