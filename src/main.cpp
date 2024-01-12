@@ -67,10 +67,11 @@ ParticleGenericVector simulateMovement(ParticleGenericVector &pgs,
 int main(int argc, char *argv[])
 {
     gmsh::initialize();
-
     aabb::AABB bounding_box({0, 0, 0}, {100, 100, 100});
-    ParticleGenericVector pgs(createParticles(1'000)); // 1'000'000 for Intel(R) Core(TM) i5-5300U CPU @ 2.30GHz
-                                                       // is harmful if synchronize models in gmsh
+
+    int particles_count{100'000};
+    ParticleGenericVector pgs(createParticles(particles_count)); // 1'000'000 for Intel(R) Core(TM) i5-5300U CPU @ 2.30GHz
+                                                                 // is harmful if synchronize models in gmsh
 
     VolumeCreator::createBox();
     Mesh::setMeshSize(0.75);
@@ -79,14 +80,15 @@ int main(int argc, char *argv[])
 
     auto particles{truncateParticlesToXYZR(pgs)};
     VolumeCreator::createSpheres(std::span<ParticleSimple const>(particles.data(), particles.size()));
-    gmsh::model::occ::synchronize();
+    // gmsh::model::occ::synchronize();
 
     gmsh::write("results/mesh.msh");
     TriangleMeshParamVector mesh{Mesh::getMeshParams("results/mesh.msh")};
     HDF5Handler hdf5handler("results/mesh.hdf5");
     hdf5handler.saveMeshToHDF5(mesh);
 
-    ParticleGenericVector settled{simulateMovement(pgs, bounding_box, 0.1, 1.0)};
+    double simtime{1.0}, dt{0.1};
+    ParticleGenericVector settled{simulateMovement(pgs, bounding_box, dt, simtime)};
     std::unordered_map<long unsigned, int> triangleCounters;
     for (auto const &particle : settled)
     {
@@ -102,10 +104,16 @@ int main(int argc, char *argv[])
     }
     hdf5handler.updateParticleCounters(triangleCounters);
     TriangleMeshParamVector meshForSettled(hdf5handler.readMeshFromHDF5(std::get<0>(mesh[0])));
+    int totalSettledCount{};
     for (auto const &triangle : meshForSettled)
         if (std::get<5>(triangle) > 0)
-            std::cout << std::format("Triangle[{}] has {} particles\n", std::get<0>(triangle),
-                                     std::get<5>(triangle));
+        {
+            totalSettledCount += std::get<5>(triangle);
+            std::cout << std::format("{} particles settled on the triangle[{}]\n", std::get<5>(triangle),
+                                     std::get<0>(triangle));
+        }
+    std::cout << std::format("Count of particles: {}\nTotal count of settled particles: {}\nSimulation time: {} s\nTime step: {} s\n",
+                             particles_count, totalSettledCount, simtime, dt);
 
     bool ispopup{true};
     if (std::find(argv, argv + argc, std::string("-nopopup")) != argv + argc)
