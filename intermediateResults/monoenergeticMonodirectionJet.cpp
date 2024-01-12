@@ -43,7 +43,7 @@ int main()
     }
 
     RealNumberGenerator rng;
-    ParticlesAluminium p_Al(createParticles<ParticleAluminium>(3));
+    ParticleAluminiumVector p_Al(createParticles<ParticleAluminium>(3));
     ParticleArgon p_Ar;
 
     constexpr int frames{10};
