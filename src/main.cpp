@@ -92,10 +92,10 @@ int main(int argc, char *argv[])
     {
         for (auto const &triangle : mesh)
         {
-            if (particle.isParticleInsideTriangle(triangle) != -1)
+            if (int settledID{particle.isParticleInsideTriangle(triangle)}; settledID != -1)
             {
                 // Assume, that particle can settle only on one triangle of the mesh
-                triangleCounters[std::get<0>(triangle)]++;
+                triangleCounters[settledID]++;
                 break;
             }
         }
