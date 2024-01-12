@@ -122,6 +122,26 @@ public:
      */
     bool isOrthogonal(MathVector const &other) const { return dotProduct(other) == 0; }
 
+    /**
+     * @brief Calculates the area of a triangle given its three vertices.
+     * @details This function computes the area of a triangle in a 2D space using the vertices A, B, and C.
+     *          The formula used is the absolute value of half the determinant of a 2x2 matrix formed by
+     *          subtracting the coordinates of A from those of B and C. This method is efficient and
+     *          works well for triangles defined in a Cartesian coordinate system.
+     * @param A The first vertex of the triangle, represented as a PositionVector.
+     * @param B The second vertex of the triangle, represented as a PositionVector.
+     * @param C The third vertex of the triangle, represented as a PositionVector.
+     * @return The area of the triangle as a double value.
+     */
+    static double calculateTriangleArea(PositionVector const &A,
+                                        PositionVector const &B,
+                                        PositionVector const &C)
+    {
+        return std::fabs((B.getX() - A.getX()) * (C.getY() - A.getY()) -
+                         (B.getY() - A.getY()) * (C.getX() - A.getX())) /
+               2.0;
+    }
+
     /// @brief Overload of unary minus. Negates all components of vector.
     MathVector operator-() { return MathVector(-x, -y, -z); }
 
