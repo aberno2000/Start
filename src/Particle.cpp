@@ -116,30 +116,25 @@ bool ParticleGeneric::isOutOfBounds(aabb::AABB const &bounding_volume) const
 
 int ParticleGeneric::isParticleInsideTriangle(TriangleMeshParam const &mesh) const
 {
-  PositionVector v0{std::get<2>(mesh) - std::get<1>(mesh)},
-      v1{std::get<3>(mesh) - std::get<1>(mesh)},
-      v2{m_cords - std::get<1>(mesh)};
+  PositionVector A{std::get<1>(mesh).getX(),
+                   std::get<1>(mesh).getY(),
+                   std::get<1>(mesh).getZ()},
+      B{std::get<2>(mesh).getX(),
+        std::get<2>(mesh).getY(),
+        std::get<2>(mesh).getZ()},
+      C{std::get<3>(mesh).getX(),
+        std::get<3>(mesh).getY(),
+        std::get<3>(mesh).getZ()};
 
-  PositionVector normal{v0.crossProduct(v1)};
+  double areaABC{std::get<4>(mesh)},
+      areaPAB{PositionVector::calculateTriangleArea(m_cords, A, B)},
+      areaPAC{PositionVector::calculateTriangleArea(m_cords, A, C)},
+      areaPBC{PositionVector::calculateTriangleArea(m_cords, B, C)};
 
-  // Check if the point lies on the same plane as the triangle
-  // 1e-6 - tolerance value
-  if (std::fabs(v2.dotProduct(normal)) > 1e-6)
-    return false;
-
-  double dot00{v0.dotProduct(v0)},
-      dot01{v0.dotProduct(v1)},
-      dot11{v1.dotProduct(v1)},
-      dot20{v2.dotProduct(v0)},
-      dot21{v2.dotProduct(v1)};
-
-  // Calculating barycentric coordinates
-  double denom{dot00 * dot11 - dot01 * dot01},
-      u{(dot11 * dot20 - dot01 * dot21) / denom},
-      v{(dot00 * dot21 - dot01 * dot20) / denom};
-
-  // Check if point is in triangle
-  return ((u >= 0) && (v >= 0) && (u + v <= 1)) ? std::get<0>(mesh) : -1;
+  // Check if sum of areas of sub-triangles equals the area of the full triangle
+  return (std::fabs(areaPAB + areaPAC + areaPBC - areaABC) < 1e-9)
+             ? std::get<0>(mesh)
+             : -1;
 }
 
 void ParticleGeneric::colide(double xi, double phi, double p_mass, double t_mass)
