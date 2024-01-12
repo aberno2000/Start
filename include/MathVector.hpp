@@ -128,14 +128,14 @@ public:
      *          The formula used is the absolute value of half the determinant of a 2x2 matrix formed by
      *          subtracting the coordinates of A from those of B and C. This method is efficient and
      *          works well for triangles defined in a Cartesian coordinate system.
-     * @param A The first vertex of the triangle, represented as a PositionVector.
-     * @param B The second vertex of the triangle, represented as a PositionVector.
-     * @param C The third vertex of the triangle, represented as a PositionVector.
+     * @param A The first vertex of the triangle, represented as a MathVector.
+     * @param B The second vertex of the triangle, represented as a MathVector.
+     * @param C The third vertex of the triangle, represented as a MathVector.
      * @return The area of the triangle as a double value.
      */
-    static double calculateTriangleArea(PositionVector const &A,
-                                        PositionVector const &B,
-                                        PositionVector const &C)
+    static double calculateTriangleArea(MathVector const &A,
+                                        MathVector const &B,
+                                        MathVector const &C)
     {
         return std::fabs((B.getX() - A.getX()) * (C.getY() - A.getY()) -
                          (B.getY() - A.getY()) * (C.getX() - A.getX())) /
