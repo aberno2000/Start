@@ -9,23 +9,23 @@ HDF5Handler::HDF5Handler(std::string_view filename) : m_file_id(H5Fcreate(filena
 
 HDF5Handler::~HDF5Handler() { H5Fclose(m_file_id); }
 
-void HDF5Handler::updateParticleCounters(std::unordered_map<long unsigned, int> const &triangleCounters)
+void HDF5Handler::updateParticleCounters(std::unordered_map<unsigned long, int> const &triangleCounters)
 {
-    for (auto const &[triangleID, count] : triangleCounters)
+    for (auto const &[id, count] : triangleCounters)
     {
-        std::string groupName("Triangle_" + std::to_string(triangleID));
+        std::string groupName("Triangle_" + std::to_string(id));
         hid_t grp_id{H5Gopen2(m_file_id, groupName.c_str(), H5P_DEFAULT)};
         if (grp_id < 0)
             throw std::runtime_error("Failed to open group: " + groupName);
 
-        hid_t dataset = H5Dopen2(grp_id, "Counter", H5P_DEFAULT);
+        hid_t dataset{H5Dopen2(grp_id, "Counter", H5P_DEFAULT)};
         if (dataset < 0)
         {
             H5Gclose(grp_id);
             throw std::runtime_error("Failed to open dataset 'Counter' in group: " + groupName);
         }
 
-        if (H5Dwrite(dataset, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, &count) < 0)
+        if (H5Dwrite(dataset, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, std::addressof(count)) < 0)
         {
             H5Dclose(dataset);
             H5Gclose(grp_id);
@@ -106,8 +106,13 @@ void HDF5Handler::saveMeshToHDF5(TriangleMeshParamVector const &triangles)
             H5Gclose(grp_id);
             throw std::runtime_error("Failed to create dataset 'Counter' in group: " + groupName);
         }
-        int zeroBuf{};
-        H5Dwrite(dataset, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, std::addressof(zeroBuf));
+        int count{};
+        if (H5Dwrite(dataset, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, std::addressof(count)) < 0)
+        {
+            H5Dclose(dataset);
+            H5Gclose(grp_id);
+            throw std::runtime_error("Failed to write to dataset 'Counter' in group: " + groupName);
+        }
         H5Dclose(dataset);
         H5Sclose(dataspace);
 
@@ -150,20 +155,20 @@ TriangleMeshParamVector HDF5Handler::readMeshFromHDF5(long unsigned firstObjectI
         H5Dread(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, std::addressof(area));
         H5Dclose(dataset);
 
-        int counter{};
+        int count{};
         dataset = H5Dopen2(grp_id, "Counter", H5P_DEFAULT);
         if (dataset < 0)
         {
             H5Gclose(grp_id);
             throw std::runtime_error("Failed to open dataset 'Counter' in group: " + groupName);
         }
-        H5Dread(dataset, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, std::addressof(counter));
+        H5Dread(dataset, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, std::addressof(count));
         H5Dclose(dataset);
 
         mesh.emplace_back(std::make_tuple(i, PositionVector{coordinates[0], coordinates[1], coordinates[2]},
                                           PositionVector{coordinates[3], coordinates[4], coordinates[5]},
                                           PositionVector{coordinates[6], coordinates[7], coordinates[8]},
-                                          area, counter));
+                                          area, count));
 
         H5Gclose(grp_id);
     }

@@ -38,7 +38,7 @@ public:
      * @throws `std::runtime_error` if it fails to open a group or dataset within the HDF5 file,
      *         or if writing to the dataset fails.
      */
-    void updateParticleCounters(std::unordered_map<long unsigned, int> const &triangleCounters);
+    void updateParticleCounters(std::unordered_map<unsigned long, int> const &triangleCounters);
 
     /**
      * @brief Saves mesh data to the HDF5 file.
