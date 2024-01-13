@@ -90,6 +90,10 @@ void ParticleGeneric::updatePosition(double dt)
   m_cords.setXYZ(getX() + getVx() * dt,
                  getY() + getVy() * dt,
                  getZ() + getVz() * dt);
+
+  // Update the bounding box to the new position
+  m_boundingBox = aabb::AABB({m_cords.getX() - m_radius, m_cords.getY() - m_radius, m_cords.getZ() - m_radius},
+                             {m_cords.getX() + m_radius, m_cords.getY() + m_radius, m_cords.getZ() + m_radius});
 }
 
 bool ParticleGeneric::overlaps(ParticleGeneric const &other) const
