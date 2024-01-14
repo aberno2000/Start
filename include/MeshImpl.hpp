@@ -4,6 +4,8 @@
 #include <gmsh.h>
 #include <iostream>
 
+#include "RaySurfaceIntersectionTracker.hpp"
+
 inline void Mesh::setMeshSize(double meshSizeFactor) { gmsh::option::setNumber("Mesh.MeshSizeFactor", meshSizeFactor); }
 
 inline TriangleMeshParamVector Mesh::getMeshParams(std::string_view msh_filename)
@@ -32,7 +34,6 @@ inline TriangleMeshParamVector Mesh::getMeshParams(std::string_view msh_filename
         for (size_t i{}; i < nodeTagsByEl.size(); i += 3)
             nodeTagsPerEl.push_back({nodeTagsByEl[i], nodeTagsByEl[i + 1], nodeTagsByEl[i + 2]});
 
-        double totalSurfaceArea{};
         for (size_t i{}; i < elTags.size(); ++i)
         {
             size_t triangleId{elTags[i]};
@@ -52,7 +53,6 @@ inline TriangleMeshParamVector Mesh::getMeshParams(std::string_view msh_filename
             result.emplace_back(std::make_tuple(triangleId, PositionVector(xyz1[0], xyz1[1], xyz1[2]),
                                                 PositionVector(xyz2[0], xyz2[1], xyz2[2]),
                                                 PositionVector(xyz3[0], xyz3[1], xyz3[2]), dS, 0));
-            totalSurfaceArea += dS;
         }
 
         return result;
@@ -67,6 +67,34 @@ inline TriangleMeshParamVector Mesh::getMeshParams(std::string_view msh_filename
     }
 
     return result;
+}
+
+inline size_t Mesh::intersectLineTriangle(PositionVector const &prevPointPosition,
+                                          PositionVector const &nextPointPosition,
+                                          TriangleMeshParam const &triangle)
+{
+    Point3 start{prevPointPosition.getX(), prevPointPosition.getY(), prevPointPosition.getZ()},
+        end{nextPointPosition.getX(), nextPointPosition.getY(), nextPointPosition.getZ()};
+    Ray3 ray{start, end - start};
+
+    PositionVector const &A{std::get<1>(triangle)},
+        &B{std::get<2>(triangle)},
+        &C{std::get<3>(triangle)};
+    Point3 vertexA{A.getX(), A.getY(), A.getZ()},
+        vertexB{B.getX(), B.getY(), B.getZ()},
+        vertexC{C.getX(), C.getY(), C.getZ()};
+
+    Triangle3 cgal_triangle{vertexA, vertexB, vertexC};
+    std::vector<Triangle3> cgal_triangles{{cgal_triangle}};
+    RaySurfaceIntersectionTracker tracker(cgal_triangles);
+
+    // Return the triangle ID if an intersection occurs
+    auto intersection{tracker.trackIntersection(ray)};
+    if (intersection)
+        return std::get<0>(triangle);
+
+    // Return max value of size_t if no intersection
+    return std::numeric_limits<size_t>::max();
 }
 
 #endif // !MESHIMPL_HPP
