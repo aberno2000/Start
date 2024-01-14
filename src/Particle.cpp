@@ -1,12 +1,10 @@
 #ifdef LOG
-#include "../include/Settings.hpp"
 #include <format>
 #endif
 
 #include <utility>
 
 #include "../include/Particle.hpp"
-#include "../include/RealNumberGenerator.hpp"
 #include "../include/Settings.hpp"
 
 void ParticleGeneric::calculateVelocityFromEnergy_J()
@@ -154,6 +152,6 @@ void ParticleGeneric::colide(double xi, double phi, double p_mass, double t_mass
       new_vel(dir_vec * (mass_ct * m_velocity.module()));
 
   // Updating velocity vector of the current particle after collision
-  // Updated velocity = [directory vector ⋅ (mass_ct ⋅ |old velocity|)] + (old velocity * mass_cp)
+  // Updated velocity = [directory vector ⋅ (mass_ct ⋅ |old velocity|)] + (old velocity ⋅ mass_cp)
   m_velocity = new_vel + cm_vel;
 }

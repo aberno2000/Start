@@ -172,4 +172,60 @@ using ParticleGenericVector = std::vector<ParticleGeneric>;
 using ParticleArgonVector = std::vector<ParticleArgon>;
 using ParticleAluminiumVector = std::vector<ParticleAluminium>;
 
+/**
+ * @brief Generates a vector of particles with specified velocity ranges.
+ * 
+ * @tparam T The type of particle to generate. It can be a specific particle type (e.g., ParticleArgon)
+ *           or a generic particle type.
+ * @param count The number of particles to generate.
+ * @param minx Minimum x-coordinate for the particle's initial position.
+ * @param miny Minimum y-coordinate for the particle's initial position.
+ * @param minz Minimum z-coordinate for the particle's initial position.
+ * @param maxx Maximum x-coordinate for the particle's initial position.
+ * @param maxy Maximum y-coordinate for the particle's initial position.
+ * @param maxz Maximum z-coordinate for the particle's initial position.
+ * @param minvx Minimum x-component of the particle's velocity.
+ * @param minvy Minimum y-component of the particle's velocity.
+ * @param minvz Minimum z-component of the particle's velocity.
+ * @param maxvx Maximum x-component of the particle's velocity.
+ * @param maxvy Maximum y-component of the particle's velocity.
+ * @param maxvz Maximum z-component of the particle's velocity.
+ * @param minradius Minimum radius for generic particles (ignored for specific particle types).
+ * @param maxradius Maximum radius for generic particles (ignored for specific particle types).
+ * @return std::vector<T> A vector of generated particles.
+ */
+template <typename T>
+std::vector<T> createParticlesWithVelocities(size_t count, double minx = 0.0, double miny = 0.0, double minz = 0.0,
+                                             double maxx = 100.0, double maxy = 100.0, double maxz = 100.0,
+                                             double minvx = 10.0, double minvy = 10.0, double minvz = 10.0,
+                                             double maxvx = 20.0, double maxvy = 20.0, double maxvz = 20.0,
+                                             double minradius = 1.0, double maxradius = 5.0);
+
+/**
+ * @brief Creates a vector of particles with specified properties.
+ * @details This template function generates a list of particles of type T. 
+ *          The particles are initialized with random positions (x, y, z), energy, and radius.
+ *          For ParticleArgon and ParticleAluminium, a predefined radius is used.
+ * @tparam T The particle type (e.g., ParticleArgon, ParticleAluminium).
+ * @param count The number of particles to generate.
+ * @param minx The minimum x-coordinate for particle position (default: 0.0).
+ * @param miny The minimum y-coordinate for particle position (default: 0.0).
+ * @param minz The minimum z-coordinate for particle position (default: 0.0).
+ * @param maxx The maximum x-coordinate for particle position (default: 100.0).
+ * @param maxy The maximum y-coordinate for particle position (default: 100.0).
+ * @param maxz The maximum z-coordinate for particle position (default: 100.0).
+ * @param minenergy The minimum energy value for a particle (default: 30.0).
+ * @param maxenergy The maximum energy value for a particle (default: 50.0).
+ * @param minradius The minimum radius for a particle (default: 1.0).
+ * @param maxradius The maximum radius for a particle (default: 5.0).
+ * @return std::vector<T> A vector containing the generated particles.
+ */
+template <typename T>
+std::vector<T> createParticlesWithEnergy(size_t count, double minx = 0.0, double miny = 0.0, double minz = 0.0,
+                                         double maxx = 100.0, double maxy = 100.0, double maxz = 100.0,
+                                         double minenergy = 30.0, double maxenergy = 50.0,
+                                         double minradius = 1.0, double maxradius = 5.0);
+
+#include "ParticleImpl.hpp"
+
 #endif // !PARTICLE_HPP
