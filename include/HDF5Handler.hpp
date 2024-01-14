@@ -8,6 +8,57 @@
 #include "Mesh.hpp"
 
 /**
+ * @brief RAII wrapper class for managing HDF5 resources.
+ *
+ * HDF5Resource is a utility class that encapsulates an HDF5 resource handle (such as a dataset or group handle),
+ * ensuring that the resource is properly released when the HDF5Resource object goes out of scope.
+ * This class follows the RAII (Resource Acquisition Is Initialization) pattern, which is crucial for
+ * resource management in C++.
+ */
+class HDF5Resource
+{
+private:
+    hid_t m_resource; // Handle to an HDF5 resource (e.g., dataset or group).
+
+public:
+    /**
+     * @brief Constructor that takes an HDF5 resource handle.
+     * @param resource The HDF5 resource handle to be managed.
+     */
+    HDF5Resource(hid_t resource);
+
+    /**
+     * @brief Destructor that releases the HDF5 resource.
+     * @details This destructor ensures that the HDF5 resource is properly closed
+     *          when the HDF5Resource object is destroyed.
+     */
+    ~HDF5Resource();
+
+    // Deleted copy constructor and assignment operator to prevent copying.
+    HDF5Resource(const HDF5Resource &) = delete;
+    HDF5Resource &operator=(const HDF5Resource &) = delete;
+
+    // Move constructor and move assignment operator for transfer of ownership.
+    HDF5Resource(HDF5Resource &&other) noexcept;
+
+    HDF5Resource &operator=(HDF5Resource &&other) noexcept;
+
+    /**
+     * @brief Returns the managed HDF5 resource handle.
+     * @return The HDF5 resource handle.
+     */
+    hid_t get() const;
+
+    /**
+     * @brief Closes the managed HDF5 resource if it is valid.
+     *
+     * This method can be called to explicitly close the HDF5 resource
+     * before the HDF5Resource object is destroyed.
+     */
+    void close();
+};
+
+/**
  * @brief Handles operations related to HDF5 files for storing and managing mesh data.
  * @details This class provides functionalities to create, read, and update data in
  *          an HDF5 file. It is specifically designed to handle mesh data, including
@@ -17,6 +68,14 @@ class HDF5Handler final
 {
 private:
     hid_t m_file_id;
+    size_t m_IDofFirstTriangle{};
+
+    /* +++ Helper methods that throws exceptions if smth goes wrong. +++ */
+    hid_t openGroup(std::string_view groupName) const;
+    hid_t createDataSet(hid_t grp_id, std::string_view dataSetName, hid_t dataType, hsize_t *dims, int rank) const;
+    void writeDataSet(hid_t dataset, hid_t dataType, void const *data, std::string_view dataSetName) const;
+    void readDataSet(hid_t dataset, hid_t dataType, void *data, std::string_view dataSetName) const;
+    void closeHDF5Resource(hid_t resource) const;
 
 public:
     /**
@@ -54,7 +113,6 @@ public:
 
     /**
      * @brief Reads mesh data from the HDF5 file starting from a specified object ID.
-     * @param firstObjectID The ID of the first object in the HDF5 file to start reading from.
      * @return A vector of tuples representing the mesh's triangles, with each tuple containing
      *         the triangle's ID, vertices, area, and particle counter.
      * @details This method reads the HDF5 file and constructs a vector of tuples, each representing a
@@ -62,7 +120,7 @@ public:
      *          from the HDF5 file, starting from the triangle with ID `firstObjectID`.
      * @throws `std::runtime_error` if it fails to open a group or dataset within the HDF5 file.
      */
-    TriangleMeshParamVector readMeshFromHDF5(size_t firstObjectID);
+    TriangleMeshParamVector readMeshFromHDF5();
 };
 
 #endif // !HDF5HANDLER_HPP
