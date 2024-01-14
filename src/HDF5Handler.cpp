@@ -41,99 +41,95 @@ void HDF5Handler::saveMeshToHDF5(TriangleMeshParamVector const &triangles)
 {
     for (auto const &triangle : triangles)
     {
-        // Creating a group for each triangle using the triangle ID as the group name
         auto id{std::get<0>(triangle)};
         std::string groupName("Triangle_" + std::to_string(id));
         hid_t grp_id{H5Gcreate2(m_file_id, groupName.c_str(), H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT)};
         if (grp_id < 0)
+        {
             throw std::runtime_error("Failed to create group: " + groupName);
+        }
 
-        // Store data related to the triangle in the group
         double coordinates[9] = {
             std::get<1>(triangle).getX(), std::get<1>(triangle).getY(), std::get<1>(triangle).getZ(),
             std::get<2>(triangle).getX(), std::get<2>(triangle).getY(), std::get<2>(triangle).getZ(),
             std::get<3>(triangle).getX(), std::get<3>(triangle).getY(), std::get<3>(triangle).getZ()};
 
         hsize_t dims[1] = {9};
-        hid_t dataspace{H5Screate_simple(1, dims, NULL)},
-            dataset{H5Dcreate2(grp_id, "Coordinates", H5T_NATIVE_DOUBLE, dataspace,
-                               H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT)};
-        if (dataspace < 0)
+        hid_t dataspace{H5Screate_simple(1, dims, nullptr)},
+            dataset{H5Dcreate2(grp_id, "Coordinates", H5T_NATIVE_DOUBLE, dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT)};
+        if (dataspace < 0 || dataset < 0)
         {
             H5Gclose(grp_id);
-            throw std::runtime_error("Failed to create dataspace 'Coordinates' in group: " + groupName);
+            throw std::runtime_error("Failed to create dataspace or dataset 'Coordinates' in group: " + groupName);
         }
-        if (dataset < 0)
+        if (H5Dwrite(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, coordinates) < 0)
         {
-            H5Dclose(dataspace);
+            H5Dclose(dataset);
+            H5Sclose(dataspace);
             H5Gclose(grp_id);
-            throw std::runtime_error("Failed to create dataset 'Coordinates' in group: " + groupName);
+            throw std::runtime_error("Failed to write to dataset 'Coordinates' in group: " + groupName);
         }
-        H5Dwrite(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, coordinates);
         H5Dclose(dataset);
         H5Sclose(dataspace);
 
         double area{std::get<4>(triangle)};
         dataspace = H5Screate(H5S_SCALAR);
-        if (dataspace < 0)
+        dataset = H5Dcreate2(grp_id, "Area", H5T_NATIVE_DOUBLE, dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+        if (dataspace < 0 || dataset < 0)
         {
             H5Gclose(grp_id);
-            throw std::runtime_error("Failed to create dataspace 'Area' in group: " + groupName);
+            throw std::runtime_error("Failed to create dataspace or dataset 'Area' in group: " + groupName);
         }
-        dataset = H5Dcreate2(grp_id, "Area", H5T_NATIVE_DOUBLE, dataspace,
-                             H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-        if (dataset < 0)
+        if (H5Dwrite(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &area) < 0)
         {
-            H5Dclose(dataspace);
+            H5Dclose(dataset);
+            H5Sclose(dataspace);
             H5Gclose(grp_id);
-            throw std::runtime_error("Failed to create dataset 'Area' in group: " + groupName);
+            throw std::runtime_error("Failed to write to dataset 'Area' in group: " + groupName);
         }
-        H5Dwrite(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, std::addressof(area));
         H5Dclose(dataset);
         H5Sclose(dataspace);
 
-        dataspace = H5Screate(H5S_SCALAR);
-        if (dataspace < 0)
-        {
-            H5Gclose(grp_id);
-            throw std::runtime_error("Failed to create dataspace 'Counter' in group: " + groupName);
-        }
-        dataset = H5Dcreate2(grp_id, "Counter", H5T_NATIVE_INT, dataspace,
-                             H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-        if (dataset < 0)
-        {
-            H5Dclose(dataspace);
-            H5Gclose(grp_id);
-            throw std::runtime_error("Failed to create dataset 'Counter' in group: " + groupName);
-        }
         int count{};
-        if (H5Dwrite(dataset, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, std::addressof(count)) < 0)
+        dataspace = H5Screate(H5S_SCALAR);
+        dataset = H5Dcreate2(grp_id, "Counter", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+        if (dataspace < 0 || dataset < 0)
+        {
+            H5Gclose(grp_id);
+            throw std::runtime_error("Failed to create dataspace or dataset 'Counter' in group: " + groupName);
+        }
+        if (H5Dwrite(dataset, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, &count) < 0)
         {
             H5Dclose(dataset);
+            H5Sclose(dataspace);
             H5Gclose(grp_id);
             throw std::runtime_error("Failed to write to dataset 'Counter' in group: " + groupName);
         }
         H5Dclose(dataset);
         H5Sclose(dataspace);
-
         H5Gclose(grp_id);
     }
 }
 
-TriangleMeshParamVector HDF5Handler::readMeshFromHDF5(long unsigned firstObjectID)
+inline TriangleMeshParamVector HDF5Handler::readMeshFromHDF5(size_t firstObjectID)
 {
     TriangleMeshParamVector mesh;
 
     hid_t grp_id{}, dataset{};
     hsize_t num_objs{};
-    H5Gget_num_objs(m_file_id, std::addressof(num_objs));
+    if (H5Gget_num_objs(m_file_id, &num_objs) < 0)
+    {
+        throw std::runtime_error("Failed to get the number of objects in the HDF5 file.");
+    }
 
     for (hsize_t i{firstObjectID}; i < num_objs; ++i)
     {
         std::string groupName("Triangle_" + std::to_string(i));
         grp_id = H5Gopen2(m_file_id, groupName.c_str(), H5P_DEFAULT);
         if (grp_id < 0)
+        {
             throw std::runtime_error("Failed to open group: " + groupName);
+        }
 
         double coordinates[9]{};
         dataset = H5Dopen2(grp_id, "Coordinates", H5P_DEFAULT);
@@ -142,7 +138,12 @@ TriangleMeshParamVector HDF5Handler::readMeshFromHDF5(long unsigned firstObjectI
             H5Gclose(grp_id);
             throw std::runtime_error("Failed to open dataset 'Coordinates' in group: " + groupName);
         }
-        H5Dread(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, coordinates);
+        if (H5Dread(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, coordinates) < 0)
+        {
+            H5Dclose(dataset);
+            H5Gclose(grp_id);
+            throw std::runtime_error("Failed to read dataset 'Coordinates' in group: " + groupName);
+        }
         H5Dclose(dataset);
 
         double area{};
@@ -152,7 +153,12 @@ TriangleMeshParamVector HDF5Handler::readMeshFromHDF5(long unsigned firstObjectI
             H5Gclose(grp_id);
             throw std::runtime_error("Failed to open dataset 'Area' in group: " + groupName);
         }
-        H5Dread(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, std::addressof(area));
+        if (H5Dread(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &area) < 0)
+        {
+            H5Dclose(dataset);
+            H5Gclose(grp_id);
+            throw std::runtime_error("Failed to read dataset 'Area' in group: " + groupName);
+        }
         H5Dclose(dataset);
 
         int count{};
@@ -162,14 +168,13 @@ TriangleMeshParamVector HDF5Handler::readMeshFromHDF5(long unsigned firstObjectI
             H5Gclose(grp_id);
             throw std::runtime_error("Failed to open dataset 'Counter' in group: " + groupName);
         }
-        H5Dread(dataset, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, std::addressof(count));
+        if (H5Dread(dataset, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, &count) < 0)
+        {
+            H5Dclose(dataset);
+            H5Gclose(grp_id);
+            throw std::runtime_error("Failed to read dataset 'Counter' in group: " + groupName);
+        }
         H5Dclose(dataset);
-
-        mesh.emplace_back(std::make_tuple(i, PositionVector{coordinates[0], coordinates[1], coordinates[2]},
-                                          PositionVector{coordinates[3], coordinates[4], coordinates[5]},
-                                          PositionVector{coordinates[6], coordinates[7], coordinates[8]},
-                                          area, count));
-
         H5Gclose(grp_id);
     }
 

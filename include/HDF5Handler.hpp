@@ -38,7 +38,7 @@ public:
      * @throws `std::runtime_error` if it fails to open a group or dataset within the HDF5 file,
      *         or if writing to the dataset fails.
      */
-    void updateParticleCounters(std::unordered_map<unsigned long, int> const &triangleCounters);
+    void updateParticleCounters(std::unordered_map<size_t, int> const &triangleCounters);
 
     /**
      * @brief Saves mesh data to the HDF5 file.
@@ -62,7 +62,7 @@ public:
      *          from the HDF5 file, starting from the triangle with ID `firstObjectID`.
      * @throws `std::runtime_error` if it fails to open a group or dataset within the HDF5 file.
      */
-    TriangleMeshParamVector readMeshFromHDF5(long unsigned firstObjectID);
+    TriangleMeshParamVector readMeshFromHDF5(size_t firstObjectID);
 };
 
 #endif // !HDF5HANDLER_HPP
