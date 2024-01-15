@@ -12,15 +12,15 @@ inline int VolumeCreator::createSphere(double x, double y, double z, double r)
 }
 
 inline int VolumeCreator::createCylinder(double x, double y, double z,
-                                  double dx, double dy, double dz,
-                                  double r, int tag, double angle)
+                                         double dx, double dy, double dz,
+                                         double r, int tag, double angle)
 {
     return gmsh::model::occ::addCylinder(x, y, z, dx, dy, dz, r, tag, angle);
 }
 
 inline int VolumeCreator::createCone(double x, double y, double z,
-                              double dx, double dy, double dz,
-                              double r1, double r2, int tag, double angle)
+                                     double dx, double dy, double dz,
+                                     double r1, double r2, int tag, double angle)
 {
     return gmsh::model::occ::addCone(x, y, z, dx, dy, dz, r1, r2, tag, angle);
 }
@@ -42,6 +42,7 @@ inline std::vector<int> VolumeCreator::createSpheres(SphereSpan spheres)
 void GMSHVolumeCreator::createBoxAndMesh(double meshSize, int meshDim, std::string_view outputPath,
                                          double x, double y, double z, double dx, double dy, double dz)
 {
+    m_bounding_volume = aabb::AABB({x, y, z}, {dx, dy, dz});
     VolumeCreator::createBox(x, y, z, dx, dy, dz);
     Mesh::setMeshSize(meshSize);
     gmsh::model::occ::synchronize();
@@ -52,6 +53,7 @@ void GMSHVolumeCreator::createBoxAndMesh(double meshSize, int meshDim, std::stri
 void GMSHVolumeCreator::createSphereAndMesh(double meshSize, int meshDim, std::string_view outputPath,
                                             double x, double y, double z, double r)
 {
+    m_bounding_volume = aabb::AABB({x - r, y - r, z - r}, {x + r, y + r, z + r});
     VolumeCreator::createSphere(x, y, z, r);
     Mesh::setMeshSize(meshSize);
     gmsh::model::occ::synchronize();
@@ -74,6 +76,7 @@ void GMSHVolumeCreator::createCylinderAndMesh(double meshSize, int meshDim, std:
                                               double dx, double dy, double dz, double r,
                                               int tag, double angle)
 {
+    m_bounding_volume = aabb::AABB({x, y, z}, {dx, dy, dz});
     VolumeCreator::createCylinder(x, y, z, dx, dy, dz, r, tag, angle);
     Mesh::setMeshSize(meshSize);
     gmsh::model::occ::synchronize();
@@ -86,6 +89,17 @@ void GMSHVolumeCreator::createConeAndMesh(double meshSize, int meshDim, std::str
                                           double dx, double dy, double dz,
                                           double r1, double r2, int tag, double angle)
 {
+    // Calculate the height of the cone
+    double height{std::sqrt(dx * dx + dy * dy + dz * dz)};
+    double minX{x - std::max(r1, r2)},
+        maxX{x + std::max(r1, r2)},
+        minY{y - std::max(r1, r2)},
+        maxY{y + std::max(r1, r2)},
+        minZ{std::min(z, z + height)},
+        maxZ{std::max(z, z + height)};
+
+    m_bounding_volume = aabb::AABB({minX, minY, minZ}, {maxX, maxY, maxZ});
+
     VolumeCreator::createCone(x, y, z, dx, dy, dz, r1, r2, tag, angle);
     Mesh::setMeshSize(meshSize);
     gmsh::model::occ::synchronize();

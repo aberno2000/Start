@@ -1,6 +1,7 @@
 #ifndef VOLUMECREATOR_HPP
 #define VOLUMECREATOR_HPP
 
+#include <aabb/AABB.h>
 #include <concepts>
 #include <numbers>
 #include <span>
@@ -226,7 +227,8 @@ private:
         GMSHandler &operator=(GMSHandler &&) noexcept = delete;
     };
 
-    GMSHandler m_handler; // RAII handler for GMSH
+    GMSHandler m_handler;         // RAII handler for GMSH
+    aabb::AABB m_bounding_volume; // Bounding volume of last created object
 
 public:
     GMSHVolumeCreator() {}
@@ -280,6 +282,9 @@ public:
      * @param argv A constant pointer to a character array, representing the command-line arguments.
      */
     void runGmsh(int argc, char *argv[]);
+
+    /* === Getter for bounding volume. === */
+    constexpr aabb::AABB const &getBoundingVolume() const { return m_bounding_volume; }
 };
 
 #include "VolumeCreatorImpl.hpp"
