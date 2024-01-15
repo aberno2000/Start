@@ -4,7 +4,7 @@
 #include <gmsh.h>
 #include <iostream>
 
-#include "RaySurfaceIntersectionTracker.hpp"
+#include "RayTriangleIntersectionTracker.hpp"
 
 inline void Mesh::setMeshSize(double meshSizeFactor) { gmsh::option::setNumber("Mesh.MeshSizeFactor", meshSizeFactor); }
 
@@ -72,7 +72,7 @@ inline size_t Mesh::intersectLineTriangle(PositionVector const &prevPointPositio
 {
     Point3 start{prevPointPosition.getX(), prevPointPosition.getY(), prevPointPosition.getZ()},
         end{nextPointPosition.getX(), nextPointPosition.getY(), nextPointPosition.getZ()};
-    Ray3 ray{start, end - start};
+    Ray3 ray{start, end};
 
     PositionVector const &A{std::get<1>(triangle)},
         &B{std::get<2>(triangle)},
@@ -81,13 +81,10 @@ inline size_t Mesh::intersectLineTriangle(PositionVector const &prevPointPositio
         vertexB{B.getX(), B.getY(), B.getZ()},
         vertexC{C.getX(), C.getY(), C.getZ()};
 
-    Triangle3 cgal_triangle{vertexA, vertexB, vertexC};
-    std::vector<Triangle3> cgal_triangles{{cgal_triangle}};
-    RaySurfaceIntersectionTracker tracker(cgal_triangles);
+    RayTriangleIntersectionTracker tracker;
+    tracker.setTriangle(vertexA, vertexB, vertexC);
 
-    // Return the triangle ID if an intersection occurs
-    auto intersection{tracker.trackIntersection(ray)};
-    if (intersection)
+    if (tracker.isIntersect(ray))
         return std::get<0>(triangle);
 
     // Return max value of size_t if no intersection
