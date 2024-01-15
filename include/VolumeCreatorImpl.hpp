@@ -1,32 +1,31 @@
 #ifndef VOLUMECREATORIMPL_HPP
 #define VOLUMECREATORIMPL_HPP
 
-int VolumeCreator::createBox(double x, double y, double z, double dx, double dy, double dz)
+inline int VolumeCreator::createBox(double x, double y, double z, double dx, double dy, double dz)
 {
     return gmsh::model::occ::addBox(x, y, z, dx, dy, dz);
 }
 
-int VolumeCreator::createSphere(double x, double y, double z, double r)
+inline int VolumeCreator::createSphere(double x, double y, double z, double r)
 {
     return gmsh::model::occ::addSphere(x, y, z, r);
 }
 
-int VolumeCreator::createCylinder(double x, double y, double z,
+inline int VolumeCreator::createCylinder(double x, double y, double z,
                                   double dx, double dy, double dz,
                                   double r, int tag, double angle)
 {
     return gmsh::model::occ::addCylinder(x, y, z, dx, dy, dz, r, tag, angle);
 }
 
-int VolumeCreator::createCone(double x, double y, double z,
+inline int VolumeCreator::createCone(double x, double y, double z,
                               double dx, double dy, double dz,
                               double r1, double r2, int tag, double angle)
 {
     return gmsh::model::occ::addCone(x, y, z, dx, dy, dz, r1, r2, tag, angle);
 }
 
-template <SphereConcept T>
-std::vector<int> VolumeCreator::createSpheres(std::span<T const> spheres)
+inline std::vector<int> VolumeCreator::createSpheres(SphereSpan spheres)
 {
     std::vector<int> dimTags;
     for (auto const &sphere : spheres)
@@ -54,6 +53,16 @@ void GMSHVolumeCreator::createSphereAndMesh(double meshSize, int meshDim, std::s
                                             double x, double y, double z, double r)
 {
     VolumeCreator::createSphere(x, y, z, r);
+    Mesh::setMeshSize(meshSize);
+    gmsh::model::occ::synchronize();
+    gmsh::model::mesh::generate(meshDim);
+    gmsh::write(outputPath.data());
+}
+
+void GMSHVolumeCreator::createSpheresAndMesh(SphereSpan spheres, double meshSize,
+                                             int meshDim, std::string_view outputPath)
+{
+    VolumeCreator::createSpheres(spheres);
     Mesh::setMeshSize(meshSize);
     gmsh::model::occ::synchronize();
     gmsh::model::mesh::generate(meshDim);

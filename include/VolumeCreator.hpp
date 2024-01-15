@@ -201,8 +201,7 @@ public:
      * @param spheres Span of spheres.
      * @return Vector of created sphere tags.
      */
-    template <SphereConcept T>
-    static std::vector<int> createSpheres(std::span<T const> spheres);
+    static std::vector<int> createSpheres(SphereSpan spheres);
 };
 
 /**
@@ -253,6 +252,8 @@ public:
                           double dx = 100, double dy = 100, double dz = 100);
     void createSphereAndMesh(double meshSize, int meshDim, std::string_view outputPath,
                              double x = 0, double y = 0, double z = 0, double r = 100);
+    void createSpheresAndMesh(SphereSpan spheres, double meshSize,
+                              int meshDim, std::string_view outputPath);
     void createCylinderAndMesh(double meshSize, int meshDim, std::string_view outputPath,
                                double x = 0, double y = 0, double z = 0,
                                double dx = 100, double dy = 100, double dz = 100, double r = 10,
