@@ -9,7 +9,7 @@
 #include "../include/VolumeCreator.hpp"
 
 std::tuple<std::unordered_map<size_t, int>, SphereVector>
-trackCollisions(ParticleGenericVector &pgs,
+trackCollisions(ParticleGenericVector &pgs, aabb::AABB const &bounding_volume,
                 TriangleMeshParamVector const &mesh,
                 double dt, double total_time)
 {
@@ -18,19 +18,21 @@ trackCollisions(ParticleGenericVector &pgs,
 
     for (double t{}; t <= total_time; t += dt)
     {
-        pgs.erase(std::remove_if(pgs.begin(), pgs.end(), [dt, &m, &sv, mesh](auto &p)
+        pgs.erase(std::remove_if(pgs.begin(), pgs.end(), [dt, &m, &sv, bounding_volume, mesh](auto &p)
                                  {
             PositionVector prevCentre(p.getPositionVector());
             p.updatePosition(dt);
             PositionVector nextCentre(p.getPositionVector());
             bool issettled{};
+
+            if (!p.isOutOfBounds(bounding_volume)) return issettled;
+            
             for (auto const &triangle : mesh)
             {
                 auto id{Mesh::intersectLineTriangle(prevCentre, nextCentre, triangle)};
                 if (id != std::numeric_limits<size_t>::max())
                 {
                     // Assume, that particle can settle only on one triangle of the mesh
-                    std::cout << nextCentre << "\tr = " << p.getRadius() << '\n';
                     sv.emplace_back(std::make_tuple(nextCentre, p.getRadius()));
                     ++m[id];
                     issettled = true;
@@ -44,9 +46,10 @@ trackCollisions(ParticleGenericVector &pgs,
     return std::make_tuple(m, sv);
 }
 
-void simulateMovement(VolumeType vtype, size_t particles_count, double meshSize,
-                      int meshDim, double dt, double simtime,
-                      std::string_view outfile, [[maybe_unused]] int argc, [[maybe_unused]] char *argv[])
+void simulateMovement(VolumeType vtype, size_t particles_count,
+                      double meshSize, int meshDim, double dt, double simtime,
+                      std::string_view outfile, std::string_view hdf5filename,
+                      int argc, char *argv[])
 {
     // 1. Generating cubic bounded volume in GMSH
     GMSHVolumeCreator volumeCreator;
@@ -70,53 +73,42 @@ void simulateMovement(VolumeType vtype, size_t particles_count, double meshSize,
         std::cerr << "There is no such type\n";
         return;
     }
+
+    // 3. Getting mesh parameters from .msh file
     TriangleMeshParamVector mesh{volumeCreator.getMeshParams(outfile.data())};
 
-    // 3. Creating random particles
+    // 4. Creating random particles
     ParticleGenericVector pgs(createParticlesWithVelocities<ParticleGeneric>(particles_count));
 
-    // 4. Simulating movement - tracking collisions of the particles to walls
-    auto tracked{trackCollisions(pgs, mesh, dt, simtime)};
-    auto settledParticlesMap{std::get<0>(tracked)};
-    auto settled{std::get<1>(tracked)};
+    // 5. Simulating movement - tracking collisions of the particles to walls
+    auto tracked{trackCollisions(pgs, volumeCreator.getBoundingVolume(), mesh, dt, simtime)};
+    auto counterMap{std::get<0>(tracked)};
+    auto settledParticles{std::get<1>(tracked)};
 
-    // 5. Viewing keys in ascending order
-    switch (vtype)
+    // 6. Updating particle counters
+    for (auto &triangle : mesh)
     {
-    case VolumeType::Box:
-        std::cout << "\n\n\n*** Box ***\n";
-        break;
-    case VolumeType::Sphere:
-        std::cout << "\n\n\n*** Sphere ***\n";
-        break;
-    case VolumeType::Cylinder:
-        std::cout << "\n\n\n*** Cylinder ***\n";
-        break;
-    case VolumeType::Cone:
-        std::cout << "\n\n\n*** Cone ***\n";
-        break;
-    default:
-        break;
+        auto id{std::get<0>(triangle)};
+        if (auto it{counterMap.find(id)}; it != counterMap.cend())
+            std::get<5>(triangle) = it->second;
     }
-    auto ordered{std::map<size_t, int>(settledParticlesMap.begin(), settledParticlesMap.end())};
-    for (auto const &[id, count] : ordered)
-        std::cout << std::format("Triangle[{}]: {}\n", id, count);
-    std::cout << std::format("Total count: {}\nSettled count: {}\n", particles_count,
-                             std::accumulate(settledParticlesMap.cbegin(), settledParticlesMap.cend(), 0,
-                                             [](int count, auto const &nextEntry)
-                                             { return count + nextEntry.second; }));
 
-    // X. Creating settled particles in GMSH
-    // volumeCreator.createSpheresAndMesh(settled, 1, 2, "results/particles.msh");
+    // 7. Saving mesh with updated counters to HDF5
+    HDF5Handler hdf5handler(hdf5filename);
+    hdf5handler.saveMeshToHDF5(mesh);
+    auto updatedMesh{hdf5handler.readMeshFromHDF5()};
+
+    // 8. Creating settled particles in GMSH
+    volumeCreator.createSpheresAndMesh(settledParticles, 1, 2, "results/particles.msh");
     volumeCreator.runGmsh(argc, argv);
 }
 
 int main(int argc, char *argv[])
 {
-    simulateMovement(VolumeType::Box, 50, 0.75, 2, 0.1, 2.0, "results/box.msh", argc, argv);
-    simulateMovement(VolumeType::Sphere, 50, 0.6, 2, 0.01, 1.0, "results/sphere.msh", argc, argv);
-    simulateMovement(VolumeType::Cylinder, 50, 0.4, 2, 0.2, 5.0, "results/cylinder.msh", argc, argv);
-    simulateMovement(VolumeType::Cone, 50, 0.9, 2, 1.0, 10.0, "results/cone.msh", argc, argv);
+    simulateMovement(VolumeType::Box, 50, 0.75, 2, 0.1, 2.0, "results/box.msh", "results/box_mesh.hdf5", argc, argv);
+    simulateMovement(VolumeType::Sphere, 50, 0.6, 2, 0.01, 1.0, "results/sphere.msh", "results/sphere_mesh.hdf5", argc, argv);
+    simulateMovement(VolumeType::Cylinder, 50, 0.4, 2, 0.2, 5.0, "results/cylinder.msh", "results/cylinder_mesh.hdf5", argc, argv);
+    simulateMovement(VolumeType::Cone, 50, 0.9, 2, 1.0, 10.0, "results/cone.msh", "results/cone_mesh.hdf5", argc, argv);
 
     return EXIT_SUCCESS;
 }
