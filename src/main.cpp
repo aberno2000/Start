@@ -105,10 +105,10 @@ void simulateMovement(VolumeType vtype, size_t particles_count,
 
 int main(int argc, char *argv[])
 {
-    simulateMovement(VolumeType::Box, 50, 0.75, 2, 0.1, 2.0, "results/box.msh", "results/box_mesh.hdf5", argc, argv);
-    simulateMovement(VolumeType::Sphere, 50, 0.6, 2, 0.01, 1.0, "results/sphere.msh", "results/sphere_mesh.hdf5", argc, argv);
-    simulateMovement(VolumeType::Cylinder, 50, 0.4, 2, 0.2, 5.0, "results/cylinder.msh", "results/cylinder_mesh.hdf5", argc, argv);
-    simulateMovement(VolumeType::Cone, 50, 0.9, 2, 1.0, 10.0, "results/cone.msh", "results/cone_mesh.hdf5", argc, argv);
+    simulateMovement(VolumeType::Box, 1050, 0.75, 2, 0.1, 2.0, "results/box.msh", "results/box_mesh.hdf5", argc, argv);
+    simulateMovement(VolumeType::Sphere, 555, 0.6, 2, 0.01, 1.0, "results/sphere.msh", "results/sphere_mesh.hdf5", argc, argv);
+    simulateMovement(VolumeType::Cylinder, 475, 0.4, 2, 0.2, 5.0, "results/cylinder.msh", "results/cylinder_mesh.hdf5", argc, argv);
+    simulateMovement(VolumeType::Cone, 2085, 0.9, 2, 1.0, 10.0, "results/cone.msh", "results/cone_mesh.hdf5", argc, argv);
 
     return EXIT_SUCCESS;
 }
