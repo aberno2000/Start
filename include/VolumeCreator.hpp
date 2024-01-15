@@ -10,6 +10,14 @@
 #include "MathVector.hpp"
 #include "Mesh.hpp"
 
+enum VolumeType
+{
+    Box,
+    Sphere,
+    Cylinder,
+    Cone
+};
+
 /// @brief Interface for volume creation in GMSH.
 class IVolume
 {
@@ -250,9 +258,9 @@ public:
                                double dx = 100, double dy = 100, double dz = 100, double r = 10,
                                int tag = -1, double angle = 2 * std::numbers::pi);
     void createConeAndMesh(double meshSize, int meshDim, std::string_view outputPath,
-                           double x, double y, double z,
-                           double dx, double dy, double dz,
-                           double r1, double r2, int tag = -1, double angle = 2 * std::numbers::pi);
+                           double x = 0, double y = 0, double z = 0,
+                           double dx = 100, double dy = 100, double dz = 100,
+                           double r1 = 10, double r2 = 35, int tag = -1, double angle = 2 * std::numbers::pi);
 
     /**
      * @brief Retrieves mesh parameters from a specified file.
