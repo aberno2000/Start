@@ -150,7 +150,7 @@ public:
      *         - Zero or positive value typically signifies a successful creation
      *         - Negative value or error code denotes a failure or specific error condition
      */
-    static int createSphere(double x = 0, double y = 0, double z = 0, double r = 0);
+    static int createSphere(double x = 0, double y = 0, double z = 0, double r = 100);
 
     /**
      * @brief Creates a cylinder volume with specified coordinates, dimensions, and parameters.
@@ -252,7 +252,7 @@ public:
                           double x = 0, double y = 0, double z = 0,
                           double dx = 100, double dy = 100, double dz = 100);
     void createSphereAndMesh(double meshSize, int meshDim, std::string_view outputPath,
-                             double x = 0, double y = 0, double z = 0, double r = 0);
+                             double x = 0, double y = 0, double z = 0, double r = 100);
     void createCylinderAndMesh(double meshSize, int meshDim, std::string_view outputPath,
                                double x = 0, double y = 0, double z = 0,
                                double dx = 100, double dy = 100, double dz = 100, double r = 10,
