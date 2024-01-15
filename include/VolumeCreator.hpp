@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "MathVector.hpp"
+#include "Mesh.hpp"
 
 /// @brief Interface for volume creation in GMSH.
 class IVolume
@@ -42,9 +43,9 @@ template <typename T>
 concept SphereConcept = std::tuple_size_v<T> == 2 &&
                         is_mathvector_v<std::tuple_element_t<0, T>> &&
                         std::is_floating_point_v<std::tuple_element_t<1, T>>;
-
-using SphereVector = std::vector<std::tuple<PositionVector, double>>;
-using SphereSpan = std::span<std::tuple<PositionVector, double> const>;
+using SphereT = std::tuple<PositionVector, double>;
+using SphereVector = std::vector<SphereT>;
+using SphereSpan = std::span<SphereT const>;
 
 /// @brief Represents Box volume.
 class Box final : public IVolume
@@ -167,14 +168,14 @@ public:
     /**
      * @brief Creates a cone volume with specified coordinates, dimensions, and parameters.
      *
-     * @param x X-coordinate of the cone's base center.
-     * @param y Y-coordinate of the cone's base center.
-     * @param z Z-coordinate of the cone's base center.
-     * @param dx Length along the x-axis.
-     * @param dy Length along the y-axis.
-     * @param dz Length along the z-axis.
-     * @param r1 Radius of the cone's base.
-     * @param r2 Radius of the cone's top.
+     * @param x X-coordinate of the cone's base center (default: 0).
+     * @param y Y-coordinate of the cone's base center (default: 0).
+     * @param z Z-coordinate of the cone's base center (default: 0).
+     * @param dx Length along the x-axis (default: 100).
+     * @param dy Length along the y-axis (default: 100).
+     * @param dz Length along the z-axis (default: 100).
+     * @param r1 Radius of the cone's base (default: 10).
+     * @param r2 Radius of the cone's top (default: 35).
      * @param tag Optional tag value (default: -1).
      * @param angle Angle value for the cone (default: 2⋅π).
      *
@@ -182,9 +183,9 @@ public:
      *       - Zero or positive value typically signifies a successful creation
      *       - Negative value or error code denotes a failure or specific error condition
      */
-    static int createCone(double x, double y, double z,
-                          double dx, double dy, double dz,
-                          double r1, double r2, int tag = -1, double angle = 2 * std::numbers::pi);
+    static int createCone(double x = 0, double y = 0, double z = 0,
+                          double dx = 100, double dy = 100, double dz = 100,
+                          double r1 = 10, double r2 = 35, int tag = -1, double angle = 2 * std::numbers::pi);
 
     /**
      * @brief Creates multiple Sphere objects.
@@ -194,6 +195,82 @@ public:
      */
     template <SphereConcept T>
     static std::vector<int> createSpheres(std::span<T const> spheres);
+};
+
+/**
+ * @brief GMSHandler is a RAII (Resource Acquisition Is Initialization) class for managing
+ * GMSH initialization and finalization. The constructor initializes GMSH, and the destructor finalizes it.
+ * Copy and move operations are deleted to prevent multiple instances from initializing or
+ * finalizing GMSH multiple times.
+ */
+class GMSHVolumeCreator final
+{
+private:
+    class GMSHandler final
+    {
+    public:
+        GMSHandler() { gmsh::initialize(); }
+        ~GMSHandler() { gmsh::finalize(); }
+
+        // Preventing multiple initializations/finalizations:
+        GMSHandler(GMSHandler const &) = delete;
+        GMSHandler &operator=(GMSHandler const &) = delete;
+        GMSHandler(GMSHandler &&) noexcept = delete;
+        GMSHandler &operator=(GMSHandler &&) noexcept = delete;
+    };
+
+    GMSHandler m_handler; // RAII handler for GMSH
+
+public:
+    GMSHVolumeCreator() {}
+    ~GMSHVolumeCreator() {}
+
+    /**
+     * @brief Creates a geometric volume (Sphere, Cylinder, or Cone) and its mesh, then writes the mesh to a file.
+     * @param meshSize The target size of the mesh elements.
+     * @param meshDim The dimension of the mesh to be generated.
+     * @param outputPath The path where the mesh file will be saved.
+     * @param x The x-coordinate of the volume's reference point.
+     * @param y The y-coordinate of the volume's reference point.
+     * @param z The z-coordinate of the volume's reference point.
+     * @param r Radius (for Sphere) or radii components (for Cylinder and Cone).
+     * @param dx Length along the x-axis (for Cylinder and Cone).
+     * @param dy Length along the y-axis (for Cylinder and Cone).
+     * @param dz Length along the z-axis (for Cylinder and Cone).
+     * @param tag Optional tag value (for Cylinder and Cone).
+     * @param angle Angle value (for Cylinder and Cone).
+     */
+    void createBoxAndMesh(double meshSize, int meshDim, std::string_view outputPath,
+                          double x = 0, double y = 0, double z = 0,
+                          double dx = 100, double dy = 100, double dz = 100);
+    void createSphereAndMesh(double meshSize, int meshDim, std::string_view outputPath,
+                             double x = 0, double y = 0, double z = 0, double r = 0);
+    void createCylinderAndMesh(double meshSize, int meshDim, std::string_view outputPath,
+                               double x = 0, double y = 0, double z = 0,
+                               double dx = 100, double dy = 100, double dz = 100, double r = 10,
+                               int tag = -1, double angle = 2 * std::numbers::pi);
+    void createConeAndMesh(double meshSize, int meshDim, std::string_view outputPath,
+                           double x, double y, double z,
+                           double dx, double dy, double dz,
+                           double r1, double r2, int tag = -1, double angle = 2 * std::numbers::pi);
+
+    /**
+     * @brief Retrieves mesh parameters from a specified file.
+     *
+     * @param filePath The path to the file containing mesh data.
+     * @return TriangleMeshParamVector containing mesh parameters.
+     */
+    TriangleMeshParamVector getMeshParams(std::string_view filePath);
+
+    /**
+     * @brief Executes the Gmsh application unless the `-nopopup` argument is provided.
+     * @details This method checks the provided arguments for the presence of `-nopopup`.
+     *          If `-nopopup` is not found, it initiates the Gmsh graphical user interface.
+     *          This is typically used for visualizing and interacting with the Gmsh application directly.
+     * @param argc An integer representing the count of command-line arguments.
+     * @param argv A constant pointer to a character array, representing the command-line arguments.
+     */
+    void runGmsh(int argc, char *argv[]);
 };
 
 #include "VolumeCreatorImpl.hpp"
