@@ -54,8 +54,6 @@ inline TriangleMeshParamVector Mesh::getMeshParams(std::string_view msh_filename
                                                 PositionVector(xyz2[0], xyz2[1], xyz2[2]),
                                                 PositionVector(xyz3[0], xyz3[1], xyz3[2]), dS, 0));
         }
-
-        return result;
     }
     catch (std::exception const &e)
     {
@@ -65,7 +63,6 @@ inline TriangleMeshParamVector Mesh::getMeshParams(std::string_view msh_filename
     {
         std::cerr << "Something went wrong\n";
     }
-
     return result;
 }
 
