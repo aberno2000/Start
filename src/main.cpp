@@ -23,14 +23,16 @@ trackCollisions(ParticleGenericVector &pgs, aabb::AABB const &bounding_volume,
             PositionVector prevCentre(p.getPositionVector());
             p.updatePosition(dt);
             PositionVector nextCentre(p.getPositionVector());
+            Ray ray(prevCentre, nextCentre);
             bool issettled{};
 
-            if (!p.isOutOfBounds(bounding_volume)) return issettled;
-            
+            // Don't need to check if particle is not out of bounds
+            if (not p.isOutOfBounds(bounding_volume)) return false;
+
             for (auto const &triangle : mesh)
             {
-                auto id{Mesh::intersectLineTriangle(prevCentre, nextCentre, triangle)};
-                if (id != std::numeric_limits<size_t>::max())
+                auto id{Mesh::isRayIntersectsTriangle(ray, triangle)};
+                if (id != -1ul)
                 {
                     // Assume, that particle can settle only on one triangle of the mesh
                     sv.emplace_back(std::make_tuple(nextCentre, p.getRadius()));
@@ -57,16 +59,16 @@ void simulateMovement(VolumeType vtype, size_t particles_count,
     // 2. Choosing the volume type
     switch (vtype)
     {
-    case VolumeType::Box:
+    case VolumeType::BoxType:
         volumeCreator.createBoxAndMesh(meshSize, meshDim, outfile.data());
         break;
-    case VolumeType::Sphere:
+    case VolumeType::SphereType:
         volumeCreator.createSphereAndMesh(meshSize, meshDim, outfile.data());
         break;
-    case VolumeType::Cylinder:
+    case VolumeType::CylinderType:
         volumeCreator.createCylinderAndMesh(meshSize, meshDim, outfile.data());
         break;
-    case VolumeType::Cone:
+    case VolumeType::ConeType:
         volumeCreator.createConeAndMesh(meshSize, meshDim, outfile.data());
         break;
     default:
@@ -105,10 +107,10 @@ void simulateMovement(VolumeType vtype, size_t particles_count,
 
 int main(int argc, char *argv[])
 {
-    simulateMovement(VolumeType::Box, 1050, 0.75, 2, 0.1, 2.0, "results/box.msh", "results/box_mesh.hdf5", argc, argv);
-    simulateMovement(VolumeType::Sphere, 555, 0.6, 2, 0.01, 1.0, "results/sphere.msh", "results/sphere_mesh.hdf5", argc, argv);
-    simulateMovement(VolumeType::Cylinder, 475, 0.4, 2, 0.2, 5.0, "results/cylinder.msh", "results/cylinder_mesh.hdf5", argc, argv);
-    simulateMovement(VolumeType::Cone, 2085, 0.9, 2, 1.0, 10.0, "results/cone.msh", "results/cone_mesh.hdf5", argc, argv);
+    simulateMovement(VolumeType::BoxType, 1050, 0.75, 2, 0.1, 2.0, "results/box.msh", "results/box_mesh.hdf5", argc, argv);
+    simulateMovement(VolumeType::SphereType, 555, 0.6, 2, 0.01, 1.0, "results/sphere.msh", "results/sphere_mesh.hdf5", argc, argv);
+    simulateMovement(VolumeType::CylinderType, 475, 0.4, 2, 0.2, 5.0, "results/cylinder.msh", "results/cylinder_mesh.hdf5", argc, argv);
+    simulateMovement(VolumeType::ConeType, 2085, 0.9, 2, 1.0, 10.0, "results/cone.msh", "results/cone_mesh.hdf5", argc, argv);
 
     return EXIT_SUCCESS;
 }
