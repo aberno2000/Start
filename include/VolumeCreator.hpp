@@ -13,10 +13,10 @@
 
 enum VolumeType
 {
-    Box,
-    Sphere,
-    Cylinder,
-    Cone
+    BoxType,
+    SphereType,
+    CylinderType,
+    ConeType
 };
 
 /// @brief Interface for volume creation in GMSH.
@@ -37,6 +37,7 @@ public:
      * for creating the geometric volume of that particular type.
      */
     virtual int create() const = 0;
+    virtual aabb::AABB const &getBoundingBox() const = 0;
     virtual ~IVolume() {}
 };
 
@@ -61,12 +62,13 @@ class Box final : public IVolume
 {
 private:
     double x{}, y{}, z{}, dx{}, dy{}, dz{};
+    aabb::AABB m_bounding_box;
 
 public:
     explicit Box(double x_, double y_, double z_,
-                 double dx_, double dy_, double dz_) : x(x_), y(y_), z(z_),
-                                                       dx(dx_), dy(dy_), dz(dz_) {}
+                 double dx_, double dy_, double dz_);
     int create() const override;
+    aabb::AABB const &getBoundingBox() const override { return m_bounding_box ;}
 };
 
 /// @brief Represents Sphere volume.
@@ -74,10 +76,12 @@ class Sphere final : public IVolume
 {
 private:
     double x{}, y{}, z{}, r{};
+    aabb::AABB m_bounding_box;
 
 public:
-    explicit Sphere(double x_, double y_, double z_, double r_) : x(x_), y(y_), z(z_), r(r_) {}
+    explicit Sphere(double x_, double y_, double z_, double r_);
     int create() const override;
+    aabb::AABB const &getBoundingBox() const override { return m_bounding_box ;}
 };
 
 /// @brief Represents Cylinder volume.
@@ -86,15 +90,14 @@ class Cylinder final : public IVolume
 private:
     double x{}, y{}, z{}, dx{}, dy{}, dz{}, r{}, angle{};
     int tag{};
+    aabb::AABB m_bounding_box;
 
 public:
     explicit Cylinder(double x_, double y_, double z_,
                       double dx_, double dy_, double dz_,
-                      double r_, double angle_ = 2 * std::numbers::pi, int tag_ = -1)
-        : x(x_), y(y_), z(z_),
-          dx(dx_), dy(dy_), dz(dz_),
-          r(r_), angle(angle_), tag(tag_) {}
+                      double r_, double angle_ = 2 * std::numbers::pi, int tag_ = -1);
     int create() const override;
+    aabb::AABB const &getBoundingBox() const override { return m_bounding_box ;}
 };
 
 /// @brief Represents Cone volume.
@@ -103,15 +106,14 @@ class Cone final : public IVolume
 private:
     double x{}, y{}, z{}, dx{}, dy{}, dz{}, r1{}, r2{}, angle{};
     int tag{};
+    aabb::AABB m_bounding_box;
 
 public:
     explicit Cone(double x_, double y_, double z_,
                   double dx_, double dy_, double dz_,
-                  double r1_, double r2_, double angle_ = 2 * std::numbers::pi, int tag_ = -1)
-        : x(x_), y(y_), z(z_),
-          dx(dx_), dy(dy_), dz(dz_),
-          r1(r1_), r2(r2_), angle(angle_), tag(tag_) {}
+                  double r1_, double r2_, double angle_ = 2 * std::numbers::pi, int tag_ = -1);
     int create() const override;
+    aabb::AABB const &getBoundingBox() const override { return m_bounding_box ;}
 };
 
 /**
