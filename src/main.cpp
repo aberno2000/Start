@@ -9,7 +9,7 @@
 #include "../include/VolumeCreator.hpp"
 
 std::tuple<std::unordered_map<size_t, int>, SphereVector>
-trackCollisions(ParticleGenericVector &pgs, aabb::AABB const &bounding_volume,
+trackCollisions(ParticleGenericVector &pgs,
                 TriangleMeshParamVector const &mesh,
                 double dt, double total_time)
 {
@@ -18,25 +18,21 @@ trackCollisions(ParticleGenericVector &pgs, aabb::AABB const &bounding_volume,
 
     for (double t{}; t <= total_time; t += dt)
     {
-        pgs.erase(std::remove_if(pgs.begin(), pgs.end(), [dt, &m, &sv, bounding_volume, mesh](auto &p)
+        pgs.erase(std::remove_if(pgs.begin(), pgs.end(), [dt, &m, &sv, mesh](auto &p)
                                  {
             PositionVector prevCentre(p.getPositionVector());
             p.updatePosition(dt);
             PositionVector nextCentre(p.getPositionVector());
-            Ray ray(prevCentre, nextCentre);
             bool issettled{};
-
-            // Don't need to check if particle is not out of bounds
-            if (not p.isOutOfBounds(bounding_volume)) return false;
 
             for (auto const &triangle : mesh)
             {
-                auto id{Mesh::isRayIntersectsTriangle(ray, triangle)};
-                if (id != -1ul)
+                auto id_and_ip{Mesh::getRayIntersectsTriangle(Ray(prevCentre, nextCentre), triangle)};
+                if (id_and_ip)
                 {
                     // Assume, that particle can settle only on one triangle of the mesh
-                    sv.emplace_back(std::make_tuple(nextCentre, p.getRadius()));
-                    ++m[id];
+                    sv.emplace_back(std::make_tuple(std::get<1>(*id_and_ip), p.getRadius()));
+                    ++m[std::get<0>(*id_and_ip)];
                     issettled = true;
                     break;
                 }
@@ -53,23 +49,23 @@ void simulateMovement(VolumeType vtype, size_t particles_count,
                       std::string_view outfile, std::string_view hdf5filename,
                       int argc, char *argv[])
 {
-    // 1. Generating cubic bounded volume in GMSH
+    // 1. Generating bounded volume in GMSH
     GMSHVolumeCreator volumeCreator;
 
     // 2. Choosing the volume type
     switch (vtype)
     {
     case VolumeType::BoxType:
-        volumeCreator.createBoxAndMesh(meshSize, meshDim, outfile.data());
+        volumeCreator.createBoxAndMesh(meshSize, meshDim, outfile);
         break;
     case VolumeType::SphereType:
-        volumeCreator.createSphereAndMesh(meshSize, meshDim, outfile.data());
+        volumeCreator.createSphereAndMesh(meshSize, meshDim, outfile);
         break;
     case VolumeType::CylinderType:
-        volumeCreator.createCylinderAndMesh(meshSize, meshDim, outfile.data());
+        volumeCreator.createCylinderAndMesh(meshSize, meshDim, outfile);
         break;
     case VolumeType::ConeType:
-        volumeCreator.createConeAndMesh(meshSize, meshDim, outfile.data());
+        volumeCreator.createConeAndMesh(meshSize, meshDim, outfile);
         break;
     default:
         std::cerr << "There is no such type\n";
@@ -77,13 +73,13 @@ void simulateMovement(VolumeType vtype, size_t particles_count,
     }
 
     // 3. Getting mesh parameters from .msh file
-    TriangleMeshParamVector mesh{volumeCreator.getMeshParams(outfile.data())};
+    TriangleMeshParamVector mesh{volumeCreator.getMeshParams(outfile)};
 
     // 4. Creating random particles
     ParticleGenericVector pgs(createParticlesWithVelocities<ParticleGeneric>(particles_count));
 
     // 5. Simulating movement - tracking collisions of the particles to walls
-    auto tracked{trackCollisions(pgs, volumeCreator.getBoundingVolume(), mesh, dt, simtime)};
+    auto tracked{trackCollisions(pgs, mesh, dt, simtime)};
     auto counterMap{std::get<0>(tracked)};
     auto settledParticles{std::get<1>(tracked)};
 
@@ -101,16 +97,16 @@ void simulateMovement(VolumeType vtype, size_t particles_count,
     auto updatedMesh{hdf5handler.readMeshFromHDF5()};
 
     // 8. Creating settled particles in GMSH
-    volumeCreator.createSpheresAndMesh(settledParticles, 1, 2, "results/particles.msh");
+    volumeCreator.createSpheresAndMesh(settledParticles, 1, 2, "results/settled_particles.msh");
     volumeCreator.runGmsh(argc, argv);
 }
 
 int main(int argc, char *argv[])
 {
-    simulateMovement(VolumeType::BoxType, 1050, 0.75, 2, 0.1, 2.0, "results/box.msh", "results/box_mesh.hdf5", argc, argv);
-    simulateMovement(VolumeType::SphereType, 555, 0.6, 2, 0.01, 1.0, "results/sphere.msh", "results/sphere_mesh.hdf5", argc, argv);
+    simulateMovement(VolumeType::BoxType, 1050, 0.5, 2, 0.1, 2.0, "results/box.msh", "results/box_mesh.hdf5", argc, argv);
+    simulateMovement(VolumeType::SphereType, 1075, 0.6, 2, 0.01, 1.0, "results/sphere.msh", "results/sphere_mesh.hdf5", argc, argv);
     simulateMovement(VolumeType::CylinderType, 475, 0.4, 2, 0.2, 5.0, "results/cylinder.msh", "results/cylinder_mesh.hdf5", argc, argv);
-    simulateMovement(VolumeType::ConeType, 2085, 0.9, 2, 1.0, 10.0, "results/cone.msh", "results/cone_mesh.hdf5", argc, argv);
+    simulateMovement(VolumeType::ConeType, 945, 0.9, 2, 1.0, 10.0, "results/cone.msh", "results/cone_mesh.hdf5", argc, argv);
 
     return EXIT_SUCCESS;
 }

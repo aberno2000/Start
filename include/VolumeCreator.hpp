@@ -1,7 +1,6 @@
 #ifndef VOLUMECREATOR_HPP
 #define VOLUMECREATOR_HPP
 
-#include <aabb/AABB.h>
 #include <concepts>
 #include <numbers>
 #include <span>
@@ -37,7 +36,6 @@ public:
      * for creating the geometric volume of that particular type.
      */
     virtual int create() const = 0;
-    virtual aabb::AABB const &getBoundingBox() const = 0;
     virtual ~IVolume() {}
 };
 
@@ -62,13 +60,11 @@ class Box final : public IVolume
 {
 private:
     double x{}, y{}, z{}, dx{}, dy{}, dz{};
-    aabb::AABB m_bounding_box;
 
 public:
     explicit Box(double x_, double y_, double z_,
                  double dx_, double dy_, double dz_);
     int create() const override;
-    aabb::AABB const &getBoundingBox() const override { return m_bounding_box ;}
 };
 
 /// @brief Represents Sphere volume.
@@ -76,12 +72,10 @@ class Sphere final : public IVolume
 {
 private:
     double x{}, y{}, z{}, r{};
-    aabb::AABB m_bounding_box;
 
 public:
     explicit Sphere(double x_, double y_, double z_, double r_);
     int create() const override;
-    aabb::AABB const &getBoundingBox() const override { return m_bounding_box ;}
 };
 
 /// @brief Represents Cylinder volume.
@@ -90,14 +84,12 @@ class Cylinder final : public IVolume
 private:
     double x{}, y{}, z{}, dx{}, dy{}, dz{}, r{}, angle{};
     int tag{};
-    aabb::AABB m_bounding_box;
 
 public:
     explicit Cylinder(double x_, double y_, double z_,
                       double dx_, double dy_, double dz_,
                       double r_, double angle_ = 2 * std::numbers::pi, int tag_ = -1);
     int create() const override;
-    aabb::AABB const &getBoundingBox() const override { return m_bounding_box ;}
 };
 
 /// @brief Represents Cone volume.
@@ -106,14 +98,12 @@ class Cone final : public IVolume
 private:
     double x{}, y{}, z{}, dx{}, dy{}, dz{}, r1{}, r2{}, angle{};
     int tag{};
-    aabb::AABB m_bounding_box;
 
 public:
     explicit Cone(double x_, double y_, double z_,
                   double dx_, double dy_, double dz_,
                   double r1_, double r2_, double angle_ = 2 * std::numbers::pi, int tag_ = -1);
     int create() const override;
-    aabb::AABB const &getBoundingBox() const override { return m_bounding_box ;}
 };
 
 /**
@@ -229,8 +219,7 @@ private:
         GMSHandler &operator=(GMSHandler &&) noexcept = delete;
     };
 
-    GMSHandler m_handler;         // RAII handler for GMSH
-    aabb::AABB m_bounding_volume; // Bounding volume of last created object
+    GMSHandler m_handler; // RAII handler for GMSH
 
 public:
     GMSHVolumeCreator() {}
@@ -284,12 +273,6 @@ public:
      * @param argv A constant pointer to a character array, representing the command-line arguments.
      */
     void runGmsh(int argc, char *argv[]);
-
-    /* === Getter for bounding volume. === */
-    constexpr aabb::AABB const &getBoundingVolume() const { return m_bounding_volume; }
-
-    /* Function to build bounding box in GMSH */
-    void createBoundingBoxOfLastObject(double meshSize, int meshDim, std::string_view outputPath);
 };
 
 #include "VolumeCreatorImpl.hpp"
