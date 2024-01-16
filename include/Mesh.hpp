@@ -2,6 +2,7 @@
 #define MESH_HPP
 
 #include <concepts>
+#include <optional>
 #include <string_view>
 #include <tuple>
 #include <vector>
@@ -56,9 +57,23 @@ public:
      *
      * @return Returns the ID of the triangle where the particle has settled if an intersection occurs.
      *         If the particle doesn't intersect with the specified triangle, it returns the max value
-     *         of `size_t` (usually indicating no intersection or 'null' in the context of this function).
+     *         of `size_t`.
      */
     static size_t isRayIntersectsTriangle(Ray const &ray, TriangleMeshParam const &triangle);
+
+    /**
+     * @brief Gets intersection point of ray and triangle if ray intersects the triangle.
+     * @param ray The ray to check for intersection with the triangle.
+     * @param triangle TriangleMeshParam representing the triangle with which the line segment
+     *                 is tested for intersection. It includes the necessary parameters to define
+     *                 a triangle in 3D space.
+     *
+     * @return Returns the ID of the triangle where the particle has settled if an intersection occurs
+     *         and intersection point.
+     *         If the particle doesn't intersect with the specified triangle, it returns `std::nullopt`
+     */
+    static std::optional<std::tuple<size_t, PositionVector>>
+    getRayIntersectsTriangle(Ray const &ray, TriangleMeshParam const &triangle);
 };
 
 #include "MeshImpl.hpp"

@@ -71,4 +71,13 @@ inline size_t Mesh::isRayIntersectsTriangle(Ray const &ray, TriangleMeshParam co
                : -1ul;
 }
 
+inline std::optional<std::tuple<size_t, PositionVector>>
+Mesh::getRayIntersectsTriangle(Ray const &ray, TriangleMeshParam const &triangle)
+{
+    auto ip{ray.getIntersectionPoint(std::get<1>(triangle), std::get<2>(triangle), std::get<3>(triangle))};
+    if (!ip)
+        return std::nullopt;
+    return std::make_tuple(std::get<0>(triangle), *ip);
+}
+
 #endif // !MESHIMPL_HPP
