@@ -287,6 +287,9 @@ public:
 
     /* === Getter for bounding volume. === */
     constexpr aabb::AABB const &getBoundingVolume() const { return m_bounding_volume; }
+
+    /* Function to build bounding box in GMSH */
+    void createBoundingBoxOfLastObject(double meshSize, int meshDim, std::string_view outputPath);
 };
 
 #include "VolumeCreatorImpl.hpp"

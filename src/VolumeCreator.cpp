@@ -26,8 +26,11 @@ Cylinder::Cylinder(double x_, double y_, double z_,
                    double r_, double angle_, int tag_)
     : x(x_), y(y_), z(z_),
       dx(dx_), dy(dy_), dz(dz_),
-      r(r_), angle(angle_), tag(tag_),
-      m_bounding_box({x - r, y - r, z - dz / 2.0}, {x + r, y + r, z + dz / 2.0}) {}
+      r(r_), angle(angle_), tag(tag_)
+{
+    // TODO: Correct bounding box
+    m_bounding_box = aabb::AABB({x - r, y - r, z - r}, {dx + r, dy + r, dz + r});
+}
 
 int Cylinder::create() const
 {
@@ -41,24 +44,8 @@ Cone::Cone(double x_, double y_, double z_,
       dx(dx_), dy(dy_), dz(dz_),
       r1(r1_), r2(r2_), angle(angle_), tag(tag_)
 {
-    double height{std::abs(r1 - r2) / std::tan(angle)};
-
-    PositionVector apex{x, y, z},
-        baseCenter{x + dx * height,
-                   y + dy * height,
-                   z + dz * height},
-        topCenter{baseCenter.getX() + dx * height,
-                  baseCenter.getY() + dy * height,
-                  baseCenter.getZ() + dz * height};
-
-    double minX{std::min(apex.getX(), baseCenter.getX()) - r2},
-        maxX{std::max(apex.getX(), baseCenter.getX()) + r2},
-        minY{std::min(apex.getY(), baseCenter.getY()) - r2},
-        maxY{std::max(apex.getY(), baseCenter.getY()) + r2},
-        minZ{std::min({apex.getZ(), baseCenter.getZ(), topCenter.getZ()})},
-        maxZ{std::max({apex.getZ(), baseCenter.getZ(), topCenter.getZ()})};
-
-    m_bounding_box = aabb::AABB({minX, minY, minZ}, {maxX, maxY, maxZ});
+    double rmin{std::min(r1, r2)}, rmax{std::max(r1, r2)};
+    m_bounding_box = aabb::AABB({x - rmin, y - rmin, z - rmin}, {dx + rmax, dy + rmax, dz + rmax});
 }
 
 int Cone::create() const
@@ -132,4 +119,15 @@ void GMSHVolumeCreator::runGmsh(int argc, char *argv[])
     // If there is no `-nopopup` argument - run the gmsh app
     if (std::find(argv, argv + argc, std::string("-nopopup")) == argv + argc)
         gmsh::fltk::run();
+}
+
+void GMSHVolumeCreator::createBoundingBoxOfLastObject(double meshSize, int meshDim, std::string_view outputPath)
+{
+    createBoxAndMesh(meshSize, meshDim, outputPath,
+                     m_bounding_volume.lowerBound.at(0),
+                     m_bounding_volume.lowerBound.at(1),
+                     m_bounding_volume.lowerBound.at(2),
+                     m_bounding_volume.upperBound.at(0),
+                     m_bounding_volume.upperBound.at(1),
+                     m_bounding_volume.upperBound.at(2));
 }
