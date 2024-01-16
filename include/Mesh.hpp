@@ -6,7 +6,7 @@
 #include <tuple>
 #include <vector>
 
-#include "MathVector.hpp"
+#include "Ray.hpp"
 
 /**
  * @brief Represents triangle mesh parameters (for surfaces):
@@ -49,10 +49,7 @@ public:
      *          used in simulations, collision detection, or graphics rendering to understand interactions between
      *          moving objects (like particles) and static structures (like meshes).
      *
-     * @param prevPointPosition PositionVector representing the starting point of the line segment.
-     *                          This is typically the previous position of a moving object.
-     * @param nextPointPosition PositionVector representing the ending point of the line segment.
-     *                          This is usually the next or predicted position of the moving object.
+     * @param ray The ray to check for intersection with the triangle.
      * @param triangle TriangleMeshParam representing the triangle with which the line segment
      *                 is tested for intersection. It includes the necessary parameters to define
      *                 a triangle in 3D space.
@@ -61,9 +58,7 @@ public:
      *         If the particle doesn't intersect with the specified triangle, it returns the max value
      *         of `size_t` (usually indicating no intersection or 'null' in the context of this function).
      */
-    static size_t intersectLineTriangle(PositionVector const &prevPointPosition,
-                                        PositionVector const &nextPointPosition,
-                                        TriangleMeshParam const &triangle);
+    static size_t isRayIntersectsTriangle(Ray const &ray, TriangleMeshParam const &triangle);
 };
 
 #include "MeshImpl.hpp"
