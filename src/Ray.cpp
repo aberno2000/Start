@@ -40,9 +40,11 @@ std::optional<PositionVector> Ray::getIntersectionPoint(PositionVector const &ve
                             Point3(vertexB.getX(), vertexB.getY(), vertexB.getZ()),
                             Point3(vertexC.getX(), vertexC.getY(), vertexC.getZ())};
     auto result{CGAL::intersection(m_ray, cgal_triangle)};
+    if (!result)
+        return std::nullopt;
 
     // Intersection is a point
-    if (Point3 const *p{boost::get<Point3>(std::addressof(*result))})
+    if (Point3 const *p{boost::get<Point3>(boost::addressof(*result))})
         return PositionVector(CGAL::to_double(p->x()),
                               CGAL::to_double(p->y()),
                               CGAL::to_double(p->z()));
