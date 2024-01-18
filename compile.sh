@@ -42,6 +42,7 @@ if [ "$REBUILD" = true ]; then
     rm -rfv build
 fi
 
+mkdir -pv results
 mkdir -pv build && cd build
 echo "Making with $NUM_CORES cores. Your PC provides $(nproc) cores."
 cmake .. && make -j$NUM_CORES
