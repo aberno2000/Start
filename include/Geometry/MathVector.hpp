@@ -1,13 +1,12 @@
 #ifndef MATHVECTOR_HPP
 #define MATHVECTOR_HPP
 
-#include <cmath>
 #include <compare>
 #include <format>
-#include <iostream>
 #include <random>
 #include <stdexcept>
-#include <type_traits>
+
+#include "Point.hpp"
 
 /**
  * Description of the mathematical vector. In the simplest case, a
@@ -16,26 +15,30 @@
  * @brief Vector P = | y |
  *                   | z |
  */
+template <typename T>
 class MathVector
 {
 private:
-    double x{}, // X-axis component of the math vector.
-        y{},    // Y-axis component of the math vector.
-        z{};    // Z-axis component of the math vector.
+    Point<T> m_p;
 
 public:
-    MathVector() {}
-    MathVector(double x_, double y_, double z_) : x(x_), y(y_), z(z_) {}
+    MathVector() { m_p = Point(T(), T(), T()); }
+    MathVector(T x_, T y_, T z_)
+    {
+        m_p.x = x_;
+        m_p.y = y_;
+        m_p.z = z_;
+    }
 
     /**
      * @brief Assignment operator with custom double.
      * Sets all components of vector to custom value.
      */
-    MathVector &operator=(double value)
+    MathVector &operator=(T value)
     {
-        x = value;
-        y = value;
-        z = value;
+        m_p.x = value;
+        m_p.y = value;
+        m_p.z = value;
         return *this;
     }
 
@@ -50,20 +53,20 @@ public:
     {
         MathVector cords;
 
-        cords.x = x_;
-        cords.y = y_;
-        cords.z = z_;
+        cords.m_p.x = x_;
+        cords.m_p.y = y_;
+        cords.m_p.z = z_;
 
         return cords;
     }
 
     /**
      * @brief Creates a random MathVector within the specified range for each coordinate.
-     * @param from The lower bound of the range for random values (default: -1000.0).
-     * @param to The upper bound of the range for random values (default: 1000.0).
+     * @param from The lower bound of the range for random values.
+     * @param to The upper bound of the range for random values.
      * @return A randomly generated MathVector.
      */
-    static MathVector createRandomVector(double from = -1000.0, double to = 1000.0)
+    static MathVector createRandomVector(double from, double to)
     {
         std::random_device rd;
         std::mt19937 gen(rd.entropy() ? rd() : time(nullptr));
@@ -72,28 +75,28 @@ public:
     }
 
     /* === Getters for each component. === */
-    constexpr double getX() const { return x; }
-    constexpr double getY() const { return y; }
-    constexpr double getZ() const { return z; }
+    constexpr T getX() const { return m_p.x; }
+    constexpr T getY() const { return m_p.y; }
+    constexpr T getZ() const { return m_p.z; }
 
     /* === Setters for each component. === */
-    constexpr void setX(double x_) { x = x_; }
-    constexpr void setY(double y_) { y = y_; }
-    constexpr void setZ(double z_) { z = z_; }
-    void setXYZ(double x_, double y_, double z_)
+    constexpr void setX(T x_) { m_p.x = x_; }
+    constexpr void setY(T y_) { m_p.y = y_; }
+    constexpr void setZ(T z_) { m_p.z = z_; }
+    void setXYZ(T x_, T y_, T z_)
     {
-        x = x_;
-        y = y_;
-        z = z_;
+        m_p.x = x_;
+        m_p.y = y_;
+        m_p.z = z_;
     }
 
     /// @brief Calculates the module of the vector.
-    constexpr double module() const { return std::sqrt(x * x + y * y + z * z); }
+    constexpr T module() const { return std::sqrt(m_p.x * m_p.x + m_p.y * m_p.y + m_p.z * m_p.z); }
 
     /// @brief Calculates the distance between two vectors.
-    constexpr double distance(MathVector const &other) const { return std::sqrt((x - other.x) * (x - other.x) +
-                                                                                (y - other.y) * (y - other.y) +
-                                                                                (z - other.z) * (z - other.z)); }
+    constexpr T distance(MathVector const &other) const { return std::sqrt((m_p.x - other.m_p.x) * (m_p.x - other.m_p.x) +
+                                                                           (m_p.y - other.m_p.y) * (m_p.y - other.m_p.y) +
+                                                                           (m_p.z - other.m_p.z) * (m_p.z - other.m_p.z)); }
 
     /// @brief Clears the vector (Sets all components to null).
     void clear() noexcept { *this = 0; }
@@ -102,7 +105,7 @@ public:
      * @brief Checker for empty vector (are all values null).
      * @return `true` if vector is null, otherwise `false`.
      */
-    constexpr bool isNull() const { return (x == 0 && y == 0 && z == 0); }
+    constexpr bool isNull() const { return (m_p.x == 0 && m_p.y == 0 && m_p.z == 0); }
 
     /**
      * @brief Checks if vectors are parallel.
@@ -111,8 +114,8 @@ public:
      */
     bool isParallel(MathVector const &other) const
     {
-        double koef{x / other.x};
-        return (y == koef * other.y) && (z == koef * other.z);
+        double koef{m_p.x / other.m_p.x};
+        return (m_p.y == koef * other.m_p.y) && (m_p.z == koef * other.m_p.z);
     }
 
     /**
@@ -143,30 +146,30 @@ public:
     }
 
     /// @brief Overload of unary minus. Negates all components of vector.
-    MathVector operator-() { return MathVector(-x, -y, -z); }
+    MathVector operator-() { return MathVector(-m_p.x, -m_p.y, -m_p.z); }
 
     /* +++ Subtract and sum of two vectors correspondingly. +++ */
-    MathVector operator-(MathVector const &other) const { return MathVector(x - other.x, y - other.y, z - other.z); }
-    MathVector operator+(MathVector const &other) const { return MathVector(x + other.x, y + other.y, z + other.z); }
+    MathVector operator-(MathVector const &other) const { return MathVector(m_p.x - other.m_p.x, m_p.y - other.m_p.y, m_p.z - other.m_p.z); }
+    MathVector operator+(MathVector const &other) const { return MathVector(m_p.x + other.m_p.x, m_p.y + other.m_p.y, m_p.z + other.m_p.z); }
 
     /* +++ Subtract and sum of value to vector. +++ */
-    MathVector operator-(double value) const { return MathVector(x - value, y - value, z - value); }
-    MathVector operator+(double value) const { return MathVector(x + value, y + value, z + value); }
-    friend MathVector operator+(double value, MathVector const &other) { return MathVector(other.x + value, other.y + value, other.z + value); }
+    MathVector operator-(T value) const { return MathVector(m_p.x - value, m_p.y - value, m_p.z - value); }
+    MathVector operator+(T value) const { return MathVector(m_p.x + value, m_p.y + value, m_p.z + value); }
+    friend MathVector operator+(T value, MathVector const &other) { return MathVector(other.m_p.x + value, other.m_p.y + value, other.m_p.z + value); }
 
     /* *** Scalar and vector multiplication correspondingly. *** */
-    MathVector operator*(double value) const { return MathVector(x * value, y * value, z * value); }
-    friend MathVector operator*(double value, MathVector const &other) { return MathVector(other.x * value, other.y * value, other.z * value); }
-    double operator*(MathVector const &other) const { return (x * other.x + y * other.y + z * other.z); }
-    double dotProduct(MathVector const &other) const { return (*this) * other; }
-    MathVector crossProduct(MathVector const &other) const { return MathVector(y * other.z - z * other.y, z * other.x - x * other.z, x * other.y - y * other.x); }
+    MathVector operator*(T value) const { return MathVector(m_p.x * value, m_p.y * value, m_p.z * value); }
+    friend MathVector operator*(T value, MathVector const &other) { return MathVector(other.m_p.x * value, other.m_p.y * value, other.m_p.z * value); }
+    T operator*(MathVector const &other) const { return (m_p.x * other.m_p.x + m_p.y * other.m_p.y + m_p.z * other.m_p.z); }
+    T dotProduct(MathVector const &other) const { return (*this) * other; }
+    MathVector crossProduct(MathVector const &other) const { return MathVector(m_p.y * other.m_p.z - m_p.z * other.m_p.y, m_p.z * other.m_p.x - m_p.x * other.m_p.z, m_p.x * other.m_p.y - m_p.y * other.m_p.x); }
 
     /* /// Division operator. Vector / value. \\\ */
-    MathVector operator/(double value) const
+    MathVector operator/(T value) const
     {
-        if (value == 0.0)
+        if (value == 0)
             throw std::overflow_error("Division by null: Elements of vector can't be divided by 0");
-        return MathVector(x / value, y / value, z / value);
+        return MathVector(m_p.x / value, m_p.y / value, m_p.z / value);
     }
 
     /* <=> Comparison operators. <=> */
@@ -178,33 +181,33 @@ public:
          * The `std::strong_ordering::equal` ensures that the comparison
          * result is specific and conforms to the ordering requirements.
          */
-        if (auto cmp{x <=> other.x}; cmp != std::strong_ordering::equal)
+        if (auto cmp{m_p.x <=> other.m_p.x}; cmp != std::strong_ordering::equal)
             return cmp;
-        if (auto cmp{y <=> other.y}; cmp != std::strong_ordering::equal)
+        if (auto cmp{m_p.y <=> other.m_p.y}; cmp != std::strong_ordering::equal)
             return cmp;
-        return z <=> other.z;
+        return m_p.z <=> other.m_p.z;
     }
-    constexpr bool operator==(MathVector const &other) const { return x == other.x && y == other.y && z == other.z; }
+    constexpr bool operator==(MathVector const &other) const { return m_p.x == other.m_p.x && m_p.y == other.m_p.y && m_p.z == other.m_p.z; }
     constexpr bool operator!=(MathVector const &other) const { return !(*this == other); }
 
     /* << Output stream operator. << */
     friend std::ostream &operator<<(std::ostream &os, MathVector const &vector)
     {
-        os << std::format("{} {} {}", vector.x, vector.y, vector.z);
+        os << std::format("{} {} {}", vector.m_p.x, vector.m_p.y, vector.m_p.z);
         return os;
     }
 
     /* >> Input stream operator. >> */
     friend std::istream &operator>>(std::istream &is, MathVector &vector)
     {
-        is >> vector.x >> vector.y >> vector.z;
+        is >> vector.m_p.x >> vector.m_p.y >> vector.m_p.z;
         return is;
     }
 };
 
 /* --> Aliases for human readability. <-- */
-using PositionVector = MathVector;
-using VelocityVector = MathVector;
+using PositionVector = MathVector<double>;
+using VelocityVector = MathVector<double>;
 
 /**
  * @brief Custom type trait to determine if a type is MathVector.
@@ -227,8 +230,8 @@ struct is_mathvector : std::false_type
  * MathVector is indeed a 'mathvector' type, distinguishing it
  * from other types.
  */
-template <>
-struct is_mathvector<MathVector> : std::true_type
+template <std::floating_point T>
+struct is_mathvector<MathVector<T>> : std::true_type
 {
 };
 

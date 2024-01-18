@@ -1,15 +1,16 @@
 #!/bin/bash
 
 usage() {
-    echo "Usage: $0 [-r|--rebuild] [-j <num_ths>]"
+    echo "Usage: $0 [-r|--rebuild] [-j <num_cores>] [-h|--help]"
     echo "  -r, --rebuild       Clean and rebuild the project from scratch."
-    echo "  -j <num_ths>        Specify the number of threads to run simultaneously."
+    echo "  -j <num_cores>      Specify the number of threads to run simultaneously."
     echo "                      If not specified, use all available cores."
+    echo "  -h, --help          Display this help message and exit."
     exit 1
 }
 
-REBUILD=false     # Default behavior does not clean build
-NUM_JOBS=$(nproc) # Default to all available processors
+REBUILD=false      # Default behavior does not clean build
+NUM_CORES=$(nproc) # Default to all available cores
 
 while [[ "$#" -gt 0 ]]; do
     case $1 in
@@ -18,12 +19,15 @@ while [[ "$#" -gt 0 ]]; do
         ;;
     -j)
         if [[ -n $2 && $2 =~ ^[0-9]+$ ]]; then
-            NUM_JOBS=$2
+            NUM_CORES=$2
             shift # Remove argument name from processing
         else
             echo "Error: -j requires a numeric argument."
             usage
         fi
+        ;;
+    -h | --help)
+        usage
         ;;
     *) # Unknown option
         usage
@@ -34,9 +38,10 @@ done
 
 # Clean build directory if requested
 if [ "$REBUILD" = true ]; then
-    echo "Rebuilding from the scratch..."
+    echo "Rebuilding from scratch..."
     rm -rfv build
 fi
 
 mkdir -pv build && cd build
-cmake .. && make -j$(nproc)
+echo "Making with $NUM_CORES cores. Your PC provides $(nproc) cores."
+cmake .. && make -j$NUM_CORES

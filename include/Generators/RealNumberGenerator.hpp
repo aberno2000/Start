@@ -40,16 +40,19 @@ public:
      * @param from lower bound.
      * @param to upper bound.
      */
+    double operator()(double from, double to);
+
+    /**
+     * @brief Generates one random real number in interval (from, to).
+     * @param from lower bound.
+     * @param to upper bound.
+     */
     double get_double(double from, double to);
 
     /* === Setter methods for data members === */
-    constexpr void set_lower_bound(double val) { m_from = val; }
-    constexpr void set_upper_bound(double val) { m_to = val; }
-    constexpr void set(double from, double to)
-    {
-        m_from = from;
-        m_to = to;
-    }
+    constexpr void set_lower_bound(double);
+    constexpr void set_upper_bound(double);
+    constexpr void set(double from, double to);
 
     /**
      * @brief Generates sequence of real numbers in specified interval.
@@ -57,5 +60,7 @@ public:
      */
     std::vector<double> get_sequence(size_t count, double from = 0.0, double to = 1.0);
 };
+
+#include "RealNumberGeneratorImpl.hpp"
 
 #endif // !REALNUMBERGENERATOR_HPP

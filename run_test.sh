@@ -6,7 +6,7 @@ if [ "$#" -ne 1 ]; then
 fi
 
 if grep -q "#include <gmsh.h>" $1; then
-    g++ $1 src/VolumeCreator.cpp src/RealNumberGenerator.cpp -std=c++20 -lgmsh -Wall -Wpedantic -Wextra -Werror
+    g++ $1 src/VolumeCreator.cpp src/RealNumberGenerator.cpp -std=c++20 -lgmsh -lgmp -lmpfr -Wall -Wpedantic -Wextra -Werror
 else
     g++ $1 -std=c++20 -Wall -Wpedantic -Wextra -Werror
 fi

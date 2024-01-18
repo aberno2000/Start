@@ -1,21 +1,16 @@
-#ifndef PARTICLE_HPP
-#define PARTICLE_HPP
+#ifndef PARTICLES_HPP
+#define PARTICLES_HPP
 
 #include <aabb/AABB.h>
-#include <concepts>
-#include <limits>
-#include <tuple>
-#include <vector>
 
-#include "MathVector.hpp"
-#include "Mesh.hpp"
-#include "Settings.hpp"
+#include "../Geometry/MathVector.hpp"
+#include "../Utilities/Settings.hpp"
 
 /// @brief Represents a particle in a simulation.
 class ParticleGeneric
 {
 private:
-    PositionVector m_cords;    // Position in Cartesian coordinates (x, y, z).
+    PointD m_centre;           // Position in Cartesian coordinates (x, y, z).
     VelocityVector m_velocity; // Velocity vector (Vx, Vy, Vz).
     double m_radius{},         // Particle radius.
         m_energy{};            // Particle energy [J].
@@ -31,14 +26,16 @@ private:
      */
     void calculateVelocityFromEnergy_J();
 
+    // TODO: Calculate energy from velocity
+
 public:
     ParticleGeneric() {}
     ParticleGeneric(double x_, double y_, double z_, double energy_, double radius_);
     ParticleGeneric(double x_, double y_, double z_, double vx_, double vy_, double vz_, double radius_);
-    ParticleGeneric(PositionVector posvec, double vx_, double vy_, double vz_, double radius_);
-    ParticleGeneric(PositionVector posvec, double energy_, double radius_);
+    ParticleGeneric(PointD centre, double vx_, double vy_, double vz_, double radius_);
+    ParticleGeneric(PointD centre, double energy_, double radius_);
     ParticleGeneric(double x_, double y_, double z_, VelocityVector velvec, double radius_);
-    ParticleGeneric(PositionVector posvec, VelocityVector velvec, double radius_);
+    ParticleGeneric(PointD centre, VelocityVector velvec, double radius_);
     virtual ~ParticleGeneric() {}
 
     /**
@@ -61,26 +58,11 @@ public:
      */
     bool isOutOfBounds(aabb::AABB const &bounding_volume) const;
 
-    /**
-     * @brief Checks if the particle is inside a specified triangle.
-     * @details This function determines whether the particle is inside the triangle
-     *          defined by the vertices in 'triangleVertices'. It uses a geometric
-     *          algorithm suitable for 3D space to check if the particle lies
-     *          within the boundaries of the triangle.
-     * @param mesh A tuple representing the vertices of the triangle.
-     *        Each vertex is a 'PositionVector' defining a point in 3D space.
-     * @return The ID of the triangle where the particle has settled, as indicated
-     *         by the first element of 'mesh', if the particle is inside the triangle.
-     *         Returns `-1` if the particle is not inside the triangle or if it does not
-     *         lie in the same plane as the triangle.
-     */
-    int isParticleInsideTriangle(TriangleMeshParam const &mesh) const;
-
     /* === Getters for particle params. === */
-    constexpr double getX() const { return m_cords.getX(); }
-    constexpr double getY() const { return m_cords.getY(); }
-    constexpr double getZ() const { return m_cords.getZ(); }
-    constexpr double getPositionModule() const { return m_cords.module(); }
+    constexpr double getX() const { return m_centre.x; }
+    constexpr double getY() const { return m_centre.y; }
+    constexpr double getZ() const { return m_centre.z; }
+    double getPositionModule() const { return PositionVector(m_centre.x, m_centre.y, m_centre.z).module(); }
     constexpr double getEnergy_J() const { return m_energy; }
     double getEnergy_eV() const { return m_energy * settings::physical_constants::J_eV; }
     constexpr double getVx() const { return m_velocity.getX(); }
@@ -88,7 +70,7 @@ public:
     constexpr double getVz() const { return m_velocity.getZ(); }
     constexpr double getVelocityModule() const { return m_velocity.module(); }
     constexpr double getRadius() const { return m_radius; }
-    constexpr PositionVector const &getPositionVector() const { return m_cords; }
+    constexpr PointD const &getCentre() const { return m_centre; }
     constexpr VelocityVector const &getVelocityVector() const { return m_velocity; }
     constexpr aabb::AABB const &getBoundingBox() const { return m_boundingBox; }
 
@@ -118,15 +100,15 @@ public:
         : ParticleGeneric(x_, y_, z_, energy_, radius_ = radius) {}
     ParticleArgon(double x_, double y_, double z_, double vx_, double vy_, double vz_, double radius_ = radius)
         : ParticleGeneric(x_, y_, z_, vx_, vy_, vz_, radius_) {}
-    ParticleArgon(PositionVector posvec, double vx_, double vy_, double vz_, double radius_ = radius)
-        : ParticleGeneric(posvec, vx_, vy_, vz_, radius_) {}
-    ParticleArgon(PositionVector posvec, double energy_, double radius_)
-        : ParticleGeneric(posvec, energy_, radius_ = radius) {}
+    ParticleArgon(PointD centre, double vx_, double vy_, double vz_, double radius_ = radius)
+        : ParticleGeneric(centre, vx_, vy_, vz_, radius_) {}
+    ParticleArgon(PointD centre, double energy_, double radius_)
+        : ParticleGeneric(centre, energy_, radius_ = radius) {}
     ParticleArgon(double x_, double y_, double z_, VelocityVector velvec, double radius_ = radius)
         : ParticleGeneric(x_, y_, z_, velvec, radius_) {}
-    ParticleArgon(PositionVector posvec, VelocityVector velvec,
+    ParticleArgon(PointD centre, VelocityVector velvec,
                   double radius_ = radius)
-        : ParticleGeneric(posvec, velvec, radius_) {}
+        : ParticleGeneric(centre, velvec, radius_) {}
 
     constexpr double getMass() const override { return 6.6335209e-26; }
     // constexpr double getScattering() const override { return ...; }
@@ -143,29 +125,29 @@ public:
         : ParticleGeneric(x_, y_, z_, energy_, radius_ = radius) {}
     ParticleAluminium(double x_, double y_, double z_, double vx_, double vy_, double vz_, double radius_ = radius)
         : ParticleGeneric(x_, y_, z_, vx_, vy_, vz_, radius_) {}
-    ParticleAluminium(PositionVector posvec, double vx_, double vy_, double vz_, double radius_ = radius)
-        : ParticleGeneric(posvec, vx_, vy_, vz_, radius_) {}
-    ParticleAluminium(PositionVector posvec, double energy_, double radius_)
-        : ParticleGeneric(posvec, energy_, radius_ = radius) {}
+    ParticleAluminium(PointD centre, double vx_, double vy_, double vz_, double radius_ = radius)
+        : ParticleGeneric(centre, vx_, vy_, vz_, radius_) {}
+    ParticleAluminium(PointD centre, double energy_, double radius_)
+        : ParticleGeneric(centre, energy_, radius_ = radius) {}
     ParticleAluminium(double x_, double y_, double z_, VelocityVector velvec, double radius_ = radius)
         : ParticleGeneric(x_, y_, z_, velvec, radius_) {}
-    ParticleAluminium(PositionVector posvec, VelocityVector velvec, double radius_ = radius)
-        : ParticleGeneric(posvec, velvec, radius_) {}
+    ParticleAluminium(PointD centre, VelocityVector velvec, double radius_ = radius)
+        : ParticleGeneric(centre, velvec, radius_) {}
 
     constexpr double getMass() const override { return 4.4803831e-26; }
     // constexpr double getScattering() const override { return ...; }
 };
 
 /// @brief x, y, z, Vx, Vy, Vz, radius
-using ParticleVectorWithVelocities = std::vector<std::tuple<PositionVector,
+using ParticleVectorWithVelocities = std::vector<std::tuple<PointD,
                                                             double, double, double,
                                                             double>>;
 /// @brief x, y, z, E, radius
-using ParticleVectorWithEnergy = std::vector<std::tuple<PositionVector,
+using ParticleVectorWithEnergy = std::vector<std::tuple<PointD,
                                                         double, double>>;
 /// @brief x, y, z, radius
-using ParticleVectorSimple = std::vector<std::tuple<PositionVector, double>>;
-using ParticleSimple = std::tuple<PositionVector, double>;
+using ParticleVectorSimple = std::vector<std::tuple<PointD, double>>;
+using ParticleSimple = std::tuple<PointD, double>;
 
 /* --> Aliases for many of specific kind particles. <-- */
 using ParticleGenericVector = std::vector<ParticleGeneric>;
@@ -174,7 +156,7 @@ using ParticleAluminiumVector = std::vector<ParticleAluminium>;
 
 /**
  * @brief Generates a vector of particles with specified velocity ranges.
- * 
+ *
  * @tparam T The type of particle to generate. It can be a specific particle type (e.g., ParticleArgon)
  *           or a generic particle type.
  * @param count The number of particles to generate.
@@ -203,7 +185,7 @@ std::vector<T> createParticlesWithVelocities(size_t count, double minx = 0.0, do
 
 /**
  * @brief Creates a vector of particles with specified properties.
- * @details This template function generates a list of particles of type T. 
+ * @details This template function generates a list of particles of type T.
  *          The particles are initialized with random positions (x, y, z), energy, and radius.
  *          For ParticleArgon and ParticleAluminium, a predefined radius is used.
  * @tparam T The particle type (e.g., ParticleArgon, ParticleAluminium).
@@ -226,6 +208,6 @@ std::vector<T> createParticlesWithEnergy(size_t count, double minx = 0.0, double
                                          double minenergy = 30.0, double maxenergy = 50.0,
                                          double minradius = 1.0, double maxradius = 5.0);
 
-#include "ParticleImpl.hpp"
+#include "ParticlesImpl.hpp"
 
-#endif // !PARTICLE_HPP
+#endif // !PARTICLES_HPP

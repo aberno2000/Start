@@ -9,9 +9,9 @@
 #include <TH2D.h>
 #include <TH3D.h>
 
-#include "../include/MathVector.hpp"
-#include "../include/Particle.hpp"
-#include "../include/RealNumberGenerator.hpp"
+#include "../include/Geometry/MathVector.hpp"
+#include "../include/Particles/Particles.hpp"
+#include "../include/Generators/RealNumberGenerator.hpp"
 
 template <typename T>
 std::vector<T> createParticles(size_t count)

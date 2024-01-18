@@ -10,8 +10,8 @@
 #include <TH2D.h>
 #include <TH3D.h>
 
-#include "../include/RealNumberGenerator.hpp"
-#include "../include/Timer.hpp"
+#include "../include/Generators/RealNumberGenerator.hpp"
+#include "../include/Utilities/Timer.hpp"
 
 void GenerateConeWithNumbers()
 {

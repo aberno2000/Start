@@ -1,7 +1,7 @@
-#ifndef PARTICLEIMPL_HPP
-#define PARTICLEIMPL_HPP
+#ifndef PARTICLESIMPL_HPP
+#define PARTICLESIMPL_HPP
 
-#include "RealNumberGenerator.hpp"
+#include "../Generators/RealNumberGenerator.hpp"
 
 template <typename T>
 std::vector<T> createParticlesWithVelocities(size_t count, double minx, double miny, double minz,
@@ -62,4 +62,4 @@ std::vector<T> createParticlesWithEnergy(size_t count, double minx, double miny,
     return particles;
 }
 
-#endif // !PARTICLEIMPL_HPP
+#endif // !PARTICLESIMPL_HPP

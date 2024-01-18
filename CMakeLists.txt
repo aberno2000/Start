@@ -28,7 +28,6 @@ set(SOURCES
     src/RealNumberGenerator.cpp
     src/Settings.cpp
     src/HDF5Handler.cpp
-    src/Ray.cpp
     src/VolumeCreator.cpp
 )
 

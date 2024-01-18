@@ -4,30 +4,30 @@
 #include <iostream>
 #include <sstream>
 
-#include "../include/MathVector.hpp"
+#include "../include/Geometry/MathVector.hpp"
 
 void testDefaultConstructor()
 {
-    MathVector vec;
+    PositionVector vec;
     assert(vec.getX() == 0.0 && vec.getY() == 0.0 && vec.getZ() == 0.0);
 }
 
 void testParameterizedConstructor()
 {
-    MathVector vec(1.0, 2.0, 3.0);
+    PositionVector vec(1.0, 2.0, 3.0);
     assert(vec.getX() == 1.0 && vec.getY() == 2.0 && vec.getZ() == 3.0);
 }
 
 void testAssignmentOperator()
 {
-    MathVector vec;
+    PositionVector vec;
     vec = 5.0;
     assert(vec.getX() == 5.0 && vec.getY() == 5.0 && vec.getZ() == 5.0);
 }
 
 void testCreateCoordinates()
 {
-    MathVector vec{MathVector::createCoordinates(2.0, 4.0, 6.0)};
+    PositionVector vec{PositionVector::createCoordinates(2.0, 4.0, 6.0)};
     assert(vec.getX() == 2.0 && vec.getY() == 4.0 && vec.getZ() == 6.0);
 }
 
@@ -53,7 +53,7 @@ void testClear()
 
 void testIsNull()
 {
-    MathVector vec1;
+    PositionVector vec1;
     assert(vec1.isNull());
 
     MathVector vec2(1.0, 0.0, 0.0);
@@ -245,7 +245,7 @@ void testOutputStreamOperator()
 
 void testInputStreamOperator()
 {
-    MathVector vec;
+    PositionVector vec;
     std::istringstream iss("5 6 7");
     iss >> vec;
     MathVector expectedVec(5.0, 6.0, 7.0);
@@ -257,8 +257,8 @@ void testRandomOperations(int test_count = 1'000'000)
 {
     for (int i{}; i < test_count; ++i)
     {
-        MathVector vec1{MathVector::createRandomVector()},
-            vec2{MathVector::createRandomVector()};
+        PositionVector vec1{PositionVector::createRandomVector(1000, -1000)},
+            vec2{PositionVector::createRandomVector(-1000, 500)};
 
         MathVector additionResult{vec1 + vec2},
             subtractionResult{vec1 - vec2};
@@ -276,7 +276,7 @@ void testRandomOperations(int test_count = 1'000'000)
         assert(dotProductResult == vec1.dotProduct(vec2));
         assert((dotProductResult == 0) ? vec1.isOrthogonal(vec2) : true);
         assert(!vec1.isParallel(vec2) && !vec1.isOrthogonal(vec2));
-        assert(moduleResultVec1 == vec1.module() && moduleResultVec2 == vec2.module()); 
+        assert(moduleResultVec1 == vec1.module() && moduleResultVec2 == vec2.module());
     }
 }
 

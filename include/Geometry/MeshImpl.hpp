@@ -2,13 +2,12 @@
 #define MESHIMPL_HPP
 
 #include <gmsh.h>
-#include <iostream>
 
 inline void Mesh::setMeshSize(double meshSizeFactor) { gmsh::option::setNumber("Mesh.MeshSizeFactor", meshSizeFactor); }
 
-inline TriangleMeshParamVector Mesh::getMeshParams(std::string_view msh_filename)
+inline MeshParamVector Mesh::getMeshParams(std::string_view msh_filename)
 {
-    TriangleMeshParamVector result;
+    MeshParamVector result;
     try
     {
         gmsh::open(msh_filename.data());
@@ -48,9 +47,11 @@ inline TriangleMeshParamVector Mesh::getMeshParams(std::string_view msh_filename
             double s{(a + b + c) / 2},
                 dS{std::sqrt(s * (s - a) * (s - b) * (s - c))};
 
-            result.emplace_back(std::make_tuple(triangleId, PositionVector(xyz1[0], xyz1[1], xyz1[2]),
-                                                PositionVector(xyz2[0], xyz2[1], xyz2[2]),
-                                                PositionVector(xyz3[0], xyz3[1], xyz3[2]), dS, 0));
+            result.emplace_back(std::make_tuple(triangleId,
+                                                Triangle(Point(xyz1[0], xyz1[1], xyz1[2]),
+                                                         Point(xyz2[0], xyz2[1], xyz2[2]),
+                                                         Point(xyz3[0], xyz3[1], xyz3[2])),
+                                                dS, 0));
         }
     }
     catch (std::exception const &e)
@@ -64,17 +65,17 @@ inline TriangleMeshParamVector Mesh::getMeshParams(std::string_view msh_filename
     return result;
 }
 
-inline size_t Mesh::isRayIntersectsTriangle(Ray const &ray, TriangleMeshParam const &triangle)
+inline size_t Mesh::isRayIntersectTriangle(RayD const &ray, MeshParam const &triangle)
 {
-    return (ray.isIntersectsTriangle(std::get<1>(triangle), std::get<2>(triangle), std::get<3>(triangle)))
+    return (RayTriangleIntersection<double>::isIntersectTriangle(ray, std::get<1>(triangle)))
                ? std::get<0>(triangle)
                : -1ul;
 }
 
-inline std::optional<std::tuple<size_t, PositionVector>>
-Mesh::getRayIntersectsTriangle(Ray const &ray, TriangleMeshParam const &triangle)
+inline std::optional<std::tuple<size_t, PointD>>
+Mesh::getIntersectionPoint(RayD const &ray, MeshParam const &triangle)
 {
-    auto ip{ray.getIntersectionPoint(std::get<1>(triangle), std::get<2>(triangle), std::get<3>(triangle))};
+    auto ip(RayTriangleIntersection<double>::getIntersectionPoint(ray, std::get<1>(triangle)));
     if (!ip)
         return std::nullopt;
     return std::make_tuple(std::get<0>(triangle), *ip);

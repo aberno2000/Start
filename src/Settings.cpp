@@ -1,7 +1,7 @@
 #include <chrono>
 #include <sstream>
 
-#include "../include/Settings.hpp"
+#include "../include/Utilities/Settings.hpp"
 
 std::string settings::getCurTime(std::string_view format)
 {

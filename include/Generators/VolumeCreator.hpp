@@ -7,8 +7,8 @@
 #include <tuple>
 #include <vector>
 
-#include "MathVector.hpp"
-#include "Mesh.hpp"
+#include "../Geometry/MathVector.hpp"
+#include "../Geometry/Mesh.hpp"
 
 enum VolumeType
 {
@@ -51,9 +51,9 @@ template <typename T>
 concept SphereConcept = std::tuple_size_v<T> == 2 &&
                         is_mathvector_v<std::tuple_element_t<0, T>> &&
                         std::is_floating_point_v<std::tuple_element_t<1, T>>;
-using SphereT = std::tuple<PositionVector, double>;
-using SphereVector = std::vector<SphereT>;
-using SphereSpan = std::span<SphereT const>;
+using SphereD = std::tuple<PointD, double>;
+using SphereVector = std::vector<SphereD>;
+using SphereSpan = std::span<SphereD const>;
 
 /// @brief Represents Box volume.
 class Box final : public IVolume
@@ -260,9 +260,9 @@ public:
      * @brief Retrieves mesh parameters from a specified file.
      *
      * @param filePath The path to the file containing mesh data.
-     * @return TriangleMeshParamVector containing mesh parameters.
+     * @return MeshParamVector containing mesh parameters.
      */
-    TriangleMeshParamVector getMeshParams(std::string_view filePath);
+    MeshParamVector getMeshParams(std::string_view filePath);
 
     /**
      * @brief Executes the Gmsh application unless the `-nopopup` argument is provided.

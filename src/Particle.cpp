@@ -4,8 +4,7 @@
 
 #include <utility>
 
-#include "../include/Particle.hpp"
-#include "../include/Settings.hpp"
+#include "../include/Particles/Particles.hpp"
 
 void ParticleGeneric::calculateVelocityFromEnergy_J()
 {
@@ -27,7 +26,7 @@ void ParticleGeneric::calculateVelocityFromEnergy_J()
 
 ParticleGeneric::ParticleGeneric(double x_, double y_, double z_,
                                  double energy_, double radius_)
-    : m_cords(MathVector(x_, y_, z_)),
+    : m_centre(PointD(x_, y_, z_)),
       m_energy(energy_)
 {
   calculateVelocityFromEnergy_J();
@@ -39,70 +38,66 @@ ParticleGeneric::ParticleGeneric(double x_, double y_, double z_,
 ParticleGeneric::ParticleGeneric(double x_, double y_, double z_,
                                  double vx_, double vy_, double vz_,
                                  double radius_)
-    : m_cords(MathVector(x_, y_, z_)),
+    : m_centre(PointD(x_, y_, z_)),
       m_velocity(MathVector(vx_, vy_, vz_)),
       m_radius(radius_),
       m_boundingBox({x_ - radius_, y_ - radius_, z_ - radius_},
                     {x_ + radius_, y_ + radius_, z_ + radius_}) {}
 
-ParticleGeneric::ParticleGeneric(PositionVector posvec,
+ParticleGeneric::ParticleGeneric(PointD centre,
                                  double vx_, double vy_, double vz_,
                                  double radius_)
-    : m_cords(posvec),
+    : m_centre(centre),
       m_velocity(MathVector(vx_, vy_, vz_)),
       m_radius(radius_),
-      m_boundingBox({m_cords.getX() - radius_, m_cords.getY() - radius_, m_cords.getZ() - radius_},
-                    {m_cords.getX() + radius_, m_cords.getY() + radius_, m_cords.getZ() + radius_}) {}
+      m_boundingBox({m_centre.x - radius_, m_centre.y - radius_, m_centre.z - radius_},
+                    {m_centre.x + radius_, m_centre.y + radius_, m_centre.z + radius_}) {}
 
-ParticleGeneric::ParticleGeneric(PositionVector posvec, double energy_, double radius_)
-    : m_cords(posvec),
+ParticleGeneric::ParticleGeneric(PointD centre, double energy_, double radius_)
+    : m_centre(centre),
       m_energy(energy_)
 {
   calculateVelocityFromEnergy_J();
   m_radius = radius_;
-  m_boundingBox = aabb::AABB({m_cords.getX() - radius_, m_cords.getY() - radius_, m_cords.getZ() - radius_},
-                             {m_cords.getX() + radius_, m_cords.getY() + radius_, m_cords.getZ() + radius_});
+  m_boundingBox = aabb::AABB({m_centre.x - radius_, m_centre.y - radius_, m_centre.z - radius_},
+                             {m_centre.x + radius_, m_centre.y + radius_, m_centre.z + radius_});
 }
 
 ParticleGeneric::ParticleGeneric(double x_, double y_, double z_,
                                  VelocityVector velvec,
                                  double radius_)
-    : m_cords(MathVector(x_, y_, z_)),
+    : m_centre(PointD(x_, y_, z_)),
       m_velocity(velvec),
       m_radius(radius_),
       m_boundingBox({x_ - radius_, y_ - radius_, z_ - radius_},
                     {x_ + radius_, y_ + radius_, z_ + radius_}) {}
 
-ParticleGeneric::ParticleGeneric(PositionVector posvec,
+ParticleGeneric::ParticleGeneric(PointD centre,
                                  VelocityVector velvec,
                                  double radius_)
-    : m_cords(posvec),
+    : m_centre(centre),
       m_velocity(velvec),
       m_radius(radius_),
-      m_boundingBox({m_cords.getX() - radius_, m_cords.getY() - radius_, m_cords.getZ() - radius_},
-                    {m_cords.getX() + radius_, m_cords.getY() + radius_, m_cords.getZ() + radius_}) {}
+      m_boundingBox({m_centre.x - radius_, m_centre.y - radius_, m_centre.z - radius_},
+                    {m_centre.x + radius_, m_centre.y + radius_, m_centre.z + radius_}) {}
 
 void ParticleGeneric::updatePosition(double dt)
 {
   // Update particle positions: x = x + Vx ⋅ Δt
-  m_cords.setXYZ(getX() + getVx() * dt,
-                 getY() + getVy() * dt,
-                 getZ() + getVz() * dt);
+  m_centre.x = m_centre.x + getVx() * dt;
+  m_centre.y = m_centre.y + getVy() * dt;
+  m_centre.z = m_centre.z + getVz() * dt;
 
   // Update the bounding box to the new position
-  m_boundingBox = aabb::AABB({m_cords.getX() - m_radius, m_cords.getY() - m_radius, m_cords.getZ() - m_radius},
-                             {m_cords.getX() + m_radius, m_cords.getY() + m_radius, m_cords.getZ() + m_radius});
+  m_boundingBox = aabb::AABB({m_centre.x - m_radius, m_centre.y - m_radius, m_centre.z - m_radius},
+                             {m_centre.x + m_radius, m_centre.y + m_radius, m_centre.z + m_radius});
 }
 
 bool ParticleGeneric::overlaps(ParticleGeneric const &other) const
 {
   // Distance between particles
-  double distance_{m_cords.distance(other.m_cords)};
-#ifdef LOG
-  if (distance_ < (m_radius + other.m_radius))
-    LOGMSG(std::format("\033[1;36m{:.6f} < {:.6f}\033[0m\033[1m",
-                       distance_, m_radius + other.m_radius));
-#endif
+  double distance_{PositionVector(m_centre.x, m_centre.y, m_centre.z)
+                       .distance(PositionVector(other.m_centre.x, other.m_centre.y, other.m_centre.z))};
   return distance_ < (m_radius + other.m_radius);
 }
 
@@ -114,29 +109,6 @@ bool ParticleGeneric::isOutOfBounds(aabb::AABB const &bounding_volume) const
           m_boundingBox.upperBound[1] >= bounding_volume.upperBound[1] ||
           m_boundingBox.lowerBound[2] <= bounding_volume.lowerBound[2] ||
           m_boundingBox.upperBound[2] >= bounding_volume.upperBound[2]);
-}
-
-int ParticleGeneric::isParticleInsideTriangle(TriangleMeshParam const &mesh) const
-{
-  PositionVector A{std::get<1>(mesh).getX(),
-                   std::get<1>(mesh).getY(),
-                   std::get<1>(mesh).getZ()},
-      B{std::get<2>(mesh).getX(),
-        std::get<2>(mesh).getY(),
-        std::get<2>(mesh).getZ()},
-      C{std::get<3>(mesh).getX(),
-        std::get<3>(mesh).getY(),
-        std::get<3>(mesh).getZ()};
-
-  double areaABC{std::get<4>(mesh)},
-      areaPAB{PositionVector::calculateTriangleArea(m_cords, A, B)},
-      areaPAC{PositionVector::calculateTriangleArea(m_cords, A, C)},
-      areaPBC{PositionVector::calculateTriangleArea(m_cords, B, C)};
-
-  // Check if sum of areas of sub-triangles equals the area of the full triangle
-  return (std::fabs(areaPAB + areaPAC + areaPBC - areaABC) < 1e-9)
-             ? std::get<0>(mesh)
-             : -1;
 }
 
 void ParticleGeneric::colide(double xi, double phi, double p_mass, double t_mass)

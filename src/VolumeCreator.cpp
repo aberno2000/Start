@@ -1,6 +1,6 @@
 #include <gmsh.h>
 
-#include "../include/VolumeCreator.hpp"
+#include "../include/Generators/VolumeCreator.hpp"
 
 Box::Box(double x_, double y_, double z_,
          double dx_, double dy_, double dz_) : x(x_), y(y_), z(z_),
@@ -96,7 +96,7 @@ void GMSHVolumeCreator::createConeAndMesh(double meshSize, int meshDim, std::str
     gmsh::write(outputPath.data());
 }
 
-TriangleMeshParamVector GMSHVolumeCreator::getMeshParams(std::string_view filePath) { return Mesh::getMeshParams(filePath); }
+MeshParamVector GMSHVolumeCreator::getMeshParams(std::string_view filePath) { return Mesh::getMeshParams(filePath); }
 
 void GMSHVolumeCreator::runGmsh(int argc, char *argv[])
 {

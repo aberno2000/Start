@@ -1,6 +1,6 @@
 #include <cassert>
 
-#include "../include/Timer.hpp"
+#include "../include/Utilities/Timer.hpp"
 
 void Timer::startTimer()
 {

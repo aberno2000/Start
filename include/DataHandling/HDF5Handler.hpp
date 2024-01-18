@@ -5,7 +5,7 @@
 #include <string_view>
 #include <unordered_map>
 
-#include "Mesh.hpp"
+#include "../Geometry/Mesh.hpp"
 
 /**
  * @brief Handles operations related to HDF5 files for storing and managing mesh data.
@@ -87,7 +87,7 @@ public:
      * @throws `std::runtime_error` if it fails to create a group or dataset within the HDF5 file,
      *         or if writing to the dataset fails.
      */
-    void saveMeshToHDF5(TriangleMeshParamVector const &mesh);
+    void saveMeshToHDF5(MeshParamVector const &mesh);
 
     /**
      * @brief Reads mesh data from the HDF5 file starting from a specified object ID.
@@ -98,7 +98,7 @@ public:
      *          from the HDF5 file, starting from the triangle with ID `firstObjectID`.
      * @throws `std::runtime_error` if it fails to open a group or dataset within the HDF5 file.
      */
-    TriangleMeshParamVector readMeshFromHDF5();
+    MeshParamVector readMeshFromHDF5();
 };
 
 #endif // !HDF5HANDLER_HPP

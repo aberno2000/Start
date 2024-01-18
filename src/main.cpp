@@ -1,16 +1,15 @@
 #include <map>
 #include <numeric>
 
-#include "../include/HDF5Handler.hpp"
-#include "../include/Mesh.hpp"
-#include "../include/Particle.hpp"
-#include "../include/RealNumberGenerator.hpp"
-#include "../include/Settings.hpp"
-#include "../include/VolumeCreator.hpp"
+#include "../include/DataHandling/HDF5Handler.hpp"
+#include "../include/Geometry/Mesh.hpp"
+#include "../include/Particles/Particles.hpp"
+#include "../include/Generators/RealNumberGenerator.hpp"
+#include "../include/Generators/VolumeCreator.hpp"
 
 std::tuple<std::unordered_map<size_t, int>, SphereVector>
 trackCollisions(ParticleGenericVector &pgs,
-                TriangleMeshParamVector const &mesh,
+                MeshParamVector const &mesh,
                 double dt, double total_time)
 {
     std::unordered_map<size_t, int> m;
@@ -20,14 +19,14 @@ trackCollisions(ParticleGenericVector &pgs,
     {
         pgs.erase(std::remove_if(pgs.begin(), pgs.end(), [dt, &m, &sv, mesh](auto &p)
                                  {
-            PositionVector prevCentre(p.getPositionVector());
+            PointD prevCentre(p.getCentre());
             p.updatePosition(dt);
-            PositionVector nextCentre(p.getPositionVector());
+            PointD nextCentre(p.getCentre());
             bool issettled{};
 
             for (auto const &triangle : mesh)
             {
-                auto id_and_ip{Mesh::getRayIntersectsTriangle(Ray(prevCentre, nextCentre), triangle)};
+                auto id_and_ip{Mesh::getIntersectionPoint(RayD(prevCentre, nextCentre), triangle)};
                 if (id_and_ip)
                 {
                     // Assume, that particle can settle only on one triangle of the mesh
@@ -73,7 +72,7 @@ void simulateMovement(VolumeType vtype, size_t particles_count,
     }
 
     // 3. Getting mesh parameters from .msh file
-    TriangleMeshParamVector mesh{volumeCreator.getMeshParams(outfile)};
+    MeshParamVector mesh{volumeCreator.getMeshParams(outfile)};
 
     // 4. Creating random particles
     ParticleGenericVector pgs(createParticlesWithVelocities<ParticleGeneric>(particles_count));
@@ -88,7 +87,7 @@ void simulateMovement(VolumeType vtype, size_t particles_count,
     {
         auto id{std::get<0>(triangle)};
         if (auto it{counterMap.find(id)}; it != counterMap.cend())
-            std::get<5>(triangle) = it->second;
+            std::get<3>(triangle) = it->second;
     }
 
     // 7. Saving mesh with updated counters to HDF5

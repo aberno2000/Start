@@ -1,6 +1,6 @@
 #include <stdexcept>
 
-#include "../include/HDF5Handler.hpp"
+#include "../include/DataHandling/HDF5Handler.hpp"
 
 HDF5Handler::HDF5Handler(std::string_view filename) : m_file_id(H5Fcreate(filename.data(),
                                                                           H5F_ACC_TRUNC,
@@ -49,16 +49,14 @@ void HDF5Handler::readDataset(std::string_view groupName, std::string_view datas
     H5Gclose(grp_id);
 }
 
-void HDF5Handler::saveMeshToHDF5(TriangleMeshParamVector const &mesh)
+void HDF5Handler::saveMeshToHDF5(MeshParamVector const &mesh)
 {
     if (mesh.empty())
         return;
 
-    auto minIDIter{
-        std::min_element(mesh.cbegin(), mesh.cend(),
-                         [](TriangleMeshParam const &a, TriangleMeshParam const &b)
-                         { return std::get<0>(a) < std::get<0>(b); })};
-    auto minTriangle{*minIDIter};
+    auto minTriangle{*std::min_element(mesh.cbegin(), mesh.cend(),
+                                       [](MeshParam const &a, MeshParam const &b)
+                                       { return std::get<0>(a) < std::get<0>(b); })};
     m_firstID = std::get<0>(minTriangle);
 
     for (auto const &triangle : mesh)
@@ -70,22 +68,22 @@ void HDF5Handler::saveMeshToHDF5(TriangleMeshParamVector const &mesh)
 
         // Store data related to the triangle in the group
         double coordinates[9] = {
-            std::get<1>(triangle).getX(), std::get<1>(triangle).getY(), std::get<1>(triangle).getZ(),
-            std::get<2>(triangle).getX(), std::get<2>(triangle).getY(), std::get<2>(triangle).getZ(),
-            std::get<3>(triangle).getX(), std::get<3>(triangle).getY(), std::get<3>(triangle).getZ()};
+            std::get<1>(triangle).getA().x, std::get<1>(triangle).getA().y, std::get<1>(triangle).getA().z,
+            std::get<1>(triangle).getB().x, std::get<1>(triangle).getB().y, std::get<1>(triangle).getB().z,
+            std::get<1>(triangle).getC().x, std::get<1>(triangle).getC().y, std::get<1>(triangle).getC().z};
         writeDataset(groupName, "Coordinates", H5T_NATIVE_DOUBLE, coordinates, 9);
 
-        double area{std::get<4>(triangle)};
+        double area{std::get<2>(triangle)};
         writeDataset(groupName, "Area", H5T_NATIVE_DOUBLE, std::addressof(area), 1);
 
-        int count{std::get<5>(triangle)};
+        int count{std::get<3>(triangle)};
         writeDataset(groupName, "Counter", H5T_NATIVE_INT, std::addressof(count), 1);
     }
 }
 
-TriangleMeshParamVector HDF5Handler::readMeshFromHDF5()
+MeshParamVector HDF5Handler::readMeshFromHDF5()
 {
-    TriangleMeshParamVector mesh;
+    MeshParamVector mesh;
     hsize_t num_objs{};
     H5Gget_num_objs(m_file_id, std::addressof(num_objs));
     m_lastID = m_firstID + num_objs;
@@ -104,10 +102,10 @@ TriangleMeshParamVector HDF5Handler::readMeshFromHDF5()
         readDataset(groupName, "Counter", H5T_NATIVE_INT, std::addressof(counter));
 
         // Construct the tuple and add to the mesh vector
-        PositionVector vertex1(coordinates[0], coordinates[1], coordinates[2]),
-            vertex2(coordinates[3], coordinates[4], coordinates[5]),
-            vertex3(coordinates[6], coordinates[7], coordinates[8]);
-        mesh.emplace_back(std::make_tuple(id, vertex1, vertex2, vertex3, area, counter));
+        Triangle tmp(Point(coordinates[0], coordinates[1], coordinates[2]),
+                     Point(coordinates[3], coordinates[4], coordinates[5]),
+                     Point(coordinates[6], coordinates[7], coordinates[8]));
+        mesh.emplace_back(std::make_tuple(id, tmp, area, counter));
     }
 
     return mesh;
