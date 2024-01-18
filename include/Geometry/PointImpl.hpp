@@ -2,13 +2,14 @@
 #define POINTIMPL_HPP
 
 template <typename T>
-Point<T>::Point() : x(0), y(0), z(0) {}
+Point<T>::Point() : x(T()), y(T()), z(T()) {}
 
 template <typename T>
-Point<T>::Point(T x, T y, T z) : x(x), y(y), z(z) {}
+Point<T>::Point(T x_, T y_, T z_)
+    : x(static_cast<T>(x_)), y(static_cast<T>(y_)), z(static_cast<T>(z_)) {}
 
 template <typename T>
-T Point<T>::distance(const Point &other) const
+T Point<T>::distance(Point<T> const &other) const
 {
     return std::sqrt((x - other.x) * (x - other.x) +
                      (y - other.y) * (y - other.y) +
@@ -16,9 +17,9 @@ T Point<T>::distance(const Point &other) const
 }
 
 template <typename T>
-std::ostream &operator<<(std::ostream &os, const Point<T> &point)
+std::ostream &operator<<(std::ostream &os, Point<T> const &point)
 {
-    os << "(" << point.x << ", " << point.y << ", " << point.z << ")";
+    os << point.x << ' ' << point.y << ' ' << point.z << '\n';
     return os;
 }
 

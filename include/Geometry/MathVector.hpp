@@ -22,13 +22,8 @@ private:
     Point<T> m_p;
 
 public:
-    MathVector() { m_p = Point(T(), T(), T()); }
-    MathVector(T x_, T y_, T z_)
-    {
-        m_p.x = x_;
-        m_p.y = y_;
-        m_p.z = z_;
-    }
+    MathVector() : m_p(T(), T(), T()) {}
+    MathVector(T x_, T y_, T z_) : m_p(x_, y_, z_) {}
 
     /**
      * @brief Assignment operator with custom double.
@@ -94,9 +89,7 @@ public:
     constexpr T module() const { return std::sqrt(m_p.x * m_p.x + m_p.y * m_p.y + m_p.z * m_p.z); }
 
     /// @brief Calculates the distance between two vectors.
-    constexpr T distance(MathVector const &other) const { return std::sqrt((m_p.x - other.m_p.x) * (m_p.x - other.m_p.x) +
-                                                                           (m_p.y - other.m_p.y) * (m_p.y - other.m_p.y) +
-                                                                           (m_p.z - other.m_p.z) * (m_p.z - other.m_p.z)); }
+    constexpr T distance(MathVector const &other) const { return m_p.distance(other.m_p); }
 
     /// @brief Clears the vector (Sets all components to null).
     void clear() noexcept { *this = 0; }
@@ -246,5 +239,8 @@ struct is_mathvector<MathVector<T>> : std::true_type
  */
 template <typename T>
 inline constexpr bool is_mathvector_v = is_mathvector<T>::value;
+
+template <typename T>
+MathVector(T, T, T) -> MathVector<T>;
 
 #endif // !MATHVECTOR_HPP
