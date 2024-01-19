@@ -40,6 +40,8 @@ void CollisionTracker<T>::processSegment(size_t start_index, size_t end_index,
             }
         }
         {
+            // Optimization 2: If counter == count of passed particles
+            // don't need to continue calculations
             std::lock_guard<std::mutex> lk(m_counter_mutex);
             if (m_counter == m_particles.size())
                 return;

@@ -5,7 +5,8 @@ void simulateMovement(size_t particles_count, double dt, double total_time,
 {
     MeshParamVector mesh;
 
-    // Artificial space for handling GMSH app
+    // Optimization 1: Artificial space for handling GMSH app.
+    // To finilize GMSH as soon as possible.
     {
         GMSHVolumeCreator volumeCreator;
         mesh = volumeCreator.getMeshParams(outfile);
