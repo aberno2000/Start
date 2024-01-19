@@ -221,6 +221,14 @@ private:
 
     GMSHandler m_handler; // RAII handler for GMSH
 
+    /**
+     * @brief Helper function that synchronize GMSH with specified params.
+     * @param meshSize The target size of the mesh elements.
+     * @param meshDim The dimension of the mesh to be generated.
+     * @param outputPath The path where the mesh file will be saved.
+    */
+    void gmshSynchronizer(double meshSize, double meshDim, std::string_view outputPath);
+
 public:
     GMSHVolumeCreator() {}
     ~GMSHVolumeCreator() {}
@@ -255,6 +263,15 @@ public:
                            double x = 0, double y = 0, double z = 0,
                            double dx = 100, double dy = 100, double dz = 100,
                            double r1 = 10, double r2 = 35, int tag = -1, double angle = 2 * std::numbers::pi);
+
+    /**
+     * @brief Generic volume creator. Works with existing volumes in a class.
+     * @param vtype type of the volume (Box, Sphere, Cylinder, Cone).
+    * @param meshSize The target size of the mesh elements.
+     * @param meshDim The dimension of the mesh to be generated.
+     * @param outputPath The path where the mesh file will be saved.
+    */
+    void createVolume(VolumeType vtype, double meshSize, double meshDim, std::string_view outputPath);
 
     /**
      * @brief Retrieves mesh parameters from a specified file.

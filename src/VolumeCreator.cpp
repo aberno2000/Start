@@ -42,34 +42,33 @@ int Cone::create() const
     return gmsh::model::occ::addCone(x, y, z, dx, dy, dz, r1, r2, tag, angle);
 }
 
-void GMSHVolumeCreator::createBoxAndMesh(double meshSize, int meshDim, std::string_view outputPath,
-                                         double x, double y, double z, double dx, double dy, double dz)
+void GMSHVolumeCreator::gmshSynchronizer(double meshSize, double meshDim, std::string_view outputPath)
 {
-    VolumeCreator::createBox(x, y, z, dx, dy, dz);
     Mesh::setMeshSize(meshSize);
     gmsh::model::occ::synchronize();
     gmsh::model::mesh::generate(meshDim);
     gmsh::write(outputPath.data());
+}
+
+void GMSHVolumeCreator::createBoxAndMesh(double meshSize, int meshDim, std::string_view outputPath,
+                                         double x, double y, double z, double dx, double dy, double dz)
+{
+    VolumeCreator::createBox(x, y, z, dx, dy, dz);
+    gmshSynchronizer(meshSize, meshDim, outputPath);
 }
 
 void GMSHVolumeCreator::createSphereAndMesh(double meshSize, int meshDim, std::string_view outputPath,
                                             double x, double y, double z, double r)
 {
     VolumeCreator::createSphere(x, y, z, r);
-    Mesh::setMeshSize(meshSize);
-    gmsh::model::occ::synchronize();
-    gmsh::model::mesh::generate(meshDim);
-    gmsh::write(outputPath.data());
+    gmshSynchronizer(meshSize, meshDim, outputPath);
 }
 
 void GMSHVolumeCreator::createSpheresAndMesh(SphereSpan spheres, double meshSize,
                                              int meshDim, std::string_view outputPath)
 {
     VolumeCreator::createSpheres(spheres);
-    Mesh::setMeshSize(meshSize);
-    gmsh::model::occ::synchronize();
-    gmsh::model::mesh::generate(meshDim);
-    gmsh::write(outputPath.data());
+    gmshSynchronizer(meshSize, meshDim, outputPath);
 }
 
 void GMSHVolumeCreator::createCylinderAndMesh(double meshSize, int meshDim, std::string_view outputPath,
@@ -78,10 +77,7 @@ void GMSHVolumeCreator::createCylinderAndMesh(double meshSize, int meshDim, std:
                                               int tag, double angle)
 {
     VolumeCreator::createCylinder(x, y, z, dx, dy, dz, r, tag, angle);
-    Mesh::setMeshSize(meshSize);
-    gmsh::model::occ::synchronize();
-    gmsh::model::mesh::generate(meshDim);
-    gmsh::write(outputPath.data());
+    gmshSynchronizer(meshSize, meshDim, outputPath);
 }
 
 void GMSHVolumeCreator::createConeAndMesh(double meshSize, int meshDim, std::string_view outputPath,
@@ -90,10 +86,30 @@ void GMSHVolumeCreator::createConeAndMesh(double meshSize, int meshDim, std::str
                                           double r1, double r2, int tag, double angle)
 {
     VolumeCreator::createCone(x, y, z, dx, dy, dz, r1, r2, tag, angle);
-    Mesh::setMeshSize(meshSize);
-    gmsh::model::occ::synchronize();
-    gmsh::model::mesh::generate(meshDim);
-    gmsh::write(outputPath.data());
+    gmshSynchronizer(meshSize, meshDim, outputPath);
+}
+
+void GMSHVolumeCreator::createVolume(VolumeType vtype, double meshSize,
+                                     double meshDim, std::string_view outputPath)
+{
+    switch (vtype)
+    {
+    case VolumeType::BoxType:
+        createBoxAndMesh(meshSize, meshDim, outputPath);
+        break;
+    case VolumeType::SphereType:
+        createSphereAndMesh(meshSize, meshDim, outputPath);
+        break;
+    case VolumeType::CylinderType:
+        createCylinderAndMesh(meshSize, meshDim, outputPath);
+        break;
+    case VolumeType::ConeType:
+        createConeAndMesh(meshSize, meshDim, outputPath);
+        break;
+    default:
+        std::cerr << "\033[1;31mError:\033[0m\033[1m There is no such type\n";
+        return;
+    }
 }
 
 MeshParamVector GMSHVolumeCreator::getMeshParams(std::string_view filePath) { return Mesh::getMeshParams(filePath); }
