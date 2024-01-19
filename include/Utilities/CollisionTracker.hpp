@@ -29,11 +29,13 @@ class CollisionTracker final
                   "Template type T must be an any object of Particles");
 
 private:
-    T &m_particles;                          // Reference to a vector of particles to be processed.
-    MeshParamVector const &m_mesh;           // Reference to a vector representing the mesh for collision detection.
-    double m_dt;                             // Time step for updating particle positions.
-    double m_total_time;                     // Total simulation time for which collisions are tracked.
-    static constinit std::mutex m_map_mutex; // Mutex for synchronizing access to the collision map.
+    T &m_particles;                              // Reference to a vector of particles to be processed.
+    MeshParamVector const &m_mesh;               // Reference to a vector representing the mesh for collision detection.
+    double m_dt;                                 // Time step for updating particle positions.
+    double m_total_time;                         // Total simulation time for which collisions are tracked.
+    static constinit std::mutex m_map_mutex;     // Mutex for synchronizing access to the collision map.
+    static constinit std::mutex m_counter_mutex; // Mutex for synchronizing access to the counter.
+    static constinit size_t m_counter;           // Count of the settled particles. Needs for optimization
 
     /**
      * @brief Processes a segment of the particle collection to detect collisions.

@@ -5,6 +5,12 @@ template <typename T>
 constinit std::mutex CollisionTracker<T>::m_map_mutex;
 
 template <typename T>
+constinit std::mutex CollisionTracker<T>::m_counter_mutex;
+
+template <typename T>
+constinit size_t CollisionTracker<T>::m_counter = 0;
+
+template <typename T>
 void CollisionTracker<T>::processSegment(size_t start_index, size_t end_index,
                                          std::unordered_map<size_t, int> &m)
 {
@@ -21,11 +27,22 @@ void CollisionTracker<T>::processSegment(size_t start_index, size_t end_index,
                 size_t id{Mesh::isRayIntersectTriangle(RayD(prev, cur), triangle)};
                 if (id != -1ul)
                 {
-                    std::lock_guard<std::mutex> lk(m_map_mutex);
-                    ++m[id];
+                    {
+                        std::lock_guard<std::mutex> lk(m_map_mutex);
+                        ++m[id];
+                    }
+                    {
+                        std::lock_guard<std::mutex> lk(m_counter_mutex);
+                        ++m_counter;
+                    }
                     break;
                 }
             }
+        }
+        {
+            std::lock_guard<std::mutex> lk(m_counter_mutex);
+            if (m_counter == m_particles.size())
+                return;
         }
     }
 }

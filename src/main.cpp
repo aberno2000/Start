@@ -30,7 +30,7 @@ int main(int argc, char *argv[])
 {
     if (argc != 5)
     {
-        std::cerr << std::format("Usage: {} <particles_count> <time_step> <time_interval> <msh_filename>",
+        std::cerr << std::format("Usage: {} <particles_count> <time_step> <time_interval> <msh_filename>\n",
                                  argv[0]);
         return EXIT_FAILURE;
     }
