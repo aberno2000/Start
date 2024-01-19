@@ -20,7 +20,7 @@ def check_and_install_packages(packages_list: list) -> None:
     for package in packages_list:
         try:
             import_module(package)  # Try to import the package
-            print(f"{BLUE}{package}{GREEN} is already installed{RESET}")
+            # print(f"{BLUE}{package}{GREEN} is already installed{RESET}")
         except ImportError:
             # If the package is not found, attempt to install it
             print(f"{BLUE}{package}{RESET} is not installed. Installing...")
