@@ -1,19 +1,23 @@
 from inst_deps import check_and_install_packages
 
 # Installing dependencies
-check_and_install_packages(["numpy", "h5py", "PyQt5", "PyOpenGL"])
-from hdf5handler import *
-from mesh_renderer import *
+check_and_install_packages(["numpy", "h5py", "gmsh", "matplotlib"])
+from hdf5handler import HDF5Handler
+from mesh_renderer import MeshRenderer
+
+
+def show_mesh(hdf5_filename: str) -> None:
+    handler = HDF5Handler(hdf5_filename)
+    mesh = handler.read_mesh_from_hdf5()
+    renderer = MeshRenderer(mesh)
+    renderer.show()
 
 
 def __main__():
-    app = QApplication([])
-    handler = HDF5Handler("results/box_mesh.hdf5")
-    mesh = handler.read_mesh_from_hdf5()
-
-    window = MeshRenderer(mesh)
-    window.show()
-    app.exec_()
+    show_mesh("results/box_mesh.hdf5")
+    show_mesh("results/sphere_mesh.hdf5")
+    show_mesh("results/cylinder_mesh.hdf5")
+    show_mesh("results/cone_mesh.hdf5")
 
 
 if __name__ == "__main__":

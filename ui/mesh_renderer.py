@@ -1,109 +1,126 @@
+import matplotlib.pyplot as plt
+from matplotlib.widgets import CheckButtons
+from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 import numpy as np
-from PyQt5.QtWidgets import QApplication, QOpenGLWidget
-from PyQt5.QtCore import Qt, QPoint
-from PyQt5.QtGui import QVector3D, QMatrix4x4
-from OpenGL.GL import *
 
 
-class MeshRenderer(QOpenGLWidget):
-    def __init__(self, mesh_data):
-        super().__init__()
-        self.mesh_data = mesh_data
-        self.min_count, self.max_count = self.get_counter_bounds()
-        self.last_pos = QPoint()
+class MeshRenderer:
+    """
+    Class to render 3D mesh data using matplotlib.
 
-        # Camera settings
-        self.zoom = 45
-        self.cameraPos = QVector3D(0, 0, 3)
-        self.cameraFront = QVector3D(0, 0, -1)
-        self.cameraUp = QVector3D(0, 1, 0)
-        self.yaw = 0.0  # Initial view is along X axis
-        self.pitch = 0.0
-        self.lastPos = QPoint()
+    Attributes:
+    - mesh (list): A list of triangles representing the mesh, where each triangle
+                   includes vertices and associated data.
+    - counts (list): A list of count values extracted from mesh, to be normalized.
+    - colors (list): A list of color values corresponding to the normalized count values.
+    - normalize_func (function): A function to normalize data values for color mapping.
+    - color_interpolator (function): A function to map normalized data to color values.
 
-    def calculateViewMatrix(self):
-        view = QMatrix4x4()
-        view.lookAt(self.cameraPos, self.cameraPos + self.cameraFront, self.cameraUp)
-        return view
+    Methods:
+    - normalize_data: Normalizes the count data from mesh.
+    - interpolate_color: Generates color values based on normalized data.
+    - _setup_plot: Initializes the 3D plot with mesh data.
+    - _add_sliders: Adds interactive sliders for adjusting plot limits.
+    - update: Updates the plot limits based on slider values.
+    - show: Displays the plot.
+    """
 
-    def calculateProjectionMatrix(self):
-        projection = QMatrix4x4()
-        projection.perspective(self.zoom, self.width() / self.height(), 0.1, 100.0)
-        return projection
+    def __init__(self, mesh, normalize_func=None, color_interpolator=None):
+        """
+        Initializes the MeshRenderer with mesh data and optional normalization and color interpolation functions.
 
-    def wheelEvent(self, event):
-        zoom_sensitivity = 100
-        self.zoom -= event.angleDelta().y() / zoom_sensitivity
-        self.update()
+        Args:
+        - mesh (list): Mesh data, each element represents a triangle.
+        - normalize_func (function, optional): Function to normalize mesh data values.
+        - color_interpolator (function, optional): Function to determine color based on normalized values.
+        """
+        self.mesh = mesh
+        self.normalize_func = (
+            normalize_func if normalize_func is not None else self.default_normalize
+        )
+        self.color_interpolator = (
+            color_interpolator
+            if color_interpolator is not None
+            else self.default_interpolate_color
+        )
+        self.counts = [triangle[5] for triangle in self.mesh]
+        self.colors = self.interpolate_color(self.normalize_data(self.counts))
 
-    def mousePressEvent(self, event):
-        self.lastPos = event.pos()
+        # Initial plot setup
+        self.fig = plt.figure()
+        self.ax = self.fig.add_subplot(111, projection="3d")
+        self.init_limits = {"xlim": [0, 150], "ylim": [0, 150], "zlim": [0, 150]}
 
-    def mouseMoveEvent(self, event):
-        if not self.lastPos.isNull():
-            sensitivity = 0.1
-            dx = (event.x() - self.lastPos.x()) * sensitivity
-            dy = (self.lastPos.y() - event.y()) * sensitivity
+        self.fig.canvas.mpl_connect("scroll_event", self.on_scroll)
+        self._setup_plot()
 
-            self.yaw += dx
-            self.pitch += dy
+    def default_normalize(self, data):
+        """
+        Default normalization function. Normalizes a list of count data.
+        """
+        max_value = max(data) if data else 1
+        return [d / max_value for d in data]
 
-            # Constrain pitch
-            self.pitch = max(-89.0, min(89.0, self.pitch))
+    def default_interpolate_color(self, normalized_data):
+        """
+        Default color interpolation function. Maps normalized data to color values.
+        """
+        return [(value, 0, 1 - value) for value in normalized_data]
 
-            # Update camera direction
-            direction = QVector3D()
-            direction.setX(
-                np.cos(np.radians(self.yaw)) * np.cos(np.radians(self.pitch))
-            )
-            direction.setY(np.sin(np.radians(self.pitch)))
-            direction.setZ(
-                np.sin(np.radians(self.yaw)) * np.cos(np.radians(self.pitch))
-            )
-            self.cameraFront = direction.normalized()
+    def normalize_data(self, counts):
+        """
+        Normalizes the count data using the provided normalization function.
+        """
+        return self.normalize_func(counts)
 
-        self.lastPos = event.pos()
-        self.update()
+    def interpolate_color(self, normalized_counts):
+        """
+        Generates color values for each count using the provided color interpolation function.
+        """
+        return self.color_interpolator(normalized_counts)
 
-    def get_counter_bounds(self):
-        counters = [triangle[5] for triangle in self.mesh_data]
-        return min(counters), max(counters)
+    def _setup_plot(self):
+        """
+        Set up the initial 3D plot using the mesh data.
+        """
+        for triangle, color in zip(self.mesh, self.colors):
+            vertices = np.array([triangle[1], triangle[2], triangle[3]])
+            self.ax.add_collection3d(Poly3DCollection([vertices], facecolors=color))
 
-    def normalize_counter(self, counter):
-        return (counter - self.min_count) / (self.max_count - self.min_count)
+        self.ax.set_xlim(self.init_limits["xlim"])
+        self.ax.set_ylim(self.init_limits["ylim"])
+        self.ax.set_zlim(self.init_limits["zlim"])
 
-    def initializeGL(self):
-        glEnable(GL_DEPTH_TEST)
+    def on_scroll(self, event):
+        """
+        Handles mouse scroll event on the plot for zooming in and out.
 
-    def resizeGL(self, width, height):
-        glViewport(0, 0, width, height)
+        Args:
+        - event: The scroll event.
+        """
+        # Get the current limits
+        xlim = self.ax.get_xlim()
+        ylim = self.ax.get_ylim()
+        zlim = self.ax.get_zlim()
 
-    def get_color(self, counter):
-        normalized = self.normalize_counter(counter)
-        return (normalized, 0, 1 - normalized)
+        # Set the zoom sensitivity (larger number for faster zooming)
+        zoom_sensitivity = 0.115
 
-    def paintGL(self):
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+        # Adjust the axis limits based on the scroll direction
+        if event.button == "up":  # Zoom in
+            self.ax.set_xlim([limit * (1 - zoom_sensitivity) for limit in xlim])
+            self.ax.set_ylim([limit * (1 - zoom_sensitivity) for limit in ylim])
+            self.ax.set_zlim([limit * (1 - zoom_sensitivity) for limit in zlim])
+        elif event.button == "down":  # Zoom out
+            self.ax.set_xlim([limit * (1 + zoom_sensitivity) for limit in xlim])
+            self.ax.set_ylim([limit * (1 + zoom_sensitivity) for limit in ylim])
+            self.ax.set_zlim([limit * (1 + zoom_sensitivity) for limit in zlim])
 
-        # Apply projection transformation
-        glMatrixMode(GL_PROJECTION)
-        glLoadIdentity()
-        projection = self.calculateProjectionMatrix()
-        glMultMatrixf(projection.data())
+        # Redraw the canvas
+        self.fig.canvas.draw_idle()
 
-        # Apply view transformation
-        glMatrixMode(GL_MODELVIEW)
-        glLoadIdentity()
-        view = self.calculateViewMatrix()
-        glMultMatrixf(view.data())
-
-        # Render the mesh
-        glBegin(GL_TRIANGLES)
-        for triangle in self.mesh_data:
-            counter = triangle[5]
-            color = self.get_color(counter)
-            glColor3fv(color)
-
-            for vertex in triangle[1:4]:
-                glVertex3fv(vertex)
-        glEnd()
+    def show(self):
+        """
+        Display the plot with interactive sliders.
+        """
+        plt.show()
