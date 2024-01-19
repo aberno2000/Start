@@ -1,11 +1,8 @@
-#include <map>
-#include <numeric>
-
 #include "../include/DataHandling/HDF5Handler.hpp"
-#include "../include/Geometry/Mesh.hpp"
-#include "../include/Particles/Particles.hpp"
 #include "../include/Generators/RealNumberGenerator.hpp"
 #include "../include/Generators/VolumeCreator.hpp"
+#include "../include/Geometry/Mesh.hpp"
+#include "../include/Particles/Particles.hpp"
 
 std::tuple<std::unordered_map<size_t, int>, SphereVector>
 trackCollisions(ParticleGenericVector &pgs,
@@ -46,7 +43,7 @@ trackCollisions(ParticleGenericVector &pgs,
 void simulateMovement(VolumeType vtype, size_t particles_count,
                       double meshSize, int meshDim, double dt, double simtime,
                       std::string_view outfile, std::string_view hdf5filename,
-                      int argc, char *argv[])
+                      int argc, char *argv[], bool needToVisualizeParticles = false)
 {
     // 1. Generating bounded volume in GMSH
     GMSHVolumeCreator volumeCreator;
@@ -96,7 +93,8 @@ void simulateMovement(VolumeType vtype, size_t particles_count,
     auto updatedMesh{hdf5handler.readMeshFromHDF5()};
 
     // 8. Creating settled particles in GMSH
-    volumeCreator.createSpheresAndMesh(settledParticles, 1, 2, "results/settled_particles.msh");
+    if (needToVisualizeParticles)
+        volumeCreator.createSpheresAndMesh(settledParticles, 1, 2, "results/settled_particles.msh");
     volumeCreator.runGmsh(argc, argv);
 }
 
