@@ -26,7 +26,7 @@ void CollisionTracker<T>::processSegment(size_t start_index, size_t end_index,
                 return;
 
             Point3 prev(m_particles.at(i).getCentre());
-            m_particles.at(i).updatePosition(m_dt); 
+            m_particles.at(i).updatePosition(m_dt);
             Ray3 ray(prev, m_particles.at(i).getCentre());
 
             for (auto const &triangle : m_mesh)
