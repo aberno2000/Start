@@ -33,3 +33,14 @@ test
 
 # There is no need to commit results directory
 results/
+
+# GNU plot files
+*.gp
+
+# Pictures
+*.jpg
+*.jpeg
+*.png
+
+# CSVs
+*.csv
