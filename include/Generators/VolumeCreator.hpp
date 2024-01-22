@@ -39,19 +39,7 @@ public:
     virtual ~IVolume() {}
 };
 
-/**
- * @brief Concept for Sphere type.
- * Requirements for a type to satisfy this concept:
- *  - Must be a tuple of size 4.
- *  - All elements must be a floating-point type.
- * This concept ensures that the provided type represents a sphere with its coordinates
- * and radius in the form of a tuple.
- */
-template <typename T>
-concept SphereConcept = std::tuple_size_v<T> == 2 &&
-                        is_mathvector_v<std::tuple_element_t<0, T>> &&
-                        std::is_floating_point_v<std::tuple_element_t<1, T>>;
-using SphereD = std::tuple<PointD, double>;
+using SphereD = std::tuple<Point3, double>;
 using SphereVector = std::vector<SphereD>;
 using SphereSpan = std::span<SphereD const>;
 

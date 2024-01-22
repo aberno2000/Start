@@ -15,12 +15,12 @@ std::vector<T> createParticlesWithVelocities(size_t count, double minx, double m
 
     for (size_t i{}; i < count; ++i)
     {
-        double x{rng.get_double(minx, maxx)},
-            y{rng.get_double(miny, maxy)},
-            z{rng.get_double(minz, maxz)},
-            vx{rng.get_double(minvx, maxvx)},
-            vy{rng.get_double(minvy, maxvy)},
-            vz{rng.get_double(minvz, maxvz)};
+        double x{rng(minx, maxx)},
+            y{rng(miny, maxy)},
+            z{rng(minz, maxz)},
+            vx{rng(minvx, maxvx)},
+            vy{rng(minvy, maxvy)},
+            vz{rng(minvz, maxvz)};
 
         if constexpr (std::is_same_v<T, ParticleArgon> || std::is_same_v<T, ParticleAluminium>)
             particles.emplace_back(x, y, z, vx, vy, vz, T().getRadius());
@@ -45,16 +45,16 @@ std::vector<T> createParticlesWithEnergy(size_t count, double minx, double miny,
 
     for (size_t i{}; i < count; ++i)
     {
-        double x{rng.get_double(minx, maxx)},
-            y{rng.get_double(miny, maxy)},
-            z{rng.get_double(minz, maxz)},
-            energy{rng.get_double(minenergy, maxenergy)};
+        double x{rng(minx, maxx)},
+            y{rng(miny, maxy)},
+            z{rng(minz, maxz)},
+            energy{rng(minenergy, maxenergy)};
 
         if constexpr (std::is_same_v<T, ParticleArgon> || std::is_same_v<T, ParticleAluminium>)
             particles.emplace_back(x, y, z, energy, T().getRadius());
         else
         {
-            double radius{rng.get_double(minradius, maxradius)};
+            double radius{rng(minradius, maxradius)};
             particles.emplace_back(x, y, z, energy, radius);
         }
     }

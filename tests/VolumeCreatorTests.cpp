@@ -19,10 +19,10 @@ SphereVector generateRandomSpheres(int count)
     RealNumberGenerator rng;
 
     for (int i{}; i < count; ++i)
-        spheres.emplace_back(std::make_tuple(PointD(rng.get_double(-100.0, 100.0),
-                                                    rng.get_double(-100.0, 100.0),
-                                                    rng.get_double(-100.0, 100.0)),
-                                             rng.get_double(0, 100.0)));
+        spheres.emplace_back(std::make_tuple(Point3(rng(-100.0, 100.0),
+                                                    rng(-100.0, 100.0),
+                                                    rng(-100.0, 100.0)),
+                                             rng(0, 100.0)));
 
     return spheres;
 }

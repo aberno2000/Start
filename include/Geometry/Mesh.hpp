@@ -14,7 +14,7 @@
  * id,  x1,     y1,     z1,     x2,     y2,     z2,     x3,     y3,     z3,     dS,     counter.
  * `counter` is counter of settled objects on specific triangle (defines by its `id` field).
  */
-using MeshParam = std::tuple<size_t, TriangleD, double, int>;
+using MeshParam = std::tuple<size_t, Triangle3, double, int>;
 using MeshParamVector = std::vector<MeshParam>;
 
 /// @brief Represents GMSH mesh.
@@ -56,7 +56,7 @@ public:
      * @return Returns the index or ID of the triangle (as size_t) if the ray intersects with it.
      *         If there is no intersection, it returns a special value (usually -1 cast to size_t) to indicate this.
      */
-    static size_t isRayIntersectTriangle(RayD const &ray, MeshParam const &triangle);
+    static size_t isRayIntersectTriangle(Ray3 const &ray, MeshParam const &triangle);
 
     /**
      * @brief Gets intersection point of ray and triangle if ray intersects the triangle.
@@ -69,8 +69,8 @@ public:
      *         and intersection point.
      *         If the particle doesn't intersect with the specified triangle, it returns `std::nullopt`
      */
-    static std::optional<std::tuple<size_t, PointD>>
-    getIntersectionPoint(RayD const &ray, MeshParam const &triangle);
+    static std::optional<std::tuple<size_t, Point3>>
+    getIntersectionPoint(Ray3 const &ray, MeshParam const &triangle);
 };
 
 #include "MeshImpl.hpp"

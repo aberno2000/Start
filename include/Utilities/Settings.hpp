@@ -1,11 +1,19 @@
 #ifndef SETTINGS_HPP
 #define SETTINGS_HPP
 
+#include <CGAL/Exact_predicates_exact_constructions_kernel.h>
+#include <CGAL/intersections.h>
+
 #include <concepts>
 #include <filesystem>
 #include <source_location>
 #include <sstream>
 #include <string_view>
+
+using Kernel = CGAL::Exact_predicates_exact_constructions_kernel;
+using Point3 = Kernel::Point_3;
+using Ray3 = Kernel::Ray_3;
+using Triangle3 = Kernel::Triangle_3;
 
 #define ERRMSG_ABS_PATH(desc) std::cerr << std::format("\033[1;31mERROR:\033[0m\033[1m {}: {}({} line): {}: \033[1;31m{}\033[0m\033[1m\n", \
                                                        settings::getCurTime(),                                                             \

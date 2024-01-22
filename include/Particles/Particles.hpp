@@ -10,7 +10,7 @@
 class ParticleGeneric
 {
 private:
-    PointD m_centre;           // Position in Cartesian coordinates (x, y, z).
+    Point3 m_centre;           // Position in Cartesian coordinates (x, y, z).
     VelocityVector m_velocity; // Velocity vector (Vx, Vy, Vz).
     double m_radius{},         // Particle radius.
         m_energy{};            // Particle energy [J].
@@ -32,10 +32,10 @@ public:
     ParticleGeneric() {}
     ParticleGeneric(double x_, double y_, double z_, double energy_, double radius_);
     ParticleGeneric(double x_, double y_, double z_, double vx_, double vy_, double vz_, double radius_);
-    ParticleGeneric(PointD centre, double vx_, double vy_, double vz_, double radius_);
-    ParticleGeneric(PointD centre, double energy_, double radius_);
+    ParticleGeneric(Point3 centre, double vx_, double vy_, double vz_, double radius_);
+    ParticleGeneric(Point3 centre, double energy_, double radius_);
     ParticleGeneric(double x_, double y_, double z_, VelocityVector velvec, double radius_);
-    ParticleGeneric(PointD centre, VelocityVector velvec, double radius_);
+    ParticleGeneric(Point3 centre, VelocityVector velvec, double radius_);
     virtual ~ParticleGeneric() {}
 
     /**
@@ -59,10 +59,10 @@ public:
     bool isOutOfBounds(aabb::AABB const &bounding_volume) const;
 
     /* === Getters for particle params. === */
-    constexpr double getX() const { return m_centre.x; }
-    constexpr double getY() const { return m_centre.y; }
-    constexpr double getZ() const { return m_centre.z; }
-    double getPositionModule() const { return PositionVector(m_centre.x, m_centre.y, m_centre.z).module(); }
+    double getX() const { return CGAL::to_double(m_centre.x()); }
+    double getY() const { return CGAL::to_double(m_centre.y()); }
+    double getZ() const { return CGAL::to_double(m_centre.z()); }
+    double getPositionModule() const { return PositionVector(CGAL::to_double(m_centre.x()), CGAL::to_double(m_centre.y()), CGAL::to_double(m_centre.z())).module(); }
     constexpr double getEnergy_J() const { return m_energy; }
     double getEnergy_eV() const { return m_energy * settings::physical_constants::J_eV; }
     constexpr double getVx() const { return m_velocity.getX(); }
@@ -70,7 +70,7 @@ public:
     constexpr double getVz() const { return m_velocity.getZ(); }
     constexpr double getVelocityModule() const { return m_velocity.module(); }
     constexpr double getRadius() const { return m_radius; }
-    constexpr PointD const &getCentre() const { return m_centre; }
+    constexpr Point3 const &getCentre() const { return m_centre; }
     constexpr VelocityVector const &getVelocityVector() const { return m_velocity; }
     constexpr aabb::AABB const &getBoundingBox() const { return m_boundingBox; }
 
@@ -100,13 +100,13 @@ public:
         : ParticleGeneric(x_, y_, z_, energy_, radius_ = radius) {}
     ParticleArgon(double x_, double y_, double z_, double vx_, double vy_, double vz_, double radius_ = radius)
         : ParticleGeneric(x_, y_, z_, vx_, vy_, vz_, radius_) {}
-    ParticleArgon(PointD centre, double vx_, double vy_, double vz_, double radius_ = radius)
+    ParticleArgon(Point3 centre, double vx_, double vy_, double vz_, double radius_ = radius)
         : ParticleGeneric(centre, vx_, vy_, vz_, radius_) {}
-    ParticleArgon(PointD centre, double energy_, double radius_)
+    ParticleArgon(Point3 centre, double energy_, double radius_)
         : ParticleGeneric(centre, energy_, radius_ = radius) {}
     ParticleArgon(double x_, double y_, double z_, VelocityVector velvec, double radius_ = radius)
         : ParticleGeneric(x_, y_, z_, velvec, radius_) {}
-    ParticleArgon(PointD centre, VelocityVector velvec,
+    ParticleArgon(Point3 centre, VelocityVector velvec,
                   double radius_ = radius)
         : ParticleGeneric(centre, velvec, radius_) {}
 
@@ -125,13 +125,13 @@ public:
         : ParticleGeneric(x_, y_, z_, energy_, radius_ = radius) {}
     ParticleAluminium(double x_, double y_, double z_, double vx_, double vy_, double vz_, double radius_ = radius)
         : ParticleGeneric(x_, y_, z_, vx_, vy_, vz_, radius_) {}
-    ParticleAluminium(PointD centre, double vx_, double vy_, double vz_, double radius_ = radius)
+    ParticleAluminium(Point3 centre, double vx_, double vy_, double vz_, double radius_ = radius)
         : ParticleGeneric(centre, vx_, vy_, vz_, radius_) {}
-    ParticleAluminium(PointD centre, double energy_, double radius_)
+    ParticleAluminium(Point3 centre, double energy_, double radius_)
         : ParticleGeneric(centre, energy_, radius_ = radius) {}
     ParticleAluminium(double x_, double y_, double z_, VelocityVector velvec, double radius_ = radius)
         : ParticleGeneric(x_, y_, z_, velvec, radius_) {}
-    ParticleAluminium(PointD centre, VelocityVector velvec, double radius_ = radius)
+    ParticleAluminium(Point3 centre, VelocityVector velvec, double radius_ = radius)
         : ParticleGeneric(centre, velvec, radius_) {}
 
     constexpr double getMass() const override { return 4.4803831e-26; }
@@ -139,15 +139,15 @@ public:
 };
 
 /// @brief x, y, z, Vx, Vy, Vz, radius
-using ParticleVectorWithVelocities = std::vector<std::tuple<PointD,
+using ParticleVectorWithVelocities = std::vector<std::tuple<Point3,
                                                             double, double, double,
                                                             double>>;
 /// @brief x, y, z, E, radius
-using ParticleVectorWithEnergy = std::vector<std::tuple<PointD,
+using ParticleVectorWithEnergy = std::vector<std::tuple<Point3,
                                                         double, double>>;
 /// @brief x, y, z, radius
-using ParticleVectorSimple = std::vector<std::tuple<PointD, double>>;
-using ParticleSimple = std::tuple<PointD, double>;
+using ParticleVectorSimple = std::vector<std::tuple<Point3, double>>;
+using ParticleSimple = std::tuple<Point3, double>;
 
 /* --> Aliases for many of specific kind particles. <-- */
 using ParticleGenericVector = std::vector<ParticleGeneric>;

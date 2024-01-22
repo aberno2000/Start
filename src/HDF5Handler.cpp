@@ -68,9 +68,9 @@ void HDF5Handler::saveMeshToHDF5(MeshParamVector const &mesh)
 
         // Store data related to the triangle in the group
         double coordinates[9] = {
-            std::get<1>(triangle).getA().x, std::get<1>(triangle).getA().y, std::get<1>(triangle).getA().z,
-            std::get<1>(triangle).getB().x, std::get<1>(triangle).getB().y, std::get<1>(triangle).getB().z,
-            std::get<1>(triangle).getC().x, std::get<1>(triangle).getC().y, std::get<1>(triangle).getC().z};
+            CGAL::to_double(std::get<1>(triangle).vertex(0).x()), CGAL::to_double(std::get<1>(triangle).vertex(0).y()), CGAL::to_double(std::get<1>(triangle).vertex(0).z()),
+            CGAL::to_double(std::get<1>(triangle).vertex(1).x()), CGAL::to_double(std::get<1>(triangle).vertex(1).y()), CGAL::to_double(std::get<1>(triangle).vertex(1).z()),
+            CGAL::to_double(std::get<1>(triangle).vertex(2).x()), CGAL::to_double(std::get<1>(triangle).vertex(2).y()), CGAL::to_double(std::get<1>(triangle).vertex(2).z())};
         writeDataset(groupName, "Coordinates", H5T_NATIVE_DOUBLE, coordinates, 9);
 
         double area{std::get<2>(triangle)};
@@ -102,9 +102,9 @@ MeshParamVector HDF5Handler::readMeshFromHDF5()
         readDataset(groupName, "Counter", H5T_NATIVE_INT, std::addressof(counter));
 
         // Construct the tuple and add to the mesh vector
-        Triangle tmp(Point(coordinates[0], coordinates[1], coordinates[2]),
-                     Point(coordinates[3], coordinates[4], coordinates[5]),
-                     Point(coordinates[6], coordinates[7], coordinates[8]));
+        Triangle3 tmp(Point3(coordinates[0], coordinates[1], coordinates[2]),
+                      Point3(coordinates[3], coordinates[4], coordinates[5]),
+                      Point3(coordinates[6], coordinates[7], coordinates[8]));
         mesh.emplace_back(std::make_tuple(id, tmp, area, counter));
     }
 

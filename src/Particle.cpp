@@ -13,10 +13,10 @@ void ParticleGeneric::calculateVelocityFromEnergy_J()
 
   RealNumberGenerator rng;
   [[maybe_unused]] double v{std::sqrt(2 * m_energy / getMass())},
-      theta{rng.get_double(0 - std::numeric_limits<long double>::min(),
-                           std::numbers::pi + std::numeric_limits<long double>::min())},
-      phi{rng.get_double(0 - std::numeric_limits<long double>::min(),
-                         2 * std::numbers::pi + std::numeric_limits<long double>::min())},
+      theta{rng(0 - std::numeric_limits<long double>::min(),
+                std::numbers::pi + std::numeric_limits<long double>::min())},
+      phi{rng(0 - std::numeric_limits<long double>::min(),
+              2 * std::numbers::pi + std::numeric_limits<long double>::min())},
       vx{m_radius * sin(theta) * cos(phi)},
       vy{m_radius * sin(theta) * sin(phi)},
       vz{m_radius * cos(theta)};
@@ -26,7 +26,7 @@ void ParticleGeneric::calculateVelocityFromEnergy_J()
 
 ParticleGeneric::ParticleGeneric(double x_, double y_, double z_,
                                  double energy_, double radius_)
-    : m_centre(PointD(x_, y_, z_)),
+    : m_centre(Point3(x_, y_, z_)),
       m_energy(energy_)
 {
   calculateVelocityFromEnergy_J();
@@ -38,66 +38,68 @@ ParticleGeneric::ParticleGeneric(double x_, double y_, double z_,
 ParticleGeneric::ParticleGeneric(double x_, double y_, double z_,
                                  double vx_, double vy_, double vz_,
                                  double radius_)
-    : m_centre(PointD(x_, y_, z_)),
+    : m_centre(Point3(x_, y_, z_)),
       m_velocity(MathVector(vx_, vy_, vz_)),
       m_radius(radius_),
       m_boundingBox({x_ - radius_, y_ - radius_, z_ - radius_},
                     {x_ + radius_, y_ + radius_, z_ + radius_}) {}
 
-ParticleGeneric::ParticleGeneric(PointD centre,
+ParticleGeneric::ParticleGeneric(Point3 centre,
                                  double vx_, double vy_, double vz_,
                                  double radius_)
     : m_centre(centre),
       m_velocity(MathVector(vx_, vy_, vz_)),
       m_radius(radius_),
-      m_boundingBox({m_centre.x - radius_, m_centre.y - radius_, m_centre.z - radius_},
-                    {m_centre.x + radius_, m_centre.y + radius_, m_centre.z + radius_}) {}
+      m_boundingBox({CGAL::to_double(m_centre.x()) - radius_, CGAL::to_double(m_centre.y()) - radius_, CGAL::to_double(m_centre.z()) - radius_},
+                    {CGAL::to_double(m_centre.x()) + radius_, CGAL::to_double(m_centre.y()) + radius_, CGAL::to_double(m_centre.z()) + radius_}) {}
 
-ParticleGeneric::ParticleGeneric(PointD centre, double energy_, double radius_)
+ParticleGeneric::ParticleGeneric(Point3 centre, double energy_, double radius_)
     : m_centre(centre),
       m_energy(energy_)
 {
   calculateVelocityFromEnergy_J();
   m_radius = radius_;
-  m_boundingBox = aabb::AABB({m_centre.x - radius_, m_centre.y - radius_, m_centre.z - radius_},
-                             {m_centre.x + radius_, m_centre.y + radius_, m_centre.z + radius_});
+  m_boundingBox = aabb::AABB({CGAL::to_double(m_centre.x()) - radius_, CGAL::to_double(m_centre.y()) - radius_, CGAL::to_double(m_centre.z()) - radius_},
+                             {CGAL::to_double(m_centre.x()) + radius_, CGAL::to_double(m_centre.y()) + radius_, CGAL::to_double(m_centre.z()) + radius_});
 }
 
 ParticleGeneric::ParticleGeneric(double x_, double y_, double z_,
                                  VelocityVector velvec,
                                  double radius_)
-    : m_centre(PointD(x_, y_, z_)),
+    : m_centre(Point3(x_, y_, z_)),
       m_velocity(velvec),
       m_radius(radius_),
       m_boundingBox({x_ - radius_, y_ - radius_, z_ - radius_},
                     {x_ + radius_, y_ + radius_, z_ + radius_}) {}
 
-ParticleGeneric::ParticleGeneric(PointD centre,
+ParticleGeneric::ParticleGeneric(Point3 centre,
                                  VelocityVector velvec,
                                  double radius_)
     : m_centre(centre),
       m_velocity(velvec),
       m_radius(radius_),
-      m_boundingBox({m_centre.x - radius_, m_centre.y - radius_, m_centre.z - radius_},
-                    {m_centre.x + radius_, m_centre.y + radius_, m_centre.z + radius_}) {}
+      m_boundingBox({CGAL::to_double(m_centre.x()) - radius_, CGAL::to_double(m_centre.y()) - radius_, CGAL::to_double(m_centre.z()) - radius_},
+                    {CGAL::to_double(m_centre.x()) + radius_, CGAL::to_double(m_centre.y()) + radius_, CGAL::to_double(m_centre.z()) + radius_}) {}
 
 void ParticleGeneric::updatePosition(double dt)
 {
   // Update particle positions: x = x + Vx ⋅ Δt
-  m_centre.x = m_centre.x + getVx() * dt;
-  m_centre.y = m_centre.y + getVy() * dt;
-  m_centre.z = m_centre.z + getVz() * dt;
+  double upd_x{CGAL::to_double(m_centre.x()) + getVx() * dt},
+      upd_y{CGAL::to_double(m_centre.y()) + getVy() * dt},
+      upd_z{CGAL::to_double(m_centre.z()) + getVz() * dt};
+
+  m_centre = Point3(upd_x, upd_y, upd_z);
 
   // Update the bounding box to the new position
-  m_boundingBox = aabb::AABB({m_centre.x - m_radius, m_centre.y - m_radius, m_centre.z - m_radius},
-                             {m_centre.x + m_radius, m_centre.y + m_radius, m_centre.z + m_radius});
+  m_boundingBox = aabb::AABB({CGAL::to_double(m_centre.x()) - m_radius, CGAL::to_double(m_centre.y()) - m_radius, CGAL::to_double(m_centre.z()) - m_radius},
+                             {CGAL::to_double(m_centre.x()) + m_radius, CGAL::to_double(m_centre.y()) + m_radius, CGAL::to_double(m_centre.z()) + m_radius});
 }
 
 bool ParticleGeneric::overlaps(ParticleGeneric const &other) const
 {
   // Distance between particles
-  double distance_{PositionVector(m_centre.x, m_centre.y, m_centre.z)
-                       .distance(PositionVector(other.m_centre.x, other.m_centre.y, other.m_centre.z))};
+  double distance_{PositionVector(CGAL::to_double(m_centre.x()), CGAL::to_double(m_centre.y()), CGAL::to_double(m_centre.z()))
+                       .distance(PositionVector(CGAL::to_double(other.m_centre.x()), CGAL::to_double(other.m_centre.y()), CGAL::to_double(other.m_centre.z())))};
   return distance_ < (m_radius + other.m_radius);
 }
 

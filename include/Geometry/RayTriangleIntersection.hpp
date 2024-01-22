@@ -1,10 +1,8 @@
 #ifndef RAYTRIANGLEINTERSECTION_HPP
 #define RAYTRIANGLEINTERSECTION_HPP
 
-#include "Ray.hpp"
-#include "Triangle.hpp"
+#include "../Utilities/Settings.hpp"
 
-template <typename T>
 class RayTriangleIntersection
 {
 public:
@@ -15,8 +13,8 @@ public:
      * @return `true` if ray intersects the triangle, otherwise `false`.
      */
     [[nodiscard("Ignoring the intersection test result can lead to \
-    incorrect geometric or physical computations.")]] static constexpr bool
-    isIntersectTriangle(Ray<T> const &ray, Triangle<T> const &triangle);
+    incorrect geometric or physical computations.")]] static bool
+    isIntersectTriangle(Ray3 const &ray, Triangle3 const &triangle);
 
     /**
      * @brief Computes the intersection point of the ray with a given triangle.
@@ -26,10 +24,8 @@ public:
      * otherwise, `std::nullopt`.
      */
     [[nodiscard("Ignoring the intersection point may lead to incorrect \
-    behavior in applications relying on accurate geometric calculations.")]] static constexpr std::optional<Point<T>>
-    getIntersectionPoint(Ray<T> const &ray, Triangle<T> const &triangle);
+    behavior in applications relying on accurate geometric calculations.")]] static std::optional<Point3>
+    getIntersectionPoint(Ray3 const &ray, Triangle3 const &triangle);
 };
-
-#include "RayTriangleIntersectionImpl.hpp"
 
 #endif // !RAYTRIANGLEINTERSECTION_HPP

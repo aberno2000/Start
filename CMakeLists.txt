@@ -14,7 +14,7 @@ execute_process(
     OUTPUT_STRIP_TRAILING_WHITESPACE
 )
 
-set(CMAKE_CXX_FLAGS "-Wall -Wpedantic -Wextra -laabb -O2 ${ROOT_FLAGS}")
+set(CMAKE_CXX_FLAGS "-Wall -Wpedantic -Wextra -lpthread -O2 ${ROOT_FLAGS}")
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -29,6 +29,7 @@ set(SOURCES
     src/Settings.cpp
     src/HDF5Handler.cpp
     src/VolumeCreator.cpp
+    src/RayTriangleIntersection.cpp
 )
 
 include_directories(${CMAKE_SOURCE_DIR}/include

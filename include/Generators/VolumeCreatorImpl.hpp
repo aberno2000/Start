@@ -30,10 +30,10 @@ inline std::vector<int> VolumeCreator::createSpheres(SphereSpan spheres)
     std::vector<int> dimTags;
     for (auto const &sphere : spheres)
     {
-        PointD centre{std::get<0>(sphere)};
-        dimTags.emplace_back(VolumeCreator::createSphere(centre.x,
-                                                         centre.y,
-                                                         centre.z,
+        Point3 centre{std::get<0>(sphere)};
+        dimTags.emplace_back(VolumeCreator::createSphere(CGAL::to_double(centre.x()),
+                                                         CGAL::to_double(centre.y()),
+                                                         CGAL::to_double(centre.z()),
                                                          std::get<1>(sphere)));
     }
     return dimTags;
