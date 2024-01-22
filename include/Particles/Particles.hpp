@@ -154,6 +154,12 @@ using ParticleGenericVector = std::vector<ParticleGeneric>;
 using ParticleArgonVector = std::vector<ParticleArgon>;
 using ParticleAluminiumVector = std::vector<ParticleAluminium>;
 
+/// @brief Concept for all particles types.
+template <typename T>
+concept IsParticle = std::is_same_v<T, ParticleGenericVector> ||
+                      std::is_same_v<T, ParticleArgonVector> ||
+                      std::is_same_v<T, ParticleAluminiumVector>;
+
 /**
  * @brief Generates a vector of particles with specified velocity ranges.
  *
