@@ -41,7 +41,6 @@ void CollisionTracker<T>::processSegment(size_t start_index, size_t end_index,
                     {
                         std::unique_lock<std::mutex> lk(m_counter_mutex);
                         ++m_counter;
-                        std::cout << std::format("{}: counter is {}\n", t, m_counter);
 
                         // Optimization 2: If counter >= count of settled particles
                         // don't need to continue calculations.
