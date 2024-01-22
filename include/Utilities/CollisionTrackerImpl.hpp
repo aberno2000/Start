@@ -1,16 +1,19 @@
 #ifndef COLLISIONTRACKERIMPL_HPP
 #define COLLISIONTRACKERIMPL_HPP
 
-template <typename T>
+template <IsParticle T>
 constinit std::mutex CollisionTracker<T>::m_map_mutex;
 
-template <typename T>
+template <IsParticle T>
 constinit std::mutex CollisionTracker<T>::m_counter_mutex;
 
-template <typename T>
+template <IsParticle T>
 constinit size_t CollisionTracker<T>::m_counter = 0;
 
-template <typename T>
+template <IsParticle T>
+std::atomic_flag CollisionTracker<T>::m_stop_processing = ATOMIC_FLAG_INIT;
+
+template <IsParticle T>
 void CollisionTracker<T>::processSegment(size_t start_index, size_t end_index,
                                          std::unordered_map<size_t, int> &m)
 {
@@ -18,9 +21,13 @@ void CollisionTracker<T>::processSegment(size_t start_index, size_t end_index,
     {
         for (size_t i{start_index}; i < end_index; ++i)
         {
-            PointD prev(m_particles[i].getCentre());
-            m_particles[i].updatePosition(m_dt);
-            PointD cur(m_particles[i].getCentre());
+            // Exiting from thread if we need to stop processing
+            if (m_stop_processing.test())
+                return;
+
+            PointD prev(m_particles.at(i).getCentre());
+            m_particles.at(i).updatePosition(m_dt);
+            PointD cur(m_particles.at(i).getCentre());
 
             for (auto const &triangle : m_mesh)
             {
@@ -32,24 +39,27 @@ void CollisionTracker<T>::processSegment(size_t start_index, size_t end_index,
                         ++m[id];
                     }
                     {
-                        std::lock_guard<std::mutex> lk(m_counter_mutex);
+                        std::unique_lock<std::mutex> lk(m_counter_mutex);
                         ++m_counter;
+                        std::cout << std::format("{}: counter is {}\n", t, m_counter);
+
+                        // Optimization 2: If counter >= count of settled particles
+                        // don't need to continue calculations.
+                        // @warning Here we have a little tolerance +(~1-3) counter exceeds.
+                        // For example, if we have 1000 particles, counter may be from 1000 to ~1003.
+                        if (m_counter >= m_particles.size())
+                        {
+                            m_stop_processing.test_and_set();
+                            return;
+                        }
                     }
-                    break;
                 }
             }
-        }
-        {
-            // Optimization 2: If counter == count of passed particles
-            // don't need to continue calculations
-            std::lock_guard<std::mutex> lk(m_counter_mutex);
-            if (m_counter == m_particles.size())
-                return;
         }
     }
 }
 
-template <typename T>
+template <IsParticle T>
 std::unordered_map<size_t, int> CollisionTracker<T>::trackCollisions()
 {
     std::unordered_map<size_t, int> m;
@@ -58,6 +68,7 @@ std::unordered_map<size_t, int> CollisionTracker<T>::trackCollisions()
     size_t num_threads{std::thread::hardware_concurrency()};
     std::vector<std::future<void>> futures;
 
+    // Separate on segments
     size_t particles_per_thread{m_particles.size() / num_threads},
         start_index{};
 
