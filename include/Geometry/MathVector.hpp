@@ -244,33 +244,27 @@ public:
         return is;
     }
 
-    /**
-     * @brief Handles the rotation of the vector either by direct rotation or by alignment.
-     * @details If `needAlign` is false, it rotates the vector by `beta` and `gamma` around
-     *          the y and z axes, respectively. If `needAlign` is true, it aligns the vector
-     *          based on its current orientation and then applies the rotation.
-     * @param beta The angle of rotation around the y-axis in radians.
-     * @param gamma The angle of rotation around the z-axis in radians.
-     * @param needAlign A boolean flag to determine whether alignment is needed before rotation.
-     */
-    void rotation(double &beta, double &gamma, bool needAlign = false)
+    /// @brief Calculates rotation angles.
+    std::pair<double, double> calcBetaGamma() const
     {
-        if (not needAlign)
-        {
-            rotate_y(beta);
-            rotate_z(gamma);
-        }
-        else
-        {
-            // Calculating rotation angles
-            beta = -acos(getZ() / module());
-            gamma = -atan2(getY(), getX());
-            rotate_z(gamma);
-            rotate_y(beta);
-            beta *= -1;
-            gamma *= -1;
-        }
+        // Calculating rotation angles
+        double beta{-acos(getZ() / module())},
+            gamma{-atan2(getY(), getX())};
+        return std::make_pair(beta, gamma);
     }
+
+    /**
+     * @brief Linear transformation to return to the original system.
+     * @param beta The angle of rotation around the Y-axis [rad].
+     * @param gamma The angle of rotation around the Z-axis [rad].
+     */
+    void rotation(double beta, double gamma)
+    {
+        rotate_y(beta);
+        rotate_z(gamma);
+    }
+    void rotation(std::pair<double, double> const &p) { rotation(p.first, p.second); }
+    void rotation(std::pair<double, double> &&p) noexcept { rotation(std::move(p)); }
 };
 
 /* --> Aliases for human readability. <-- */
