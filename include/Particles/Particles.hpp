@@ -4,6 +4,7 @@
 #include <aabb/AABB.h>
 
 #include "../Geometry/MathVector.hpp"
+#include "../Utilities/Constants.hpp"
 #include "../Utilities/Settings.hpp"
 
 /// @brief Represents a particle in a simulation.
@@ -64,7 +65,7 @@ public:
     double getZ() const { return CGAL::to_double(m_centre.z()); }
     double getPositionModule() const { return PositionVector(CGAL::to_double(m_centre.x()), CGAL::to_double(m_centre.y()), CGAL::to_double(m_centre.z())).module(); }
     constexpr double getEnergy_J() const { return m_energy; }
-    double getEnergy_eV() const { return m_energy * settings::physical_constants::J_eV; }
+    double getEnergy_eV() const { return m_energy * physical_constants::J_eV; }
     constexpr double getVx() const { return m_velocity.getX(); }
     constexpr double getVy() const { return m_velocity.getY(); }
     constexpr double getVz() const { return m_velocity.getZ(); }
@@ -86,13 +87,12 @@ public:
     /* === Virtual getters for specific particles like Argon, Beryllium, etc. === */
     /// @return Minimal value of `double` type as a default value.
     virtual constexpr double getMass() const { return std::numeric_limits<double>::min(); };
-    // virtual constexpr double getScattering() const { return 0; };
 };
 
 class ParticleArgon final : public ParticleGeneric
 {
 private:
-    static constexpr double radius{98e-12};
+    static constexpr double radius{physical_constants::ArRadius};
 
 public:
     ParticleArgon() : ParticleGeneric() {}
@@ -110,14 +110,13 @@ public:
                   double radius_ = radius)
         : ParticleGeneric(centre, velvec, radius_) {}
 
-    constexpr double getMass() const override { return 6.6335209e-26; }
-    // constexpr double getScattering() const override { return ...; }
+    constexpr double getMass() const override { return physical_constants::ArMass; }
 };
 
 class ParticleAluminium final : public ParticleGeneric
 {
 private:
-    static constexpr double radius{143e-12};
+    static constexpr double radius{physical_constants::AlRadius};
 
 public:
     ParticleAluminium() : ParticleGeneric() {}
@@ -134,8 +133,7 @@ public:
     ParticleAluminium(Point3 centre, VelocityVector velvec, double radius_ = radius)
         : ParticleGeneric(centre, velvec, radius_) {}
 
-    constexpr double getMass() const override { return 4.4803831e-26; }
-    // constexpr double getScattering() const override { return ...; }
+    constexpr double getMass() const override { return physical_constants::AlMass; }
 };
 
 /// @brief x, y, z, Vx, Vy, Vz, radius
@@ -157,8 +155,8 @@ using ParticleAluminiumVector = std::vector<ParticleAluminium>;
 /// @brief Concept for all particles types.
 template <typename T>
 concept IsParticle = std::is_same_v<T, ParticleGenericVector> ||
-                      std::is_same_v<T, ParticleArgonVector> ||
-                      std::is_same_v<T, ParticleAluminiumVector>;
+                     std::is_same_v<T, ParticleArgonVector> ||
+                     std::is_same_v<T, ParticleAluminiumVector>;
 
 /**
  * @brief Generates a vector of particles with specified velocity ranges.
