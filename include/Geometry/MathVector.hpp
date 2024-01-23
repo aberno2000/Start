@@ -22,6 +22,50 @@ private:
     double y{};
     double z{};
 
+    /**
+     * @brief Helper func. Rotates the vector around the y-axis.
+     * @details The rotation is performed by multiplying the current vector
+     *          with the rotation matrix for the y-axis.
+     * @param beta The angle of rotation in radians.
+     */
+    void rotate_y(double beta)
+    {
+        MathVector rotation_y[3];
+        rotation_y[0] = MathVector(cos(beta), 0., sin(beta));
+        rotation_y[1] = MathVector(0., 1., 0.);
+        rotation_y[2] = MathVector(-sin(beta), 0., cos(beta));
+
+        double components[3]{};
+        for (int i{}; i < 3; i++)
+            components[i] = rotation_y[i] * (*this);
+
+        setX(components[0]);
+        setY(components[1]);
+        setZ(components[2]);
+    }
+
+    /**
+     * @brief Helper func. Rotates the vector around the z-axis.
+     * @details The rotation is performed by multiplying the current vector
+     *          with the rotation matrix for the z-axis.
+     * @param gamma The angle of rotation in radians.
+     */
+    void rotate_z(double gamma)
+    {
+        MathVector rotation_z[3];
+        rotation_z[0] = MathVector(cos(gamma), -sin(gamma), 0.);
+        rotation_z[1] = MathVector(sin(gamma), cos(gamma), 0.);
+        rotation_z[2] = MathVector(0., 0., 1.);
+
+        double components[3]{};
+        for (int i{0}; i < 3; i++)
+            components[i] = rotation_z[i] * (*this);
+
+        setX(components[0]);
+        setY(components[1]);
+        setZ(components[2]);
+    }
+
 public:
     MathVector() {}
     MathVector(double x_, double y_, double z_) : x(x_), y(y_), z(z_) {}
@@ -198,6 +242,34 @@ public:
     {
         is >> vector.x >> vector.y >> vector.z;
         return is;
+    }
+
+    /**
+     * @brief Handles the rotation of the vector either by direct rotation or by alignment.
+     * @details If `needAlign` is false, it rotates the vector by `beta` and `gamma` around
+     *          the y and z axes, respectively. If `needAlign` is true, it aligns the vector
+     *          based on its current orientation and then applies the rotation.
+     * @param beta The angle of rotation around the y-axis in radians.
+     * @param gamma The angle of rotation around the z-axis in radians.
+     * @param needAlign A boolean flag to determine whether alignment is needed before rotation.
+     */
+    void rotation(double &beta, double &gamma, bool needAlign = false)
+    {
+        if (not needAlign)
+        {
+            rotate_y(beta);
+            rotate_z(gamma);
+        }
+        else
+        {
+            // Calculating rotation angles
+            beta = -acos(getZ() / module());
+            gamma = -atan2(getY(), getX());
+            rotate_z(gamma);
+            rotate_y(beta);
+            beta *= -1;
+            gamma *= -1;
+        }
     }
 };
 
