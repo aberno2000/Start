@@ -126,6 +126,6 @@ void ParticleGeneric::colide(double xi, double phi, double p_mass, double t_mass
       new_vel(dir_vec * (mass_ct * m_velocity.module()));
 
   // Updating velocity vector of the current particle after collision
-  // Updated velocity = [directory vector ⋅ (mass_ct ⋅ |old velocity|)] + (old velocity ⋅ mass_cp)
+  // Updated velocity = [direction vector ⋅ (mass_ct ⋅ |old velocity|)] + (old velocity ⋅ mass_cp)
   m_velocity = new_vel + cm_vel;
 }
