@@ -24,6 +24,8 @@ void ParticleGeneric::calculateVelocityFromEnergy_J()
   m_velocity = VelocityVector(vx, vy, vz);
 }
 
+void ParticleGeneric::calculateEnergyJFromVelocity(double vx, double vy, double vz) { m_energy = getMass() * (VelocityVector(vx, vy, vz).module()) / 2; }
+
 ParticleGeneric::ParticleGeneric(double x_, double y_, double z_,
                                  double energy_, double radius_)
     : m_centre(Point3(x_, y_, z_)),
@@ -42,7 +44,10 @@ ParticleGeneric::ParticleGeneric(double x_, double y_, double z_,
       m_velocity(MathVector(vx_, vy_, vz_)),
       m_radius(radius_),
       m_boundingBox({x_ - radius_, y_ - radius_, z_ - radius_},
-                    {x_ + radius_, y_ + radius_, z_ + radius_}) {}
+                    {x_ + radius_, y_ + radius_, z_ + radius_})
+{
+  calculateEnergyJFromVelocity(m_velocity);
+}
 
 ParticleGeneric::ParticleGeneric(Point3 centre,
                                  double vx_, double vy_, double vz_,
@@ -51,7 +56,10 @@ ParticleGeneric::ParticleGeneric(Point3 centre,
       m_velocity(MathVector(vx_, vy_, vz_)),
       m_radius(radius_),
       m_boundingBox({CGAL::to_double(m_centre.x()) - radius_, CGAL::to_double(m_centre.y()) - radius_, CGAL::to_double(m_centre.z()) - radius_},
-                    {CGAL::to_double(m_centre.x()) + radius_, CGAL::to_double(m_centre.y()) + radius_, CGAL::to_double(m_centre.z()) + radius_}) {}
+                    {CGAL::to_double(m_centre.x()) + radius_, CGAL::to_double(m_centre.y()) + radius_, CGAL::to_double(m_centre.z()) + radius_})
+{
+  calculateEnergyJFromVelocity(m_velocity);
+}
 
 ParticleGeneric::ParticleGeneric(Point3 centre, double energy_, double radius_)
     : m_centre(centre),
@@ -70,7 +78,10 @@ ParticleGeneric::ParticleGeneric(double x_, double y_, double z_,
       m_velocity(velvec),
       m_radius(radius_),
       m_boundingBox({x_ - radius_, y_ - radius_, z_ - radius_},
-                    {x_ + radius_, y_ + radius_, z_ + radius_}) {}
+                    {x_ + radius_, y_ + radius_, z_ + radius_})
+{
+  calculateEnergyJFromVelocity(m_velocity);
+}
 
 ParticleGeneric::ParticleGeneric(Point3 centre,
                                  VelocityVector velvec,
@@ -79,7 +90,10 @@ ParticleGeneric::ParticleGeneric(Point3 centre,
       m_velocity(velvec),
       m_radius(radius_),
       m_boundingBox({CGAL::to_double(m_centre.x()) - radius_, CGAL::to_double(m_centre.y()) - radius_, CGAL::to_double(m_centre.z()) - radius_},
-                    {CGAL::to_double(m_centre.x()) + radius_, CGAL::to_double(m_centre.y()) + radius_, CGAL::to_double(m_centre.z()) + radius_}) {}
+                    {CGAL::to_double(m_centre.x()) + radius_, CGAL::to_double(m_centre.y()) + radius_, CGAL::to_double(m_centre.z()) + radius_})
+{
+  calculateEnergyJFromVelocity(m_velocity);
+}
 
 void ParticleGeneric::updatePosition(double dt)
 {
