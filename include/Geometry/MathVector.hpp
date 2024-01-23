@@ -248,7 +248,7 @@ public:
         rotate_z(gamma);
     }
     void rotation(std::pair<double, double> const &p) { rotation(p.first, p.second); }
-    void rotation(std::pair<double, double> &&p) noexcept { rotation(std::move(p)); }
+    void rotation(std::pair<double, double> &&p) noexcept { rotation(p.first, p.second); }
 };
 
 /* --> Aliases for human readability. <-- */
