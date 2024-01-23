@@ -9,6 +9,7 @@ from PyQt5.QtWidgets import (
     QMessageBox,
     QLabel,
     QLineEdit,
+    QFormLayout,
 )
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
@@ -17,8 +18,11 @@ from hdf5handler import HDF5Handler
 from mesh_renderer import MeshRenderer
 
 
-def run_cpp(args: str) -> None:
+def compile_cpp():
     run(["./compile.sh"], check=True)
+
+
+def run_cpp(args: str) -> None:
     cmd = ["./main"] + args.split()
     run(cmd, check=True)
 
@@ -39,59 +43,58 @@ class WindowApp(QMainWindow):
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
 
-        # Create a horizontal layout
-        h_layout = QHBoxLayout(central_widget)
-
-        # Create a vertical layout for inputs and buttons
-        input_layout = QVBoxLayout()
+        # Create a form layout for inputs
+        form_layout = QFormLayout()
 
         # Particle count input
-        self.particles_count_label = QLabel("Particles Count:")
-        input_layout.addWidget(self.particles_count_label)
         self.particles_count_input = QLineEdit()
-        input_layout.addWidget(self.particles_count_input)
+        form_layout.addRow(QLabel("Particles Count:"), self.particles_count_input)
 
         # Time step input
-        self.time_step_label = QLabel("Time Step:")
-        input_layout.addWidget(self.time_step_label)
         self.time_step_input = QLineEdit()
-        input_layout.addWidget(self.time_step_input)
+        form_layout.addRow(QLabel("Time Step:"), self.time_step_input)
 
         # Time interval input
-        self.time_interval_label = QLabel("Time Interval:")
-        input_layout.addWidget(self.time_interval_label)
         self.time_interval_input = QLineEdit()
-        input_layout.addWidget(self.time_interval_input)
+        form_layout.addRow(QLabel("Time Interval:"), self.time_interval_input)
 
-        # Upload .msh file button
+        # Buttons layout
+        buttons_layout = QHBoxLayout()
         self.upload_button = QPushButton("Upload")
         self.upload_button.clicked.connect(self.upload_file)
-        input_layout.addWidget(self.upload_button)
+        buttons_layout.addWidget(self.upload_button)
 
-        # Run button
         self.run_button = QPushButton("Run")
         self.run_button.clicked.connect(self.run_simulation)
-        input_layout.addWidget(self.run_button)
+        buttons_layout.addWidget(self.run_button)
 
-        # Help button
         self.help_button = QPushButton("Help")
         self.help_button.clicked.connect(self.show_help)
-        input_layout.addWidget(self.help_button)
+        buttons_layout.addWidget(self.help_button)
 
-        # Exit button
         self.exit_button = QPushButton("Exit")
         self.exit_button.clicked.connect(self.exit)
-        input_layout.addWidget(self.exit_button)
+        buttons_layout.addWidget(self.exit_button)
 
-        # Add input layout to the horizontal layout
-        h_layout.addLayout(input_layout)
+        # Combine form layout and buttons layout into a vertical layout
+        left_layout = QVBoxLayout()
+        left_layout.addLayout(form_layout)
+        left_layout.addLayout(buttons_layout)
 
         # Matplotlib plot
         self.figure = plt.figure()
         self.canvas = FigureCanvas(self.figure)
-        h_layout.addWidget(self.canvas)
+
+        # Create a horizontal layout to include everything
+        h_layout = QHBoxLayout(central_widget)
+        h_layout.addLayout(left_layout, 1)
+        h_layout.addWidget(self.canvas, 2)  # Give more space to the canvas
+
+        # Set the central widget's layout
+        central_widget.setLayout(h_layout)
 
         self.file_path = ""
+        compile_cpp()
 
     def upload_file(self):
         self.file_path, _ = QFileDialog.getOpenFileName(
