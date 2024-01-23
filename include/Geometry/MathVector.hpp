@@ -30,18 +30,10 @@ private:
      */
     void rotate_y(double beta)
     {
-        MathVector rotation_y[3];
-        rotation_y[0] = MathVector(cos(beta), 0., sin(beta));
-        rotation_y[1] = MathVector(0., 1., 0.);
-        rotation_y[2] = MathVector(-sin(beta), 0., cos(beta));
+        double cosBeta{std::cos(beta)}, sinBeta{std::sin(beta)};
 
-        double components[3]{};
-        for (int i{}; i < 3; i++)
-            components[i] = rotation_y[i] * (*this);
-
-        setX(components[0]);
-        setY(components[1]);
-        setZ(components[2]);
+        x = cosBeta * x + sinBeta * z;
+        z = -sinBeta * x + cosBeta * z;
     }
 
     /**
@@ -52,18 +44,10 @@ private:
      */
     void rotate_z(double gamma)
     {
-        MathVector rotation_z[3];
-        rotation_z[0] = MathVector(cos(gamma), -sin(gamma), 0.);
-        rotation_z[1] = MathVector(sin(gamma), cos(gamma), 0.);
-        rotation_z[2] = MathVector(0., 0., 1.);
+        double cosGamma{std::cos(gamma)}, sinGamma{std::sin(gamma)};
 
-        double components[3]{};
-        for (int i{0}; i < 3; i++)
-            components[i] = rotation_z[i] * (*this);
-
-        setX(components[0]);
-        setY(components[1]);
-        setZ(components[2]);
+        x = cosGamma * x - sinGamma * y;
+        y = sinGamma * x + cosGamma * y;
     }
 
 public:
@@ -248,8 +232,8 @@ public:
     std::pair<double, double> calcBetaGamma() const
     {
         // Calculating rotation angles
-        double beta{-acos(getZ() / module())},
-            gamma{-atan2(getY(), getX())};
+        double beta{acos(getZ() / module())},
+            gamma{atan2(getY(), getX())};
         return std::make_pair(beta, gamma);
     }
 
