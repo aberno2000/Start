@@ -15,7 +15,7 @@ private:
     VelocityVector m_velocity; // Velocity vector (Vx, Vy, Vz).
     double m_radius{},         // Particle radius.
         m_energy{};            // Particle energy [J].
-    aabb::AABB m_boundingBox;  // Axis-aligned bounding box
+    aabb::AABB m_boundingBox;  // Axis-aligned bounding box.
 
     /**
      * @brief Calculates velocity module from energy of particle and then
@@ -27,7 +27,23 @@ private:
      */
     void calculateVelocityFromEnergy_J();
 
-    // TODO: Calculate energy from velocity
+    /**
+     * @brief Calculates the kinetic energy of a particle from its velocity components.
+     *
+     * This function uses the formula for kinetic energy:
+     * E = 0.5 * mass * |V|^2,
+     * where |V| is the magnitude of the velocity vector. The function assumes
+     * that the mass of the particle is known and accessible within the class.
+     *
+     * @param vx The x-component of the velocity in [m/s].
+     * @param vy The y-component of the velocity in [m/s].
+     * @param vz The z-component of the velocity in [m/s].
+     * @return void The function does not return a value but presumably updates
+     * the energy state of the particle within the class.
+     */
+    void calculateEnergyJFromVelocity(double vx, double vy, double vz);
+    void calculateEnergyJFromVelocity(VelocityVector const &v) { calculateEnergyJFromVelocity(VelocityVector(v.getX(), v.getZ(), v.getZ())); }
+    void calculateEnergyJFromVelocity(VelocityVector &&v) noexcept { calculateEnergyJFromVelocity(std::move(v)); };
 
 public:
     ParticleGeneric() {}
