@@ -149,9 +149,6 @@ class WindowApp(QMainWindow):
         renderer.ax = self.figure.add_subplot(111, projection="3d")
         renderer._setup_plot()
         self.canvas.mpl_connect("scroll_event", renderer.on_scroll)
-        
-        # TODO: Correct color bar
-        # self.ColorBar(renderer)
 
         # Refresh the canvas
         self.canvas.draw()

@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+from matplotlib.colors import LinearSegmentedColormap
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 import numpy as np
 
@@ -34,6 +35,7 @@ class MeshRenderer:
         - color_interpolator (function, optional): Function to determine color based on normalized values.
         """
         self.mesh = mesh
+        self.max_particle_count = max(triangle[5] for triangle in mesh)
         self.normalize_func = (
             normalize_func if normalize_func is not None else self.default_normalize
         )
@@ -57,14 +59,18 @@ class MeshRenderer:
         """
         Default normalization function. Normalizes a list of count data.
         """
-        max_value = max(data) if data else 1
-        return [d / max_value for d in data]
+        return [d / self.max_particle_count for d in data]
 
     def default_interpolate_color(self, normalized_data):
         """
         Default color interpolation function. Maps normalized data to color values.
         """
-        return [(value, 0, 1 - value) for value in normalized_data]
+        self.colors = [(0, "blue"), (0.5, "yellow"), (1, "red")]
+        self.n_bins = [0, 0.5, 1]  # Points in normalized_data for color changes
+        self.custom_cmap = LinearSegmentedColormap.from_list(
+            'my_custom_cmap', self.colors
+        )
+        return [self.custom_cmap(value) for value in normalized_data]
 
     def normalize_data(self, counts):
         """
@@ -89,6 +95,11 @@ class MeshRenderer:
         self.ax.set_xlim(self.init_limits["xlim"])
         self.ax.set_ylim(self.init_limits["ylim"])
         self.ax.set_zlim(self.init_limits["zlim"])
+        
+        sm = plt.cm.ScalarMappable(cmap=self.custom_cmap, norm=plt.Normalize(vmin=0, vmax=self.max_particle_count))
+        sm._A = []
+        cbar = plt.colorbar(sm, ax=self.ax)
+        cbar.set_label('Particle Count')
 
     def on_scroll(self, event):
         """
