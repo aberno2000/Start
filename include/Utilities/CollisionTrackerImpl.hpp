@@ -1,14 +1,14 @@
 #ifndef COLLISIONTRACKERIMPL_HPP
 #define COLLISIONTRACKERIMPL_HPP
 
+#include <algorithm>
+#include <execution>
+
 template <IsParticle T>
 constinit std::mutex CollisionTracker<T>::m_map_mutex;
 
 template <IsParticle T>
-constinit std::mutex CollisionTracker<T>::m_counter_mutex;
-
-template <IsParticle T>
-constinit size_t CollisionTracker<T>::m_counter = 0;
+std::atomic<size_t> CollisionTracker<T>::m_counter = 0ul;
 
 template <IsParticle T>
 std::atomic_flag CollisionTracker<T>::m_stop_processing = ATOMIC_FLAG_INIT;
@@ -17,44 +17,38 @@ template <IsParticle T>
 void CollisionTracker<T>::processSegment(size_t start_index, size_t end_index,
                                          std::unordered_map<size_t, int> &m)
 {
-    for (double t{}; t <= m_total_time; t += m_dt)
+    for (double t{}; t <= m_total_time && !m_stop_processing.test(); t += m_dt)
     {
-        for (size_t i{start_index}; i < end_index; ++i)
-        {
-            // Exiting from thread if we need to stop processing
-            if (m_stop_processing.test())
-                return;
+        std::for_each(std::execution::par,
+                      m_particles.begin() + start_index,
+                      m_particles.begin() + end_index,
+                      [&](auto &p)
+                      {
+                          // Check each counter iteration
+                          if (m_counter.load() >= m_particles.size())
+                              return;
 
-            Point3 prev(m_particles.at(i).getCentre());
-            m_particles.at(i).updatePosition(m_dt);
-            Ray3 ray(prev, m_particles.at(i).getCentre());
+                          Point3 prev(p.getCentre());
+                          p.updatePosition(m_dt);
+                          Ray3 ray(prev, p.getCentre());
 
-            for (auto const &triangle : m_mesh)
-            {
-                size_t id{Mesh::isRayIntersectTriangle(ray, triangle)};
-                if (id != -1ul)
-                {
-                    {
-                        std::lock_guard<std::mutex> lk(m_map_mutex);
-                        ++m[id];
-                    }
-                    {
-                        std::unique_lock<std::mutex> lk(m_counter_mutex);
-                        ++m_counter;
+                          for (auto const &triangle : m_mesh)
+                          {
+                              size_t id{Mesh::isRayIntersectTriangle(ray, triangle)};
+                              if (id != -1ul)
+                              {
+                                  std::lock_guard<std::mutex> lk(m_map_mutex);
+                                  ++m[id];
+                                  m_counter.fetch_add(1);
 
-                        // Optimization 2: If counter >= count of settled particles
-                        // don't need to continue calculations.
-                        // @warning Here we have a little tolerance +(~1-3) counter exceeds.
-                        // For example, if we have 1000 particles, counter may be from 1000 to ~1003.
-                        if (m_counter >= m_particles.size())
-                        {
-                            m_stop_processing.test_and_set();
-                            return;
-                        }
-                    }
-                }
-            }
-        }
+                                  if (m_counter.load() >= m_particles.size())
+                                  {
+                                      m_stop_processing.test_and_set();
+                                      return;
+                                  }
+                              }
+                          }
+                      });
     }
 }
 

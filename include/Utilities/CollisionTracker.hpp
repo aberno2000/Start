@@ -30,8 +30,7 @@ private:
     double m_dt;                                 // Time step for updating particle positions.
     double m_total_time;                         // Total simulation time for which collisions are tracked.
     static constinit std::mutex m_map_mutex;     // Mutex for synchronizing access to the collision map.
-    static constinit std::mutex m_counter_mutex; // Mutex for synchronizing access to the counter.
-    static constinit size_t m_counter;           // Count of the settled particles. Needs for optimization.
+    static std::atomic<size_t> m_counter;        // Count of the settled particles. Needs for optimization.
     static std::atomic_flag m_stop_processing;   // Flag-checker for condition (counter >= size of particles).
 
     /**
