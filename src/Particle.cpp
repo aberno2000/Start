@@ -137,7 +137,7 @@ double ParticleGeneric::getPositionModule() const { return PositionVector(CGAL::
 double ParticleGeneric::getEnergy_eV() const { return m_energy * physical_constants::J_eV; }
 double ParticleGeneric::getVelocityModule() const { return m_velocity.module(); }
 
-void ParticleGeneric::colide(double xi, double phi, double p_mass, double t_mass)
+void ParticleGeneric::colide(double p_mass, double t_mass)
 {
   RealNumberGenerator rng;
   double xi_cos{rng(-1, 1)}, xi_sin{sqrt(1 - xi_cos * xi_cos)},
