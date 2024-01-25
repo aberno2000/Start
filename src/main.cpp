@@ -18,8 +18,9 @@ void simulateMovement(size_t particles_count, double dt, double total_time,
     CollisionTracker ct(pgs, mesh, dt, total_time);
     auto counterMap{ct.trackCollisions()};
 
+    auto mapEnd{counterMap.end()};
     for (auto &triangle : mesh)
-        if (auto it{counterMap.find(std::get<0>(triangle))}; it != counterMap.cend())
+        if (auto it{counterMap.find(std::get<0>(triangle))}; it != mapEnd)
             std::get<3>(triangle) = it->second;
 
     HDF5Handler hdf5handler(hdf5filename);
