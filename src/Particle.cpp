@@ -139,17 +139,22 @@ double ParticleGeneric::getVelocityModule() const { return m_velocity.module(); 
 
 void ParticleGeneric::colide(double xi, double phi, double p_mass, double t_mass)
 {
-  double x{sin(xi) * cos(phi)},
-      y{sin(xi) * sin(phi)},
-      z{cos(xi)},
+  RealNumberGenerator rng;
+  double xi_cos{rng(-1, 1)}, xi_sin{sqrt(1 - xi_cos * xi_cos)},
+      phi{rng(0, 2 * std::numbers::pi)};
+
+  double x{xi_sin * cos(phi)},
+      y{xi_sin * sin(phi)},
+      z{xi_cos},
       mass_cp{p_mass / (t_mass + p_mass)},
       mass_ct{t_mass / (t_mass + p_mass)};
 
-  VelocityVector dir_vec(x, y, z),
-      cm_vel(m_velocity * mass_cp),
-      new_vel(dir_vec * (mass_ct * m_velocity.module()));
+  VelocityVector cm_vel(m_velocity * mass_cp),
+      p_vec(mass_ct * m_velocity);
+  double mp{p_vec.module()};
+  auto angles{p_vec.calcBetaGamma()};
+  VelocityVector dir_vector(x * mp, y * mp, z * mp);
+  dir_vector.rotation(angles);
 
-  // Updating velocity vector of the current particle after collision
-  // Updated velocity = [direction vector ⋅ (mass_ct ⋅ |old velocity|)] + (old velocity ⋅ mass_cp)
-  m_velocity = new_vel + cm_vel;
+  m_velocity = dir_vector + cm_vel;
 }
