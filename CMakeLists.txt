@@ -23,14 +23,16 @@ set(HDF5_DIR "/usr/share/hdf5/1.14.3")
 set(GMSH_DIR "/usr/share/gmsh")
 
 set(SOURCES
+    src/HDF5Handler.cpp
     src/main.cpp
+    src/MathVector.cpp
+    src/Mesh.cpp
     src/Particle.cpp
+    src/RayTriangleIntersection.cpp
     src/RealNumberGenerator.cpp
     src/Settings.cpp
-    src/HDF5Handler.cpp
-    src/VolumeCreator.cpp
     src/RayTriangleIntersection.cpp
-    src/Timer.cpp
+    src/VolumeCreator.cpp
 )
 
 include_directories(${CMAKE_SOURCE_DIR}/include

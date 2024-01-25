@@ -74,11 +74,27 @@ namespace settings
      * @return String composed from all arguments
      */
     template <Printable... Args>
-    constexpr std::string stringify(Args &&...args)
+    std::string stringify(Args &&...args)
     {
         std::ostringstream oss;
         (oss << ... << args);
         return oss.str();
+    }
+
+    /**
+     * @brief Calculates sign.
+     * @details Takes a double (`val`) and returns:
+     *          - -1 if `val` is less than 0,
+     *          -  1 if `val` is greater than 0,
+     *          -  0 if `val` is equal to 0.
+     */
+    constexpr double signFunc(double val)
+    {
+        if (val < 0)
+            return -1;
+        if (0 < val)
+            return 1;
+        return 0;
     }
 }
 

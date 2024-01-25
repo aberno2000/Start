@@ -197,8 +197,8 @@ private:
     class GMSHandler final
     {
     public:
-        GMSHandler() { gmsh::initialize(); }
-        ~GMSHandler() { gmsh::finalize(); }
+        GMSHandler();
+        ~GMSHandler();
 
         // Preventing multiple initializations/finalizations:
         GMSHandler(GMSHandler const &) = delete;
@@ -279,7 +279,5 @@ public:
      */
     void runGmsh(int argc, char *argv[]);
 };
-
-#include "VolumeCreatorImpl.hpp"
 
 #endif // VOLUMECREATOR_HPP

@@ -21,7 +21,7 @@
  *          particle collection and determine collision events with elements of a provided mesh.
  *          It operates in a concurrent environment, managing thread synchronization and safe data access.
  */
-template <IsParticle T>
+template <IsParticleVector T>
 class CollisionTracker final
 {
 private:

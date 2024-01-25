@@ -42,8 +42,8 @@ private:
      * the energy state of the particle within the class.
      */
     void calculateEnergyJFromVelocity(double vx, double vy, double vz);
-    void calculateEnergyJFromVelocity(VelocityVector const &v) { calculateEnergyJFromVelocity(VelocityVector(v.getX(), v.getZ(), v.getZ())); }
-    void calculateEnergyJFromVelocity(VelocityVector &&v) noexcept { calculateEnergyJFromVelocity(v.getX(), v.getZ(), v.getZ()); }
+    void calculateEnergyJFromVelocity(VelocityVector const &v);
+    void calculateEnergyJFromVelocity(VelocityVector &&v) _GLIBCXX_NOEXCEPT;
 
 public:
     ParticleGeneric() {}
@@ -76,16 +76,16 @@ public:
     bool isOutOfBounds(aabb::AABB const &bounding_volume) const;
 
     /* === Getters for particle params. === */
-    double getX() const { return CGAL::to_double(m_centre.x()); }
-    double getY() const { return CGAL::to_double(m_centre.y()); }
-    double getZ() const { return CGAL::to_double(m_centre.z()); }
-    double getPositionModule() const { return PositionVector(CGAL::to_double(m_centre.x()), CGAL::to_double(m_centre.y()), CGAL::to_double(m_centre.z())).module(); }
+    double getX() const;
+    double getY() const;
+    double getZ() const;
+    double getPositionModule() const;
     constexpr double getEnergy_J() const { return m_energy; }
-    double getEnergy_eV() const { return m_energy * physical_constants::J_eV; }
+    double getEnergy_eV() const;
     constexpr double getVx() const { return m_velocity.getX(); }
     constexpr double getVy() const { return m_velocity.getY(); }
     constexpr double getVz() const { return m_velocity.getZ(); }
-    constexpr double getVelocityModule() const { return m_velocity.module(); }
+    double getVelocityModule() const;
     constexpr double getRadius() const { return m_radius; }
     constexpr Point3 const &getCentre() const { return m_centre; }
     constexpr VelocityVector const &getVelocityVector() const { return m_velocity; }
@@ -170,9 +170,9 @@ using ParticleAluminiumVector = std::vector<ParticleAluminium>;
 
 /// @brief Concept for all particles types.
 template <typename T>
-concept IsParticle = std::is_same_v<T, ParticleGenericVector> ||
-                     std::is_same_v<T, ParticleArgonVector> ||
-                     std::is_same_v<T, ParticleAluminiumVector>;
+concept IsParticleVector = std::is_same_v<T, ParticleGenericVector> ||
+                           std::is_same_v<T, ParticleArgonVector> ||
+                           std::is_same_v<T, ParticleAluminiumVector>;
 
 /**
  * @brief Generates a vector of particles with specified velocity ranges.

@@ -25,6 +25,8 @@ void ParticleGeneric::calculateVelocityFromEnergy_J()
 }
 
 void ParticleGeneric::calculateEnergyJFromVelocity(double vx, double vy, double vz) { m_energy = getMass() * (VelocityVector(vx, vy, vz).module()) / 2; }
+void ParticleGeneric::calculateEnergyJFromVelocity(VelocityVector const &v) { calculateEnergyJFromVelocity(VelocityVector(v.getX(), v.getZ(), v.getZ())); }
+void ParticleGeneric::calculateEnergyJFromVelocity(VelocityVector &&v) noexcept { calculateEnergyJFromVelocity(v.getX(), v.getZ(), v.getZ()); }
 
 ParticleGeneric::ParticleGeneric(double x_, double y_, double z_,
                                  double energy_, double radius_)
@@ -126,6 +128,14 @@ bool ParticleGeneric::isOutOfBounds(aabb::AABB const &bounding_volume) const
           m_boundingBox.lowerBound[2] <= bounding_volume.lowerBound[2] ||
           m_boundingBox.upperBound[2] >= bounding_volume.upperBound[2]);
 }
+
+double ParticleGeneric::getX() const { return CGAL::to_double(m_centre.x()); }
+double ParticleGeneric::getY() const { return CGAL::to_double(m_centre.y()); }
+double ParticleGeneric::getZ() const { return CGAL::to_double(m_centre.z()); }
+double ParticleGeneric::getPositionModule() const { return PositionVector(CGAL::to_double(m_centre.x()), CGAL::to_double(m_centre.y()), CGAL::to_double(m_centre.z())).module(); }
+
+double ParticleGeneric::getEnergy_eV() const { return m_energy * physical_constants::J_eV; }
+double ParticleGeneric::getVelocityModule() const { return m_velocity.module(); }
 
 void ParticleGeneric::colide(double xi, double phi, double p_mass, double t_mass)
 {

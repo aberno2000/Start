@@ -18,6 +18,16 @@ double RealNumberGenerator::operator()(double from, double to) { return get_doub
 
 double RealNumberGenerator::get_double(double from, double to) { return std::uniform_real_distribution(from, to)(m_engine); }
 
+void RealNumberGenerator::set_lower_bound(double val) { m_from = val; }
+
+void RealNumberGenerator::set_upper_bound(double val) { m_to = val; }
+
+void RealNumberGenerator::set(double from, double to)
+{
+    m_from = from;
+    m_to = to;
+}
+
 std::vector<double> RealNumberGenerator::get_sequence(size_t count, double from, double to)
 {
     if (count == 0ul)

@@ -4,16 +4,16 @@
 #include <algorithm>
 #include <execution>
 
-template <IsParticle T>
+template <IsParticleVector T>
 constinit std::mutex CollisionTracker<T>::m_map_mutex;
 
-template <IsParticle T>
+template <IsParticleVector T>
 std::atomic<size_t> CollisionTracker<T>::m_counter = 0ul;
 
-template <IsParticle T>
+template <IsParticleVector T>
 std::atomic_flag CollisionTracker<T>::m_stop_processing = ATOMIC_FLAG_INIT;
 
-template <IsParticle T>
+template <IsParticleVector T>
 void CollisionTracker<T>::processSegment(size_t start_index, size_t end_index,
                                          std::unordered_map<size_t, int> &m)
 {
@@ -52,7 +52,7 @@ void CollisionTracker<T>::processSegment(size_t start_index, size_t end_index,
     }
 }
 
-template <IsParticle T>
+template <IsParticleVector T>
 std::unordered_map<size_t, int> CollisionTracker<T>::trackCollisions()
 {
     std::unordered_map<size_t, int> m;

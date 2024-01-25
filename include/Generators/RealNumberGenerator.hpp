@@ -50,9 +50,9 @@ public:
     double get_double(double from, double to);
 
     /* === Setter methods for data members === */
-    constexpr void set_lower_bound(double);
-    constexpr void set_upper_bound(double);
-    constexpr void set(double from, double to);
+    void set_lower_bound(double);
+    void set_upper_bound(double);
+    void set(double from, double to);
 
     /**
      * @brief Generates sequence of real numbers in specified interval.
@@ -60,7 +60,5 @@ public:
      */
     std::vector<double> get_sequence(size_t count, double from = 0.0, double to = 1.0);
 };
-
-#include "RealNumberGeneratorImpl.hpp"
 
 #endif // !REALNUMBERGENERATOR_HPP

@@ -28,15 +28,7 @@ private:
      *          with the rotation matrix for the y-axis.
      * @param beta The angle of rotation in radians.
      */
-    void rotate_y(double beta)
-    {
-        double cosBeta{std::cos(beta)}, sinBeta{std::sin(beta)},
-            tempX{cosBeta * x + sinBeta * z},
-            tempZ{-sinBeta * x + cosBeta * z};
-
-        x = tempX;
-        z = tempZ;
-    }
+    void rotate_y(double beta);
 
     /**
      * @brief Helper func. Rotates the vector around the z-axis.
@@ -44,31 +36,17 @@ private:
      *          with the rotation matrix for the z-axis.
      * @param gamma The angle of rotation in radians.
      */
-    void rotate_z(double gamma)
-    {
-        double cosGamma{std::cos(gamma)}, sinGamma{std::sin(gamma)},
-            tempX{cosGamma * x - sinGamma * y},
-            tempY{sinGamma * x + cosGamma * y};
-
-        x = tempX;
-        y = tempY;
-    }
+    void rotate_z(double gamma);
 
 public:
-    MathVector() {}
-    MathVector(double x_, double y_, double z_) : x(x_), y(y_), z(z_) {}
+    MathVector();
+    MathVector(double, double, double);
 
     /**
      * @brief Assignment operator with custom double.
      * Sets all components of vector to custom value.
      */
-    MathVector &operator=(double value)
-    {
-        x = value;
-        y = value;
-        z = value;
-        return *this;
-    }
+    MathVector &operator=(double);
 
     /**
      * @brief Fills `MathVector` object with specified values.
@@ -77,16 +55,7 @@ public:
      * @param z_ Z-coordinate of the point.
      * @return Filled structure of the Cartesian coordinates.
      */
-    static MathVector createCoordinates(double x_, double y_, double z_)
-    {
-        MathVector cords;
-
-        cords.x = x_;
-        cords.y = y_;
-        cords.z = z_;
-
-        return cords;
-    }
+    static MathVector createCoordinates(double x_, double y_, double z_);
 
     /**
      * @brief Creates a random MathVector within the specified range for each coordinate.
@@ -94,13 +63,7 @@ public:
      * @param to The upper bound of the range for random values.
      * @return A randomly generated MathVector.
      */
-    static MathVector createRandomVector(double from, double to)
-    {
-        std::random_device rd;
-        std::mt19937 gen(rd.entropy() ? rd() : time(nullptr));
-        std::uniform_real_distribution<double> dis(from, to);
-        return MathVector(dis(gen), dis(gen), dis(gen));
-    }
+    static MathVector createRandomVector(double from, double to);
 
     /* === Getters for each component. === */
     constexpr double getX() const { return x; }
@@ -111,47 +74,38 @@ public:
     constexpr void setX(double x_) { x = x_; }
     constexpr void setY(double y_) { y = y_; }
     constexpr void setZ(double z_) { z = z_; }
-    void setXYZ(double x_, double y_, double z_)
-    {
-        x = x_;
-        y = y_;
-        z = z_;
-    }
+    void setXYZ(double, double, double);
 
     /// @brief Calculates the module of the vector.
-    constexpr double module() const { return std::sqrt(x * x + y * y + z * z); }
+    double module() const;
 
     /// @brief Calculates the distance between two vectors.
-    constexpr double distance(MathVector const &other) const { return std::sqrt(std::pow(other.x - x, 2) +
-                                                                                std::pow(other.y - y, 2) +
-                                                                                std::pow(other.z - z, 2)); }
+    double distance(MathVector const &other) const;
 
     /// @brief Clears the vector (Sets all components to null).
-    void clear() noexcept { *this = 0; }
+    void clear() _GLIBCXX_NOEXCEPT { *this = 0; }
 
     /**
      * @brief Checker for empty vector (are all values null).
      * @return `true` if vector is null, otherwise `false`.
      */
-    constexpr bool isNull() const { return (x == 0 && y == 0 && z == 0); }
+    _GLIBCXX_NODISCARD
+    constexpr bool
+    isNull() const { return (x == 0 && y == 0 && z == 0); }
 
     /**
      * @brief Checks if vectors are parallel.
      * `a` is parallel to `b` if `a = k⋅b` or `b=k⋅a` for some scalar `k`.
      * @return `true` if vectors are parallel, otherwise `false`.
      */
-    bool isParallel(MathVector const &other) const
-    {
-        double koef{x / other.x};
-        return (y == koef * other.y) && (z == koef * other.z);
-    }
+    bool isParallel(MathVector const &other) const;
 
     /**
      * @brief Checks if vectors are orthogonal.
      * `a` is orthogonal to `b` if their dot (scalar) product is equals to 0.
      * @return `true` if vectors are orthogonal, otherwise `false`.
      */
-    bool isOrthogonal(MathVector const &other) const { return dotProduct(other) == 0; }
+    bool isOrthogonal(MathVector const &other) const;
 
     /**
      * @brief Calculates the area of a triangle given its three vertices.
@@ -166,42 +120,32 @@ public:
      */
     static double calculateTriangleArea(MathVector const &A,
                                         MathVector const &B,
-                                        MathVector const &C)
-    {
-        return std::fabs((B.getX() - A.getX()) * (C.getY() - A.getY()) -
-                         (B.getY() - A.getY()) * (C.getX() - A.getX())) /
-               2.0;
-    }
+                                        MathVector const &C);
 
     /// @brief Overload of unary minus. Negates all components of vector.
-    MathVector operator-() { return MathVector(-x, -y, -z); }
+    MathVector operator-();
 
     /* +++ Subtract and sum of two vectors correspondingly. +++ */
-    MathVector operator-(MathVector const &other) const { return MathVector(x - other.x, y - other.y, z - other.z); }
-    MathVector operator+(MathVector const &other) const { return MathVector(x + other.x, y + other.y, z + other.z); }
+    MathVector operator-(MathVector const &other) const;
+    MathVector operator+(MathVector const &other) const;
 
     /* +++ Subtract and sum of value to vector. +++ */
-    MathVector operator-(double value) const { return MathVector(x - value, y - value, z - value); }
-    MathVector operator+(double value) const { return MathVector(x + value, y + value, z + value); }
+    MathVector operator-(double value) const;
+    MathVector operator+(double value) const;
     friend MathVector operator+(double value, MathVector const &other) { return MathVector(other.x + value, other.y + value, other.z + value); }
 
     /* *** Scalar and vector multiplication correspondingly. *** */
-    MathVector operator*(double value) const { return MathVector(x * value, y * value, z * value); }
+    MathVector operator*(double value) const;
     friend MathVector operator*(double value, MathVector const &other) { return MathVector(other.x * value, other.y * value, other.z * value); }
-    double operator*(MathVector const &other) const { return (x * other.x + y * other.y + z * other.z); }
-    double dotProduct(MathVector const &other) const { return (*this) * other; }
-    MathVector crossProduct(MathVector const &other) const { return MathVector(y * other.z - z * other.y, z * other.x - x * other.z, x * other.y - y * other.x); }
+    double operator*(MathVector const &other) const;
+    double dotProduct(MathVector const &other) const;
+    MathVector crossProduct(MathVector const &other) const;
 
     /* /// Division operator. Vector / value. \\\ */
-    MathVector operator/(double value) const
-    {
-        if (value == 0)
-            throw std::overflow_error("Division by null: Elements of vector can't be divided by 0");
-        return MathVector(x / value, y / value, z / value);
-    }
+    MathVector operator/(double value) const;
 
     /* <=> Comparison operators. <=> */
-    auto operator<=>(MathVector const &other) const
+    constexpr auto operator<=>(MathVector const &other) const
     {
         /**
          * Compares the components of two vectors (x, y, and z) in a
@@ -233,26 +177,25 @@ public:
     }
 
     /// @brief Calculates rotation angles.
-    std::pair<double, double> calcBetaGamma() const
-    {
-        // Calculating rotation angles
-        double beta{acos(getZ() / module())},
-            gamma{atan2(getY(), getX())};
-        return std::make_pair(beta, gamma);
-    }
+    std::pair<double, double> calcBetaGamma() const;
 
     /**
      * @brief Linear transformation to return to the original system.
      * @param beta The angle of rotation around the Y-axis [rad].
      * @param gamma The angle of rotation around the Z-axis [rad].
      */
-    void rotation(double beta, double gamma)
-    {
-        rotate_y(beta);
-        rotate_z(gamma);
-    }
-    void rotation(std::pair<double, double> const &p) { rotation(p.first, p.second); }
-    void rotation(std::pair<double, double> &&p) noexcept { rotation(p.first, p.second); }
+    void rotation(double beta, double gamma);
+    void rotation(std::pair<double, double> const &p);
+    void rotation(std::pair<double, double> &&p) _GLIBCXX_NOEXCEPT;
+
+    /**
+     * @brief Returns a MathVector where each component is the sign of the corresponding component.
+     * @details The sign function returns -1 if x < 0, 0 if x==0, 1 if x > 0.
+     *          For each component of the vector, this method computes the sign and returns
+     *          a new vector with these sign values.
+     * @return MathVector with each component being -1, 0, or 1.
+     */
+    MathVector sign() const _GLIBCXX_NOEXCEPT;
 };
 
 /* --> Aliases for human readability. <-- */

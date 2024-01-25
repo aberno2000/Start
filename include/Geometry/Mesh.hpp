@@ -73,6 +73,4 @@ public:
     getIntersectionPoint(Ray3 const &ray, MeshParam const &triangle);
 };
 
-#include "MeshImpl.hpp"
-
 #endif // !MESH_HPP

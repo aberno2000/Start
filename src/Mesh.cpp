@@ -1,13 +1,11 @@
-#ifndef MESHIMPL_HPP
-#define MESHIMPL_HPP
-
 #include <gmsh.h>
 
-#include "MathVector.hpp"
+#include "../include/Geometry/MathVector.hpp"
+#include "../include/Geometry/Mesh.hpp"
 
-inline void Mesh::setMeshSize(double meshSizeFactor) { gmsh::option::setNumber("Mesh.MeshSizeFactor", meshSizeFactor); }
+void Mesh::setMeshSize(double meshSizeFactor) { gmsh::option::setNumber("Mesh.MeshSizeFactor", meshSizeFactor); }
 
-inline MeshParamVector Mesh::getMeshParams(std::string_view msh_filename)
+MeshParamVector Mesh::getMeshParams(std::string_view msh_filename)
 {
     MeshParamVector result;
     try
@@ -64,14 +62,14 @@ inline MeshParamVector Mesh::getMeshParams(std::string_view msh_filename)
     return result;
 }
 
-inline size_t Mesh::isRayIntersectTriangle(Ray3 const &ray, MeshParam const &triangle)
+size_t Mesh::isRayIntersectTriangle(Ray3 const &ray, MeshParam const &triangle)
 {
     return (RayTriangleIntersection::isIntersectTriangle(ray, std::get<1>(triangle)))
                ? std::get<0>(triangle)
                : -1ul;
 }
 
-inline std::optional<std::tuple<size_t, Point3>>
+std::optional<std::tuple<size_t, Point3>>
 Mesh::getIntersectionPoint(Ray3 const &ray, MeshParam const &triangle)
 {
     auto ip(RayTriangleIntersection::getIntersectionPoint(ray, std::get<1>(triangle)));
@@ -79,5 +77,3 @@ Mesh::getIntersectionPoint(Ray3 const &ray, MeshParam const &triangle)
         return std::nullopt;
     return std::make_tuple(std::get<0>(triangle), *ip);
 }
-
-#endif // !MESHIMPL_HPP
