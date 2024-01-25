@@ -30,10 +30,12 @@ private:
      */
     void rotate_y(double beta)
     {
-        double cosBeta{std::cos(beta)}, sinBeta{std::sin(beta)};
+        double cosBeta{std::cos(beta)}, sinBeta{std::sin(beta)},
+            tempX{cosBeta * x + sinBeta * z},
+            tempZ{-sinBeta * x + cosBeta * z};
 
-        x = cosBeta * x + sinBeta * z;
-        z = -sinBeta * x + cosBeta * z;
+        x = tempX;
+        z = tempZ;
     }
 
     /**
@@ -44,10 +46,12 @@ private:
      */
     void rotate_z(double gamma)
     {
-        double cosGamma{std::cos(gamma)}, sinGamma{std::sin(gamma)};
+        double cosGamma{std::cos(gamma)}, sinGamma{std::sin(gamma)},
+            tempX{cosGamma * x - sinGamma * y},
+            tempY{sinGamma * x + cosGamma * y};
 
-        x = cosGamma * x - sinGamma * y;
-        y = sinGamma * x + cosGamma * y;
+        x = tempX;
+        y = tempY;
     }
 
 public:
