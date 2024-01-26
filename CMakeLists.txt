@@ -11,7 +11,9 @@ project(Start
         by plasma particles."
         LANGUAGES CXX)
 
+set(HDF5_DIR "/usr/local/HDF5-1.14.3-Linux/HDF_Group/HDF5/1.14.3/cmake")
 find_package(Boost REQUIRED)
+find_package(HDF5 REQUIRED COMPONENTS CXX)
 
 execute_process(
     COMMAND root-config --cflags --glibs
@@ -38,8 +40,9 @@ set(SOURCES
 )
 
 include_directories(${CMAKE_SOURCE_DIR}/include
-                    ${Boost_INCLUDE_DIRS})
+                    ${Boost_INCLUDE_DIRS}
+                    ${HDF5_INCLUDE_DIRS})
 add_executable(main ${SOURCES})
 
 set_target_properties(main PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}")
-target_link_libraries(main PRIVATE aabb hdf5 gmsh gmp mpfr ${Boost_LIBRARIES})
+target_link_libraries(main PRIVATE aabb hdf5 gmsh gmp mpfr ${Boost_LIBRARIES} ${HDF5_LIBRARIES})
