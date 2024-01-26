@@ -21,11 +21,10 @@
  *          particle collection and determine collision events with elements of a provided mesh.
  *          It operates in a concurrent environment, managing thread synchronization and safe data access.
  */
-template <IsParticleVector T>
 class CollisionTracker final
 {
 private:
-    T &m_particles;                              // Reference to a vector of particles to be processed.
+    ParticleVector &m_particles;                              // Reference to a vector of particles to be processed.
     MeshParamVector const &m_mesh;               // Reference to a vector representing the mesh for collision detection.
     double m_dt;                                 // Time step for updating particle positions.
     double m_total_time;                         // Total simulation time for which collisions are tracked.
@@ -58,10 +57,10 @@ public:
      * @param dt Time step for the simulation.
      * @param total_time Total time for which the simulation is run.
      */
-    CollisionTracker(T &particles, MeshParamVector const &mesh,
+    CollisionTracker(ParticleVector &particles, MeshParamVector const &mesh,
                      double time_step, double total_time)
         : m_particles(particles), m_mesh(mesh), m_dt(time_step), m_total_time(total_time) {}
-    CollisionTracker(T &particles, MeshParamVector &&mesh,
+    CollisionTracker(ParticleVector &particles, MeshParamVector &&mesh,
                      double time_step, double total_time)
         : m_particles(particles), m_mesh(std::move(mesh)), m_dt(time_step), m_total_time(total_time) {}
 
@@ -76,7 +75,5 @@ public:
      */
     std::unordered_map<size_t, int> trackCollisions();
 };
-
-#include "CollisionTrackerImpl.hpp"
 
 #endif // !COLLISIONTRACKER_HPP

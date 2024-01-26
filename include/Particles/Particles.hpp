@@ -7,15 +7,91 @@
 #include "../Utilities/Constants.hpp"
 #include "../Utilities/Settings.hpp"
 
+using namespace constants;
+using namespace particle_types;
+using namespace physical_constants;
+
 /// @brief Represents a particle in a simulation.
-class ParticleGeneric
+class Particle
 {
 private:
+    ParticleType m_type{};     // Type of the particle.
     Point3 m_centre;           // Position in Cartesian coordinates (x, y, z).
     VelocityVector m_velocity; // Velocity vector (Vx, Vy, Vz).
-    double m_radius{},         // Particle radius.
-        m_energy{};            // Particle energy [J].
+    double m_energy{};         // Particle energy [J].
     aabb::AABB m_boundingBox;  // Axis-aligned bounding box.
+
+    /**
+     * @brief Gets radius from the specified type of the particle.
+     * @param type Type of the particle represented as enum.
+     * @return Radius of the particle [m].
+     */
+    constexpr double getRadiusFromType(ParticleType type) const
+    {
+        switch (type)
+        {
+        case ParticleType::Ar:
+            return Ar_radius;
+        case ParticleType::N:
+            return N_radius;
+        case ParticleType::He:
+            return He_radius;
+        case ParticleType::Ti:
+            return Ti_radius;
+        case ParticleType::Al:
+            return Al_radius;
+        case ParticleType::Sn:
+            return Sn_radius;
+        case ParticleType::W:
+            return W_radius;
+        case ParticleType::Au:
+            return Au_radius;
+        case ParticleType::Cu:
+            return Cu_radius;
+        case ParticleType::Ni:
+            return Ni_radius;
+        case ParticleType::Ag:
+            return Ag_radius;
+        default:
+            return 0;
+        }
+    }
+
+    /**
+     * @brief Gets mass from the specified type of the particle.
+     * @param type Type of the particle represented as enum.
+     * @return Mass of the particle [kg].
+     */
+    constexpr double getMassFromType(ParticleType type) const
+    {
+        switch (type)
+        {
+        case ParticleType::Ar:
+            return Ar_mass;
+        case ParticleType::N:
+            return N_mass;
+        case ParticleType::He:
+            return He_mass;
+        case ParticleType::Ti:
+            return Ti_mass;
+        case ParticleType::Al:
+            return Al_mass;
+        case ParticleType::Sn:
+            return Sn_mass;
+        case ParticleType::W:
+            return W_mass;
+        case ParticleType::Au:
+            return Au_mass;
+        case ParticleType::Cu:
+            return Cu_mass;
+        case ParticleType::Ni:
+            return Ni_mass;
+        case ParticleType::Ag:
+            return Ag_mass;
+        default:
+            return 0;
+        }
+    }
 
     /**
      * @brief Calculates velocity module from energy of particle and then
@@ -46,18 +122,18 @@ private:
     void calculateEnergyJFromVelocity(VelocityVector &&v) _GLIBCXX_NOEXCEPT;
 
 public:
-    ParticleGeneric() {}
-    ParticleGeneric(double x_, double y_, double z_, double energy_, double radius_);
-    ParticleGeneric(double x_, double y_, double z_, double vx_, double vy_, double vz_, double radius_);
-    ParticleGeneric(Point3 const &centre, double vx_, double vy_, double vz_, double radius_);
-    ParticleGeneric(Point3 &&centre, double vx_, double vy_, double vz_, double radius_);
-    ParticleGeneric(Point3 const &centre, double energy_, double radius_);
-    ParticleGeneric(Point3 &&centre, double energy_, double radius_);
-    ParticleGeneric(double x_, double y_, double z_, VelocityVector const &velvec, double radius_);
-    ParticleGeneric(double x_, double y_, double z_, VelocityVector &&velvec, double radius_);
-    ParticleGeneric(Point3 const &centre, VelocityVector const &velvec, double radius_);
-    ParticleGeneric(Point3 &&centre, VelocityVector &&velvec, double radius_);
-    virtual ~ParticleGeneric() {}
+    Particle() {}
+    Particle(ParticleType type_, double x_, double y_, double z_, double energy_);
+    Particle(ParticleType type_, double x_, double y_, double z_, double vx_, double vy_, double vz_);
+    Particle(ParticleType type_, Point3 const &centre, double vx_, double vy_, double vz_);
+    Particle(ParticleType type_, Point3 &&centre, double vx_, double vy_, double vz_);
+    Particle(ParticleType type_, Point3 const &centre, double energy_);
+    Particle(ParticleType type_, Point3 &&centre, double energy_);
+    Particle(ParticleType type_, double x_, double y_, double z_, VelocityVector const &velvec);
+    Particle(ParticleType type_, double x_, double y_, double z_, VelocityVector &&velvec);
+    Particle(ParticleType type_, Point3 const &centre, VelocityVector const &velvec);
+    Particle(ParticleType type_, Point3 &&centre, VelocityVector &&velvec);
+    ~Particle() {}
 
     /**
      * @brief Updates the position of the particle after a time interval.
@@ -70,8 +146,8 @@ public:
      * @param other The other Particle to check against.
      * @return `true` if the particles overlap, otherwise `false`.
      */
-    bool overlaps(ParticleGeneric const &other) const;
-    bool overlaps(ParticleGeneric &&other) const;
+    bool overlaps(Particle const &other) const;
+    bool overlaps(Particle &&other) const;
 
     /**
      * @brief Checks if the particle out of specified bounds.
@@ -92,10 +168,11 @@ public:
     constexpr double getVy() const { return m_velocity.getY(); }
     constexpr double getVz() const { return m_velocity.getZ(); }
     double getVelocityModule() const;
-    constexpr double getRadius() const { return m_radius; }
     constexpr Point3 const &getCentre() const { return m_centre; }
     constexpr VelocityVector const &getVelocityVector() const { return m_velocity; }
     constexpr aabb::AABB const &getBoundingBox() const { return m_boundingBox; }
+    constexpr double getMass() const { return getMassFromType(m_type); }
+    constexpr double getRadius() const { return getRadiusFromType(m_type); }
 
     /**
      * @brief Calculates the collision of a particle with another particle or object.
@@ -103,157 +180,22 @@ public:
      * @param t_mass The mass of the target object.
      */
     void colide(double p_mass, double t_mass) &;
-
-    /* === Virtual getters for specific particles like Argon, Beryllium, etc. === */
-    /// @return Minimal value of `double` type as a default value.
-    virtual constexpr double getMass() const { return std::numeric_limits<double>::min(); };
 };
 
-class ParticleArgon final : public ParticleGeneric
-{
-private:
-    static constexpr double radius{physical_constants::ArRadius};
+using ParticleVector = std::vector<Particle>;
 
-public:
-    ParticleArgon() : ParticleGeneric() {}
-    ParticleArgon(double x_, double y_, double z_, double energy_, double radius_)
-        : ParticleGeneric(x_, y_, z_, energy_, radius_ = radius) {}
-    ParticleArgon(double x_, double y_, double z_, double vx_, double vy_, double vz_, double radius_ = radius)
-        : ParticleGeneric(x_, y_, z_, vx_, vy_, vz_, radius_) {}
-    ParticleArgon(Point3 const &centre, double vx_, double vy_, double vz_, double radius_ = radius)
-        : ParticleGeneric(centre, vx_, vy_, vz_, radius_) {}
-    ParticleArgon(Point3 &&centre, double vx_, double vy_, double vz_, double radius_ = radius)
-        : ParticleGeneric(std::move(centre), vx_, vy_, vz_, radius_) {}
-    ParticleArgon(Point3 const &centre, double energy_, double radius_)
-        : ParticleGeneric(centre, energy_, radius_ = radius) {}
-    ParticleArgon(Point3 &&centre, double energy_, double radius_)
-        : ParticleGeneric(std::move(centre), energy_, radius_ = radius) {}
-    ParticleArgon(double x_, double y_, double z_, VelocityVector const &velvec, double radius_ = radius)
-        : ParticleGeneric(x_, y_, z_, velvec, radius_) {}
-    ParticleArgon(double x_, double y_, double z_, VelocityVector &&velvec, double radius_ = radius)
-        : ParticleGeneric(x_, y_, z_, std::move(velvec), radius_) {}
-    ParticleArgon(Point3 const &centre, VelocityVector const &velvec,
-                  double radius_ = radius)
-        : ParticleGeneric(centre, velvec, radius_) {}
-    ParticleArgon(Point3 &&centre, VelocityVector &&velvec,
-                  double radius_ = radius)
-        : ParticleGeneric(std::move(centre), std::move(velvec), radius_) {}
-
-    constexpr double getMass() const override { return physical_constants::ArMass; }
-};
-
-class ParticleAluminium final : public ParticleGeneric
-{
-private:
-    static constexpr double radius{physical_constants::AlRadius};
-
-public:
-    ParticleAluminium() : ParticleGeneric() {}
-    ParticleAluminium(double x_, double y_, double z_, double energy_, double radius_)
-        : ParticleGeneric(x_, y_, z_, energy_, radius_ = radius) {}
-    ParticleAluminium(double x_, double y_, double z_, double vx_, double vy_, double vz_, double radius_ = radius)
-        : ParticleGeneric(x_, y_, z_, vx_, vy_, vz_, radius_) {}
-    ParticleAluminium(Point3 const &centre, double vx_, double vy_, double vz_, double radius_ = radius)
-        : ParticleGeneric(centre, vx_, vy_, vz_, radius_) {}
-    ParticleAluminium(Point3 &&centre, double vx_, double vy_, double vz_, double radius_ = radius)
-        : ParticleGeneric(std::move(centre), vx_, vy_, vz_, radius_) {}
-    ParticleAluminium(Point3 const &centre, double energy_, double radius_)
-        : ParticleGeneric(centre, energy_, radius_ = radius) {}
-    ParticleAluminium(Point3 &&centre, double energy_, double radius_)
-        : ParticleGeneric(std::move(centre), energy_, radius_ = radius) {}
-    ParticleAluminium(double x_, double y_, double z_, VelocityVector const &velvec, double radius_ = radius)
-        : ParticleGeneric(x_, y_, z_, velvec, radius_) {}
-    ParticleAluminium(double x_, double y_, double z_, VelocityVector &&velvec, double radius_ = radius)
-        : ParticleGeneric(x_, y_, z_, std::move(velvec), radius_) {}
-    ParticleAluminium(Point3 const &centre, VelocityVector const &velvec, double radius_ = radius)
-        : ParticleGeneric(centre, velvec, radius_) {}
-    ParticleAluminium(Point3 &&centre, VelocityVector &&velvec, double radius_ = radius)
-        : ParticleGeneric(std::move(centre), std::move(velvec), radius_) {}
-
-    constexpr double getMass() const override { return physical_constants::AlMass; }
-};
-
-/// @brief x, y, z, Vx, Vy, Vz, radius
-using ParticleVectorWithVelocities = std::vector<std::tuple<Point3,
-                                                            double, double, double,
-                                                            double>>;
-/// @brief x, y, z, E, radius
-using ParticleVectorWithEnergy = std::vector<std::tuple<Point3,
-                                                        double, double>>;
-/// @brief x, y, z, radius
-using ParticleVectorSimple = std::vector<std::tuple<Point3, double>>;
-using ParticleSimple = std::tuple<Point3, double>;
-
-/* --> Aliases for many of specific kind particles. <-- */
-using ParticleGenericVector = std::vector<ParticleGeneric>;
-using ParticleArgonVector = std::vector<ParticleArgon>;
-using ParticleAluminiumVector = std::vector<ParticleAluminium>;
-
-/// @brief Macro to use in generic functions.
-#define IsParticle std::is_same_v<T, ParticleGeneric> ||   \
-                       std::is_same_v<T, ParticleArgon> || \
-                       std::is_same_v<T, ParticleAluminium>
-
-/// @brief Concept for all particles types.
-template <typename T>
-concept IsParticleVector = std::is_same_v<T, ParticleGenericVector> ||
-                           std::is_same_v<T, ParticleArgonVector> ||
-                           std::is_same_v<T, ParticleAluminiumVector>;
-
-/**
- * @brief Generates a vector of particles with specified velocity ranges.
- *
- * @tparam T The type of particle to generate. It can be a specific particle type (e.g., ParticleArgon)
- *           or a generic particle type.
- * @param count The number of particles to generate.
- * @param minx Minimum x-coordinate for the particle's initial position.
- * @param miny Minimum y-coordinate for the particle's initial position.
- * @param minz Minimum z-coordinate for the particle's initial position.
- * @param maxx Maximum x-coordinate for the particle's initial position.
- * @param maxy Maximum y-coordinate for the particle's initial position.
- * @param maxz Maximum z-coordinate for the particle's initial position.
- * @param minvx Minimum x-component of the particle's velocity.
- * @param minvy Minimum y-component of the particle's velocity.
- * @param minvz Minimum z-component of the particle's velocity.
- * @param maxvx Maximum x-component of the particle's velocity.
- * @param maxvy Maximum y-component of the particle's velocity.
- * @param maxvz Maximum z-component of the particle's velocity.
- * @param minradius Minimum radius for generic particles (ignored for specific particle types).
- * @param maxradius Maximum radius for generic particles (ignored for specific particle types).
- * @return std::vector<T> A vector of generated particles.
- */
-template <typename T>
-std::vector<T> createParticlesWithVelocities(size_t count, double minx = 0.0, double miny = 0.0, double minz = 0.0,
+/// @brief Generates a vector of particles with specified velocity ranges.
+ParticleVector createParticlesWithVelocities(size_t count, ParticleType type,
+                                             double minx = 0.0, double miny = 0.0, double minz = 0.0,
                                              double maxx = 100.0, double maxy = 100.0, double maxz = 100.0,
                                              double minvx = 10.0, double minvy = 10.0, double minvz = 10.0,
-                                             double maxvx = 20.0, double maxvy = 20.0, double maxvz = 20.0,
-                                             double minradius = 1.0, double maxradius = 5.0);
+                                             double maxvx = 20.0, double maxvy = 20.0, double maxvz = 20.0);
 
-/**
- * @brief Creates a vector of particles with specified properties.
- * @details This template function generates a list of particles of type T.
- *          The particles are initialized with random positions (x, y, z), energy, and radius.
- *          For ParticleArgon and ParticleAluminium, a predefined radius is used.
- * @tparam T The particle type (e.g., ParticleArgon, ParticleAluminium).
- * @param count The number of particles to generate.
- * @param minx The minimum x-coordinate for particle position (default: 0.0).
- * @param miny The minimum y-coordinate for particle position (default: 0.0).
- * @param minz The minimum z-coordinate for particle position (default: 0.0).
- * @param maxx The maximum x-coordinate for particle position (default: 100.0).
- * @param maxy The maximum y-coordinate for particle position (default: 100.0).
- * @param maxz The maximum z-coordinate for particle position (default: 100.0).
- * @param minenergy The minimum energy value for a particle (default: 30.0).
- * @param maxenergy The maximum energy value for a particle (default: 50.0).
- * @param minradius The minimum radius for a particle (default: 1.0).
- * @param maxradius The maximum radius for a particle (default: 5.0).
- * @return std::vector<T> A vector containing the generated particles.
- */
-template <typename T>
-std::vector<T> createParticlesWithEnergy(size_t count, double minx = 0.0, double miny = 0.0, double minz = 0.0,
+/// @brief Creates a vector of particles with specified properties.
+ParticleVector createParticlesWithEnergy(size_t count, ParticleType type,
+                                         double minx = 0.0, double miny = 0.0, double minz = 0.0,
                                          double maxx = 100.0, double maxy = 100.0, double maxz = 100.0,
                                          double minenergy = 30.0, double maxenergy = 50.0,
                                          double minradius = 1.0, double maxradius = 5.0);
-
-#include "ParticlesImpl.hpp"
 
 #endif // !PARTICLES_HPP

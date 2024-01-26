@@ -1,21 +1,14 @@
-#ifndef COLLISIONTRACKERIMPL_HPP
-#define COLLISIONTRACKERIMPL_HPP
-
 #include <algorithm>
 #include <execution>
 
-template <IsParticleVector T>
-constinit std::mutex CollisionTracker<T>::m_map_mutex;
+#include "../include/Utilities/CollisionTracker.hpp"
 
-template <IsParticleVector T>
-std::atomic<size_t> CollisionTracker<T>::m_counter = 0ul;
+constinit std::mutex CollisionTracker::m_map_mutex;
+std::atomic<size_t> CollisionTracker::m_counter = 0ul;
+std::atomic_flag CollisionTracker::m_stop_processing = ATOMIC_FLAG_INIT;
 
-template <IsParticleVector T>
-std::atomic_flag CollisionTracker<T>::m_stop_processing = ATOMIC_FLAG_INIT;
-
-template <IsParticleVector T>
-void CollisionTracker<T>::processSegment(size_t start_index, size_t end_index,
-                                         std::unordered_map<size_t, int> &m)
+void CollisionTracker::processSegment(size_t start_index, size_t end_index,
+                                      std::unordered_map<size_t, int> &m)
 {
     for (double t{}; t <= m_total_time && !m_stop_processing.test(); t += m_dt)
     {
@@ -52,8 +45,7 @@ void CollisionTracker<T>::processSegment(size_t start_index, size_t end_index,
     }
 }
 
-template <IsParticleVector T>
-std::unordered_map<size_t, int> CollisionTracker<T>::trackCollisions()
+std::unordered_map<size_t, int> CollisionTracker::trackCollisions()
 {
     std::unordered_map<size_t, int> m;
 
@@ -80,5 +72,3 @@ std::unordered_map<size_t, int> CollisionTracker<T>::trackCollisions()
 
     return m;
 }
-
-#endif // !COLLISIONTRACKERIMPL_HPP

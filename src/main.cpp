@@ -11,9 +11,10 @@ void simulateMovement(size_t particles_count, double dt, double total_time,
         GMSHVolumeCreator volumeCreator;
         mesh = volumeCreator.getMeshParams(outfile);
     }
-    auto pgs(createParticlesWithVelocities<ParticleArgon>(particles_count, -50, -50, -50,
-                                                          100, 100, 100, -50, -50, -50,
-                                                          50, 50, 50));
+    auto pgs(createParticlesWithVelocities(particles_count, ParticleType::Ar,
+                                           -50, -50, -50,
+                                           100, 100, 100, -50, -50, -50,
+                                           50, 50, 50));
 
     CollisionTracker ct(pgs, mesh, dt, total_time);
     auto counterMap{ct.trackCollisions()};

@@ -15,6 +15,8 @@ using Point3 = Kernel::Point_3;
 using Ray3 = Kernel::Ray_3;
 using Triangle3 = Kernel::Triangle_3;
 
+#define CGAL_TO_DOUBLE(var) CGAL::to_double(var)
+
 #define ERRMSG_ABS_PATH(desc) std::cerr << std::format("\033[1;31mERROR:\033[0m\033[1m {}: {}({} line): {}: \033[1;31m{}\033[0m\033[1m\n", \
                                                        settings::getCurTime(),                                                             \
                                                        std::source_location::current().file_name(),                                        \
