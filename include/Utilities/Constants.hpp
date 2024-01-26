@@ -13,18 +13,19 @@ namespace constants
 
         /*** Weight of particles in [kg]. ***/
         static constinit const double Ar_mass{6.6335209e-26};
-        static constinit const double N_mass{};
-        static constinit const double He_mass{};
-        static constinit const double Ti_mass{};
+        static constinit const double N_mass{2.3258671e-26};
+        static constinit const double He_mass{6.6464731e-27};
+        static constinit const double Ti_mass{7.9485017e-26};
         static constinit const double Al_mass{4.4803831e-26};
-        static constinit const double Sn_mass{};
-        static constinit const double W_mass{};
-        static constinit const double Au_mass{};
-        static constinit const double Cu_mass{};
-        static constinit const double Ni_mass{};
-        static constinit const double Ag_mass{};
+        static constinit const double Sn_mass{1.9712258e-25};
+        static constinit const double W_mass{8.4590343e-26};
+        static constinit const double Au_mass{3.2707137e-25};
+        static constinit const double Cu_mass{1.0552061e-25};
+        static constinit const double Ni_mass{9.7462675e-26};
+        static constinit const double Ag_mass{1.7911901e-25};
 
-        /*** Radii of particles in [m]. ***/
+        /*** Radii (<name of radius>) of particles in [m]. ***/
+        // TODO: Fill specific type of radius (emperical, van der Wals, covalent, etc.)
         static constinit const double Ar_radius{98e-12};
         static constinit const double N_radius{};
         static constinit const double He_radius{};
