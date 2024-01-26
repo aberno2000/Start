@@ -61,6 +61,9 @@ public:
     CollisionTracker(T &particles, MeshParamVector const &mesh,
                      double time_step, double total_time)
         : m_particles(particles), m_mesh(mesh), m_dt(time_step), m_total_time(total_time) {}
+    CollisionTracker(T &particles, MeshParamVector &&mesh,
+                     double time_step, double total_time)
+        : m_particles(particles), m_mesh(std::move(mesh)), m_dt(time_step), m_total_time(total_time) {}
 
     /**
      * @brief Tracks collisions in a concurrent manner and returns a map of collision counts.

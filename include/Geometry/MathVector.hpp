@@ -81,9 +81,10 @@ public:
 
     /// @brief Calculates the distance between two vectors.
     double distance(MathVector const &other) const;
+    double distance(MathVector &&other) const;
 
     /// @brief Clears the vector (Sets all components to null).
-    void clear() _GLIBCXX_NOEXCEPT { *this = 0; }
+    void clear() & _GLIBCXX_NOEXCEPT { *this = 0; }
 
     /**
      * @brief Checker for empty vector (are all values null).
@@ -99,6 +100,7 @@ public:
      * @return `true` if vectors are parallel, otherwise `false`.
      */
     bool isParallel(MathVector const &other) const;
+    bool isParallel(MathVector &&other) const;
 
     /**
      * @brief Checks if vectors are orthogonal.
@@ -106,6 +108,7 @@ public:
      * @return `true` if vectors are orthogonal, otherwise `false`.
      */
     bool isOrthogonal(MathVector const &other) const;
+    bool isOrthogonal(MathVector &&other) const;
 
     /**
      * @brief Calculates the area of a triangle given its three vertices.
@@ -121,6 +124,9 @@ public:
     static double calculateTriangleArea(MathVector const &A,
                                         MathVector const &B,
                                         MathVector const &C);
+    static double calculateTriangleArea(MathVector &&A,
+                                        MathVector &&B,
+                                        MathVector &&C);
 
     /// @brief Overload of unary minus. Negates all components of vector.
     MathVector operator-();
@@ -138,8 +144,11 @@ public:
     MathVector operator*(double value) const;
     friend MathVector operator*(double value, MathVector const &other) { return MathVector(other.x * value, other.y * value, other.z * value); }
     double operator*(MathVector const &other) const;
+    double operator*(MathVector &&other) const;
     double dotProduct(MathVector const &other) const;
+    double dotProduct(MathVector &&other) const;
     MathVector crossProduct(MathVector const &other) const;
+    MathVector crossProduct(MathVector &&other) const;
 
     /* /// Division operator. Vector / value. \\\ */
     MathVector operator/(double value) const;

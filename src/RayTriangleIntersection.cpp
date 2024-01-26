@@ -1,11 +1,11 @@
 #include "../include/Geometry/RayTriangleIntersection.hpp"
 
-bool RayTriangleIntersection::isIntersectTriangle(Ray3 const &ray, Triangle3 const &triangle)
+bool RayTriangleIntersection::isIntersectTriangleImpl(Ray3 const &ray, Triangle3 const &triangle)
 {
     return CGAL::do_intersect(ray, triangle);
 }
 
-std::optional<Point3> RayTriangleIntersection::getIntersectionPoint(Ray3 const &ray, Triangle3 const &triangle)
+std::optional<Point3> RayTriangleIntersection::getIntersectionPointImpl(Ray3 const &ray, Triangle3 const &triangle)
 {
     auto result{CGAL::intersection(ray, triangle)};
     if (!result)

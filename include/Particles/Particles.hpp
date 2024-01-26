@@ -49,15 +49,19 @@ public:
     ParticleGeneric() {}
     ParticleGeneric(double x_, double y_, double z_, double energy_, double radius_);
     ParticleGeneric(double x_, double y_, double z_, double vx_, double vy_, double vz_, double radius_);
-    ParticleGeneric(Point3 centre, double vx_, double vy_, double vz_, double radius_);
-    ParticleGeneric(Point3 centre, double energy_, double radius_);
-    ParticleGeneric(double x_, double y_, double z_, VelocityVector velvec, double radius_);
-    ParticleGeneric(Point3 centre, VelocityVector velvec, double radius_);
+    ParticleGeneric(Point3 const &centre, double vx_, double vy_, double vz_, double radius_);
+    ParticleGeneric(Point3 &&centre, double vx_, double vy_, double vz_, double radius_);
+    ParticleGeneric(Point3 const &centre, double energy_, double radius_);
+    ParticleGeneric(Point3 &&centre, double energy_, double radius_);
+    ParticleGeneric(double x_, double y_, double z_, VelocityVector const &velvec, double radius_);
+    ParticleGeneric(double x_, double y_, double z_, VelocityVector &&velvec, double radius_);
+    ParticleGeneric(Point3 const &centre, VelocityVector const &velvec, double radius_);
+    ParticleGeneric(Point3 &&centre, VelocityVector &&velvec, double radius_);
     virtual ~ParticleGeneric() {}
 
     /**
      * @brief Updates the position of the particle after a time interval.
-     * @param dt Time interval for the update (default) [s].
+     * @param dt Time interval for the update [s].
      */
     void updatePosition(double dt);
 
@@ -67,6 +71,7 @@ public:
      * @return `true` if the particles overlap, otherwise `false`.
      */
     bool overlaps(ParticleGeneric const &other) const;
+    bool overlaps(ParticleGeneric &&other) const;
 
     /**
      * @brief Checks if the particle out of specified bounds.
@@ -74,6 +79,7 @@ public:
      * @return `true` if the particle out of bounds, otherwise `false`.
      */
     bool isOutOfBounds(aabb::AABB const &bounding_volume) const;
+    bool isOutOfBounds(aabb::AABB &&bounding_volume) const;
 
     /* === Getters for particle params. === */
     double getX() const;
@@ -96,7 +102,7 @@ public:
      * @param p_mass The mass of the particle.
      * @param t_mass The mass of the target object.
      */
-    void colide( double p_mass, double t_mass);
+    void colide(double p_mass, double t_mass) &;
 
     /* === Virtual getters for specific particles like Argon, Beryllium, etc. === */
     /// @return Minimal value of `double` type as a default value.
@@ -114,15 +120,24 @@ public:
         : ParticleGeneric(x_, y_, z_, energy_, radius_ = radius) {}
     ParticleArgon(double x_, double y_, double z_, double vx_, double vy_, double vz_, double radius_ = radius)
         : ParticleGeneric(x_, y_, z_, vx_, vy_, vz_, radius_) {}
-    ParticleArgon(Point3 centre, double vx_, double vy_, double vz_, double radius_ = radius)
+    ParticleArgon(Point3 const &centre, double vx_, double vy_, double vz_, double radius_ = radius)
         : ParticleGeneric(centre, vx_, vy_, vz_, radius_) {}
-    ParticleArgon(Point3 centre, double energy_, double radius_)
+    ParticleArgon(Point3 &&centre, double vx_, double vy_, double vz_, double radius_ = radius)
+        : ParticleGeneric(std::move(centre), vx_, vy_, vz_, radius_) {}
+    ParticleArgon(Point3 const &centre, double energy_, double radius_)
         : ParticleGeneric(centre, energy_, radius_ = radius) {}
-    ParticleArgon(double x_, double y_, double z_, VelocityVector velvec, double radius_ = radius)
+    ParticleArgon(Point3 &&centre, double energy_, double radius_)
+        : ParticleGeneric(std::move(centre), energy_, radius_ = radius) {}
+    ParticleArgon(double x_, double y_, double z_, VelocityVector const &velvec, double radius_ = radius)
         : ParticleGeneric(x_, y_, z_, velvec, radius_) {}
-    ParticleArgon(Point3 centre, VelocityVector velvec,
+    ParticleArgon(double x_, double y_, double z_, VelocityVector &&velvec, double radius_ = radius)
+        : ParticleGeneric(x_, y_, z_, std::move(velvec), radius_) {}
+    ParticleArgon(Point3 const &centre, VelocityVector const &velvec,
                   double radius_ = radius)
         : ParticleGeneric(centre, velvec, radius_) {}
+    ParticleArgon(Point3 &&centre, VelocityVector &&velvec,
+                  double radius_ = radius)
+        : ParticleGeneric(std::move(centre), std::move(velvec), radius_) {}
 
     constexpr double getMass() const override { return physical_constants::ArMass; }
 };
@@ -138,14 +153,22 @@ public:
         : ParticleGeneric(x_, y_, z_, energy_, radius_ = radius) {}
     ParticleAluminium(double x_, double y_, double z_, double vx_, double vy_, double vz_, double radius_ = radius)
         : ParticleGeneric(x_, y_, z_, vx_, vy_, vz_, radius_) {}
-    ParticleAluminium(Point3 centre, double vx_, double vy_, double vz_, double radius_ = radius)
+    ParticleAluminium(Point3 const &centre, double vx_, double vy_, double vz_, double radius_ = radius)
         : ParticleGeneric(centre, vx_, vy_, vz_, radius_) {}
-    ParticleAluminium(Point3 centre, double energy_, double radius_)
+    ParticleAluminium(Point3 &&centre, double vx_, double vy_, double vz_, double radius_ = radius)
+        : ParticleGeneric(std::move(centre), vx_, vy_, vz_, radius_) {}
+    ParticleAluminium(Point3 const &centre, double energy_, double radius_)
         : ParticleGeneric(centre, energy_, radius_ = radius) {}
-    ParticleAluminium(double x_, double y_, double z_, VelocityVector velvec, double radius_ = radius)
+    ParticleAluminium(Point3 &&centre, double energy_, double radius_)
+        : ParticleGeneric(std::move(centre), energy_, radius_ = radius) {}
+    ParticleAluminium(double x_, double y_, double z_, VelocityVector const &velvec, double radius_ = radius)
         : ParticleGeneric(x_, y_, z_, velvec, radius_) {}
-    ParticleAluminium(Point3 centre, VelocityVector velvec, double radius_ = radius)
+    ParticleAluminium(double x_, double y_, double z_, VelocityVector &&velvec, double radius_ = radius)
+        : ParticleGeneric(x_, y_, z_, std::move(velvec), radius_) {}
+    ParticleAluminium(Point3 const &centre, VelocityVector const &velvec, double radius_ = radius)
         : ParticleGeneric(centre, velvec, radius_) {}
+    ParticleAluminium(Point3 &&centre, VelocityVector &&velvec, double radius_ = radius)
+        : ParticleGeneric(std::move(centre), std::move(velvec), radius_) {}
 
     constexpr double getMass() const override { return physical_constants::AlMass; }
 };
@@ -165,6 +188,11 @@ using ParticleSimple = std::tuple<Point3, double>;
 using ParticleGenericVector = std::vector<ParticleGeneric>;
 using ParticleArgonVector = std::vector<ParticleArgon>;
 using ParticleAluminiumVector = std::vector<ParticleAluminium>;
+
+/// @brief Macro to use in generic functions.
+#define IsParticle std::is_same_v<T, ParticleGeneric> ||   \
+                       std::is_same_v<T, ParticleArgon> || \
+                       std::is_same_v<T, ParticleAluminium>
 
 /// @brief Concept for all particles types.
 template <typename T>

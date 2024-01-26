@@ -50,8 +50,8 @@ private:
     double x{}, y{}, z{}, dx{}, dy{}, dz{};
 
 public:
-    explicit Box(double x_, double y_, double z_,
-                 double dx_, double dy_, double dz_);
+    Box(double x_, double y_, double z_,
+        double dx_, double dy_, double dz_);
     int create() const override;
 };
 
@@ -62,7 +62,7 @@ private:
     double x{}, y{}, z{}, r{};
 
 public:
-    explicit Sphere(double x_, double y_, double z_, double r_);
+    Sphere(double x_, double y_, double z_, double r_);
     int create() const override;
 };
 
@@ -74,9 +74,9 @@ private:
     int tag{};
 
 public:
-    explicit Cylinder(double x_, double y_, double z_,
-                      double dx_, double dy_, double dz_,
-                      double r_, double angle_ = 2 * std::numbers::pi, int tag_ = -1);
+    Cylinder(double x_, double y_, double z_,
+             double dx_, double dy_, double dz_,
+             double r_, double angle_ = 2 * std::numbers::pi, int tag_ = -1);
     int create() const override;
 };
 
@@ -88,9 +88,9 @@ private:
     int tag{};
 
 public:
-    explicit Cone(double x_, double y_, double z_,
-                  double dx_, double dy_, double dz_,
-                  double r1_, double r2_, double angle_ = 2 * std::numbers::pi, int tag_ = -1);
+    Cone(double x_, double y_, double z_,
+         double dx_, double dy_, double dz_,
+         double r1_, double r2_, double angle_ = 2 * std::numbers::pi, int tag_ = -1);
     int create() const override;
 };
 
@@ -214,7 +214,7 @@ private:
      * @param meshSize The target size of the mesh elements.
      * @param meshDim The dimension of the mesh to be generated.
      * @param outputPath The path where the mesh file will be saved.
-    */
+     */
     void gmshSynchronizer(double meshSize, double meshDim, std::string_view outputPath);
 
 public:
@@ -255,10 +255,10 @@ public:
     /**
      * @brief Generic volume creator. Works with existing volumes in a class.
      * @param vtype type of the volume (Box, Sphere, Cylinder, Cone).
-    * @param meshSize The target size of the mesh elements.
+     * @param meshSize The target size of the mesh elements.
      * @param meshDim The dimension of the mesh to be generated.
      * @param outputPath The path where the mesh file will be saved.
-    */
+     */
     void createVolume(VolumeType vtype, double meshSize, double meshDim, std::string_view outputPath);
 
     /**

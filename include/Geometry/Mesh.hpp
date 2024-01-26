@@ -20,6 +20,11 @@ using MeshParamVector = std::vector<MeshParam>;
 /// @brief Represents GMSH mesh.
 class Mesh
 {
+private:
+    static size_t isRayIntersectTriangleImpl(Ray3 const &ray, MeshParam const &triangle);
+    static std::optional<std::tuple<size_t, Point3>>
+    getIntersectionPointImpl(Ray3 const &ray, MeshParam const &triangle);
+
 public:
     /**
      * @brief Sets the mesh size factor (globally -> for all objects).
@@ -56,7 +61,10 @@ public:
      * @return Returns the index or ID of the triangle (as size_t) if the ray intersects with it.
      *         If there is no intersection, it returns a special value (usually -1 cast to size_t) to indicate this.
      */
-    static size_t isRayIntersectTriangle(Ray3 const &ray, MeshParam const &triangle);
+    static size_t isRayIntersectTriangle(Ray3 const &ray, MeshParam const &triangle) { return isRayIntersectTriangleImpl(ray, triangle); }
+    static size_t isRayIntersectTriangle(Ray3 &&ray, MeshParam const &triangle) { return isRayIntersectTriangleImpl(std::move(ray), triangle); }
+    static size_t isRayIntersectTriangle(Ray3 const &ray, MeshParam &&triangle) { return isRayIntersectTriangleImpl(ray, std::move(triangle)); }
+    static size_t isRayIntersectTriangle(Ray3 &&ray, MeshParam &&triangle) { return isRayIntersectTriangleImpl(std::move(ray), std::move(triangle)); }
 
     /**
      * @brief Gets intersection point of ray and triangle if ray intersects the triangle.
@@ -70,7 +78,13 @@ public:
      *         If the particle doesn't intersect with the specified triangle, it returns `std::nullopt`
      */
     static std::optional<std::tuple<size_t, Point3>>
-    getIntersectionPoint(Ray3 const &ray, MeshParam const &triangle);
+    getIntersectionPoint(Ray3 const &ray, MeshParam const &triangle) { return getIntersectionPointImpl(ray, triangle); }
+    static std::optional<std::tuple<size_t, Point3>>
+    getIntersectionPoint(Ray3 &&ray, MeshParam const &triangle) { return getIntersectionPointImpl(std::move(ray), triangle); }
+    static std::optional<std::tuple<size_t, Point3>>
+    getIntersectionPoint(Ray3 const &ray, MeshParam &&triangle) { return getIntersectionPointImpl(ray, std::move(triangle)); }
+    static std::optional<std::tuple<size_t, Point3>>
+    getIntersectionPoint(Ray3 &&ray, MeshParam &&triangle) { return getIntersectionPointImpl(std::move(ray), std::move(triangle)); }
 };
 
 #endif // !MESH_HPP

@@ -22,7 +22,7 @@ std::vector<T> createParticlesWithVelocities(size_t count, double minx, double m
             vy{rng(minvy, maxvy)},
             vz{rng(minvz, maxvz)};
 
-        if constexpr (std::is_same_v<T, ParticleArgon> || std::is_same_v<T, ParticleAluminium>)
+        if constexpr (IsParticle)
             particles.emplace_back(x, y, z, vx, vy, vz, T().getRadius());
         else
         {
@@ -50,7 +50,7 @@ std::vector<T> createParticlesWithEnergy(size_t count, double minx, double miny,
             z{rng(minz, maxz)},
             energy{rng(minenergy, maxenergy)};
 
-        if constexpr (std::is_same_v<T, ParticleArgon> || std::is_same_v<T, ParticleAluminium>)
+        if constexpr (IsParticle)
             particles.emplace_back(x, y, z, energy, T().getRadius());
         else
         {

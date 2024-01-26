@@ -88,6 +88,7 @@ public:
      *         or if writing to the dataset fails.
      */
     void saveMeshToHDF5(MeshParamVector const &mesh);
+    void saveMeshToHDF5(MeshParamVector &&mesh);
 
     /**
      * @brief Reads mesh data from the HDF5 file starting from a specified object ID.

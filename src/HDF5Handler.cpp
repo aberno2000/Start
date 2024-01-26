@@ -81,6 +81,36 @@ void HDF5Handler::saveMeshToHDF5(MeshParamVector const &mesh)
     }
 }
 
+void HDF5Handler::saveMeshToHDF5(MeshParamVector &&mesh)
+{
+    if (mesh.empty())
+        return;
+
+    auto minTriangle{*std::min_element(mesh.cbegin(), mesh.cend(),
+                                       [](MeshParam const &a, MeshParam const &b)
+                                       { return std::get<0>(a) < std::get<0>(b); })};
+    m_firstID = std::get<0>(minTriangle);
+
+    for (auto const &triangle : mesh)
+    {
+        auto id{std::get<0>(triangle)};
+        std::string groupName("Triangle_" + std::to_string(id));
+        createGroup(groupName);
+
+        double coordinates[9] = {
+            CGAL::to_double(std::get<1>(triangle).vertex(0).x()), CGAL::to_double(std::get<1>(triangle).vertex(0).y()), CGAL::to_double(std::get<1>(triangle).vertex(0).z()),
+            CGAL::to_double(std::get<1>(triangle).vertex(1).x()), CGAL::to_double(std::get<1>(triangle).vertex(1).y()), CGAL::to_double(std::get<1>(triangle).vertex(1).z()),
+            CGAL::to_double(std::get<1>(triangle).vertex(2).x()), CGAL::to_double(std::get<1>(triangle).vertex(2).y()), CGAL::to_double(std::get<1>(triangle).vertex(2).z())};
+        writeDataset(groupName, "Coordinates", H5T_NATIVE_DOUBLE, coordinates, 9);
+
+        double area{std::get<2>(triangle)};
+        writeDataset(groupName, "Area", H5T_NATIVE_DOUBLE, std::addressof(area), 1);
+
+        int count{std::get<3>(triangle)};
+        writeDataset(groupName, "Counter", H5T_NATIVE_INT, std::addressof(count), 1);
+    }
+}
+
 MeshParamVector HDF5Handler::readMeshFromHDF5()
 {
     MeshParamVector mesh;
