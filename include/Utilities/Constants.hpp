@@ -24,19 +24,19 @@ namespace constants
         static constinit const double Ni_mass{9.7462675e-26};
         static constinit const double Ag_mass{1.7911901e-25};
 
-        /*** Radii (<name of radius>) of particles in [m]. ***/
-        // TODO: Fill specific type of radius (emperical, van der Wals, covalent, etc.)
-        static constinit const double Ar_radius{98e-12};
-        static constinit const double N_radius{};
-        static constinit const double He_radius{};
-        static constinit const double Ti_radius{};
-        static constinit const double Al_radius{143e-12};
-        static constinit const double Sn_radius{};
-        static constinit const double W_radius{};
-        static constinit const double Au_radius{};
-        static constinit const double Cu_radius{};
-        static constinit const double Ni_radius{};
-        static constinit const double Ag_radius{};
+        /*** Radii (empirical) of particles in [m]. ***/
+        /// @link https://en.wikipedia.org/wiki/Atomic_radii_of_the_elements_(data_page)
+        static constinit const double Ar_radius{71e-12};
+        static constinit const double N_radius{65e-12};
+        static constinit const double He_radius{120e-12};
+        static constinit const double Ti_radius{140e-12};
+        static constinit const double Al_radius{125e-12};
+        static constinit const double Sn_radius{145e-12};
+        static constinit const double W_radius{135e-12};
+        static constinit const double Au_radius{135e-12};
+        static constinit const double Cu_radius{135e-12};
+        static constinit const double Ni_radius{135e-12};
+        static constinit const double Ag_radius{160e-12};
     }
 
     namespace particle_types
