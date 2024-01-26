@@ -3,7 +3,12 @@ cmake_minimum_required(VERSION 3.14 FATAL_ERROR)
 
 project(Start
         VERSION 1.0
-        DESCRIPTION "" # TODO: Add concise description
+        DESCRIPTION "The Start project is dedicated to the development and testing of \
+        a software prototype for optimizing the technological process in vacuum-plasma installations. \
+        This software aims to address the current limitations in accurately obtaining process \
+        parameters in vacuum-plasma installations with non-rectangular geometries, due to the \
+        lack of algorithms for calculating non-standard grids of the electrostatic field generated \
+        by plasma particles."
         LANGUAGES CXX)
 
 find_package(Boost REQUIRED)
@@ -23,6 +28,7 @@ set(HDF5_DIR "/usr/share/hdf5/1.14.3")
 set(GMSH_DIR "/usr/share/gmsh")
 
 set(SOURCES
+    src/CollisionTracker.cpp
     src/HDF5Handler.cpp
     src/main.cpp
     src/MathVector.cpp
@@ -43,4 +49,4 @@ include_directories(${CMAKE_SOURCE_DIR}/include
 add_executable(main ${SOURCES})
 
 set_target_properties(main PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}")
-target_link_libraries(main PRIVATE aabb hdf5 gmsh gmp ${Boost_LIBRARIES} mpfr)
+target_link_libraries(main PRIVATE aabb hdf5 gmsh gmp mpfr ${Boost_LIBRARIES})
