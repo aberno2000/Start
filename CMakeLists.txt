@@ -23,10 +23,6 @@ set(CMAKE_CXX_FLAGS "-Wall -Wpedantic -Wextra -lpthread -O3 ${ROOT_FLAGS}")
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-set(ROOT_DIR "/usr/share/root")
-set(HDF5_DIR "/usr/share/hdf5/1.14.3")
-set(GMSH_DIR "/usr/share/gmsh")
-
 set(SOURCES
     src/CollisionTracker.cpp
     src/HDF5Handler.cpp
@@ -42,9 +38,6 @@ set(SOURCES
 )
 
 include_directories(${CMAKE_SOURCE_DIR}/include
-                    ${ROOT_DIR}
-                    ${HDF5_DIR}
-                    ${GMSH_DIR}
                     ${Boost_INCLUDE_DIRS})
 add_executable(main ${SOURCES})
 
