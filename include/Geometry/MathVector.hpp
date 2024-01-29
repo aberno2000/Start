@@ -154,20 +154,6 @@ public:
     MathVector operator/(double value) const;
 
     /* <=> Comparison operators. <=> */
-    constexpr auto operator<=>(MathVector const &other) const
-    {
-        /**
-         * Compares the components of two vectors (x, y, and z) in a
-         * lexicographical order (first by x, then y, and finally z).
-         * The `std::strong_ordering::equal` ensures that the comparison
-         * result is specific and conforms to the ordering requirements.
-         */
-        if (auto cmp{x <=> other.x}; cmp != std::strong_ordering::equal)
-            return cmp;
-        if (auto cmp{y <=> other.y}; cmp != std::strong_ordering::equal)
-            return cmp;
-        return z <=> other.z;
-    }
     constexpr bool operator==(MathVector const &other) const { return x == other.x && y == other.y && z == other.z; }
     constexpr bool operator!=(MathVector const &other) const { return !(*this == other); }
 
