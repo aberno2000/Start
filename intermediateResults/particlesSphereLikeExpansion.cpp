@@ -12,11 +12,10 @@
 #include "../include/Generators/RealNumberGenerator.hpp"
 #include "../include/Particles/Particles.hpp"
 
-template <typename T>
-std::vector<T> createParticles(size_t count)
+ParticleVector createAluminiumParticles(size_t count)
 {
     RealNumberGenerator rng;
-    std::vector<T> particles(count);
+    ParticleVector particles(count);
 
     for (size_t i{}; i < count; ++i)
     {
@@ -24,10 +23,10 @@ std::vector<T> createParticles(size_t count)
             theta{acos(x)},
             phi{rng.get_double(0, 2 * std::numbers::pi)};
 
-        particles[i] = T(50, 50, 50,
-                         sin(theta) * cos(phi),
-                         sin(theta) * sin(phi),
-                         cos(theta));
+        particles[i] = Particle(Al, 50, 50, 50,
+                                sin(theta) * cos(phi),
+                                sin(theta) * sin(phi),
+                                cos(theta));
     }
     return particles;
 }
@@ -46,8 +45,8 @@ int main()
     }
 
     RealNumberGenerator rng;
-    ParticleAluminiumVector p_Al(createParticles<ParticleAluminium>(1'000'000));
-    ParticleArgon p_Ar;
+    auto p_Al(createAluminiumParticles(1'000'000));
+    Particle p_Ar(Ar, 0, 0, 0, 50, 50, 50);
 
     constexpr int frames{10};
     std::array<TH3D *, frames> snapshots;
@@ -62,8 +61,7 @@ int main()
         {
             p_Al[i].updatePosition(time_step / 50);
             if (rng() < 0.5)
-                p_Al[i].colide(rng.get_double(0, std::numbers::pi), rng.get_double(0, 2 * std::numbers::pi),
-                               p_Al[0].getMass(), p_Ar.getMass());
+                p_Al[i].colide(p_Al[0].getMass(), p_Ar.getMass());
         }
 
         // Each 100-th iteration - snapshot

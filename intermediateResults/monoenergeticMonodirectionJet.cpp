@@ -10,24 +10,6 @@
 #include <TH3D.h>
 
 #include "../include/Particles/Particles.hpp"
-#include "../include/Generators/RealNumberGenerator.hpp"
-
-template <typename T>
-std::vector<T> createParticles(size_t count)
-{
-    RealNumberGenerator rng;
-    std::vector<T> particles(count);
-
-    double velocity{rng.get_double(1, 3)};
-    for (size_t i{}; i < count; ++i)
-        particles[i] = T(i + rng.get_double(10, 20),
-                         i + rng.get_double(10, 20),
-                         i + rng.get_double(10, 20),
-                         velocity,
-                         velocity,
-                         velocity);
-    return particles;
-}
 
 int main()
 {
@@ -42,9 +24,8 @@ int main()
         return EXIT_FAILURE;
     }
 
-    RealNumberGenerator rng;
-    ParticleAluminiumVector p_Al(createParticles<ParticleAluminium>(3));
-    ParticleArgon p_Ar;
+    ParticleVector p_Al(createParticlesWithEnergy(3, Al));
+    Particle p_Ar(Ar, 0, 0, 0, 50, 50, 50);
 
     constexpr int frames{10};
     std::array<TH3D *, frames> snapshots;

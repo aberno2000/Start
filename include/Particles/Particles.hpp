@@ -186,10 +186,10 @@ using ParticleVector = std::vector<Particle>;
 
 /// @brief Generates a vector of particles with specified velocity ranges.
 ParticleVector createParticlesWithVelocities(size_t count, ParticleType type,
-                                             double x = 0.0, double y = 0.0, double z = 0.0,
-                                             double vx = 10.0, double vy = 10.0, double vz = 10.0);
+                                             double x, double y, double z,
+                                             double vx, double vy, double vz);
 ParticleVector createParticlesWithVelocities(size_t count, ParticleType type,
-                                             double x = 0.0, double y = 0.0, double z = 0.0,
+                                             double x, double y, double z,
                                              double minvx = 50.0, double minvy = 50.0, double minvz = 50.0,
                                              double maxvx = 100.0, double maxvy = 100.0, double maxvz = 100.0);
 ParticleVector createParticlesWithVelocities(size_t count, ParticleType type,
