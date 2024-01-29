@@ -186,12 +186,12 @@ using ParticleVector = std::vector<Particle>;
 
 /// @brief Generates a vector of particles with specified velocity ranges.
 ParticleVector createParticlesWithVelocities(size_t count, ParticleType type,
-                                             double x, double y, double z,
-                                             double vx, double vy, double vz);
+                                             double x = 0.0, double y = 0.0, double z = 0.0,
+                                             double vx = 10.0, double vy = 10.0, double vz = 10.0);
 ParticleVector createParticlesWithVelocities(size_t count, ParticleType type,
-                                             double x, double y, double z,
-                                             double minvx, double minvy, double minvz,
-                                             double maxvx, double maxvy, double maxvz);
+                                             double x = 0.0, double y = 0.0, double z = 0.0,
+                                             double minvx = 50.0, double minvy = 50.0, double minvz = 50.0,
+                                             double maxvx = 100.0, double maxvy = 100.0, double maxvz = 100.0);
 ParticleVector createParticlesWithVelocities(size_t count, ParticleType type,
                                              double minx = 0.0, double miny = 0.0, double minz = 0.0,
                                              double maxx = 100.0, double maxy = 100.0, double maxz = 100.0,
@@ -200,8 +200,8 @@ ParticleVector createParticlesWithVelocities(size_t count, ParticleType type,
 
 /// @brief Creates a vector of particles with specified properties.
 ParticleVector createParticlesWithEnergy(size_t count, ParticleType type,
-                                         double x, double y, double z,
-                                         double minenergy, double maxenergy)
+                                         double x = 0.0, double y = 0.0, double z = 0.0,
+                                         double minenergy = 30.0, double maxenergy = 50.0)
     ParticleVector createParticlesWithEnergy(size_t count, ParticleType type,
                                              double minx = 0.0, double miny = 0.0, double minz = 0.0,
                                              double maxx = 100.0, double maxy = 100.0, double maxz = 100.0,
