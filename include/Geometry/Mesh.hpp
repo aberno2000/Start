@@ -6,6 +6,7 @@
 #include <tuple>
 #include <vector>
 
+#include "MathVector.hpp"
 #include "RayTriangleIntersection.hpp"
 
 /**
@@ -16,6 +17,8 @@
  */
 using MeshParam = std::tuple<size_t, Triangle3, double, int>;
 using MeshParamVector = std::vector<MeshParam>;
+using MeshTetrahedron = Tetrahedron3;
+using MeshTetrahedronVector = std::vector<MeshTetrahedron>;
 
 /// @brief Represents GMSH mesh.
 class Mesh
@@ -24,6 +27,7 @@ private:
     static size_t isRayIntersectTriangleImpl(Ray3 const &ray, MeshParam const &triangle);
     static std::optional<std::tuple<size_t, Point3>>
     getIntersectionPointImpl(Ray3 const &ray, MeshParam const &triangle);
+    static double calcTetrahedronVolume(MathVector const &a, MathVector const &b, MathVector const &c, MathVector const &d);
 
 public:
     /**
@@ -85,6 +89,13 @@ public:
     getIntersectionPoint(Ray3 const &ray, MeshParam &&triangle) { return getIntersectionPointImpl(ray, std::move(triangle)); }
     static std::optional<std::tuple<size_t, Point3>>
     getIntersectionPoint(Ray3 &&ray, MeshParam &&triangle) { return getIntersectionPointImpl(std::move(ray), std::move(triangle)); }
+
+    /**
+     * @brief Calculates volume value from the specified mesh file.
+     * @param msh_filename The filename of the Gmsh .msh file to parse.
+     * @return Volume value.
+     */
+    static double getVolumeFromMesh(std::string_view msh_filename);
 };
 
 #endif // !MESH_HPP

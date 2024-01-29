@@ -14,6 +14,7 @@ using Kernel = CGAL::Exact_predicates_exact_constructions_kernel;
 using Point3 = Kernel::Point_3;
 using Ray3 = Kernel::Ray_3;
 using Triangle3 = Kernel::Triangle_3;
+using Tetrahedron3 = Kernel::Tetrahedron_3;
 
 #define CGAL_TO_DOUBLE(var) CGAL::to_double(var)
 
