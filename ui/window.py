@@ -94,7 +94,7 @@ class WindowApp(QMainWindow):
         central_widget.setLayout(h_layout)
 
         self.file_path = ""
-        compile_cpp()
+        # compile_cpp()
 
     def upload_file(self):
         self.file_path, _ = QFileDialog.getOpenFileName(

@@ -4,7 +4,7 @@ WORKDIR /app
 # Installing dependencies including
 RUN apt-get update && apt-get install -y software-properties-common \
     && add-apt-repository ppa:ubuntu-toolchain-r/test \
-    && apt-get install -y build-essential cmake g++-13 libboost-all-dev libgmp-dev libmpfr-dev python3 python3-pip python3-dev libx11-6 gmsh libgmsh-dev git libhdf5-dev libcgal-dev python2.7-dev swig doxygen graphviz
+    && apt-get install -y build-essential cmake g++-13 libboost-all-dev libgmp-dev libmpfr-dev python3 python3-pip python3-dev libx11-6 gmsh libgmsh-dev git libhdf5-dev libcgal-dev python2.7-dev swig doxygen graphviz libqt5widgets5 libqt5gui5 libqt5core5a libqt5dbus5 qt5-gtk-platformtheme libx11-xcb1 libxcb* libxkbcommon-x11-0
 RUN pip3 install numpy h5py gmsh matplotlib PyQt5
 
 # Installing AABB from the git repo
@@ -16,4 +16,3 @@ COPY . .
 
 ENV CXX=g++-13
 RUN cmake . && make
-CMD [ "python3", "main.py" ]
