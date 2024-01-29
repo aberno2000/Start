@@ -45,4 +45,4 @@ include_directories(${CMAKE_SOURCE_DIR}/include
 add_executable(main ${SOURCES})
 
 set_target_properties(main PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}")
-target_link_libraries(main PRIVATE aabb hdf5 gmsh gmp mpfr ${Boost_LIBRARIES} ${HDF5_LIBRARIES})
+target_link_libraries(main PRIVATE aabb gmsh gmp mpfr ${Boost_LIBRARIES} ${HDF5_LIBRARIES})
