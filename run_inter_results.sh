@@ -5,7 +5,14 @@ if [ "$#" -ne 1 ]; then
     exit 1
 fi
 
-g++ $1 src/Particle.cpp src/Settings.cpp src/RealNumberGenerator.cpp $(root-config --cflags --glibs) -std=c++20 -laabb -Wall -Wpedantic -Wextra -O2 -lmpfr -lgmp
+cpp_files=()
+for file in src/*.cpp; do
+    if [[ $file != "src/main.cpp" ]]; then
+        cpp_files+=("$file")
+    fi
+done
+
+g++ $1 ${cpp_files[@]} $(root-config --cflags --glibs) -std=c++20 -laabb -Wall -Wpedantic -Wextra -O2 -lmpfr -lgmp
 ./a.out
 
 if [ $? -eq 0 ]; then
