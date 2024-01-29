@@ -225,6 +225,52 @@ void Particle::colide(double p_mass, double t_mass) &
   m_velocity = dir_vector + cm_vel;
 }
 
+ParticleVector createParticlesWithEnergy(size_t count, ParticleType type,
+                                         double x, double y, double z,
+                                         double minenergy, double maxenergy)
+{
+  RealNumberGenerator rng;
+  ParticleVector particles;
+
+  for (size_t i{}; i < count; ++i)
+    particles.emplace_back(type, x, y, z, rng(minenergy, maxenergy));
+
+  return particles;
+}
+
+ParticleVector createParticlesWithVelocities(size_t count, ParticleType type,
+                                             double x, double y, double z,
+                                             double vx, double vy, double vz)
+{
+  RealNumberGenerator rng;
+  ParticleVector particles;
+
+  for (size_t i{}; i < count; ++i)
+    particles.emplace_back(type, x, y, z, vx, vy, vz);
+
+  return particles;
+}
+
+ParticleVector createParticlesWithVelocities(size_t count, ParticleType type,
+                                             double x, double y, double z,
+                                             double minvx, double minvy, double minvz,
+                                             double maxvx, double maxvy, double maxvz)
+{
+  RealNumberGenerator rng;
+  ParticleVector particles;
+
+  for (size_t i{}; i < count; ++i)
+  {
+    double vx{rng(minvx, maxvx)},
+        vy{rng(minvy, maxvy)},
+        vz{rng(minvz, maxvz)};
+
+    particles.emplace_back(type, x, y, z, vx, vy, vz);
+  }
+
+  return particles;
+}
+
 ParticleVector createParticlesWithVelocities(size_t count, ParticleType type,
                                              double minx, double miny, double minz,
                                              double maxx, double maxy, double maxz,

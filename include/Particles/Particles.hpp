@@ -186,6 +186,13 @@ using ParticleVector = std::vector<Particle>;
 
 /// @brief Generates a vector of particles with specified velocity ranges.
 ParticleVector createParticlesWithVelocities(size_t count, ParticleType type,
+                                             double x, double y, double z,
+                                             double vx, double vy, double vz);
+ParticleVector createParticlesWithVelocities(size_t count, ParticleType type,
+                                             double x, double y, double z,
+                                             double minvx, double minvy, double minvz,
+                                             double maxvx, double maxvy, double maxvz);
+ParticleVector createParticlesWithVelocities(size_t count, ParticleType type,
                                              double minx = 0.0, double miny = 0.0, double minz = 0.0,
                                              double maxx = 100.0, double maxy = 100.0, double maxz = 100.0,
                                              double minvx = 10.0, double minvy = 10.0, double minvz = 10.0,
@@ -193,8 +200,11 @@ ParticleVector createParticlesWithVelocities(size_t count, ParticleType type,
 
 /// @brief Creates a vector of particles with specified properties.
 ParticleVector createParticlesWithEnergy(size_t count, ParticleType type,
-                                         double minx = 0.0, double miny = 0.0, double minz = 0.0,
-                                         double maxx = 100.0, double maxy = 100.0, double maxz = 100.0,
-                                         double minenergy = 30.0, double maxenergy = 50.0);
+                                         double x, double y, double z,
+                                         double minenergy, double maxenergy)
+    ParticleVector createParticlesWithEnergy(size_t count, ParticleType type,
+                                             double minx = 0.0, double miny = 0.0, double minz = 0.0,
+                                             double maxx = 100.0, double maxy = 100.0, double maxz = 100.0,
+                                             double minenergy = 30.0, double maxenergy = 50.0);
 
 #endif // !PARTICLES_HPP
