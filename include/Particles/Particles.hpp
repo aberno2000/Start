@@ -200,11 +200,11 @@ ParticleVector createParticlesWithVelocities(size_t count, ParticleType type,
 
 /// @brief Creates a vector of particles with specified properties.
 ParticleVector createParticlesWithEnergy(size_t count, ParticleType type,
-                                         double x = 0.0, double y = 0.0, double z = 0.0,
-                                         double minenergy = 30.0, double maxenergy = 50.0)
-    ParticleVector createParticlesWithEnergy(size_t count, ParticleType type,
-                                             double minx = 0.0, double miny = 0.0, double minz = 0.0,
-                                             double maxx = 100.0, double maxy = 100.0, double maxz = 100.0,
-                                             double minenergy = 30.0, double maxenergy = 50.0);
+                                         double x, double y, double z,
+                                         double minenergy = 30.0, double maxenergy = 50.0);
+ParticleVector createParticlesWithEnergy(size_t count, ParticleType type,
+                                         double minx = 0.0, double miny = 0.0, double minz = 0.0,
+                                         double maxx = 100.0, double maxy = 100.0, double maxz = 100.0,
+                                         double minenergy = 30.0, double maxenergy = 50.0);
 
 #endif // !PARTICLES_HPP
