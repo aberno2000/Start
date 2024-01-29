@@ -189,13 +189,47 @@ ParticleVector createParticlesWithVelocities(size_t count, ParticleType type,
                                              double minx = 0.0, double miny = 0.0, double minz = 0.0,
                                              double maxx = 100.0, double maxy = 100.0, double maxz = 100.0,
                                              double minvx = 10.0, double minvy = 10.0, double minvz = 10.0,
-                                             double maxvx = 20.0, double maxvy = 20.0, double maxvz = 20.0);
+                                             double maxvx = 20.0, double maxvy = 20.0, double maxvz = 20.0)
+{
+    RealNumberGenerator rng;
+    ParticleVector particles;
+
+    for (size_t i{}; i < count; ++i)
+    {
+        double x{rng(minx, maxx)},
+            y{rng(miny, maxy)},
+            z{rng(minz, maxz)},
+            vx{rng(minvx, maxvx)},
+            vy{rng(minvy, maxvy)},
+            vz{rng(minvz, maxvz)};
+
+        particles.emplace_back(type, x, y, z, vx, vy, vz);
+    }
+
+    return particles;
+}
 
 /// @brief Creates a vector of particles with specified properties.
 ParticleVector createParticlesWithEnergy(size_t count, ParticleType type,
                                          double minx = 0.0, double miny = 0.0, double minz = 0.0,
                                          double maxx = 100.0, double maxy = 100.0, double maxz = 100.0,
                                          double minenergy = 30.0, double maxenergy = 50.0,
-                                         double minradius = 1.0, double maxradius = 5.0);
+                                         double minradius = 1.0, double maxradius = 5.0)
+{
+    RealNumberGenerator rng;
+    ParticleVector particles;
+
+    for (size_t i{}; i < count; ++i)
+    {
+        double x{rng(minx, maxx)},
+            y{rng(miny, maxy)},
+            z{rng(minz, maxz)},
+            energy{rng(minenergy, maxenergy)};
+
+        particles.emplace_back(type, x, y, z, energy);
+    }
+
+    return particles;
+}
 
 #endif // !PARTICLES_HPP
