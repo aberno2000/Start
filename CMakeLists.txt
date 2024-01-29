@@ -35,7 +35,6 @@ set(SOURCES
     src/RayTriangleIntersection.cpp
     src/RealNumberGenerator.cpp
     src/Settings.cpp
-    src/RayTriangleIntersection.cpp
     src/VolumeCreator.cpp
 )
 
