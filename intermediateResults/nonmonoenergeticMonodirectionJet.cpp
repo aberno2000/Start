@@ -13,29 +13,6 @@
 #include "../include/Particles/Particles.hpp"
 #include "../include/Generators/RealNumberGenerator.hpp"
 
-template <typename T>
-std::vector<T> createParticles(size_t count)
-{
-    RealNumberGenerator rng;
-    std::vector<T> particles(count);
-
-    double Vx{rng.get_double(1, 5)},
-        Vy{rng.get_double(1, 5)},
-        Vz{rng.get_double(1, 5)};
-    for (size_t i{}; i < count; ++i)
-    {
-        double scalar{rng.get_double(1, 5)};
-        std::cout << scalar << '\n';
-        VelocityVector v(Vx, Vy, Vz);
-
-        particles[i] = T(0, 0, 0,
-                         v.getX() * scalar,
-                         v.getY() * scalar,
-                         v.getZ() * scalar);
-    }
-    return particles;
-}
-
 int main()
 {
     std::string root_file{std::source_location::current().file_name()};
@@ -50,8 +27,8 @@ int main()
     }
 
     RealNumberGenerator rng;
-    ParticleAluminiumVector p_Al(createParticles<ParticleAluminium>(1'000));
-    ParticleArgon p_Ar;
+    ParticleVector p_Al(createParticlesWithEnergy(1'000, Al));
+    Particle p_Ar(Ar, 0, 0, 0, 30);
 
     constexpr int frames{10};
     std::array<TH3D *, frames> snapshots;
