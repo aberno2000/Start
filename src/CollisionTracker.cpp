@@ -45,12 +45,11 @@ void CollisionTracker::processSegment(size_t start_index, size_t end_index,
     }
 }
 
-std::unordered_map<size_t, int> CollisionTracker::trackCollisions()
+std::unordered_map<size_t, int> CollisionTracker::trackCollisions(size_t num_threads)
 {
     std::unordered_map<size_t, int> m;
 
     // Number of concurrent threads supported by the implementation
-    size_t num_threads{std::thread::hardware_concurrency()};
     std::vector<std::future<void>> futures;
 
     // Separate on segments

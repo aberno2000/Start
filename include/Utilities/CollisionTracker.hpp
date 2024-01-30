@@ -70,10 +70,11 @@ public:
      * @details Sets up and manages multiple threads, each processing a segment of particles, to detect
      *          collisions against the mesh elements. The method aggregates collision
      *          data from all threads into a single map.
+     * @param num_threads Number of threads to execute (default: $(nproc) value).
      *
      * @return std::unordered_map<size_t, int> Map with keys as mesh element IDs and values as collision counts.
      */
-    std::unordered_map<size_t, int> trackCollisions();
+    std::unordered_map<size_t, int> trackCollisions(size_t num_threads = std::thread::hardware_concurrency());
 };
 
 #endif // !COLLISIONTRACKER_HPP

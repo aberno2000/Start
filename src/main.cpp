@@ -1,7 +1,8 @@
 #include "../include/Utilities/CollisionTracker.hpp"
 
 void simulateMovement(size_t particles_count, double dt, double total_time,
-                      std::string_view outfile, std::string_view hdf5filename)
+                      std::string_view outfile, std::string_view hdf5filename,
+                      size_t num_threads = std::thread::hardware_concurrency())
 {
     MeshParamVector mesh;
 
@@ -17,7 +18,7 @@ void simulateMovement(size_t particles_count, double dt, double total_time,
                                            50, 50, 50));
 
     CollisionTracker ct(pgs, mesh, dt, total_time);
-    auto counterMap{ct.trackCollisions()};
+    auto counterMap{ct.trackCollisions(num_threads)};
 
     auto mapEnd{counterMap.end()};
     for (auto &triangle : mesh)
@@ -31,9 +32,9 @@ void simulateMovement(size_t particles_count, double dt, double total_time,
 
 int main(int argc, char *argv[])
 {
-    if (argc != 5)
+    if (argc != 5 && argc != 6)
     {
-        std::cerr << std::format("Usage: {} <particles_count> <time_step> <time_interval> <msh_filename>\n",
+        std::cerr << std::format("Usage: {} <particles_count> <time_step> <time_interval> <msh_filename> [<num_threads>]\n",
                                  argv[0]);
         return EXIT_FAILURE;
     }
@@ -43,7 +44,13 @@ int main(int argc, char *argv[])
     std::string mshfilename(argv[4]),
         hdf5filename(mshfilename.substr(0ul, mshfilename.find(".")) + ".hdf5");
 
-    simulateMovement(particles_count, time_step, time_interval, mshfilename, hdf5filename);
+    if (argc == 6)
+    {
+        size_t num_threads{std::stoul(argv[5])};
+        simulateMovement(particles_count, time_step, time_interval, mshfilename, hdf5filename, num_threads);
+    }
+    else if (argc < 6)
+        simulateMovement(particles_count, time_step, time_interval, mshfilename, hdf5filename);
 
     return EXIT_SUCCESS;
 }
