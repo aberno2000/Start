@@ -28,6 +28,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(SOURCES
     src/CollisionTracker.cpp
+    src/ConcentrationCalculator.cpp
     src/HDF5Handler.cpp
     src/main.cpp
     src/MathVector.cpp
