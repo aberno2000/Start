@@ -5,7 +5,7 @@ time_interval=1
 out="experiment_results.txt"
 
 particle_counts=(1 10 100 1000 10000 100000 1000000 10000000)
-msh_filenames=("results/box.msh" "results/sphere.msh" "results/cylinder.msh" "results/cone.msh")
+msh_filenames=("results/sphere.msh")
 
 max_threads=$(nproc)
 thread_count=1
@@ -21,11 +21,11 @@ done
 for msh_filename in "${msh_filenames[@]}"; do
     for thread_count in "${thread_counts[@]}"; do
         for particle_count in "${particle_counts[@]}"; do
-            if [ "$particle_count" -le 1000000 ] && [ "$thread_count" -ge 4 ]; then
+            if [ "$particle_count" -le 1000000 ] && [ "$thread_count" -lt 4 ]; then
                 echo "Running experiment with $particle_count particles and mesh file $msh_filename with $thread_count threads"
                 (time ./main $particle_count $time_step $time_interval $msh_filename $thread_count) 2>&1 | grep real | awk '{print $2}' >>$out
             fi
-            if [ "$max_threads" -eq 16 ] && [ "$thread_count" -le 16 ]; then
+            if [ "$thread_count" -ne 1 ] && [ "$thread_count" -ne 2 ] && [ "$max_threads" -gt 4 ]; then
                 echo "Running experiment with $particle_count particles and mesh file $msh_filename with $thread_count threads"
                 (time ./main $particle_count $time_step $time_interval $msh_filename $thread_count) 2>&1 | grep real | awk '{print $2}' >>$out
             fi
