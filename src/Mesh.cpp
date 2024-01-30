@@ -85,6 +85,7 @@ double Mesh::getVolumeFromMesh(std::string_view msh_filename)
     double result{};
     try
     {
+        gmsh::initialize();
         gmsh::open(msh_filename.data());
         std::vector<size_t> nodeTags;
         std::vector<double> coords, parametricCoords;
@@ -129,5 +130,6 @@ double Mesh::getVolumeFromMesh(std::string_view msh_filename)
     {
         std::cerr << "Something went wrong\n";
     }
+    gmsh::finalize();
     return result;
 }
