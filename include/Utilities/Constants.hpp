@@ -53,7 +53,8 @@ namespace constants
             Au,
             Cu,
             Ni,
-            Ag
+            Ag,
+            Unknown
         };
     }
 }
