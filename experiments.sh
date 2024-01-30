@@ -25,7 +25,7 @@ for msh_filename in "${msh_filenames[@]}"; do
                 echo "Running experiment with $particle_count particles and mesh file $msh_filename with $thread_count threads"
                 (time ./main $particle_count $time_step $time_interval $msh_filename $thread_count) 2>&1 | grep real | awk '{print $2}' >>$out
             fi
-            if [ "$thread_count" -ne 1 ] && [ "$thread_count" -ne 2 ] && [ "$max_threads" -gt 4 ]; then
+            if [ "$thread_count" -ne 1 ] && [ "$thread_count" -ne 2 ] && [ "$max_threads" -ge 4 ]; then
                 echo "Running experiment with $particle_count particles and mesh file $msh_filename with $thread_count threads"
                 (time ./main $particle_count $time_step $time_interval $msh_filename $thread_count) 2>&1 | grep real | awk '{print $2}' >>$out
             fi
