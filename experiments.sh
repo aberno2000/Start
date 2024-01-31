@@ -22,11 +22,11 @@ for msh_filename in "${msh_filenames[@]}"; do
     for thread_count in "${thread_counts[@]}"; do
         for particle_count in "${particle_counts[@]}"; do
             if [ "$particle_count" -le 1000000 ] && [ "$thread_count" -lt 4 ]; then
-                echo "Running experiment with $particle_count particles and mesh file $msh_filename with $thread_count threads"
+                echo -e "Running experiment with \e[1;31m$particle_count\e[0m particles and mesh file \e[1;34m$msh_filename\e[0m with \e[1;32m$thread_count\e[0m threads"
                 (time ./main $particle_count $time_step $time_interval $msh_filename $thread_count) 2>&1 | grep real | awk '{print $2}' >>$out
             fi
             if [ "$thread_count" -ne 1 ] && [ "$thread_count" -ne 2 ] && [ "$max_threads" -ge 4 ]; then
-                echo "Running experiment with $particle_count particles and mesh file $msh_filename with $thread_count threads"
+                echo -e "Running experiment with \e[1;31m$particle_count\e[0m particles and mesh file \e[1;34m$msh_filename\e[0m with \e[1;32m$thread_count\e[0m threads"
                 (time ./main $particle_count $time_step $time_interval $msh_filename $thread_count) 2>&1 | grep real | awk '{print $2}' >>$out
             fi
         done
