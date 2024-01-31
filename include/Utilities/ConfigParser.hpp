@@ -6,28 +6,34 @@
 
 #include "Utilities.hpp"
 
+/**
+ * @brief Class for parsing and storing configuration data.
+ * @details This class is responsible for parsing configuration data from a given file
+ *          and storing it in a structured format. It supports retrieving various
+ *          parameters related to ambient conditions, particle types, and scattering model.
+ */
 class ConfigParser final
 {
 private:
+    /**
+     * @brief Structure to hold configuration data.
+     * @details This structure contains parameters related to ambient conditions like
+     *          temperature, pressure, volume, and energy. It also includes the types of particles
+     *          involved and details about the scattering model.
+     */
     struct config_data_t
     {
-        // Ambient conditions.
-        double temperature{}; // [K]
-        double pressure{};    // [Pa]
-        double volume{};      // [m^3]
-        double energy{};      // [eV]
+        double temperature{};      ///< Ambient temperature in Kelvin [K].
+        double pressure{};         ///< Ambient pressure in Pascals [Pa].
+        double volume{};           ///< Volume in cubic meters [m^3].
+        double energy{};           ///< Energy in electronvolts [eV].
+        ParticleType projective{}; ///< Projective particle type, e.g., Au.
+        ParticleType gas{};        ///< Gas particle type, e.g., N.
+        std::string mshfilename;   ///< Filename of the mesh file.
+        std::string model;         ///< Scattering model, e.g., HS/VHS/VSS.
+    } m_config;                    ///< Instance of config_data_t to store configuration.
 
-        // Particle types.
-        ParticleType projective{}; // @example Au.
-        ParticleType gas{};        // @example N.
-
-        // Filename with mesh.
-        std::string mshfilename;
-
-        // Scattering model.
-        std::string model; // HS/VHS/VSS.
-    } m_config;
-    bool m_isValid{}; // Flag that shows if all params of the config is filled properly.
+    bool m_isValid{}; ///< Flag indicating if the configuration is valid.
 
     /// @brief Clearing out all values from the `m_config`.
     void clearConfig();
@@ -76,7 +82,6 @@ public:
     ~ConfigParser();
 
     /* $$$ Getters for all data members from the `config_data_t` structure. $$$ */
-    constexpr config_data_t const &getConfigurations() const _GLIBCXX_NOEXCEPT { return m_config; }
     constexpr double getTemperature() const _GLIBCXX_NOEXCEPT { return m_config.temperature; }
     constexpr double getPressure() const _GLIBCXX_NOEXCEPT { return m_config.pressure; }
     constexpr double getVolume() const _GLIBCXX_NOEXCEPT { return m_config.volume; }
