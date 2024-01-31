@@ -5,7 +5,7 @@ time_interval=1
 out="experiment_results.txt"
 
 particle_counts=(1 10 100 1000 10000 100000 1000000 10000000)
-msh_filenames=("results/sphere.msh")
+msh_filenames=("results/box.msh" "results/sphere.msh" "results/cylinder.msh" "results/cone.msh")
 
 max_threads=$(nproc)
 thread_count=1
