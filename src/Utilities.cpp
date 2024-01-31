@@ -1,5 +1,6 @@
 #include <chrono>
 #include <sstream>
+#include <sys/stat.h>
 
 #include "../include/Utilities/ConfigParser.hpp"
 #include "../include/Utilities/Utilities.hpp"
@@ -109,4 +110,16 @@ double util::calculateConcentration(std::string_view config)
     // n = PV/RT
     return parser.getPressure() * parser.getVolume() /
            parser.getTemperature() * constants::physical_constants::R;
+}
+
+bool util::exists(std::string_view filename)
+{
+#ifdef __unix__
+    struct stat buf;
+    return (stat(filename.data(), std::addressof(buf)) == 0);
+#endif
+#ifdef _WIN32
+    struct _stat buf;
+    return (_stat(filename.data(), std::addressof(buf)) == 0);
+#endif
 }

@@ -133,6 +133,13 @@ namespace util
      * `-1` if smth went wrong.
      */
     double calculateConcentration(std::string_view config);
+
+    /**
+     * @brief Checker for file on existence.
+     * @param filaname Name of the file (or path) to check it.
+     * @return `true` if file exists, otherwise `false`.
+    */
+    bool exists(std::string_view filename);
 }
 
 #endif // !UTILITIES_HPP
