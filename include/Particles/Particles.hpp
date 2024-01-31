@@ -5,7 +5,7 @@
 
 #include "../Geometry/MathVector.hpp"
 #include "../Utilities/Constants.hpp"
-#include "../Utilities/Settings.hpp"
+#include "../Utilities/Utilities.hpp"
 
 using namespace constants;
 using namespace particle_types;

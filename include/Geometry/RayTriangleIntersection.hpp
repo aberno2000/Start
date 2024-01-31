@@ -1,7 +1,7 @@
 #ifndef RAYTRIANGLEINTERSECTION_HPP
 #define RAYTRIANGLEINTERSECTION_HPP
 
-#include "../Utilities/Settings.hpp"
+#include "../Utilities/Utilities.hpp"
 
 class RayTriangleIntersection
 {

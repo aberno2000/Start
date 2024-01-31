@@ -1,5 +1,5 @@
-#ifndef SETTINGS_HPP
-#define SETTINGS_HPP
+#ifndef UTILITIES_HPP
+#define UTILITIES_HPP
 
 #include <CGAL/Exact_predicates_exact_constructions_kernel.h>
 #include <CGAL/intersections.h>
@@ -10,14 +10,31 @@
 #include <sstream>
 #include <string_view>
 
+#include "Constants.hpp"
+
+using namespace constants;
+using namespace particle_types;
+
 using Kernel = CGAL::Exact_predicates_exact_constructions_kernel;
 using Point3 = Kernel::Point_3;
 using Ray3 = Kernel::Ray_3;
 using Triangle3 = Kernel::Triangle_3;
 using Tetrahedron3 = Kernel::Tetrahedron_3;
 
-#define CGAL_TO_DOUBLE(var) CGAL::to_double(var)
+#define BAD_VOLUME -8.0
+#define BAD_PRESSURE -7.0
+#define BAD_TEMPERATURE -6.0
+#define BAD_ENERGY -5.0
+#define BAD_MODEL -4.0
+#define UNKNOWN_PARTICLES -3.0
+#define BAD_PARTICLES_FORMAT -2.0
+#define BAD_FILE -1.0
+#define EMPTY_STR 0.0
+#define STATUS_OK 1.0
 
+#define STATUS_TO_STR(status) util::getStatusName(status)
+
+#define CGAL_TO_DOUBLE(var) CGAL::to_double(var)
 #define ERRMSG_ABS_PATH(desc) std::cerr << std::format("\033[1;31mERROR:\033[0m\033[1m {}: {}({} line): {}: \033[1;31m{}\033[0m\033[1m\n", \
                                                        settings::getCurTime(),                                                             \
                                                        std::source_location::current().file_name(),                                        \
@@ -40,7 +57,7 @@ using Tetrahedron3 = Kernel::Tetrahedron_3;
                                               std::source_location::current().line(),                         \
                                               __PRETTY_FUNCTION__, desc);
 
-namespace settings
+namespace util
 {
     /**
      * @brief Concept that specifies all types that can be convert to "std::string_view" type
@@ -99,6 +116,18 @@ namespace settings
             return 1;
         return 0;
     }
+
+    /// @brief Helper function to get status name from its value.
+    std::string getStatusName(double status);
+
+    /// @brief Helper function to parse and define particle type by string.
+    ParticleType getParticleTypeFromStrRepresentation(std::string_view particle);
+
+    /// @brief Helper function to recieve string representation of the particle type.
+    std::string getParticleType(ParticleType ptype);
+
+    /// @brief Calculating concentration from the configuration file.
+    double calculateConcentration(std::string_view config);
 }
 
-#endif // !SETTINGS_HPP
+#endif // !UTILITIES_HPP

@@ -6,7 +6,7 @@
 #include <random>
 #include <stdexcept>
 
-#include "../Utilities/Settings.hpp"
+#include "../Utilities/Utilities.hpp"
 
 /**
  * Description of the mathematical vector. In the simplest case, a
