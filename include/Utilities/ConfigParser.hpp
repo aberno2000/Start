@@ -18,15 +18,16 @@ private:
         double energy{};      // [eV]
 
         // Particle types.
-        ParticleType projective{}; // @example Au
-        ParticleType gas{};        // @example N
+        ParticleType projective{}; // @example Au.
+        ParticleType gas{};        // @example N.
 
         // Filename with mesh.
         std::string mshfilename;
 
         // Scattering model.
-        std::string model; // HS/VHS/VSS
+        std::string model; // HS/VHS/VSS.
     } m_config;
+    bool m_isValid{}; // Flag that shows if all params of the config is filled properly.
 
     /// @brief Clearing out all values from the `m_config`.
     void clearConfig();
@@ -71,6 +72,9 @@ public:
      */
     ConfigParser(std::string_view config);
 
+    /// @brief Dtor. Clears out all the data members.
+    ~ConfigParser();
+
     /* $$$ Getters for all data members from the `config_data_t` structure. $$$ */
     constexpr config_data_t const &getConfigurations() const _GLIBCXX_NOEXCEPT { return m_config; }
     constexpr double getTemperature() const _GLIBCXX_NOEXCEPT { return m_config.temperature; }
@@ -81,6 +85,8 @@ public:
     constexpr ParticleType getGas() const _GLIBCXX_NOEXCEPT { return m_config.gas; }
     constexpr std::string getMeshFilename() const _GLIBCXX_NOEXCEPT { return m_config.mshfilename; }
     constexpr std::string getScatteringModel() const _GLIBCXX_NOEXCEPT { return m_config.model; }
+    constexpr bool isValid() const _GLIBCXX_NOEXCEPT { return m_isValid; }
+    constexpr bool isInvalid() const _GLIBCXX_NOEXCEPT { return not m_isValid; }
 };
 
 #endif // !CONFIGPARSER_HPP

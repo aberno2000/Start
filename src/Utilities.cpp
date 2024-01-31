@@ -1,6 +1,7 @@
 #include <chrono>
 #include <sstream>
 
+#include "../include/Utilities/ConfigParser.hpp"
 #include "../include/Utilities/Utilities.hpp"
 
 std::string util::getCurTime(std::string_view format)
@@ -101,17 +102,11 @@ std::string util::getParticleType(ParticleType ptype)
 
 double util::calculateConcentration(std::string_view config)
 {
-    double concentration{};
-    // TODO: Calculate concentration from specified conditions
-    // if (model == "HS")
-    // {
-    // }
-    // else if (model == "VHS")
-    // {
-    // }
-    // else if (model == "VSS")
-    // {
-    // }
+    ConfigParser parser(config);
+    if (parser.isInvalid())
+        return -1.0;
 
-    return concentration;
+    // n = PV/RT
+    return parser.getPressure() * parser.getVolume() /
+           parser.getTemperature() * constants::physical_constants::R;
 }

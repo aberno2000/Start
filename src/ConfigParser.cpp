@@ -16,6 +16,8 @@ void ConfigParser::clearConfig()
     m_config.gas = Unknown;
     m_config.mshfilename.clear();
     m_config.model.clear();
+
+    m_isValid = false;
 }
 
 double ConfigParser::getConfigData(std::string_view config)
@@ -97,6 +99,8 @@ double ConfigParser::getConfigData(std::string_view config)
     if (m_config.model != "HS" && m_config.model != "VHS" && m_config.model != "VSS")
         return BAD_MODEL;
 
+    m_isValid = true;
+
     ifs.close();
     return STATUS_OK;
 }
@@ -105,8 +109,7 @@ ConfigParser::ConfigParser(std::string_view config)
 {
     auto res{getConfigData(config)};
     if (res != STATUS_OK)
-    {
-        std::cerr << "Error occured! Code: " << STATUS_TO_STR(res) << "\nClearing out all the configurations...\n";
-        clearConfig();
-    }
+        std::cerr << "Error occured! Code: " << STATUS_TO_STR(res) << '\n';
 }
+
+ConfigParser::~ConfigParser() { clearConfig(); }

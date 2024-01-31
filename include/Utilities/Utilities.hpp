@@ -126,7 +126,12 @@ namespace util
     /// @brief Helper function to recieve string representation of the particle type.
     std::string getParticleType(ParticleType ptype);
 
-    /// @brief Calculating concentration from the configuration file.
+    /**
+     * @brief Calculating concentration from the configuration file.
+     * @param config Name of the configuration file.
+     * @return Concentration. [N] (count).
+     * `-1` if smth went wrong.
+     */
     double calculateConcentration(std::string_view config);
 }
 
