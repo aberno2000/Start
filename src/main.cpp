@@ -30,7 +30,7 @@ void simulateMovement(size_t particles_count, double dt, double total_time,
     auto updatedMesh{hdf5handler.readMeshFromHDF5()};
 }
 
-void checkRestrictions(double time_step, int particles_count, std::string_view mshfilename)
+void checkRestrictions(double time_step, size_t particles_count, std::string_view mshfilename)
 {
     if (not util::exists(mshfilename))
     {
@@ -44,7 +44,8 @@ void checkRestrictions(double time_step, int particles_count, std::string_view m
     }
     if (particles_count > 10'000'000)
     {
-        std::cerr << "Error: Particles count limited by 10'000'000.\n";
+        std::cerr << std::format("Error: Particles count limited by 10'000'000.\nBut you entered {}\n",
+                                 particles_count);
         std::exit(EXIT_FAILURE);
     }
 }
@@ -57,7 +58,7 @@ int main(int argc, char *argv[])
                                  argv[0]);
         return EXIT_FAILURE;
     }
-    int particles_count{std::stoi(argv[1])};
+    size_t particles_count{std::stoul(argv[1])};
     double time_step{std::stod(argv[2])},
         time_interval{std::stod(argv[3])};
     std::string mshfilename(argv[4]),
