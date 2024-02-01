@@ -20,7 +20,6 @@ test
 *.root
 
 # GMSH files
-*.msh
 *.pos
 *.geo
 
@@ -30,9 +29,6 @@ test
 # HDF5 format
 *.hdf5
 *.h5
-
-# There is no need to commit results directory
-results/
 
 # GNU plot files
 *.gp
@@ -49,3 +45,6 @@ results/
 *.tar*
 *.rar
 *.zip
+
+# Caches
+*.cache*
