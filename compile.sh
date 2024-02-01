@@ -3,7 +3,7 @@
 usage() {
     echo "Usage: $0 [-r|--rebuild] [-j <NUM_THREADS>] [-h|--help]"
     echo "  -r, --rebuild       Clean and rebuild the project from scratch."
-    echo "  -j <NUM_THREADS>      Specify the number of threads to run simultaneously."
+    echo "  -j <NUM_THREADS>    Specify the number of threads to run simultaneously."
     echo "                      If not specified, use all available cores."
     echo "  -h, --help          Display this help message and exit."
     exit 1
