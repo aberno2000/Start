@@ -15,4 +15,4 @@ RUN cd aabbcc && make build && make install
 COPY . .
 
 ENV CXX=g++-13
-RUN cmake . && make
+RUN ./compile.sh -r
