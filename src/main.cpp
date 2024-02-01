@@ -17,6 +17,11 @@ void simulateMovement(size_t particles_count, double dt, double total_time,
                                            100, 100, 100, -50, -50, -50,
                                            50, 50, 50));
 
+    // Limitation to restrict start program with threads count > it has.
+    num_threads = (num_threads > std::thread::hardware_concurrency())
+                      ? std::thread::hardware_concurrency()
+                      : num_threads;
+
     CollisionTracker ct(pgs, mesh, dt, total_time);
     auto counterMap{ct.trackCollisions(num_threads)};
 
