@@ -82,16 +82,16 @@ public:
     ~ConfigParser();
 
     /* $$$ Getters for all data members from the `config_data_t` structure. $$$ */
-    constexpr double getTemperature() const _GLIBCXX_NOEXCEPT { return m_config.temperature; }
-    constexpr double getPressure() const _GLIBCXX_NOEXCEPT { return m_config.pressure; }
-    constexpr double getVolume() const _GLIBCXX_NOEXCEPT { return m_config.volume; }
-    constexpr double getEnergy() const _GLIBCXX_NOEXCEPT { return m_config.energy; }
-    constexpr ParticleType getProjective() const _GLIBCXX_NOEXCEPT { return m_config.projective; }
-    constexpr ParticleType getGas() const _GLIBCXX_NOEXCEPT { return m_config.gas; }
-    constexpr std::string getMeshFilename() const _GLIBCXX_NOEXCEPT { return m_config.mshfilename; }
-    constexpr std::string getScatteringModel() const _GLIBCXX_NOEXCEPT { return m_config.model; }
-    constexpr bool isValid() const _GLIBCXX_NOEXCEPT { return m_isValid; }
-    constexpr bool isInvalid() const _GLIBCXX_NOEXCEPT { return not m_isValid; }
+    constexpr double getTemperature() const { return m_config.temperature; }
+    constexpr double getPressure() const { return m_config.pressure; }
+    constexpr double getVolume() const { return m_config.volume; }
+    constexpr double getEnergy() const { return m_config.energy; }
+    constexpr ParticleType getProjective() const { return m_config.projective; }
+    constexpr ParticleType getGas() const { return m_config.gas; }
+    constexpr std::string getMeshFilename() const { return m_config.mshfilename; }
+    constexpr std::string getScatteringModel() const { return m_config.model; }
+    constexpr bool isValid() const { return m_isValid; }
+    constexpr bool isInvalid() const { return not m_isValid; }
 };
 
 #endif // !CONFIGPARSER_HPP
