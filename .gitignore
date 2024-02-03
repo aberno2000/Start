@@ -20,8 +20,9 @@ test
 *.root
 
 # GMSH files
-*.pos
-*.geo
+*.pos*
+*.msh*
+*.geo*
 
 # Other
 *.txt
