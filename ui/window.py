@@ -22,10 +22,12 @@ from platform import platform
 from time import time
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
-from converter import Converter
+from converter import Converter, is_positive_real_number
 from subprocess import run, Popen
 from hdf5handler import HDF5Handler
 from mesh_renderer import MeshRenderer
+
+MIN_TIME = 1e-9
 
 
 def get_thread_count():
@@ -426,9 +428,6 @@ class WindowApp(QMainWindow):
             )
 
     def run_simulation(self):
-        # Disable UI components
-        self.set_ui_enabled(False)
-
         config_content = self.validate_input()
         if config_content is None:
             return
@@ -450,6 +449,9 @@ class WindowApp(QMainWindow):
         hdf5_filename = self.file_path.replace(".msh", ".hdf5")
         args = f"{self.config_file_path} {self.file_path}"
         self.progress_bar.setRange(0, 0)
+
+        # Disable UI components
+        self.set_ui_enabled(False)
 
         # Measure execution time
         self.start_time = time()
@@ -515,6 +517,7 @@ class WindowApp(QMainWindow):
             if self.time_step > self.simulation_time:
                 QMessageBox.warning(self, "Invalid Time", f"Time step can't be greater than total simulation time: {
                                     self.time_step} > {self.simulation_time}")
+                return None
 
             empty_fields = []
             if not self.particles_count:
@@ -553,13 +556,16 @@ class WindowApp(QMainWindow):
             # Validate input
             if not (
                 self.particles_count.isdigit()
-                and str(self.time_step).replace(".", "", 1).isdigit()
-                and str(self.simulation_time).replace(".", "", 1).isdigit()
+                and is_positive_real_number(self.time_step)
+                and is_positive_real_number(self.simulation_time)
+                and self.time_step >= MIN_TIME  # Time limitations
+                and self.simulation_time >= MIN_TIME
             ):
                 QMessageBox.warning(
                     self,
                     "Warning",
-                    "Please enter valid numeric values for particles count, time step, and time interval.",
+                    f"Please enter valid numeric values for particles count, time step, and time interval.\nTime can't be less than {
+                        MIN_TIME}",
                 )
                 return None
 
