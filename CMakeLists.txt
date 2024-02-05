@@ -18,6 +18,9 @@ find_package(HDF5 REQUIRED COMPONENTS CXX)
 
 # Adding support of TBB library if some OS requires it
 find_package(TBB QUIET)
+if (TBB_FOUND)
+    set(TBB_NAMESPACE TBB::tbb)
+endif()
 
 execute_process(
     COMMAND root-config --cflags --glibs
@@ -53,5 +56,5 @@ set_target_properties(main PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_D
 target_link_libraries(main PRIVATE 
     aabb gmp mpfr 
     ${GMSH_LIB} ${Boost_LIBRARIES} 
-    ${HDF5_LIBRARIES} ${TBB_LIBRARIES}
+    ${HDF5_LIBRARIES} ${TBB_LIBRARIES} ${TBB_NAMESPACE}
 )
