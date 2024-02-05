@@ -15,7 +15,6 @@ from PyQt5.QtWidgets import (
     QProgressBar,
 )
 from PyQt5 import QtCore
-from PyQt5.QtCore import QProcess
 import sys
 import gmsh
 from multiprocessing import cpu_count
@@ -78,9 +77,6 @@ class WindowApp(QMainWindow):
         # Progress bar
         self.progress_bar = QProgressBar(self)
         layout.addWidget(self.progress_bar)
-
-        self.process = QProcess(self)
-        self.process.finished.connect(self.on_finished)
 
         self.file_path = ""
 
@@ -351,7 +347,6 @@ class WindowApp(QMainWindow):
                 # Split the line by colon or equal sign, and strip spaces
                 key, value = [x.strip() for x in line.split(':')]
                 config[key] = value
-
         self.apply_config(config)
 
     def apply_config(self, config):
@@ -426,16 +421,17 @@ class WindowApp(QMainWindow):
         )
         if fileName:
             self.file_path = fileName
-            # You can update a label or directly use the file_path for your simulation
             QMessageBox.information(
                 self, "Mesh File Selected", f"File: {self.file_path}"
             )
 
     def run_simulation(self):
+        # Disable UI components
+        self.set_ui_enabled(False)
+
         config_content = self.validate_input()
         if config_content is None:
             return
-
         if not config_content:
             # Prompt the user to select a configuration file
             options = QFileDialog.Options()
@@ -448,17 +444,16 @@ class WindowApp(QMainWindow):
                                     "Simulation aborted because no configuration file was selected.")
                 return
 
-        # Disable UI components
-        self.set_ui_enabled(False)
-
+        # Rewrite configs if they are changed
+        with open(self.config_file_path, "w") as file:
+            file.write(config_content)
         hdf5_filename = self.file_path.replace(".msh", ".hdf5")
-        args = f"{self.config_file_path} {self.file_path} "
+        args = f"{self.config_file_path} {self.file_path}"
         self.progress_bar.setRange(0, 0)
-        self.start_time = time()
-        self.process.start("./main", args.split())
-        self.update_plot(hdf5_filename)
 
-    def on_finished(self):
+        # Measure execution time
+        self.start_time = time()
+        run_cpp(args)
         end_time = time()
         execution_time = end_time - self.start_time
 
@@ -469,6 +464,7 @@ class WindowApp(QMainWindow):
         QMessageBox.information(self,
                                 "Process Finished",
                                 f"The simulation has completed in {execution_time:.6f}s")
+        self.update_plot(hdf5_filename)
 
     def set_ui_enabled(self, enabled):
         """Enable or disable UI components."""
