@@ -24,13 +24,13 @@
 class CollisionTracker final
 {
 private:
-    ParticleVector &m_particles;                              // Reference to a vector of particles to be processed.
-    MeshParamVector const &m_mesh;               // Reference to a vector representing the mesh for collision detection.
-    double m_dt;                                 // Time step for updating particle positions.
-    double m_total_time;                         // Total simulation time for which collisions are tracked.
-    static constinit std::mutex m_map_mutex;     // Mutex for synchronizing access to the collision map.
-    static std::atomic<size_t> m_counter;        // Count of the settled particles. Needs for optimization.
-    static std::atomic_flag m_stop_processing;   // Flag-checker for condition (counter >= size of particles).
+    ParticleVector &m_particles;               // Reference to a vector of particles to be processed.
+    MeshParamVector const &m_mesh;             // Reference to a vector representing the mesh for collision detection.
+    double m_dt;                               // Time step for updating particle positions.
+    double m_total_time;                       // Total simulation time for which collisions are tracked.
+    static constinit std::mutex m_map_mutex;   // Mutex for synchronizing access to the collision map.
+    static std::atomic<size_t> m_counter;      // Count of the settled particles. Needs for optimization.
+    static std::atomic_flag m_stop_processing; // Flag-checker for condition (counter >= size of particles).
 
     /**
      * @brief Processes a segment of the particle collection to detect collisions.
@@ -74,7 +74,7 @@ public:
      *
      * @return std::unordered_map<size_t, int> Map with keys as mesh element IDs and values as collision counts.
      */
-    std::unordered_map<size_t, int> trackCollisions(size_t num_threads = std::thread::hardware_concurrency());
+    std::unordered_map<size_t, int> trackCollisions(unsigned int num_threads = std::thread::hardware_concurrency());
 };
 
 #endif // !COLLISIONTRACKER_HPP

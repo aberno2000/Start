@@ -1,8 +1,9 @@
 #include "../include/Utilities/CollisionTracker.hpp"
+#include "../include/Utilities/ConfigParser.hpp"
 
 void simulateMovement(size_t particles_count, double dt, double total_time,
                       std::string_view outfile, std::string_view hdf5filename,
-                      size_t num_threads = std::thread::hardware_concurrency())
+                      unsigned int num_threads = std::thread::hardware_concurrency())
 {
     MeshParamVector mesh;
 
@@ -57,27 +58,20 @@ void checkRestrictions(double time_step, size_t particles_count, std::string_vie
 
 int main(int argc, char *argv[])
 {
-    if (argc != 5 && argc != 6)
+    if (argc != 3)
     {
-        std::cerr << std::format("Usage: {} <particles_count> <time_step> <time_interval> <msh_filename> [<num_threads>]\n",
-                                 argv[0]);
+        std::cerr << std::format("Usage: {} <config_file> <mesh_filename.msh>\n", argv[0]);
         return EXIT_FAILURE;
     }
-    size_t particles_count{std::stoul(argv[1])};
-    double time_step{std::stod(argv[2])},
-        time_interval{std::stod(argv[3])};
-    std::string mshfilename(argv[4]),
-        hdf5filename(mshfilename.substr(0ul, mshfilename.find(".")) + ".hdf5");
 
-    checkRestrictions(time_step, particles_count, mshfilename);
-
-    if (argc == 6)
-    {
-        size_t num_threads{std::stoul(argv[5])};
-        simulateMovement(particles_count, time_step, time_interval, mshfilename, hdf5filename, num_threads);
-    }
-    else if (argc < 6)
-        simulateMovement(particles_count, time_step, time_interval, mshfilename, hdf5filename);
+    std::string configFilename(argv[1]),
+        mshfilename(argv[2]),
+        hdf5filename(mshfilename.substr(0, mshfilename.find(".")) + ".hdf5");
+    ConfigParser configParser(configFilename);
+    checkRestrictions(configParser.getTimeStep(), configParser.getParticlesCount(), configFilename);
+    simulateMovement(configParser.getParticlesCount(), configParser.getTimeStep(),
+                     configParser.getSimulationTime(), mshfilename, hdf5filename,
+                     configParser.getNumThreads());
 
     return EXIT_SUCCESS;
 }

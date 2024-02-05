@@ -21,6 +21,10 @@ using Ray3 = Kernel::Ray_3;
 using Triangle3 = Kernel::Triangle_3;
 using Tetrahedron3 = Kernel::Tetrahedron_3;
 
+#define BAD_PARTICLE_COUNT -12.0
+#define BAD_THREAD_COUNT -11.0
+#define BAD_TIME_STEP -10.0
+#define BAD_SIMTIME -9.0
 #define BAD_VOLUME -8.0
 #define BAD_PRESSURE -7.0
 #define BAD_TEMPERATURE -6.0
@@ -138,7 +142,7 @@ namespace util
      * @brief Checker for file on existence.
      * @param filaname Name of the file (or path) to check it.
      * @return `true` if file exists, otherwise `false`.
-    */
+     */
     bool exists(std::string_view filename);
 }
 

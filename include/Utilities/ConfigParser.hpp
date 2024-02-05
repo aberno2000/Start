@@ -23,15 +23,19 @@ private:
      */
     struct config_data_t
     {
-        double temperature{};      ///< Ambient temperature in Kelvin [K].
-        double pressure{};         ///< Ambient pressure in Pascals [Pa].
-        double volume{};           ///< Volume in cubic meters [m^3].
-        double energy{};           ///< Energy in electronvolts [eV].
-        ParticleType projective{}; ///< Projective particle type, e.g., Au.
-        ParticleType gas{};        ///< Gas particle type, e.g., N.
-        std::string mshfilename;   ///< Filename of the mesh file.
-        std::string model;         ///< Scattering model, e.g., HS/VHS/VSS.
-    } m_config;                    ///< Instance of config_data_t to store configuration.
+        size_t particles_count{};   ///< Count of the particles in simulation.
+        unsigned int num_threads{}; ///< Count of threads to processing.
+        double time_step{};         ///< Simulation time step [s].
+        double simtime{};           ///< Total simulation time [s].
+        double temperature{};       ///< Ambient temperature in Kelvin [K].
+        double pressure{};          ///< Ambient pressure in Pascals [Pa].
+        double volume{};            ///< Volume in cubic meters [m^3].
+        double energy{};            ///< Energy in electronvolts [eV].
+        ParticleType projective{};  ///< Projective particle type, e.g., Au.
+        ParticleType gas{};         ///< Gas particle type, e.g., N.
+        std::string mshfilename;    ///< Filename of the mesh file.
+        std::string model;          ///< Scattering model, e.g., HS/VHS/VSS.
+    } m_config;                     ///< Instance of config_data_t to store configuration.
 
     bool m_isValid{}; ///< Flag indicating if the configuration is valid.
 
@@ -43,7 +47,11 @@ private:
      * @param config Name of the configuration file.
      *
      * @details Configuration file:
-     * T: <value> (Tempreature in [K]).
+     * Count: <value>.
+     * Threads: <value>.
+     * Time step: <value> (Time in [s]).
+     * Simulation Time: <value> (Time in [s]).
+     * T: <value> (Temperature in [K]).
      * P: <value> (Preassure in [Pa]).
      * V: <value>/<string> (Volume in [m^3]/name of the file with tetrahedron mesh from GMSH).
      * Particles: <projective> <target>: (particle) (gas): Example: Al Ar.
@@ -51,6 +59,10 @@ private:
      * Model: HS/VHS/VSS.
      *
      * @example
+     * Count: 10000
+     * Threads: 2
+     * Time Step: 0.002
+     * Simulation Time: 2
      * T: 300
      * P: 10000
      * V: 95.42
@@ -68,6 +80,10 @@ private:
      * `BAD_TEMPERATURE` constant (=-6.0) if temperature is equals to `0.0` or negative.
      * `BAD_PRESSURE` constant (=-7.0) if pressure is negative.
      * `BAD_VOLUME` constant (=-8.0) if volume is <= 0.0.
+     * `BAD_SIMTIME` constant (=-9.0) if count contains not only digits.
+     * `BAD_TIME_STEP` constant (=-10.0) if count contains not only digits.
+     * `BAD_THREAD_COUNT` constant (=-11.0) if count contains not only digits.
+     * `BAD_PARTICLE_COUNT` constant (=-12.0) if count contains not only digits.
      */
     double getConfigData(std::string_view config);
 
@@ -82,6 +98,10 @@ public:
     ~ConfigParser();
 
     /* $$$ Getters for all data members from the `config_data_t` structure. $$$ */
+    constexpr unsigned int getNumThreads() const { return m_config.num_threads; }
+    constexpr size_t getParticlesCount() const { return m_config.particles_count; }
+    constexpr double getTimeStep() const { return m_config.time_step; }
+    constexpr double getSimulationTime() const { return m_config.simtime; }
     constexpr double getTemperature() const { return m_config.temperature; }
     constexpr double getPressure() const { return m_config.pressure; }
     constexpr double getVolume() const { return m_config.volume; }

@@ -28,11 +28,14 @@ from subprocess import run, Popen
 from hdf5handler import HDF5Handler
 from mesh_renderer import MeshRenderer
 
+
 def get_thread_count():
     return cpu_count()
 
+
 def get_os_info():
     return platform()
+
 
 def compile_cpp():
     run(["./compile.sh"], check=True)
@@ -97,7 +100,7 @@ class WindowApp(QMainWindow):
         self.launch_gmsh_button = QPushButton("Launch GMSH")
         self.launch_gmsh_button.clicked.connect(self.launch_gmsh)
         layout.addWidget(self.launch_gmsh_button)
-        
+
         # TODO: implement
 
     def launch_gmsh(self):
@@ -109,18 +112,19 @@ class WindowApp(QMainWindow):
         # Matplotlib plot
         self.figure = plt.figure()
         self.canvas = FigureCanvas(self.figure)
-        
+
         layout = QVBoxLayout()
         self.results_tab.setLayout(layout)
         layout.addWidget(self.canvas, 2)
-    
+
     def ColorBar(self, mesh_renderer):
         # Create a color map based on the mesh_renderer's colors
         colormap = plt.cm.ScalarMappable(cmap=plt.cm.viridis)
         colormap.set_array([])
 
         # Create a color bar next to the 3D plot
-        color_bar = plt.colorbar(colormap, ax=self.canvas, fraction=0.046, pad=0.04)
+        color_bar = plt.colorbar(
+            colormap, ax=self.canvas, fraction=0.046, pad=0.04)
         color_bar.set_label("Color Scale")
 
         # Show the color bar
@@ -166,13 +170,15 @@ class WindowApp(QMainWindow):
         combobox_width = 85
         simulation_group_box = QGroupBox("Simulation Parameters")
         simulation_layout = QFormLayout()
-        
+
         # Thread count
         self.thread_count_input = QLineEdit()
-        self.thread_count_available = QLabel(f"Your {get_os_info()} has {get_thread_count()} threads")
+        self.thread_count_available = QLabel(f"Your {get_os_info()} has {
+                                             get_thread_count()} threads")
         thread_count_layout = QHBoxLayout()
         thread_count_layout.addWidget(self.thread_count_input)
-        thread_count_layout.addWidget(self.thread_count_available, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
+        thread_count_layout.addWidget(
+            self.thread_count_available, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
         simulation_layout.addRow(QLabel("Thread count:"), thread_count_layout)
         self.thread_count_input.setFixedWidth(line_edit_width)
 
@@ -306,6 +312,10 @@ class WindowApp(QMainWindow):
         self.save_config_button.clicked.connect(self.save_config_to_file)
         buttons_layout.addWidget(self.save_config_button)
 
+        self.upload_config_button = QPushButton("Upload Config")
+        self.upload_config_button.clicked.connect(self.upload_config)
+        buttons_layout.addWidget(self.upload_config_button)
+
         self.run_button = QPushButton("Run")
         self.run_button.clicked.connect(self.run_simulation)
         buttons_layout.addWidget(self.run_button)
@@ -321,8 +331,69 @@ class WindowApp(QMainWindow):
         layout.addLayout(buttons_layout)
         self.config_tab.setLayout(layout)
 
+    def upload_config(self):
+        options = QFileDialog.Options()
+        options |= QFileDialog.DontUseNativeDialog
+        self.config_file_path, _ = QFileDialog.getOpenFileName(
+            self, "Select Configuration File", "", "Configuration Files (*.txt);;All Files (*)", options=options)
+
+        if self.config_file_path:  # If a file was selected
+            self.read_config_file(self.config_file_path)
+        else:
+            QMessageBox.warning(
+                self, "No Configuration File Selected", "No configuration file was uploaded.")
+
+    def read_config_file(self, config_file_path):
+        # Assuming the configuration file is a simple key-value pair format
+        config = {}
+        with open(config_file_path, 'r') as file:
+            for line in file:
+                # Split the line by colon or equal sign, and strip spaces
+                key, value = [x.strip() for x in line.split(':')]
+                config[key] = value
+
+        self.apply_config(config)
+
+    def apply_config(self, config):
+        try:
+            self.particles_count_input.setText(config.get('Count', ''))
+            self.thread_count_input.setText(config.get('Threads', ''))
+            self.time_step_input.setText(config.get('Time Step', ''))
+            self.simulation_time_input.setText(
+                config.get('Simulation Time', ''))
+            self.temperature_input.setText(config.get('T', ''))
+            self.pressure_input.setText(config.get('P', ''))
+            self.volume_input.setText(config.get('V', ''))
+            self.energy_input.setText(config.get('Energy', ''))
+
+            particles = config.get('Particles', '').split()
+            if len(particles) == 2:
+                projective_text, gas_text = particles
+                projective_index = self.projective_input.findText(
+                    projective_text, QtCore.Qt.MatchFixedString)
+                gas_index = self.gas_input.findText(
+                    gas_text, QtCore.Qt.MatchFixedString)
+                self.projective_input.setCurrentIndex(projective_index)
+                self.gas_input.setCurrentIndex(gas_index)
+
+            model_index = self.model_input.findText(
+                config.get('Model', ''), QtCore.Qt.MatchFixedString)
+            if model_index >= 0:
+                self.model_input.setCurrentIndex(model_index)
+
+            # Applying all measurement to SI (International System of Units)
+            self.time_step_units.setCurrentIndex(3)
+            self.simulation_time_units.setCurrentIndex(3)
+            self.temperature_units.setCurrentIndex(0)
+            self.pressure_units.setCurrentIndex(1)
+            self.volume_units.setCurrentIndex(2)
+            self.energy_units.setCurrentIndex(0)
+
+        except Exception as e:
+            QMessageBox.critical(self, "Error Applying Configuration",
+                                 f"An error occurred while applying the configuration: {e}")
+
     def update_converted_values(self):
-        # Time Step conversion and update label
         self.time_step_converted.setText(f"{self.converter.to_seconds(
             self.time_step_input.text(), self.time_step_units.currentText()
         )} s")
@@ -361,107 +432,44 @@ class WindowApp(QMainWindow):
             )
 
     def run_simulation(self):
-        if self.file_path:
-            # Retrieve user input
-            thread_count = self.thread_count_input.text()            
-            particles_count = self.particles_count_input.text()
-            time_step = self.converter.to_seconds(
-                self.time_step_input.text(), self.time_step_units.currentText()
-            )
-            simulation_time = self.converter.to_seconds(
-                self.simulation_time_input.text(), self.simulation_time_units.currentText()
-            )
-            temperature = self.converter.to_kelvin(
-                self.temperature_input.text(), self.temperature_units.currentText()
-            )
-            pressure = self.converter.to_pascal(
-                self.pressure_input.text(), self.pressure_units.currentText()
-            )
-            volume = self.converter.to_cubic_meters(
-                self.volume_input.text(), self.volume_units.currentText()
-            )
-            energy = self.converter.to_electron_volts(
-                self.energy_input.text(), self.energy_units.currentText()
-            )
+        config_content = self.validate_input()
+        if config_content is None:
+            return
 
-            if time_step > simulation_time:
-                QMessageBox.warning(self, "Invalid Time", f"Time step can't be greater than total simulation time: {
-                                    time_step} > {simulation_time}")
+        if not config_content:
+            # Prompt the user to select a configuration file
+            options = QFileDialog.Options()
+            options |= QFileDialog.DontUseNativeDialog
+            self.config_file_path, _ = QFileDialog.getOpenFileName(
+                self, "Select Configuration File", "", "Configuration Files (*.txt);;All Files (*)", options=options)
 
-            empty_fields = []
-            if not particles_count:
-                empty_fields.append("Particles Count")
-            if not time_step:
-                empty_fields.append("Time Step")
-            if not simulation_time:
-                empty_fields.append("Simulation Time")
-            if not temperature:
-                empty_fields.append("Temperature")
-            if not pressure:
-                empty_fields.append("Pressure")
-            if not volume:
-                empty_fields.append("Volume")
-            if not energy:
-                empty_fields.append("Energy")
-
-            # If there are any empty fields, alert the user and abort the save
-            if empty_fields:
-                QMessageBox.warning(
-                    self,
-                    "Incomplete Configuration",
-                    "Please fill in the following fields before saving:\n"
-                    + "\n".join(empty_fields),
-                )
+            if not self.config_file_path:  # If user cancels or selects no file
+                QMessageBox.warning(self, "No Configuration File Selected",
+                                    "Simulation aborted because no configuration file was selected.")
                 return
 
-            if not thread_count or not thread_count.isdigit() or int(thread_count) > get_thread_count() or int(thread_count) < 1:
-                QMessageBox.warning(
-                    self,
-                    "Warning",
-                    "Please enter valid numeric values for count of threads.",
-                )
-                return
+        # Disable UI components
+        self.set_ui_enabled(False)
 
-            # Validate input
-            if not (
-                particles_count.isdigit()
-                and str(time_step).replace(".", "", 1).isdigit()
-                and str(simulation_time).replace(".", "", 1).isdigit()
-            ):
-                QMessageBox.warning(
-                    self,
-                    "Warning",
-                    "Please enter valid numeric values for particles count, time step, and time interval.",
-                )
-                return
-
-            # Disable UI components
-            self.set_ui_enabled(False)
-
-            hdf5_filename = self.file_path.replace(".msh", ".hdf5")
-            args = f"{particles_count} {time_step} {
-                simulation_time} {self.file_path} {thread_count}"
-            self.progress_bar.setRange(0, 0)
-            self.start_time = time()
-            self.process.start("./main", args.split())
-            self.update_plot(hdf5_filename)
-
-        else:
-            QMessageBox.warning(
-                self, "Warning", "Please upload a .msh file first.")
+        hdf5_filename = self.file_path.replace(".msh", ".hdf5")
+        args = f"{self.config_file_path} {self.file_path} "
+        self.progress_bar.setRange(0, 0)
+        self.start_time = time()
+        self.process.start("./main", args.split())
+        self.update_plot(hdf5_filename)
 
     def on_finished(self):
         end_time = time()
         execution_time = end_time - self.start_time
-        
+
         # Re-enable UI components
         self.set_ui_enabled(True)
         self.progress_bar.setRange(0, 1)
         self.progress_bar.setValue(1)
-        QMessageBox.information(self, 
-                                "Process Finished", 
-                                f"The simulation has completed in {execution_time:.6f}s.")
-        
+        QMessageBox.information(self,
+                                "Process Finished",
+                                f"The simulation has completed in {execution_time:.6f}s")
+
     def set_ui_enabled(self, enabled):
         """Enable or disable UI components."""
         self.tab_widget.setEnabled(enabled)
@@ -484,58 +492,107 @@ class WindowApp(QMainWindow):
         # Refresh the canvas
         self.canvas.draw()
 
-    def save_config_to_file(self):
-        # Gather input values
-        temperature = self.converter.to_kelvin(
-            self.temperature_input.text(), self.temperature_units.currentText()
-        )
-        pressure = self.converter.to_pascal(
-            self.pressure_input.text(), self.pressure_units.currentText()
-        )
-        volume = self.converter.to_cubic_meters(
-            self.volume_input.text(), self.volume_units.currentText()
-        )
-        energy = self.converter.to_electron_volts(
-            self.energy_input.text(), self.energy_units.currentText()
-        )
-
-        projective_particle = self.projective_input.currentText()
-        gas_particle = self.gas_input.currentText()
-        model = self.model_input.currentText()
-
-        # Check for empty fields
-        empty_fields = []
-        if not temperature:
-            empty_fields.append("Temperature")
-        if not pressure:
-            empty_fields.append("Pressure")
-        if not volume:
-            empty_fields.append("Volume")
-        if not energy:
-            empty_fields.append("Energy")
-
-        # If there are any empty fields, alert the user and abort the save
-        if empty_fields:
-            QMessageBox.warning(
-                self,
-                "Incomplete Configuration",
-                "Please fill in the following fields before saving:\n"
-                + "\n".join(empty_fields),
+    def validate_input(self):
+        if self.file_path:
+            # Retrieve user input
+            self.thread_count = self.thread_count_input.text()
+            self.particles_count = self.particles_count_input.text()
+            self.time_step = self.converter.to_seconds(
+                self.time_step_input.text(), self.time_step_units.currentText()
             )
-            return
+            self.simulation_time = self.converter.to_seconds(
+                self.simulation_time_input.text(), self.simulation_time_units.currentText()
+            )
+            self.temperature = self.converter.to_kelvin(
+                self.temperature_input.text(), self.temperature_units.currentText()
+            )
+            self.pressure = self.converter.to_pascal(
+                self.pressure_input.text(), self.pressure_units.currentText()
+            )
+            self.volume = self.converter.to_cubic_meters(
+                self.volume_input.text(), self.volume_units.currentText()
+            )
+            self.energy = self.converter.to_electron_volts(
+                self.energy_input.text(), self.energy_units.currentText()
+            )
 
-        # Combine the particles input
-        particles = f"{projective_particle} {gas_particle}"
+            if self.time_step > self.simulation_time:
+                QMessageBox.warning(self, "Invalid Time", f"Time step can't be greater than total simulation time: {
+                                    self.time_step} > {self.simulation_time}")
 
-        # Format the configuration content
-        config_content = (
-            f"T: {temperature}\n"
-            f"P: {pressure}\n"
-            f"V: {volume}\n"
-            f"Particles: {particles}\n"
-            f"Energy: {energy}\n"
-            f"Model: {model}\n"
-        )
+            empty_fields = []
+            if not self.particles_count:
+                empty_fields.append("Particles Count")
+            if not self.time_step:
+                empty_fields.append("Time Step")
+            if not self.simulation_time:
+                empty_fields.append("Simulation Time")
+            if not self.temperature:
+                empty_fields.append("Temperature")
+            if not self.pressure:
+                empty_fields.append("Pressure")
+            if not self.volume:
+                empty_fields.append("Volume")
+            if not self.energy:
+                empty_fields.append("Energy")
+
+            # If there are any empty fields, alert the user and abort the save
+            if empty_fields:
+                QMessageBox.warning(
+                    self,
+                    "Incomplete Configuration",
+                    "Please fill in the following fields before saving:\n"
+                    + "\n".join(empty_fields),
+                )
+                return None
+
+            if not self.thread_count or not self.thread_count.isdigit() or int(self.thread_count) > get_thread_count() or int(self.thread_count) < 1:
+                QMessageBox.warning(
+                    self,
+                    "Warning",
+                    "Please enter valid numeric values for count of threads.",
+                )
+                return None
+
+            # Validate input
+            if not (
+                self.particles_count.isdigit()
+                and str(self.time_step).replace(".", "", 1).isdigit()
+                and str(self.simulation_time).replace(".", "", 1).isdigit()
+            ):
+                QMessageBox.warning(
+                    self,
+                    "Warning",
+                    "Please enter valid numeric values for particles count, time step, and time interval.",
+                )
+                return None
+
+            projective_particle = self.projective_input.currentText()
+            gas_particle = self.gas_input.currentText()
+            model = self.model_input.currentText()
+            particles = f"{projective_particle} {gas_particle}"
+            config_content = (
+                f"Count: {self.particles_count}\n"
+                f"Threads: {self.thread_count}\n"
+                f"Time Step: {self.time_step}\n"
+                f"Simulation Time: {self.simulation_time}\n"
+                f"T: {self.temperature}\n"
+                f"P: {self.pressure}\n"
+                f"V: {self.volume}\n"
+                f"Particles: {particles}\n"
+                f"Energy: {self.energy}\n"
+                f"Model: {model}\n"
+            )
+            return config_content
+        else:
+            QMessageBox.warning(
+                self, "Warning", "Please upload a .msh file first.")
+
+    def save_config_to_file(self):
+        config_content = self.validate_input()
+        if config_content is None:
+            QMessageBox.critical(
+                self, "Error", f"Failed to save configuration: {e}")
 
         # Ask the user where to save the file
         options = QFileDialog.Options()

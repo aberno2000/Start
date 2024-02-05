@@ -8,6 +8,10 @@
 
 void ConfigParser::clearConfig()
 {
+    m_config.particles_count = 0ul;
+    m_config.num_threads = 0u;
+    m_config.time_step = 0.0;
+    m_config.simtime = 0.0;
     m_config.temperature = 0.0;
     m_config.pressure = 0.0;
     m_config.volume = 0.0;
@@ -39,7 +43,31 @@ double ConfigParser::getConfigData(std::string_view config)
             std::string value;
             std::getline(iss, value);
 
-            if (key == "T")
+            if (key == "Count")
+            {
+                std::istringstream tmp_iss(value);
+                if (!(tmp_iss >> m_config.particles_count))
+                    return BAD_PARTICLE_COUNT;
+            }
+            else if (key == "Threads")
+            {
+                std::istringstream tmp_iss(value);
+                if (!(tmp_iss >> m_config.num_threads))
+                    return BAD_THREAD_COUNT;
+            }
+            else if (key == "Time Step")
+            {
+                std::istringstream tmp_iss(value);
+                if (!(tmp_iss >> m_config.time_step))
+                    return BAD_TIME_STEP;
+            }
+            else if (key == "Simulation Time")
+            {
+                std::istringstream tmp_iss(value);
+                if (!(tmp_iss >> m_config.simtime))
+                    return BAD_SIMTIME;
+            }
+            else if (key == "T")
             {
                 std::istringstream tmp_iss(value);
                 if (!(tmp_iss >> m_config.temperature))
@@ -84,6 +112,14 @@ double ConfigParser::getConfigData(std::string_view config)
         }
     }
 
+    if (m_config.particles_count == 0ul)
+        return BAD_PARTICLE_COUNT;
+    if (m_config.num_threads == 0)
+        return BAD_THREAD_COUNT;
+    if (m_config.time_step == 0)
+        return BAD_TIME_STEP;
+    if (m_config.simtime == 0)
+        return BAD_SIMTIME;
     if (m_config.temperature <= 0.0)
         return BAD_TEMPERATURE;
     if (m_config.pressure <= 0.0)

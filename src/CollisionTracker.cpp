@@ -45,7 +45,7 @@ void CollisionTracker::processSegment(size_t start_index, size_t end_index,
     }
 }
 
-std::unordered_map<size_t, int> CollisionTracker::trackCollisions(size_t num_threads)
+std::unordered_map<size_t, int> CollisionTracker::trackCollisions(unsigned int num_threads)
 {
     std::unordered_map<size_t, int> m;
 
