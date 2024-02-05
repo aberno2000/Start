@@ -26,6 +26,7 @@ from converter import Converter, is_positive_real_number
 from subprocess import run, Popen
 from hdf5handler import HDF5Handler
 from mesh_renderer import MeshRenderer
+from mesh_dialog import MeshDialog, CaptureGmshLog
 
 MIN_TIME = 1e-9
 
@@ -418,7 +419,7 @@ class WindowApp(QMainWindow):
             self,
             "Select Mesh File",
             "",
-            "Mesh Files (*.msh);;All Files (*)",
+            "Mesh Files (*.msh);;Step Files (*.stp);;All Files (*)",
             options=options,
         )
         if fileName:
@@ -426,6 +427,63 @@ class WindowApp(QMainWindow):
             QMessageBox.information(
                 self, "Mesh File Selected", f"File: {self.file_path}"
             )
+
+        if fileName.endswith('.stp'):
+            # Show dialog for user input
+            dialog = MeshDialog(self)
+            if dialog.exec_():
+                mesh_size, mesh_dim = dialog.get_values()
+                try:
+                    mesh_size = float(mesh_size)
+                    mesh_dim = int(mesh_dim)
+                    if mesh_dim not in [2, 3]:
+                        raise ValueError("Mesh dimensions must be 2 or 3.")
+                    self.convert_stp_to_msh(fileName, mesh_size, mesh_dim)
+                except ValueError as e:
+                    QMessageBox.warning(self, "Invalid Input", str(e))
+                    return
+        else:
+            self.file_path = fileName
+            QMessageBox.information(
+                self, "Mesh File Selected", f"File: {self.file_path}")
+
+    def convert_stp_to_msh(self, file_path, mesh_size, mesh_dim):
+        original_stdout = sys.stdout  # Save a reference to the original standard output
+        redirected_output = CaptureGmshLog()
+        sys.stdout = redirected_output  # Redirect stdout to capture Gmsh logs
+
+        try:
+            gmsh.initialize()
+            gmsh.model.add("model")
+            gmsh.model.occ.importShapes(file_path)
+            gmsh.model.occ.synchronize()
+            gmsh.option.setNumber("Mesh.MeshSizeMin", mesh_size)
+            gmsh.option.setNumber("Mesh.MeshSizeMax", mesh_size)
+
+            if mesh_dim == 2:
+                gmsh.model.mesh.generate(2)
+            elif mesh_dim == 3:
+                gmsh.model.mesh.generate(3)
+
+            output_file = file_path.replace(".stp", ".msh")
+            gmsh.write(output_file)
+        except Exception as e:
+            QMessageBox.critical(
+                self, "Error", f"An error occurred during conversion: {str(e)}")
+            return
+        finally:
+            gmsh.finalize()
+            sys.stdout = original_stdout  # Restore stdout to its original state
+
+        log_output = redirected_output.output
+        if "Error" in log_output:
+            QMessageBox.critical(
+                self, "Conversion Error", "An error occurred during mesh generation. Please check the file and parameters.")
+            return
+        else:
+            self.file_path = output_file
+            QMessageBox.information(
+                self, "Conversion Completed", f"Mesh generated: {self.file_path}")
 
     def run_simulation(self):
         config_content = self.validate_input()
@@ -443,15 +501,15 @@ class WindowApp(QMainWindow):
                                     "Simulation aborted because no configuration file was selected.")
                 return
 
+        # Disable UI components
+        self.set_ui_enabled(False)
+
         # Rewrite configs if they are changed
         with open(self.config_file_path, "w") as file:
             file.write(config_content)
         hdf5_filename = self.file_path.replace(".msh", ".hdf5")
         args = f"{self.config_file_path} {self.file_path}"
         self.progress_bar.setRange(0, 0)
-
-        # Disable UI components
-        self.set_ui_enabled(False)
 
         # Measure execution time
         self.start_time = time()
