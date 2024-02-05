@@ -508,15 +508,15 @@ class WindowApp(QMainWindow):
         run_cpp(args)
         end_time = time()
         execution_time = end_time - self.start_time
-
-        # Re-enable UI components
-        self.set_ui_enabled(True)
         self.progress_bar.setRange(0, 1)
         self.progress_bar.setValue(1)
         QMessageBox.information(self,
                                 "Process Finished",
                                 f"The simulation has completed in {execution_time:.6f}s")
         self.update_plot(hdf5_filename)
+        
+        # Re-enable UI components
+        self.set_ui_enabled(True)
 
     def set_ui_enabled(self, enabled):
         """Enable or disable UI components."""
