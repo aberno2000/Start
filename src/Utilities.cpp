@@ -48,8 +48,8 @@ ParticleType util::getParticleTypeFromStrRepresentation(std::string_view particl
 {
     if (particle == "Ar")
         return Ar;
-    else if (particle == "N")
-        return N;
+    else if (particle == "Ne")
+        return Ne;
     else if (particle == "He")
         return He;
     else if (particle == "Ti")
@@ -78,8 +78,8 @@ std::string util::getParticleType(ParticleType ptype)
     {
     case Ar:
         return "Ar";
-    case N:
-        return "N";
+    case Ne:
+        return "Ne";
     case He:
         return "He";
     case Ti:

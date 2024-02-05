@@ -13,7 +13,7 @@ namespace constants
 
         /*** Weight of particles in [kg]. ***/
         static constinit const double Ar_mass{6.6335209e-26};
-        static constinit const double N_mass{2.3258671e-26};
+        static constinit const double Ne_mass{3.3509177e-26};
         static constinit const double He_mass{6.6464731e-27};
         static constinit const double Ti_mass{7.9485017e-26};
         static constinit const double Al_mass{4.4803831e-26};
@@ -27,7 +27,7 @@ namespace constants
         /*** Radii (empirical) of particles in [m]. ***/
         /// @link https://en.wikipedia.org/wiki/Atomic_radii_of_the_elements_(data_page)
         static constinit const double Ar_radius{71e-12};
-        static constinit const double N_radius{65e-12};
+        static constinit const double Ne_radius{160e-12};
         static constinit const double He_radius{120e-12};
         static constinit const double Ti_radius{140e-12};
         static constinit const double Al_radius{125e-12};
@@ -44,7 +44,7 @@ namespace constants
         enum ParticleType
         {
             Ar,
-            N,
+            Ne,
             He,
             Ti,
             Al,

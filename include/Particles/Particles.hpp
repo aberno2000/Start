@@ -32,8 +32,8 @@ private:
         {
         case ParticleType::Ar:
             return Ar_radius;
-        case ParticleType::N:
-            return N_radius;
+        case ParticleType::Ne:
+            return Ne_radius;
         case ParticleType::He:
             return He_radius;
         case ParticleType::Ti:
@@ -68,8 +68,8 @@ private:
         {
         case ParticleType::Ar:
             return Ar_mass;
-        case ParticleType::N:
-            return N_mass;
+        case ParticleType::Ne:
+            return Ne_mass;
         case ParticleType::He:
             return He_mass;
         case ParticleType::Ti:

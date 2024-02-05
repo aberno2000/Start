@@ -143,7 +143,7 @@ class WindowApp(QMainWindow):
         self.projective_input = QComboBox()
         self.gas_input = QComboBox()
         projective_particles = ["Ti", "Al", "Sn", "W", "Au", "Cu", "Ni", "Ag"]
-        gas_particles = ["Ar", "N", "He"]
+        gas_particles = ["Ar", "Ne", "He"]
         self.projective_input.addItems(projective_particles)
         self.gas_input.addItems(gas_particles)
         particles_layout.addRow(QLabel("Projective:"), self.projective_input)
