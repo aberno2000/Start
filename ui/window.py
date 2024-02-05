@@ -172,7 +172,8 @@ class WindowApp(QMainWindow):
 
         # Thread count
         self.thread_count_input = QLineEdit()
-        self.thread_count_available = QLabel(f"Your {get_os_info()} has {get_thread_count()} threads")
+        self.thread_count_available = QLabel(
+            f"Your {get_os_info()} has {get_thread_count()} threads")
         thread_count_layout = QHBoxLayout()
         thread_count_layout.addWidget(self.thread_count_input)
         thread_count_layout.addWidget(
@@ -391,12 +392,18 @@ class WindowApp(QMainWindow):
                                  f"An error occurred while applying the configuration: {e}")
 
     def update_converted_values(self):
-        self.time_step_converted.setText(f"{self.converter.to_seconds(self.time_step_input.text(), self.time_step_units.currentText())} s")
-        self.simulation_time_converted.setText(f"{self.converter.to_seconds(self.simulation_time_input.text(), self.simulation_time_units.currentText())} s")
-        self.temperature_converted.setText(f"{self.converter.to_kelvin(self.temperature_input.text(), self.temperature_units.currentText())} K")
-        self.pressure_converted.setText(f"{self.converter.to_pascal(self.pressure_input.text(), self.pressure_units.currentText())} Pa")
-        self.volume_converted.setText(f"{self.converter.to_cubic_meters(self.volume_input.text(), self.volume_units.currentText())} m³")
-        self.energy_converted.setText(f"{self.converter.to_electron_volts(self.energy_input.text(), self.energy_units.currentText())} eV")
+        self.time_step_converted.setText(
+            f"{self.converter.to_seconds(self.time_step_input.text(), self.time_step_units.currentText())} s")
+        self.simulation_time_converted.setText(
+            f"{self.converter.to_seconds(self.simulation_time_input.text(), self.simulation_time_units.currentText())} s")
+        self.temperature_converted.setText(
+            f"{self.converter.to_kelvin(self.temperature_input.text(), self.temperature_units.currentText())} K")
+        self.pressure_converted.setText(
+            f"{self.converter.to_pascal(self.pressure_input.text(), self.pressure_units.currentText())} Pa")
+        self.volume_converted.setText(
+            f"{self.converter.to_cubic_meters(self.volume_input.text(), self.volume_units.currentText())} m³")
+        self.energy_converted.setText(
+            f"{self.converter.to_electron_volts(self.energy_input.text(), self.energy_units.currentText())} eV")
 
     def upload_mesh_file(self):
         # Open a file dialog when the button is clicked and filter for .msh files
@@ -431,8 +438,6 @@ class WindowApp(QMainWindow):
                     return
         else:
             self.file_path = fileName
-            QMessageBox.information(
-                self, "Mesh File Selected", f"File: {self.file_path}")
 
     def convert_stp_to_msh(self, file_path, mesh_size, mesh_dim):
         original_stdout = sys.stdout  # Save a reference to the original standard output
@@ -560,7 +565,7 @@ class WindowApp(QMainWindow):
             )
 
             if self.time_step > self.simulation_time:
-                QMessageBox.warning(self, "Invalid Time", 
+                QMessageBox.warning(self, "Invalid Time",
                                     f"Time step can't be greater than total simulation time: {self.time_step} > {self.simulation_time}")
                 return None
 
@@ -609,7 +614,8 @@ class WindowApp(QMainWindow):
                 QMessageBox.warning(
                     self,
                     "Warning",
-                    f"Please enter valid numeric values for particles count, time step, and time interval.\nTime can't be less than {MIN_TIME}",
+                    f"Please enter valid numeric values for particles count, time step, and time interval.\n"
+                    f"Time can't be less than {MIN_TIME}.",
                 )
                 return None
 
