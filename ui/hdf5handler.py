@@ -1,6 +1,7 @@
 import h5py
 import numpy as np
-import re
+from re import compile
+from os.path import isfile, getsize
 
 
 class HDF5Handler:
@@ -12,38 +13,42 @@ class HDF5Handler:
             filename (str): Path to the HDF5 file.
             first_id (int, optional): Starting ID for reading groups. Defaults to 0.
         """
+        # Check if the file exists and is not empty
+        if not h5py.is_hdf5(filename):
+            raise ValueError(
+                f"The file {filename} doesn't exist or is empty.")
 
-        def get_first_id_from_hdf5(filename):
-            """
-            Extracts the first ID from the HDF5 file based on the naming convention of groups.
-
-            Args:
-                filename (str): Path to the HDF5 file.
-
-            Returns:
-                int or None: The smallest ID found in the group names, or None if no ID is found.
-            """
-            with h5py.File(filename, "r") as file:
-                group_names = list(file.keys())
-
-                # Extract IDs using a regular expression
-                ids = []
-                pattern = re.compile(r"Triangle_(\d+)")
-                for name in group_names:
-                    match = pattern.match(name)
-                    if match:
-                        ids.append(int(match.group(1)))
-
-                if ids:
-                    return min(ids)  # Return the smallest ID
-                else:
-                    return None  # No IDs found
-
+        self.filename = filename
         self.file = h5py.File(filename, "r")
-        self.first_id = get_first_id_from_hdf5(filename)
+        self.first_id = self.get_first_id_from_hdf5(self.filename) or first_id
+
+    def get_first_id_from_hdf5(self, filename):
+        """
+        Extracts the first ID from the HDF5 file based on the naming convention of groups.
+
+        Args:
+            filename (str): Path to the HDF5 file.
+
+        Returns:
+            int or None: The smallest ID found in the group names, or None if no ID is found.
+        """
+        with h5py.File(filename, "r") as file:
+            group_names = list(file.keys())
+
+            # Extract IDs using a regular expression
+            ids = []
+            pattern = compile(r"Triangle_(\d+)")
+            for name in group_names:
+                match = pattern.match(name)
+                if match:
+                    ids.append(int(match.group(1)))
+
+            # Returning the samllest ID of the triangle or None if no IDs found
+            return min(ids) if ids else None
 
     def __del__(self):
-        self.file.close()
+        if hasattr(self, 'file'):  # Check if self.file exists before attempting to close it
+            self.file.close()
 
     def read_dataset(self, group_name, dataset_name):
         """
@@ -81,7 +86,8 @@ class HDF5Handler:
         for id in range(self.first_id, last_id):
             group_name = f"Triangle_{id}"
 
-            coordinates = self.read_dataset(group_name, "Coordinates").reshape(3, 3)
+            coordinates = self.read_dataset(
+                group_name, "Coordinates").reshape(3, 3)
             area = self.read_dataset(group_name, "Area")[0]
             counter = self.read_dataset(group_name, "Counter")[0]
 
