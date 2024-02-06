@@ -24,9 +24,6 @@ test
 *.msh*
 *.geo*
 
-# Other
-*.txt
-
 # HDF5 format
 *.hdf5
 *.h5
@@ -49,3 +46,6 @@ test
 
 # Caches
 *.cache*
+
+# Configs
+config*
