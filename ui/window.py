@@ -334,7 +334,7 @@ class WindowApp(QMainWindow):
         options = QFileDialog.Options()
         options |= QFileDialog.DontUseNativeDialog
         self.config_file_path, _ = QFileDialog.getOpenFileName(
-            self, "Select Configuration File", "", "Configuration Files (*.txt);;All Files (*)", options=options)
+            self, "Select Configuration File", "", "All Files (*)", options=options)
 
         if self.config_file_path:  # If a file was selected
             self.read_config_file(self.config_file_path)
@@ -514,7 +514,7 @@ class WindowApp(QMainWindow):
                                 "Process Finished",
                                 f"The simulation has completed in {execution_time:.6f}s")
         self.update_plot(hdf5_filename)
-        
+
         # Re-enable UI components
         self.set_ui_enabled(True)
 
@@ -653,7 +653,7 @@ class WindowApp(QMainWindow):
             self,
             "Save Configuration",
             "",  # Start directory
-            "Config Files (*.txt);;All Files (*)",
+            "All Files (*)",
             options=options,
         )
 
