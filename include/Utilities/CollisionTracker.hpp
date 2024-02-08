@@ -43,7 +43,8 @@ private:
      * @param end_index The ending index in the particle vector for this segment.
      * @param m Reference to the map tracking the number of collisions for each mesh element.
      */
-    void processSegment(size_t start_index, size_t end_index, std::unordered_map<size_t, int> &m);
+    void processSegment(size_t start_index, size_t end_index,
+                        std::unordered_map<size_t, int> &m, AABB_Tree const &tree);
 
 public:
     /**
@@ -59,10 +60,12 @@ public:
      */
     CollisionTracker(ParticleVector &particles, MeshParamVector const &mesh,
                      double time_step, double total_time)
-        : m_particles(particles), m_mesh(mesh), m_dt(time_step), m_total_time(total_time) {}
+        : m_particles(particles), m_mesh(mesh),
+          m_dt(time_step), m_total_time(total_time) {}
     CollisionTracker(ParticleVector &particles, MeshParamVector &&mesh,
                      double time_step, double total_time)
-        : m_particles(particles), m_mesh(std::move(mesh)), m_dt(time_step), m_total_time(total_time) {}
+        : m_particles(particles), m_mesh(std::move(mesh)),
+          m_dt(time_step), m_total_time(total_time) {}
 
     /**
      * @brief Tracks collisions in a concurrent manner and returns a map of collision counts.

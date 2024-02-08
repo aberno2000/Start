@@ -169,15 +169,13 @@ class WindowApp(QMainWindow):
         combobox_width = 85
         simulation_group_box = QGroupBox("Simulation Parameters")
         simulation_layout = QFormLayout()
+        simulation_layout.addRow(
+            QLabel(f"System: {get_os_info()} has {get_thread_count()} threads"))
 
         # Thread count
         self.thread_count_input = QLineEdit()
-        self.thread_count_available = QLabel(
-            f"Your {get_os_info()} has {get_thread_count()} threads")
         thread_count_layout = QHBoxLayout()
         thread_count_layout.addWidget(self.thread_count_input)
-        thread_count_layout.addWidget(
-            self.thread_count_available, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
         simulation_layout.addRow(QLabel("Thread count:"), thread_count_layout)
         self.thread_count_input.setFixedWidth(line_edit_width)
 

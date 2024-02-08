@@ -5,7 +5,7 @@ if [ "$#" -ne 1 ]; then
     exit 1
 fi
 
-g++ $1 src/MathVector.cpp src/Particle.cpp src/RealNumberGenerator.cpp src/Settings.cpp $(root-config --cflags --glibs) -std=c++20 -laabb -Wall -Wpedantic -Wextra -O2 -lmpfr -lgmp
+g++ $1 src/MathVector.cpp src/Particle.cpp src/RealNumberGenerator.cpp src/Utilities.cpp src/ConfigParser.cpp src/Mesh.cpp src/RayTriangleIntersection.cpp $(root-config --cflags --glibs) -std=c++20 -laabb -Wall -Wpedantic -Wextra -O2 -lmpfr -lgmp -lgmsh
 ./a.out
 
 if [ $? -eq 0 ]; then

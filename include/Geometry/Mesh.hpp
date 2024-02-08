@@ -6,6 +6,10 @@
 #include <tuple>
 #include <vector>
 
+#include <CGAL/AABB_traits.h>
+#include <CGAL/AABB_tree.h>
+#include <CGAL/AABB_triangle_primitive.h>
+
 #include "MathVector.hpp"
 #include "RayTriangleIntersection.hpp"
 
@@ -19,6 +23,17 @@ using MeshParam = std::tuple<size_t, Triangle3, double, int>;
 using MeshParamVector = std::vector<MeshParam>;
 using MeshTetrahedron = Tetrahedron3;
 using MeshTetrahedronVector = std::vector<MeshTetrahedron>;
+using MeshParamIterator = MeshParamVector::const_iterator;
+
+using MeshOnlyTriangle = std::vector<Triangle3>;
+using MeshOnlyTriangleConstIter = MeshOnlyTriangle::const_iterator;
+
+// Custom property map with CGAL::AABB_triangle_primitive
+using Primitive = CGAL::AABB_triangle_primitive<Kernel, MeshOnlyTriangleConstIter>;
+using Traits = CGAL::AABB_traits<Kernel, Primitive>;
+using AABB_Tree = CGAL::AABB_tree<Traits>;
+
+AABB_Tree constructAABBTreeFromMeshParams(MeshParamVector const &meshParams);
 
 /// @brief Represents GMSH mesh.
 class Mesh
@@ -43,7 +58,7 @@ public:
      * This function reads information about triangles from a Gmsh .msh file.
      * It calculates triangle properties such as coordinates, side lengths, area, etc.
      * @param msh_filename The filename of the Gmsh .msh file to parse.
-     * @return MeshParams A vector containing information about each triangle in the mesh.
+     * @return A vector containing information about each triangle in the mesh.
      */
     static MeshParamVector getMeshParams(std::string_view msh_filename);
 

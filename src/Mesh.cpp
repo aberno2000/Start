@@ -3,6 +3,14 @@
 #include "../include/Geometry/MathVector.hpp"
 #include "../include/Geometry/Mesh.hpp"
 
+AABB_Tree constructAABBTreeFromMeshParams(MeshParamVector const &meshParams)
+{
+    MeshOnlyTriangle triangles;
+    for (size_t i{}; i < meshParams.size(); ++i)
+        triangles.emplace_back(std::get<1>(meshParams.at(i)));
+    return AABB_Tree(triangles.cbegin(), triangles.cend());
+}
+
 size_t Mesh::isRayIntersectTriangleImpl(Ray3 const &ray, MeshParam const &triangle)
 {
     return (RayTriangleIntersection::isIntersectTriangle(ray, std::get<1>(triangle)))

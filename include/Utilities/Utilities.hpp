@@ -15,7 +15,7 @@
 using namespace constants;
 using namespace particle_types;
 
-using Kernel = CGAL::Exact_predicates_exact_constructions_kernel;
+using Kernel = CGAL::Exact_predicates_inexact_constructions_kernel;
 using Point3 = Kernel::Point_3;
 using Ray3 = Kernel::Ray_3;
 using Triangle3 = Kernel::Triangle_3;

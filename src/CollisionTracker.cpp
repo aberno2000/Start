@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <execution>
+#include <ranges>
 
 #include "../include/Utilities/CollisionTracker.hpp"
 
@@ -8,7 +9,7 @@ std::atomic<size_t> CollisionTracker::m_counter = 0ul;
 std::atomic_flag CollisionTracker::m_stop_processing = ATOMIC_FLAG_INIT;
 
 void CollisionTracker::processSegment(size_t start_index, size_t end_index,
-                                      std::unordered_map<size_t, int> &m)
+                                      std::unordered_map<size_t, int> &m, AABB_Tree const &tree)
 {
     for (double t{}; t <= m_total_time && !m_stop_processing.test(); t += m_dt)
     {
@@ -25,19 +26,43 @@ void CollisionTracker::processSegment(size_t start_index, size_t end_index,
                           p.updatePosition(m_dt);
                           Ray3 ray(prev, p.getCentre());
 
-                          for (auto const &triangle : m_mesh)
+                          // Check ray on degeneracy
+                          if (not ray.is_degenerate())
                           {
-                              size_t id{Mesh::isRayIntersectTriangle(ray, triangle)};
-                              if (id != -1ul)
+                              // Check intersection of ray with mesh
+                              auto intersection{tree.first_intersection(ray)};
+                              if (intersection)
                               {
-                                  std::lock_guard<std::mutex> lk(m_map_mutex);
-                                  ++m[id];
-                                  m_counter.fetch_add(1);
+                                  // Getting triangle object
+                                  auto triangle{boost::get<Triangle3>(*intersection->second)};
 
-                                  if (m_counter.load() >= m_particles.size())
+                                  // Check if some of sides of angles in the triangle <= 0 (check on degeneracy)
+                                  if (not triangle.is_degenerate())
                                   {
-                                      m_stop_processing.test_and_set();
-                                      return;
+                                      // Finding matching triangle in `m_mesh`
+                                      auto matchedIt{std::ranges::find_if(m_mesh, [triangle](auto const &el)
+                                                                          { return triangle == std::get<1>(el); })};
+                                      if (matchedIt != m_mesh.cend())
+                                      {
+                                          // If we have positive result in previous steps -> next step to get the ID
+                                          // will be 100% successfull
+                                          // Getting the ID
+                                          size_t id{Mesh::isRayIntersectTriangle(ray, *matchedIt)};
+                                          if (id != -1ul)
+                                          {
+                                              /* Critical section - map is shared object */
+                                              std::lock_guard<std::mutex> lk(m_map_mutex);
+                                              ++m[id];
+                                              m_counter.fetch_add(1);
+
+                                              // If counter of setteled particles >= count of particles -> stop processing
+                                              if (m_counter.load() >= m_particles.size())
+                                              {
+                                                  m_stop_processing.test_and_set();
+                                                  return;
+                                              }
+                                          }
+                                      }
                                   }
                               }
                           }
@@ -56,12 +81,15 @@ std::unordered_map<size_t, int> CollisionTracker::trackCollisions(unsigned int n
     size_t particles_per_thread{m_particles.size() / num_threads},
         start_index{};
 
+    // Initializing AABB-tree
+    auto tree{constructAABBTreeFromMeshParams(m_mesh)};
+
     // Create threads and assign each a segment of particles to process
     for (size_t i{}; i < num_threads; ++i)
     {
         size_t end_index{(i == num_threads - 1) ? m_particles.size() : start_index + particles_per_thread};
-        futures.emplace_back(std::async(std::launch::async, [this, start_index, end_index, &m]()
-                                        { this->processSegment(start_index, end_index, m); }));
+        futures.emplace_back(std::async(std::launch::async, [this, start_index, end_index, &m, &tree]()
+                                        { this->processSegment(start_index, end_index, m, tree); }));
         start_index = end_index;
     }
 
