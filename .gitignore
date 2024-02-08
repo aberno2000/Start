@@ -48,4 +48,4 @@ test
 *.cache*
 
 # Configs
-config*
+*.config
