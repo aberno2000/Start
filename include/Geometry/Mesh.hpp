@@ -33,7 +33,7 @@ using Primitive = CGAL::AABB_triangle_primitive<Kernel, MeshOnlyTriangleConstIte
 using Traits = CGAL::AABB_traits<Kernel, Primitive>;
 using AABB_Tree = CGAL::AABB_tree<Traits>;
 
-AABB_Tree constructAABBTreeFromMeshParams(MeshParamVector const &meshParams);
+std::optional<AABB_Tree> constructAABBTreeFromMeshParams(MeshParamVector const &meshParams);
 
 /// @brief Represents GMSH mesh.
 class Mesh

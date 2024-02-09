@@ -3,12 +3,23 @@
 #include "../include/Geometry/MathVector.hpp"
 #include "../include/Geometry/Mesh.hpp"
 
-AABB_Tree constructAABBTreeFromMeshParams(MeshParamVector const &meshParams)
+std::optional<AABB_Tree> constructAABBTreeFromMeshParams(MeshParamVector const &meshParams)
 {
+    if (meshParams.empty())
+        return std::nullopt;
+
     MeshOnlyTriangle triangles;
-    for (size_t i{}; i < meshParams.size(); ++i)
-        triangles.emplace_back(std::get<1>(meshParams.at(i)));
-    return AABB_Tree(triangles.cbegin(), triangles.cend());
+    for (auto const &meshParam : meshParams)
+    {
+        auto const &triangle{std::get<1>(meshParam)};
+        if (!triangle.is_degenerate())
+            triangles.emplace_back(triangle);
+    }
+
+    if (triangles.empty())
+        return std::nullopt;
+
+    return AABB_Tree(std::cbegin(triangles), std::cend(triangles));
 }
 
 size_t Mesh::isRayIntersectTriangleImpl(Ray3 const &ray, MeshParam const &triangle)

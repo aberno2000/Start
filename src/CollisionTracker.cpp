@@ -3,6 +3,7 @@
 #include <ranges>
 
 #include "../include/Utilities/CollisionTracker.hpp"
+#include "../include/Utilities/Utilities.hpp"
 
 constinit std::mutex CollisionTracker::m_map_mutex;
 std::atomic<size_t> CollisionTracker::m_counter = 0ul;
@@ -83,13 +84,15 @@ std::unordered_map<size_t, int> CollisionTracker::trackCollisions(unsigned int n
 
     // Initializing AABB-tree
     auto tree{constructAABBTreeFromMeshParams(m_mesh)};
+    if (!tree)
+        ERRMSG("Failed to fill AABB tree for 2D mesh");
 
     // Create threads and assign each a segment of particles to process
     for (size_t i{}; i < num_threads; ++i)
     {
         size_t end_index{(i == num_threads - 1) ? m_particles.size() : start_index + particles_per_thread};
         futures.emplace_back(std::async(std::launch::async, [this, start_index, end_index, &m, &tree]()
-                                        { this->processSegment(start_index, end_index, m, tree); }));
+                                        { this->processSegment(start_index, end_index, m, *tree); }));
         start_index = end_index;
     }
 
