@@ -1,15 +1,6 @@
 from PyQt5.QtWidgets import (
-    QPushButton,
     QVBoxLayout,
-    QHBoxLayout,
     QWidget,
-    QComboBox,
-    QMessageBox,
-    QLabel,
-    QLineEdit,
-    QFormLayout,
-    QGroupBox,
-    QFileDialog,
 )
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas

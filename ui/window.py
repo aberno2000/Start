@@ -1,19 +1,14 @@
 from PyQt5.QtWidgets import (
-    QMainWindow,
-    QTabWidget,
-    QPushButton,
-    QVBoxLayout,
-    QHBoxLayout,
-    QWidget,
-    QMessageBox,
-    QFileDialog,
+    QMainWindow, QTabWidget, QPushButton,
+    QVBoxLayout, QHBoxLayout, QWidget,
+    QMessageBox, QFileDialog,
 )
-import sys
-import gmsh
+from sys import exit
 from time import time
-from subprocess import run, Popen
+from subprocess import run
 from config_tab import ConfigTab
 from results_tab import ResultsTab
+from mesh_tab import MeshTab
 
 
 def compile_cpp():
@@ -33,9 +28,12 @@ class WindowApp(QMainWindow):
 
         # Create tab widget and tabs
         self.tab_widget = QTabWidget()
-        self.mesh_tab = QWidget()
         self.results_tab = ResultsTab()
         self.config_tab = ConfigTab()
+        self.mesh_tab = MeshTab(self.config_tab)
+
+        # Connecting signal to detect the selection of mesh file
+        self.config_tab.meshFileSelected.connect(self.mesh_tab.set_mesh_file)
 
         # Setup Tabs
         self.setup_tabs()
@@ -51,23 +49,6 @@ class WindowApp(QMainWindow):
         self.tab_widget.addTab(self.mesh_tab, "Mesh")
         self.tab_widget.addTab(self.results_tab, "Results")
         self.tab_widget.addTab(self.config_tab, "Config")
-
-        self.setup_mesh_tab()
-
-    def setup_mesh_tab(self):
-        layout = QVBoxLayout()
-        self.mesh_tab.setLayout(layout)
-
-        self.launch_gmsh_button = QPushButton("Launch GMSH")
-        self.launch_gmsh_button.clicked.connect(self.launch_gmsh)
-        layout.addWidget(self.launch_gmsh_button)
-
-        # TODO: implement
-
-    def launch_gmsh(self):
-        gmsh.initialize()
-        Popen(["gmsh"])
-        gmsh.finalize()
 
     def setup_buttons(self):
         buttons_layout = QHBoxLayout()
@@ -109,9 +90,10 @@ class WindowApp(QMainWindow):
         # Rewrite configs
         with open(self.config_tab.config_file_path, "w") as file:
             file.write(config_content)
-        hdf5_filename = self.config_tab.file_path.replace(".msh", ".hdf5")
+        hdf5_filename = self.config_tab.mesh_file.replace(".msh", ".hdf5")
+
         args = f"{self.config_tab.config_file_path} \
-        {self.config_tab.file_path}"
+        {self.config_tab.mesh_file}"
         self.config_tab.progress_bar.setRange(0, 0)
 
         # Measure execution time
@@ -141,4 +123,4 @@ class WindowApp(QMainWindow):
         )
 
     def exit(self):
-        sys.exit(0)
+        exit(0)

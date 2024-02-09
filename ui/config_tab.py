@@ -1,20 +1,12 @@
 from PyQt5.QtWidgets import (
-    QVBoxLayout,
-    QHBoxLayout,
-    QWidget,
-    QComboBox,
-    QMessageBox,
-    QLabel,
-    QLineEdit,
-    QFormLayout,
-    QGroupBox,
-    QFileDialog,
-    QProgressBar,
-    QPushButton,
+    QVBoxLayout, QHBoxLayout, QWidget, QComboBox,
+    QMessageBox, QLabel, QLineEdit, QFormLayout,
+    QGroupBox, QFileDialog, QProgressBar, QPushButton
 )
-from PyQt5 import QtCore
 import sys
 import gmsh
+from PyQt5 import QtCore
+from PyQt5.QtCore import pyqtSignal
 from multiprocessing import cpu_count
 from platform import platform
 from converter import Converter, is_positive_real_number
@@ -32,13 +24,16 @@ def get_os_info():
 
 
 class ConfigTab(QWidget):
+    # Signal to check if mesh file was selected by user
+    meshFileSelected = pyqtSignal(str)
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.layout = QVBoxLayout(self)
 
         self.converter = Converter()
         self.setup_ui()
-        self.file_path = ""
+        self.mesh_file = ""
         self.config_file_path = ""
 
         self.buttons_layout = QHBoxLayout()
@@ -243,7 +238,7 @@ class ConfigTab(QWidget):
             f"{self.converter.to_electron_volts(self.energy_input.text(), self.energy_units.currentText())} eV")
 
     def validate_input(self):
-        if self.file_path:
+        if self.mesh_file:
             # Retrieve user input
             self.thread_count = self.thread_count_input.text()
             self.particles_count = self.particles_count_input.text()
@@ -444,9 +439,10 @@ class ConfigTab(QWidget):
             options=options,
         )
         if fileName:
-            self.file_path = fileName
+            self.mesh_file = fileName
+            self.meshFileSelected.emit(self.mesh_file)
             QMessageBox.information(
-                self, "Mesh File Selected", f"File: {self.file_path}"
+                self, "Mesh File Selected", f"File: {self.mesh_file}"
             )
 
         if fileName.endswith('.stp'):
@@ -464,7 +460,7 @@ class ConfigTab(QWidget):
                     QMessageBox.warning(self, "Invalid Input", str(e))
                     return
         else:
-            self.file_path = fileName
+            self.mesh_file = fileName
 
     def convert_stp_to_msh(self, file_path, mesh_size, mesh_dim):
         original_stdout = sys.stdout  # Save a reference to the original standard output
@@ -500,6 +496,6 @@ class ConfigTab(QWidget):
                 self, "Conversion Error", "An error occurred during mesh generation. Please check the file and parameters.")
             return
         else:
-            self.file_path = output_file
+            self.mesh_file = output_file
             QMessageBox.information(
-                self, "Conversion Completed", f"Mesh generated: {self.file_path}")
+                self, "Conversion Completed", f"Mesh generated: {self.mesh_file}")
