@@ -84,6 +84,9 @@ private:
      * `BAD_TIME_STEP` constant (=-10.0) if count contains not only digits.
      * `BAD_THREAD_COUNT` constant (=-11.0) if count contains not only digits.
      * `BAD_PARTICLE_COUNT` constant (=-12.0) if count contains not only digits.
+     * `JSON_BAD_PARAM` constant (=-13.0) if some parameter failed to assign to the config.
+     * `JSON_BAD_PARSE` constant (=-14.0) if JSON failed to parse the configuration file.
+     * `BAD_MSHFILE` constant (=-15.0) if mesh file not specified or doesn't exist in specified path.
      */
     double getConfigData(std::string_view config);
 

@@ -1,26 +1,17 @@
 #include <fstream>
 #include <iostream>
+#include <nlohmann/json.hpp>
 #include <sstream>
 #include <string>
 
 #include "../include/Geometry/Mesh.hpp"
 #include "../include/Utilities/ConfigParser.hpp"
 
+using json = nlohmann::json;
+
 void ConfigParser::clearConfig()
 {
-    m_config.particles_count = 0ul;
-    m_config.num_threads = 0u;
-    m_config.time_step = 0.0;
-    m_config.simtime = 0.0;
-    m_config.temperature = 0.0;
-    m_config.pressure = 0.0;
-    m_config.volume = 0.0;
-    m_config.energy = 0.0;
-    m_config.projective = Unknown;
-    m_config.gas = Unknown;
-    m_config.mshfilename.clear();
-    m_config.model.clear();
-
+    m_config = config_data_t{};
     m_isValid = false;
 }
 
@@ -33,85 +24,57 @@ double ConfigParser::getConfigData(std::string_view config)
     if (ifs.bad())
         return BAD_FILE;
 
-    std::string line;
-    while (std::getline(ifs, line))
+    json configJson;
+    try
     {
-        std::istringstream iss(line);
-        std::string key;
-        if (std::getline(iss, key, ':'))
-        {
-            std::string value;
-            std::getline(iss, value);
-
-            if (key == "Count")
-            {
-                std::istringstream tmp_iss(value);
-                if (!(tmp_iss >> m_config.particles_count))
-                    return BAD_PARTICLE_COUNT;
-            }
-            else if (key == "Threads")
-            {
-                std::istringstream tmp_iss(value);
-                if (!(tmp_iss >> m_config.num_threads))
-                    return BAD_THREAD_COUNT;
-            }
-            else if (key == "Time Step")
-            {
-                std::istringstream tmp_iss(value);
-                if (!(tmp_iss >> m_config.time_step))
-                    return BAD_TIME_STEP;
-            }
-            else if (key == "Simulation Time")
-            {
-                std::istringstream tmp_iss(value);
-                if (!(tmp_iss >> m_config.simtime))
-                    return BAD_SIMTIME;
-            }
-            else if (key == "T")
-            {
-                std::istringstream tmp_iss(value);
-                if (!(tmp_iss >> m_config.temperature))
-                    return BAD_TEMPERATURE;
-            }
-            else if (key == "P")
-            {
-                std::istringstream tmp_iss(value);
-                if (!(tmp_iss >> m_config.pressure))
-                    return BAD_PRESSURE;
-            }
-            else if (key == "V")
-            {
-                std::istringstream tmp_iss(value);
-                if (!(tmp_iss >> m_config.volume))
-                {
-                    // Stripping first whitespace
-                    m_config.mshfilename = value.substr(1ul);
-                    m_config.volume = Mesh::getVolumeFromMesh(m_config.mshfilename);
-                }
-            }
-            else if (key == "Particles")
-            {
-                size_t whitespace_pos{value.find_last_of(' ')};
-                if (whitespace_pos == std::string::npos)
-                    return BAD_PARTICLES_FORMAT;
-
-                // Starting from 1 because 0 is whitespace
-                m_config.projective = util::getParticleTypeFromStrRepresentation(value.substr(1ul, whitespace_pos - 1ul));
-                m_config.gas = util::getParticleTypeFromStrRepresentation(value.substr(whitespace_pos + 1ul));
-            }
-            else if (key == "Energy")
-            {
-                std::istringstream tmp_iss(value);
-                if (!(tmp_iss >> m_config.energy))
-                    return BAD_ENERGY;
-            }
-            else if (key == "Model")
-            {
-                m_config.model = value.substr(1ul);
-            }
-        }
+        ifs >> configJson;
+    }
+    catch (json::exception const &e)
+    {
+        std::cerr << "Error parsing config JSON: " << e.what() << std::endl;
+        return JSON_BAD_PARSE;
     }
 
+    try
+    {
+        m_config.mshfilename = configJson.at("Mesh File").get<std::string>();
+        m_config.particles_count = configJson.at("Count").get<size_t>();
+        m_config.num_threads = configJson.at("Threads").get<unsigned int>();
+        m_config.time_step = configJson.at("Time Step").get<double>();
+        m_config.simtime = configJson.at("Simulation Time").get<double>();
+        m_config.temperature = configJson.at("T").get<double>();
+        m_config.pressure = configJson.at("P").get<double>();
+        m_config.volume = configJson.at("V").get<double>();
+
+        // String that needs special handling
+        std::string projective(configJson.at("Particles").at(0)),
+            gas(configJson.at("Particles").at(1));
+        m_config.projective = util::getParticleTypeFromStrRepresentation(projective);
+        m_config.gas = util::getParticleTypeFromStrRepresentation(gas);
+
+        m_config.energy = configJson.at("Energy").get<double>();
+        m_config.model = configJson.at("Model").get<std::string>();
+    }
+    catch (json::exception const &e)
+    {
+        std::cerr << "Error parsing config JSON: " << e.what() << std::endl;
+        return JSON_BAD_PARAM;
+    }
+    catch (std::exception const &e)
+    {
+        std::cerr << "General error: " << e.what() << std::endl;
+        return JSON_BAD_PARAM;
+    }
+    catch (...)
+    {
+        std::cerr << "Smth wrong when assign data from the config\n";
+        return EXIT_FAILURE;
+    }
+
+    m_isValid = true;
+
+    if(m_config.mshfilename.empty() || !util::exists(m_config.mshfilename))
+        return BAD_MSHFILE;
     if (m_config.particles_count == 0ul)
         return BAD_PARTICLE_COUNT;
     if (m_config.num_threads == 0)
@@ -122,7 +85,7 @@ double ConfigParser::getConfigData(std::string_view config)
         return BAD_SIMTIME;
     if (m_config.temperature <= 0.0)
         return BAD_TEMPERATURE;
-    if (m_config.pressure <= 0.0)
+    if (m_config.pressure < 0.0)
         return BAD_PRESSURE;
     if (m_config.volume <= 0.0)
         return BAD_VOLUME;
