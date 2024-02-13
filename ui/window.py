@@ -5,6 +5,8 @@ from PyQt5.QtWidgets import (
 )
 from sys import exit
 from time import time
+from json import dump
+from PyQt5.QtCore import Qt
 from subprocess import run
 from config_tab import ConfigTab
 from results_tab import ResultsTab
@@ -76,7 +78,7 @@ class WindowApp(QMainWindow):
             options = QFileDialog.Options()
             options |= QFileDialog.DontUseNativeDialog
             self.config_tab.config_file_path, _ = QFileDialog.getOpenFileName(
-                self, "Select Configuration File", "", "Configuration Files (*.txt);;All Files (*)", options=options)
+                self, "Select Configuration File", "", "JSON Files (*.json);;All Files (*)", options=options)
 
             # If user cancels or selects no file
             if not self.config_tab.config_file_path:
@@ -87,13 +89,16 @@ class WindowApp(QMainWindow):
         # Disable UI components
         self.set_ui_enabled(False)
 
-        # Rewrite configs
-        with open(self.config_tab.config_file_path, "w") as file:
-            file.write(config_content)
+        # Rewrite configs if they have been changed
+        try:
+            with open(self.config_tab.config_file_path, "w") as file:
+                dump(config_content, file, indent=4)  # Serialize dict to JSON
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Failed to save configuration: {e}")
+            return
         hdf5_filename = self.config_tab.mesh_file.replace(".msh", ".hdf5")
 
-        args = f"{self.config_tab.config_file_path} \
-            {self.config_tab.mesh_file}"
+        args = f"{self.config_tab.config_file_path}"
         self.config_tab.progress_bar.setRange(0, 0)
 
         # Measure execution time
@@ -110,6 +115,14 @@ class WindowApp(QMainWindow):
 
         # Re-enable UI components
         self.set_ui_enabled(True)
+        
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key_W and event.modifiers() == Qt.ControlModifier:
+            self.close()
+        elif event.key() == Qt.Key_Q and event.modifiers() == Qt.ControlModifier:
+            self.close()
+        else:
+            super().keyPressEvent(event)
 
     def set_ui_enabled(self, enabled):
         """Enable or disable UI components."""

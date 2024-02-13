@@ -7,6 +7,7 @@ import sys
 import gmsh
 from PyQt5 import QtCore
 from PyQt5.QtCore import pyqtSignal
+from json import load, dump, JSONDecodeError
 from multiprocessing import cpu_count
 from platform import platform
 from converter import Converter, is_positive_real_number
@@ -316,23 +317,27 @@ class ConfigTab(QWidget):
                 )
                 return None
 
-            projective_particle = self.projective_input.currentText()
-            gas_particle = self.gas_input.currentText()
-            model = self.model_input.currentText()
-            particles = f"{projective_particle} {gas_particle}"
-            config_content = (
-                f"Count: {self.particles_count}\n"
-                f"Threads: {self.thread_count}\n"
-                f"Time Step: {self.time_step}\n"
-                f"Simulation Time: {self.simulation_time}\n"
-                f"T: {self.temperature}\n"
-                f"P: {self.pressure}\n"
-                f"V: {self.volume}\n"
-                f"Particles: {particles}\n"
-                f"Energy: {self.energy}\n"
-                f"Model: {model}\n"
-            )
-            return config_content
+            try:
+                config = {
+                    "Mesh File": self.mesh_file,
+                    "Count": int(self.particles_count),
+                    "Threads": int(self.thread_count),
+                    "Time Step": float(self.time_step),
+                    "Simulation Time": float(self.simulation_time),
+                    "T": float(self.temperature),
+                    "P": float(self.pressure),
+                    "V": float(self.volume),
+                    "Particles": [
+                        self.projective_input.currentText(),
+                        self.gas_input.currentText()
+                    ],
+                    "Energy": float(self.energy),
+                    "Model": self.model_input.currentText(),
+                }
+            except ValueError as e:
+                QMessageBox.critical(self, "Invalid Input", f"Error in input fields: {e}")
+                return None
+            return config
         else:
             QMessageBox.warning(
                 self, "Warning", "Please upload a .msh file first.")
@@ -342,38 +347,40 @@ class ConfigTab(QWidget):
         options |= QFileDialog.DontUseNativeDialog
         self.config_file_path, _ = QFileDialog.getOpenFileName(
             self, "Select Configuration File", "",
-            "Text Files (*.txt);;Configuration Files (*.config);;All Files (*)", options=options)
+            "JSON (*.json);;All Files (*)", options=options)
 
         if self.config_file_path:  # If a file was selected
             self.read_config_file(self.config_file_path)
         else:
             QMessageBox.warning(
                 self, "No Configuration File Selected", "No configuration file was uploaded.")
+        self.meshFileSelected.emit(self.mesh_file)
 
     def read_config_file(self, config_file_path):
-        # Assuming the configuration file is a simple key-value pair format
-        config = {}
-        with open(config_file_path, 'r') as file:
-            for line in file:
-                # Split the line by colon or equal sign, and strip spaces
-                key, value = [x.strip() for x in line.split(':')]
-                config[key] = value
+        config = str()
+        try:
+            with open(config_file_path, 'r') as file:
+                config = load(file)
+        except FileNotFoundError:
+            QMessageBox.warning(self, "Warning", f"File not found: {config_file_path}")
+        except JSONDecodeError:
+            QMessageBox.warning(self, "Warning", f"Failed to decode JSON from {config_file_path}")
         self.apply_config(config)
 
     def apply_config(self, config):
         try:
-            self.particles_count_input.setText(config.get('Count', ''))
-            self.thread_count_input.setText(config.get('Threads', ''))
-            self.time_step_input.setText(config.get('Time Step', ''))
-            self.simulation_time_input.setText(
-                config.get('Simulation Time', ''))
-            self.temperature_input.setText(config.get('T', ''))
-            self.pressure_input.setText(config.get('P', ''))
-            self.volume_input.setText(config.get('V', ''))
-            self.energy_input.setText(config.get('Energy', ''))
+            self.mesh_file = config.get('Mesh File', '')
+            self.particles_count_input.setText(str(config.get('Count', '')))
+            self.thread_count_input.setText(str(config.get('Threads', '')))
+            self.time_step_input.setText(str(config.get('Time Step', '')))
+            self.simulation_time_input.setText(str(config.get('Simulation Time', '')))
+            self.temperature_input.setText(str(config.get('T', '')))
+            self.pressure_input.setText(str(config.get('P', '')))
+            self.volume_input.setText(str(config.get('V', '')))
+            self.energy_input.setText(str(config.get('Energy', '')))
 
-            particles = config.get('Particles', '').split()
-            if len(particles) == 2:
+            particles = config.get('Particles', [])
+            if len(particles) == 2:                
                 projective_text, gas_text = particles
                 projective_index = self.projective_input.findText(
                     projective_text, QtCore.Qt.MatchFixedString)
@@ -401,9 +408,10 @@ class ConfigTab(QWidget):
 
     def save_config_to_file(self):
         config_content = self.validate_input()
-        if config_content is None:
+        if not config_content:
             QMessageBox.critical(
-                self, "Error", f"Failed to save configuration: {e}")
+                self, "Error", f"Failed to save configuration")
+            return
 
         # Ask the user where to save the file
         options = QFileDialog.Options()
@@ -412,55 +420,60 @@ class ConfigTab(QWidget):
             self,
             "Save Configuration",
             "",  # Start directory
-            "All Files (*)",
+            "JSON (*.json)",
             options=options,
         )
-
-        # Write the configuration content to the file
-        try:
-            with open(config_file_path, "w") as file:
-                file.write(config_content)
-            QMessageBox.information(
-                self, "Success", f"Configuration saved to {config_file_path}"
-            )
-        except Exception as e:
-            QMessageBox.critical(
-                self, "Error", f"Failed to save configuration: {e}")
+        
+        if config_file_path:
+            try:
+                with open(config_file_path, "w") as file:
+                    dump(config_content, file, indent=4)  # Serialize dict to JSON
+                QMessageBox.information(self, "Success", f"Configuration saved to {config_file_path}")
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"Failed to save configuration: {e}")
 
     def upload_mesh_file(self):
-        # Open a file dialog when the button is clicked and filter for .msh files
-        options = QFileDialog.Options()
-        options |= QFileDialog.DontUseNativeDialog
-        fileName, _ = QFileDialog.getOpenFileName(
-            self,
-            "Select Mesh File",
-            "",
-            "Mesh Files (*.msh);;Step Files(*.stp);;All Files (*)",
-            options=options,
-        )
-        if fileName:
-            self.mesh_file = fileName
-            self.meshFileSelected.emit(self.mesh_file)
-            QMessageBox.information(
-                self, "Mesh File Selected", f"File: {self.mesh_file}"
-            )
+        if self.mesh_file:
+            reply = QMessageBox.question(self, 'Mesh File', 
+                                        f"Mesh file {self.mesh_file} is already chosen. Do you like to rechoose it?",
+                                        QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
 
-        if fileName.endswith('.stp'):
-            # Show dialog for user input
-            dialog = MeshDialog(self)
-            if dialog.exec_():
-                mesh_size, mesh_dim = dialog.get_values()
-                try:
-                    mesh_size = float(mesh_size)
-                    mesh_dim = int(mesh_dim)
-                    if mesh_dim not in [2, 3]:
-                        raise ValueError("Mesh dimensions must be 2 or 3.")
-                    self.convert_stp_to_msh(fileName, mesh_size, mesh_dim)
-                except ValueError as e:
-                    QMessageBox.warning(self, "Invalid Input", str(e))
-                    return
-        else:
-            self.mesh_file = fileName
+            if reply == QMessageBox.Yes:
+                # Open a file dialog when the button is clicked and filter for .msh files
+                options = QFileDialog.Options()
+                options |= QFileDialog.DontUseNativeDialog
+                fileName, _ = QFileDialog.getOpenFileName(
+                    self,
+                    "Select Mesh File",
+                    "",
+                    "Mesh Files (*.msh);;Step Files(*.stp);;All Files (*)",
+                    options=options,
+                )
+                if fileName:
+                    self.mesh_file = fileName
+                    self.meshFileSelected.emit(self.mesh_file)
+                    QMessageBox.information(
+                        self, "Mesh File Selected", f"File: {self.mesh_file}"
+                    )
+
+                if fileName.endswith('.stp'):
+                    # Show dialog for user input
+                    dialog = MeshDialog(self)
+                    if dialog.exec_():
+                        mesh_size, mesh_dim = dialog.get_values()
+                        try:
+                            mesh_size = float(mesh_size)
+                            mesh_dim = int(mesh_dim)
+                            if mesh_dim not in [2, 3]:
+                                raise ValueError("Mesh dimensions must be 2 or 3.")
+                            self.convert_stp_to_msh(fileName, mesh_size, mesh_dim)
+                        except ValueError as e:
+                            QMessageBox.warning(self, "Invalid Input", str(e))
+                            return
+                else:
+                    self.mesh_file = fileName
+            else:
+                pass
 
     def convert_stp_to_msh(self, file_path, mesh_size, mesh_dim):
         original_stdout = sys.stdout  # Save a reference to the original standard output
