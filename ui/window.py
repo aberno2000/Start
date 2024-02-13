@@ -8,7 +8,7 @@ from time import time
 from subprocess import run
 from config_tab import ConfigTab
 from results_tab import ResultsTab
-from mesh_tab import MeshTab
+from gedit_tab import GraphicalEditorTab
 
 
 def compile_cpp():
@@ -30,7 +30,7 @@ class WindowApp(QMainWindow):
         self.tab_widget = QTabWidget()
         self.results_tab = ResultsTab()
         self.config_tab = ConfigTab()
-        self.mesh_tab = MeshTab(self.config_tab)
+        self.mesh_tab = GraphicalEditorTab(self.config_tab)
 
         # Connecting signal to detect the selection of mesh file
         self.config_tab.meshFileSelected.connect(self.mesh_tab.set_mesh_file)
@@ -93,7 +93,7 @@ class WindowApp(QMainWindow):
         hdf5_filename = self.config_tab.mesh_file.replace(".msh", ".hdf5")
 
         args = f"{self.config_tab.config_file_path} \
-        {self.config_tab.mesh_file}"
+            {self.config_tab.mesh_file}"
         self.config_tab.progress_bar.setRange(0, 0)
 
         # Measure execution time
