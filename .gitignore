@@ -49,4 +49,5 @@ test
 
 # Configs
 *.config
-config.txt
+*.cfg
+config*.json
