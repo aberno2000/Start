@@ -58,16 +58,18 @@ void checkRestrictions(double time_step, size_t particles_count, std::string_vie
 
 int main(int argc, char *argv[])
 {
-    if (argc != 3)
+    if (argc != 2)
     {
-        std::cerr << std::format("Usage: {} <config_file> <mesh_filename.msh>\n", argv[0]);
+        std::cerr << std::format("Usage: {} <config_file>\n", argv[0]);
         return EXIT_FAILURE;
     }
 
-    std::string configFilename(argv[1]),
-        mshfilename(argv[2]),
-        hdf5filename(mshfilename.substr(0, mshfilename.find(".")) + ".hdf5");
+    std::string configFilename(argv[1]);
     ConfigParser configParser(configFilename);
+
+    std::string mshfilename(configParser.getMeshFilename()),
+        hdf5filename(mshfilename.substr(0, mshfilename.find(".")) + ".hdf5");
+
     checkRestrictions(configParser.getTimeStep(), configParser.getParticlesCount(), configFilename);
     simulateMovement(configParser.getParticlesCount(), configParser.getTimeStep(),
                      configParser.getSimulationTime(), mshfilename, hdf5filename,
