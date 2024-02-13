@@ -1,6 +1,6 @@
 from PyQt5.QtWidgets import (
-    QMainWindow, QTabWidget, QPushButton,
-    QVBoxLayout, QHBoxLayout, QWidget,
+    QMainWindow, QTabWidget,
+    QVBoxLayout, QWidget,
     QMessageBox, QFileDialog,
 )
 from sys import exit
@@ -39,35 +39,50 @@ class WindowApp(QMainWindow):
 
         # Setup Tabs
         self.setup_tabs()
+        
+        # Setup menu bar
+        self.setup_menu_bar()
 
         # Set the central widget
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         self.layout = QVBoxLayout(central_widget)
         self.layout.addWidget(self.tab_widget)
-        self.setup_buttons()
+    
+    def setup_menu_bar(self):
+        menu_bar = self.menuBar()
+
+        # File Menu
+        file_menu = menu_bar.addMenu('&File')
+        # file_menu.addAction('Open', self.open_file)
+        # file_menu.addAction('Save', self.save_file)
+        file_menu.addSeparator()
+        file_menu.addAction('Exit', self.close)
+
+        # Edit Menu
+        edit_menu = menu_bar.addMenu('&Edit')
+        # TODO: Add actions for Edit menu...
+
+        # Configurations Menu
+        configurations_menu = menu_bar.addMenu('&Configurations')
+        configurations_menu.addAction('Upload config', self.config_tab.upload_config)
+        configurations_menu.addAction('Save config', self.config_tab.save_config_to_file)
+        configurations_menu.addSeparator()
+        configurations_menu.addAction('Upload mesh', self.config_tab.ask_to_upload_mesh_file)
+
+        # Solution Menu
+        solution_menu = menu_bar.addMenu('&Simulation')
+        solution_menu.addAction('Start', self.run_simulation)
+        solution_menu.addAction('Stop', self.stop_simulation)
+
+        # Help Menu
+        help_menu = menu_bar.addMenu('&Help')
+        help_menu.addAction('About', self.show_help)
 
     def setup_tabs(self):
         self.tab_widget.addTab(self.mesh_tab, "Mesh")
         self.tab_widget.addTab(self.results_tab, "Results")
         self.tab_widget.addTab(self.config_tab, "Config")
-
-    def setup_buttons(self):
-        buttons_layout = QHBoxLayout()
-
-        self.run_button = QPushButton("Run")
-        self.run_button.clicked.connect(self.run_simulation)
-        buttons_layout.addWidget(self.run_button)
-
-        self.help_button = QPushButton("Help")
-        self.help_button.clicked.connect(self.show_help)
-        buttons_layout.addWidget(self.help_button)
-
-        self.exit_button = QPushButton("Exit")
-        self.exit_button.clicked.connect(self.exit)
-        buttons_layout.addWidget(self.exit_button)
-
-        self.layout.addLayout(buttons_layout)
 
     def run_simulation(self):
         config_content = self.config_tab.validate_input()
@@ -115,6 +130,9 @@ class WindowApp(QMainWindow):
 
         # Re-enable UI components
         self.set_ui_enabled(True)
+        
+    def stop_simulation(self):
+        pass
         
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_W and event.modifiers() == Qt.ControlModifier:

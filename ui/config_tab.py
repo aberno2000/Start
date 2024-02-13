@@ -37,29 +37,27 @@ class ConfigTab(QWidget):
         self.mesh_file = ""
         self.config_file_path = ""
 
-        self.buttons_layout = QHBoxLayout()
-        self.upload_mesh_button = QPushButton("Upload Mesh File")
-        self.upload_mesh_button.clicked.connect(self.upload_mesh_file)
-        self.buttons_layout.addWidget(self.upload_mesh_button)
-
-        self.upload_config_button = QPushButton("Upload Config")
-        self.upload_config_button.clicked.connect(self.upload_config)
-        self.buttons_layout.addWidget(self.upload_config_button)
-
-        self.save_config_button = QPushButton("Save Config")
-        self.save_config_button.clicked.connect(self.save_config_to_file)
-        self.buttons_layout.addWidget(self.save_config_button)
-
         self.progress_bar = QProgressBar(self)
         self.layout.addWidget(self.progress_bar)
-        self.layout.addLayout(self.buttons_layout)
 
     def setup_ui(self):
+        self.setup_mesh_group()
         self.setup_particles_group()
         self.setup_scattering_model_group()
         self.setup_simulation_parameters_group()
+        
+    def setup_mesh_group(self):
+        self.mesh_file_label = QLabel("No file selected")
+        self.mesh_file_label.setWordWrap(True)
+        
+        button_layout = QVBoxLayout()
+        self.upload_mesh_button = QPushButton("Upload Mesh File")
+        self.upload_mesh_button.clicked.connect(self.upload_mesh_file)
+        button_layout.addWidget(self.upload_mesh_button)
+        button_layout.addWidget(self.mesh_file_label)
+        self.layout.addLayout(button_layout)
 
-    def setup_particles_group(self):
+    def setup_particles_group(self):      
         particles_group_box = QGroupBox("Particles")
         particles_layout = QFormLayout()
 
@@ -342,7 +340,7 @@ class ConfigTab(QWidget):
             QMessageBox.warning(
                 self, "Warning", "Please upload a .msh file first.")
 
-    def upload_config(self):
+    def upload_config(self):                
         options = QFileDialog.Options()
         options |= QFileDialog.DontUseNativeDialog
         self.config_file_path, _ = QFileDialog.getOpenFileName(
@@ -370,6 +368,7 @@ class ConfigTab(QWidget):
     def apply_config(self, config):
         try:
             self.mesh_file = config.get('Mesh File', '')
+            self.mesh_file_label.setText(f"Selected: {self.mesh_file}")
             self.particles_count_input.setText(str(config.get('Count', '')))
             self.thread_count_input.setText(str(config.get('Threads', '')))
             self.time_step_input.setText(str(config.get('Time Step', '')))
@@ -431,49 +430,54 @@ class ConfigTab(QWidget):
                 QMessageBox.information(self, "Success", f"Configuration saved to {config_file_path}")
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Failed to save configuration: {e}")
-
+                
     def upload_mesh_file(self):
+        # Open a file dialog when the button is clicked and filter for .msh files
+        options = QFileDialog.Options()
+        options |= QFileDialog.DontUseNativeDialog
+        fileName, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select Mesh File",
+            "",
+            "Mesh Files (*.msh);;Step Files(*.stp);;All Files (*)",
+            options=options,
+            )
+        if fileName:
+            self.mesh_file = fileName
+            self.mesh_file_label.setText(f"Selected: {fileName}")
+            self.meshFileSelected.emit(self.mesh_file)
+            QMessageBox.information(
+                self, "Mesh File Selected", f"File: {self.mesh_file}"
+            )
+
+        if fileName.endswith('.stp'):
+            # Show dialog for user input
+            dialog = MeshDialog(self)
+            if dialog.exec_():
+                mesh_size, mesh_dim = dialog.get_values()
+                try:
+                    mesh_size = float(mesh_size)
+                    mesh_dim = int(mesh_dim)
+                    if mesh_dim not in [2, 3]:
+                        raise ValueError("Mesh dimensions must be 2 or 3.")
+                    self.convert_stp_to_msh(fileName, mesh_size, mesh_dim)
+                except ValueError as e:
+                    QMessageBox.warning(self, "Invalid Input", str(e))
+                    return
+        else:
+            self.mesh_file = fileName
+
+    def ask_to_upload_mesh_file(self):
         if self.mesh_file:
             reply = QMessageBox.question(self, 'Mesh File', 
                                         f"Mesh file {self.mesh_file} is already chosen. Do you like to rechoose it?",
                                         QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
-
             if reply == QMessageBox.Yes:
-                # Open a file dialog when the button is clicked and filter for .msh files
-                options = QFileDialog.Options()
-                options |= QFileDialog.DontUseNativeDialog
-                fileName, _ = QFileDialog.getOpenFileName(
-                    self,
-                    "Select Mesh File",
-                    "",
-                    "Mesh Files (*.msh);;Step Files(*.stp);;All Files (*)",
-                    options=options,
-                )
-                if fileName:
-                    self.mesh_file = fileName
-                    self.meshFileSelected.emit(self.mesh_file)
-                    QMessageBox.information(
-                        self, "Mesh File Selected", f"File: {self.mesh_file}"
-                    )
-
-                if fileName.endswith('.stp'):
-                    # Show dialog for user input
-                    dialog = MeshDialog(self)
-                    if dialog.exec_():
-                        mesh_size, mesh_dim = dialog.get_values()
-                        try:
-                            mesh_size = float(mesh_size)
-                            mesh_dim = int(mesh_dim)
-                            if mesh_dim not in [2, 3]:
-                                raise ValueError("Mesh dimensions must be 2 or 3.")
-                            self.convert_stp_to_msh(fileName, mesh_size, mesh_dim)
-                        except ValueError as e:
-                            QMessageBox.warning(self, "Invalid Input", str(e))
-                            return
-                else:
-                    self.mesh_file = fileName
+                self.upload_mesh_file()
             else:
                 pass
+        else:
+            self.upload_mesh_file()
 
     def convert_stp_to_msh(self, file_path, mesh_size, mesh_dim):
         original_stdout = sys.stdout  # Save a reference to the original standard output

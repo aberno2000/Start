@@ -1,6 +1,6 @@
 import gmsh
 from PyQt5.QtWidgets import (
-    QVBoxLayout, QWidget, QSplitter, QTreeView, QFrame
+    QVBoxLayout, QWidget, QSplitter, QTreeView, QFrame, QMessageBox
 )
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QStandardItem, QStandardItemModel
@@ -48,8 +48,11 @@ class GraphicalEditorTab(QWidget):
         self.setLayout(self.layout)
     
     def set_mesh_file(self, file_path):
-        self.mesh_file = file_path
-        self.initialize_tree()
+        if file_path:
+            self.mesh_file = file_path
+            self.initialize_tree()
+        else:
+            return
 
     def initialize_tree(self):
         self.model = QStandardItemModel()
