@@ -1,11 +1,17 @@
+#include <filesystem>
 #include <stdexcept>
 
 #include "../include/DataHandling/HDF5Handler.hpp"
 
-HDF5Handler::HDF5Handler(std::string_view filename) : m_file_id(H5Fcreate(filename.data(),
-                                                                          H5F_ACC_TRUNC,
-                                                                          H5P_DEFAULT,
-                                                                          H5P_DEFAULT)) {}
+HDF5Handler::HDF5Handler(std::string_view filename)
+{
+    if (std::filesystem::exists(filename))
+        std::filesystem::remove(filename);
+
+    m_file_id = H5Fcreate(filename.data(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+    if (m_file_id < 0)
+        throw std::runtime_error("Failed to create HDF5 file: " + std::string(filename));
+}
 
 HDF5Handler::~HDF5Handler() { H5Fclose(m_file_id); }
 
