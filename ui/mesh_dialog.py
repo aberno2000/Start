@@ -1,6 +1,4 @@
 import io
-import sys
-
 from PyQt5.QtWidgets import QDialog, QLineEdit, QPushButton, QVBoxLayout, QLabel
 
 

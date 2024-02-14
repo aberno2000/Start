@@ -1,7 +1,6 @@
 import h5py
 import numpy as np
 from re import compile
-from os.path import isfile, getsize
 
 
 class HDF5Handler:

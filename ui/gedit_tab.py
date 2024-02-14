@@ -108,7 +108,7 @@ class GraphicalEditorTab(QWidget):
 
     def add_mesh_to_treeview(self):
         # Get all triangle elements (type 2 for 3-node triangles in GMSH)
-        elTypes, elTags, nodeTagsPerEl = gmsh.model.mesh.getElements(2)
+        _, elTags, nodeTagsPerEl = gmsh.model.mesh.getElements(2)
         
         nodeTags, nodeCoords, _ = gmsh.model.mesh.getNodes()
         nodeCoords = nodeCoords.reshape(-1, 3)
