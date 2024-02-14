@@ -2,6 +2,7 @@ from PyQt5.QtWidgets import (
     QMainWindow, QTabWidget,
     QVBoxLayout, QWidget,
     QMessageBox, QFileDialog,
+    QProgressBar
 )
 from sys import exit
 from time import time
@@ -43,11 +44,16 @@ class WindowApp(QMainWindow):
         # Setup menu bar
         self.setup_menu_bar()
 
+        self.progressBar = QProgressBar()
+        self.progressBar.setRange(0, 0)
+        self.progressBar.setHidden(True)
+
         # Set the central widget
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
-        self.layout = QVBoxLayout(central_widget)
+        self.layout = QVBoxLayout(central_widget)        
         self.layout.addWidget(self.tab_widget)
+        self.layout.addWidget(self.progressBar)
     
     def setup_menu_bar(self):
         menu_bar = self.menuBar()
@@ -112,22 +118,22 @@ class WindowApp(QMainWindow):
         hdf5_filename = self.config_tab.mesh_file.replace(".msh", ".hdf5")
 
         args = f"{self.config_tab.config_file_path}"
-        self.config_tab.progress_bar.setRange(0, 0)
 
         # Measure execution time
         self.start_time = time()
+        self.progressBar.setHidden(False)
         run_cpp(args)
         end_time = time()
         execution_time = end_time - self.start_time
-        self.config_tab.progress_bar.setRange(0, 1)
-        self.config_tab.progress_bar.setValue(1)
-        QMessageBox.information(self,
-                                "Process Finished",
-                                f"The simulation has completed in {execution_time:.6f}s")
+        self.progressBar.setValue(100)
+        msgbox = QMessageBox.information(self,
+                                        "Process Finished",
+                                        f"The simulation has completed in {execution_time:.6f}s")
         self.results_tab.update_plot(hdf5_filename)
 
         # Re-enable UI components
         self.set_ui_enabled(True)
+        self.progressBar.setHidden(True)
         
     def stop_simulation(self):
         pass

@@ -1,7 +1,7 @@
 from PyQt5.QtWidgets import (
     QVBoxLayout, QHBoxLayout, QWidget, QComboBox,
     QMessageBox, QLabel, QLineEdit, QFormLayout,
-    QGroupBox, QFileDialog, QProgressBar, QPushButton
+    QGroupBox, QFileDialog, QPushButton
 )
 import sys
 import gmsh
@@ -38,9 +38,6 @@ class ConfigTab(QWidget):
         self.setup_ui()
         self.mesh_file = ""
         self.config_file_path = ""
-
-        self.progress_bar = QProgressBar(self)
-        self.layout.addWidget(self.progress_bar)
 
     def setup_ui(self):
         self.setup_mesh_group()
