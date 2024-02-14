@@ -2,6 +2,7 @@
 #include "../include/Utilities/ConfigParser.hpp"
 
 void simulateMovement(size_t particles_count, double dt, double total_time,
+                      ParticleType ptype,
                       std::string_view outfile, std::string_view hdf5filename,
                       unsigned int num_threads = std::thread::hardware_concurrency())
 {
@@ -13,7 +14,7 @@ void simulateMovement(size_t particles_count, double dt, double total_time,
         GMSHVolumeCreator volumeCreator;
         mesh = volumeCreator.getMeshParams(outfile);
     }
-    auto pgs(createParticlesWithVelocities(particles_count, ParticleType::Ar,
+    auto pgs(createParticlesWithVelocities(particles_count, ptype,
                                            -50, -50, -50,
                                            100, 100, 100, -50, -50, -50,
                                            50, 50, 50));
@@ -72,7 +73,7 @@ int main(int argc, char *argv[])
 
     checkRestrictions(configParser.getTimeStep(), configParser.getParticlesCount(), configFilename);
     simulateMovement(configParser.getParticlesCount(), configParser.getTimeStep(),
-                     configParser.getSimulationTime(), mshfilename, hdf5filename,
+                     configParser.getSimulationTime(), configParser.getProjective(), mshfilename, hdf5filename,
                      configParser.getNumThreads());
 
     return EXIT_SUCCESS;
