@@ -5,6 +5,7 @@ from PyQt5.QtWidgets import (
 )
 import sys
 import gmsh
+from os.path import isfile, exists
 from PyQt5 import QtCore
 from PyQt5.QtCore import pyqtSignal
 from json import load, dump, JSONDecodeError
@@ -14,6 +15,7 @@ from converter import Converter, is_positive_real_number
 from mesh_dialog import MeshDialog, CaptureGmshLog
 
 MIN_TIME = 1e-9
+MAX_PRESSURE = 300.0
 
 
 def get_thread_count():
@@ -52,7 +54,7 @@ class ConfigTab(QWidget):
         
         button_layout = QVBoxLayout()
         self.upload_mesh_button = QPushButton("Upload Mesh File")
-        self.upload_mesh_button.clicked.connect(self.upload_mesh_file)
+        self.upload_mesh_button.clicked.connect(self.ask_to_upload_mesh_file)
         button_layout.addWidget(self.upload_mesh_button)
         button_layout.addWidget(self.mesh_file_label)
         self.layout.addLayout(button_layout)
@@ -222,6 +224,7 @@ class ConfigTab(QWidget):
         self.energy_units.currentIndexChanged.connect(
             self.update_converted_values)
 
+
     def update_converted_values(self):
         self.time_step_converted.setText(
             f"{self.converter.to_seconds(self.time_step_input.text(), self.time_step_units.currentText())} s")
@@ -236,109 +239,119 @@ class ConfigTab(QWidget):
         self.energy_converted.setText(
             f"{self.converter.to_electron_volts(self.energy_input.text(), self.energy_units.currentText())} eV")
 
-    def validate_input(self):
-        if self.mesh_file:
-            # Retrieve user input
-            self.thread_count = self.thread_count_input.text()
-            self.particles_count = self.particles_count_input.text()
-            self.time_step = self.converter.to_seconds(
-                self.time_step_input.text(), self.time_step_units.currentText()
-            )
-            self.simulation_time = self.converter.to_seconds(
-                self.simulation_time_input.text(), self.simulation_time_units.currentText()
-            )
-            self.temperature = self.converter.to_kelvin(
-                self.temperature_input.text(), self.temperature_units.currentText()
-            )
-            self.pressure = self.converter.to_pascal(
-                self.pressure_input.text(), self.pressure_units.currentText()
-            )
-            self.volume = self.converter.to_cubic_meters(
-                self.volume_input.text(), self.volume_units.currentText()
-            )
-            self.energy = self.converter.to_electron_volts(
-                self.energy_input.text(), self.energy_units.currentText()
-            )
 
-            if self.time_step > self.simulation_time:
-                QMessageBox.warning(self, "Invalid Time",
-                                    f"Time step can't be greater than total simulation time: {self.time_step} > {self.simulation_time}")
-                return None
+    def check_validity_of_params(self):
+        if not exists(self.mesh_file) or not isfile(self.mesh_file):
+            return
 
-            empty_fields = []
-            if not self.particles_count:
-                empty_fields.append("Particles Count")
-            if not self.time_step:
-                empty_fields.append("Time Step")
-            if not self.simulation_time:
-                empty_fields.append("Simulation Time")
-            if not self.temperature:
-                empty_fields.append("Temperature")
-            if not self.pressure:
-                empty_fields.append("Pressure")
-            if not self.volume:
-                empty_fields.append("Volume")
-            if not self.energy:
-                empty_fields.append("Energy")
-
-            # If there are any empty fields, alert the user and abort the save
-            if empty_fields:
-                QMessageBox.warning(
-                    self,
-                    "Incomplete Configuration",
-                    "Please fill in the following fields before saving:\n"
-                    + "\n".join(empty_fields),
-                )
-                return None
-
-            if not self.thread_count or not self.thread_count.isdigit() or int(self.thread_count) > get_thread_count() or int(self.thread_count) < 1:
-                QMessageBox.warning(
-                    self,
-                    "Warning",
-                    "Please enter valid numeric values for count of threads.",
-                )
-                return None
-
-            # Validate input
-            if not (
-                self.particles_count.isdigit()
-                and is_positive_real_number(self.time_step)
-                and is_positive_real_number(self.simulation_time)
-                and self.time_step >= MIN_TIME  # Time limitations
-                and self.simulation_time >= MIN_TIME
-            ):
-                QMessageBox.warning(
-                    self,
-                    "Warning",
-                    f"Please enter valid numeric values for particles count, time step, and time interval.\n"
-                    f"Time can't be less than {MIN_TIME}.",
-                )
-                return None
-
-            try:
-                config = {
-                    "Mesh File": self.mesh_file,
-                    "Count": int(self.particles_count),
-                    "Threads": int(self.thread_count),
-                    "Time Step": float(self.time_step),
-                    "Simulation Time": float(self.simulation_time),
-                    "T": float(self.temperature),
-                    "P": float(self.pressure),
-                    "V": float(self.volume),
-                    "Particles": [
-                        self.projective_input.currentText(),
-                        self.gas_input.currentText()
-                    ],
-                    "Energy": float(self.energy),
-                    "Model": self.model_input.currentText(),
-                }
-            except ValueError as e:
-                QMessageBox.critical(self, "Invalid Input", f"Error in input fields: {e}")
-                return None
-            return config
-        else:
+        if not self.thread_count or \
+            int(self.thread_count) > get_thread_count() or \
+            int(self.thread_count) < 1:
+            QMessageBox.warning(self, "Invalid thread count",
+                                f"Thread count can't be {self.thread_count} (less or equal 0). Your system has {get_thread_count()} threads.")
+            return None
+    
+        if not str(self.particles_count) or int(self.particles_count) <= 0:
+            QMessageBox.warning(self, "Invalid particle count", f"It doesn't make sense to run the simulation with {self.particles_count} particles.")
+            return None
+        
+        if not (
+            is_positive_real_number(self.time_step)
+            and is_positive_real_number(self.simulation_time)
+            and self.time_step >= MIN_TIME  # Time limitations
+            and self.simulation_time >= MIN_TIME
+        ):
             QMessageBox.warning(
-                self, "Warning", "Please upload a .msh file first.")
+                self,
+                "Warning",
+                f"Please enter valid numeric values for particles count, time step, and time interval.\n"
+                f"Time can't be less than {MIN_TIME}.",
+            )
+            return None
+        
+        if not is_positive_real_number(self.pressure):
+            QMessageBox.warning(self, "Warning", f"Pressure can't be less than 0. Your value is {self.pressure}.")
+            return None
+        if self.pressure > MAX_PRESSURE:
+            QMessageBox.warning(self, "Warning", f"It might be overhead to start the simulation with pressure value > {MAX_PRESSURE} Pa. Your value is {self.pressure}")
+
+        try:
+            config = {
+                "Mesh File": self.mesh_file,
+                "Count": int(self.particles_count),
+                "Threads": int(self.thread_count),
+                "Time Step": float(self.time_step),
+                "Simulation Time": float(self.simulation_time),
+                "T": float(self.temperature),
+                "P": float(self.pressure),
+                "V": float(self.volume),
+                "Particles": [
+                    self.projective_input.currentText(),
+                    self.gas_input.currentText()
+                ],
+                "Energy": float(self.energy),
+                "Model": self.model_input.currentText(),
+            }
+        except ValueError as e:
+            QMessageBox.critical(self, "Invalid Input", f"Error in input fields: {e}")
+            return None
+        return config
+        
+
+    def validate_input(self):     
+        self.thread_count = self.thread_count_input.text()
+        self.particles_count = self.particles_count_input.text()
+        self.time_step = self.converter.to_seconds(
+            self.time_step_input.text(), self.time_step_units.currentText()
+        )
+        self.simulation_time = self.converter.to_seconds(
+            self.simulation_time_input.text(), self.simulation_time_units.currentText()
+        )
+        self.temperature = self.converter.to_kelvin(
+            self.temperature_input.text(), self.temperature_units.currentText()
+        )
+        self.pressure = self.converter.to_pascal(
+            self.pressure_input.text(), self.pressure_units.currentText()
+        )
+        self.volume = self.converter.to_cubic_meters(
+            self.volume_input.text(), self.volume_units.currentText()
+        )
+        self.energy = self.converter.to_electron_volts(
+            self.energy_input.text(), self.energy_units.currentText()
+        )
+
+        if self.time_step > self.simulation_time:
+            QMessageBox.warning(self, "Invalid Time",
+                                f"Time step can't be greater than total simulation time: {self.time_step} > {self.simulation_time}")
+            return None
+
+        empty_fields = []
+        if not self.particles_count or int(self.particles_count) <= 0:
+            empty_fields.append("Particles Count")
+        if not self.time_step:
+            empty_fields.append("Time Step")
+        if not self.simulation_time:
+            empty_fields.append("Simulation Time")
+        if not self.temperature:
+            empty_fields.append("Temperature")
+        if not self.pressure:
+            empty_fields.append("Pressure")
+        if not self.volume:
+            empty_fields.append("Volume")
+        if not self.energy:
+            empty_fields.append("Energy")
+
+        # If there are any empty fields, alert the user and abort the save
+        if empty_fields:
+            QMessageBox.warning(
+                self,
+                "Incomplete Configuration",
+                "Please fill in the following fields before saving:\n"
+                + "\n".join(empty_fields),
+            )
+            return None
+
+        return self.check_validity_of_params()
 
     def upload_config(self):                
         options = QFileDialog.Options()
@@ -348,11 +361,13 @@ class ConfigTab(QWidget):
             "JSON (*.json);;All Files (*)", options=options)
 
         if self.config_file_path:  # If a file was selected
-            self.read_config_file(self.config_file_path)
+            if self.read_config_file(self.config_file_path) == 1:
+                return
+            self.meshFileSelected.emit(self.mesh_file)
         else:
             QMessageBox.warning(
                 self, "No Configuration File Selected", "No configuration file was uploaded.")
-        self.meshFileSelected.emit(self.mesh_file)
+            return
 
     def read_config_file(self, config_file_path):
         config = str()
@@ -361,13 +376,31 @@ class ConfigTab(QWidget):
                 config = load(file)
         except FileNotFoundError:
             QMessageBox.warning(self, "Warning", f"File not found: {config_file_path}")
+            return None
         except JSONDecodeError:
             QMessageBox.warning(self, "Warning", f"Failed to decode JSON from {config_file_path}")
-        self.apply_config(config)
+            return None
+        if not self.apply_config(config):
+            return None
+        else:
+            return 1
 
     def apply_config(self, config):
         try:
             self.mesh_file = config.get('Mesh File', '')
+            self.particles_count = int(config.get('Count', ''))
+            self.thread_count = int(config.get('Threads', ''))
+            self.time_step = float(config.get('Time Step', ''))
+            self.simulation_time = float(config.get('Simulation Time', ''))
+            self.temperature = float(config.get('T', ''))
+            self.pressure = float(config.get('P', ''))
+            self.volume = float(config.get('V', ''))
+            self.energy = float(config.get('Energy', ''))
+            
+            config = self.check_validity_of_params()
+            if not config:
+                return None
+            
             self.mesh_file_label.setText(f"Selected: {self.mesh_file}")
             self.particles_count_input.setText(str(config.get('Count', '')))
             self.thread_count_input.setText(str(config.get('Threads', '')))
@@ -404,6 +437,7 @@ class ConfigTab(QWidget):
         except Exception as e:
             QMessageBox.critical(self, "Error Applying Configuration",
                                  f"An error occurred while applying the configuration: {e}")
+            return None
 
     def save_config_to_file(self):
         config_content = self.validate_input()

@@ -67,8 +67,6 @@ class WindowApp(QMainWindow):
         configurations_menu = menu_bar.addMenu('&Configurations')
         configurations_menu.addAction('Upload config', self.config_tab.upload_config)
         configurations_menu.addAction('Save config', self.config_tab.save_config_to_file)
-        configurations_menu.addSeparator()
-        configurations_menu.addAction('Upload mesh', self.config_tab.ask_to_upload_mesh_file)
 
         # Solution Menu
         solution_menu = menu_bar.addMenu('&Simulation')

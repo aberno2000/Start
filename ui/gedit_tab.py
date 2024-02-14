@@ -5,6 +5,7 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QStandardItem, QStandardItemModel
 from config_tab import ConfigTab
+from os.path import isfile, exists, basename
 
 elemTypeToNodeCount = {
     1: 2,    # 2-node line
@@ -47,16 +48,17 @@ class GraphicalEditorTab(QWidget):
         self.layout.addWidget(self.splitter)
         self.setLayout(self.layout)
     
-    def set_mesh_file(self, file_path):
-        if file_path:
+    def set_mesh_file(self, file_path):        
+        if exists(file_path) and isfile(file_path):
             self.mesh_file = file_path
             self.initialize_tree()
         else:
-            return
+            QMessageBox.warning(self, "Warning", f"Unable to open file {file_path}")
+            return None
 
     def initialize_tree(self):
         self.model = QStandardItemModel()
-        self.model.setHorizontalHeaderLabels([self.mesh_file])
+        self.model.setHorizontalHeaderLabels([basename(self.mesh_file)])
         self.rootItem = self.model.invisibleRootItem()
 
         gmsh.initialize()
