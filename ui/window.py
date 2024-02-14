@@ -2,21 +2,41 @@ from PyQt5.QtWidgets import (
     QMainWindow, QTabWidget,
     QVBoxLayout, QWidget,
     QMessageBox, QFileDialog,
-    QProgressBar
+    QProgressBar, QPlainTextEdit, 
+    QDockWidget, QScrollArea,
+    QApplication
 )
 from sys import exit
 from time import time
 from json import dump
-from PyQt5.QtCore import Qt
-from subprocess import run, check_output, CalledProcessError
+from PyQt5.QtCore import Qt, QRect
+from PyQt5.QtGui import QTextCharFormat, QColor, QScreen
+from subprocess import run, check_output, CalledProcessError, Popen, PIPE
 from config_tab import ConfigTab
 from results_tab import ResultsTab
 from gedit_tab import GraphicalEditorTab
 
 
-def run_cpp(args: str) -> None:
-    cmd = ["./main"] + args.split()
-    run(cmd, check=True)
+def insert_colored_text(widget, text, color):
+    """
+    Inserts colored text into a QPlainTextEdit widget.
+
+    Parameters:
+    - widget: QPlainTextEdit, the widget where the text will be inserted.
+    - text: str, the text to insert.
+    - color: str, the name of the color to use for the text.
+    """
+    if not isinstance(widget, QPlainTextEdit):
+        raise ValueError("widget must be a QPlainTextEdit instance")
+    cursor = widget.textCursor()
+    text_format = QTextCharFormat()
+    text_format.setForeground(QColor(color))
+    cursor.mergeCharFormat(text_format)
+    cursor.insertText(text, text_format)
+    cursor.movePosition(cursor.End)
+    widget.setTextCursor(cursor)
+    default_format = QTextCharFormat()
+    cursor.mergeCharFormat(default_format)
 
 
 def kill_processes_by_pattern(pattern):
@@ -36,7 +56,11 @@ class WindowApp(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Particle Collision Simulator")
-        self.setGeometry(100, 100, 1200, 600)
+        
+        # Retrieve the size of the primary screen
+        screen = QApplication.primaryScreen()
+        rect = screen.availableGeometry()
+        self.setGeometry(rect)
 
         # Create tab widget and tabs
         self.tab_widget = QTabWidget()
@@ -56,13 +80,23 @@ class WindowApp(QMainWindow):
         self.progressBar = QProgressBar()
         self.progressBar.setRange(0, 0)
         self.progressBar.setHidden(True)
+        
+        # Set the scroll area
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
 
         # Set the central widget
         central_widget = QWidget()
-        self.setCentralWidget(central_widget)
         self.layout = QVBoxLayout(central_widget)        
         self.layout.addWidget(self.tab_widget)
         self.layout.addWidget(self.progressBar)
+        
+        # Adding central widget to the scroll area
+        scroll_area.setWidget(central_widget)
+        self.setCentralWidget(scroll_area)
+        
+        # Redirecting logs to the console
+        self.setup_log_console()
     
     
     def setup_menu_bar(self):
@@ -126,6 +160,19 @@ class WindowApp(QMainWindow):
         self.tab_widget.addTab(self.results_tab, "Results")
         self.tab_widget.addTab(self.config_tab, "Config")
 
+    
+    def setup_log_console(self):
+        self.log_console = QPlainTextEdit()
+        self.log_console.setReadOnly(True)  # Make the console read-only
+
+        self.log_dock_widget = QDockWidget("Log Console", self)
+        self.log_dock_widget.setWidget(self.log_console)
+        self.log_dock_widget.setAllowedAreas(Qt.BottomDockWidgetArea)
+        self.log_dock_widget.setVisible(True)
+
+        # Add the dock widget to the main window
+        self.addDockWidget(Qt.BottomDockWidgetArea, self.log_dock_widget)
+
 
     def run_simulation(self):
         config_content = self.config_tab.validate_input()
@@ -160,13 +207,15 @@ class WindowApp(QMainWindow):
         # Measure execution time
         self.progressBar.setHidden(False)
         start_time = time()
-        run_cpp(args)
+        self.run_cpp(args)
         self.progressBar.setRange(0, 100)
         self.progressBar.setValue(100)
         exec_time = time() - start_time
         QMessageBox.information(self,
                                 "Process Finished",
                                 f"The simulation has completed in {exec_time:.3f}s")
+        insert_colored_text(self.log_console, '\nSuccessfully: ', 'green')
+        insert_colored_text(self.log_console, f'The simulation has completed in {exec_time:.3f}s', 'dark gray')
         self.results_tab.update_plot(hdf5_filename)
 
         # Re-enable UI components
@@ -175,7 +224,7 @@ class WindowApp(QMainWindow):
         
         
     def stop_simulation(self):
-        print("Stop simulation called")
+        # TODO: Implement
         pass
         
         
@@ -195,6 +244,12 @@ class WindowApp(QMainWindow):
             self.config_tab.save_config_to_file()
         elif event.modifiers() == Qt.ControlModifier | Qt.ShiftModifier and event.key() == Qt.Key_M:
             self.config_tab.upload_mesh_file()
+        elif event.modifiers() == Qt.ControlModifier and event.key() == Qt.Key_Tab:
+            # Iterating by tabs
+            currentTabIndex = self.tab_widget.currentIndex()
+            totalTabs = self.tab_widget.count()
+            nextTabIndex = (currentTabIndex + 1) % totalTabs
+            self.tab_widget.setCurrentIndex(nextTabIndex)
         elif event.key() == Qt.Key_F1:
             self.show_help()
         else:
@@ -204,6 +259,19 @@ class WindowApp(QMainWindow):
     def set_ui_enabled(self, enabled):
         """Enable or disable UI components."""
         self.setEnabled(enabled)
+        
+    
+    def run_cpp(self, args: str) -> None:
+        cmd = ["./main"] + args.split()
+        process = Popen(cmd, stdout=PIPE, stderr=PIPE)
+        
+        for line in process.stdout:
+            self.log_console.appendPlainText(line.strip().decode('utf-8'))
+            
+        for line in process.stderr:
+            self.log_console.appendPlainText(line.strip().decode('utf-8'))
+        
+        process.wait()
 
 
     def show_help(self):
