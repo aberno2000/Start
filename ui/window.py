@@ -9,15 +9,15 @@ from PyQt5.QtWidgets import (
 from sys import exit
 from time import time
 from json import dump
-from PyQt5.QtCore import Qt, QRect
-from PyQt5.QtGui import QTextCharFormat, QColor, QScreen
-from subprocess import run, check_output, CalledProcessError, Popen, PIPE
+from PyQt5.QtCore import Qt, QProcess
+from PyQt5.QtGui import QTextCharFormat, QColor
+from subprocess import run, check_output, CalledProcessError
 from config_tab import ConfigTab
 from results_tab import ResultsTab
 from gedit_tab import GraphicalEditorTab
 
 
-def insert_colored_text(widget, text, color):
+def insert_colored_text(widget: QPlainTextEdit, text: str, color: str):
     """
     Inserts colored text into a QPlainTextEdit widget.
 
@@ -55,6 +55,11 @@ def kill_processes_by_pattern(pattern):
 class WindowApp(QMainWindow):
     def __init__(self):
         super().__init__()
+        self.process = QProcess(self)
+        self.process.readyReadStandardError.connect(self.read_stderr)
+        self.process.readyReadStandardOutput.connect(self.read_stdout)
+        self.process.finished.connect(self.on_process_finished)
+        
         self.setWindowTitle("Particle Collision Simulator")
         
         # Retrieve the size of the primary screen
@@ -77,9 +82,9 @@ class WindowApp(QMainWindow):
         # Setup menu bar
         self.setup_menu_bar()
 
-        self.progressBar = QProgressBar()
-        self.progressBar.setRange(0, 0)
-        self.progressBar.setHidden(True)
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setRange(0, 0)
+        self.progress_bar.setHidden(True)
         
         # Set the scroll area
         scroll_area = QScrollArea()
@@ -89,7 +94,7 @@ class WindowApp(QMainWindow):
         central_widget = QWidget()
         self.layout = QVBoxLayout(central_widget)        
         self.layout.addWidget(self.tab_widget)
-        self.layout.addWidget(self.progressBar)
+        self.layout.addWidget(self.progress_bar)
         
         # Adding central widget to the scroll area
         scroll_area.setWidget(central_widget)
@@ -97,6 +102,33 @@ class WindowApp(QMainWindow):
         
         # Redirecting logs to the console
         self.setup_log_console()
+        
+    
+    def read_stderr(self):
+        errout = self.process.readAllStandardError().data().decode('utf-8').strip()
+        self.log_console.appendPlainText(errout)
+        
+    
+    def read_stdout(self):
+        out = self.process.readAllStandardOutput().data().decode('utf-8').strip()
+        self.log_console.appendPlainText(out)
+        
+    
+    def on_process_finished(self, exitCode, exitStatus):
+        self.progress_bar.setHidden(True)
+        exec_time = time() - self.start_time
+        
+        if exitStatus == QProcess.NormalExit:
+            self.results_tab.update_plot(self.hdf5_filename)
+            QMessageBox.information(self,
+                                    "Process Finished",
+                                    f"The simulation has completed in {exec_time:.3f}s")
+            insert_colored_text(self.log_console, '\nSuccessfully: ', 'green')
+            insert_colored_text(self.log_console, f'The simulation has completed in {exec_time:.3f}s', 'dark gray')
+        else:
+            QMessageBox.information(self, 
+                                    "Simulation Stopped", 
+                                    f"The simulation has been forcibly stopped with a code {exitCode}.")
     
     
     def setup_menu_bar(self):
@@ -111,7 +143,6 @@ class WindowApp(QMainWindow):
         exit_action = file_menu.addAction('Exit', self.close)
         exit_action.setShortcuts(['Ctrl+Q', 'Ctrl+W'])
         
-
         # Edit Menu
         edit_menu = menu_bar.addMenu('&Edit')
         # TODO: Add actions for Edit menu...
@@ -131,7 +162,7 @@ class WindowApp(QMainWindow):
 
         # Solution Menu
         solution_menu = menu_bar.addMenu('&Simulation')
-        solution_menu.addAction('Run', self.run_simulation, shortcut='Ctrl+R')   #  Run
+        solution_menu.addAction('Run', self.start_simulation, shortcut='Ctrl+R')   #  Run
         solution_menu.addAction('Stop', self.stop_simulation, shortcut='Ctrl+T') #  Terminate
         
         # Help Menu
@@ -174,7 +205,7 @@ class WindowApp(QMainWindow):
         self.addDockWidget(Qt.BottomDockWidgetArea, self.log_dock_widget)
 
 
-    def run_simulation(self):
+    def start_simulation(self):
         config_content = self.config_tab.validate_input()
         if config_content is None:
             return
@@ -201,42 +232,35 @@ class WindowApp(QMainWindow):
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to save configuration: {e}")
             return
-        hdf5_filename = self.config_tab.mesh_file.replace(".msh", ".hdf5")
+        self.hdf5_filename = self.config_tab.mesh_file.replace(".msh", ".hdf5")
         args = f"{self.config_tab.config_file_path}"
 
         # Measure execution time
-        self.progressBar.setHidden(False)
-        start_time = time()
         self.run_cpp(args)
-        self.progressBar.setRange(0, 100)
-        self.progressBar.setValue(100)
-        exec_time = time() - start_time
-        QMessageBox.information(self,
-                                "Process Finished",
-                                f"The simulation has completed in {exec_time:.3f}s")
-        insert_colored_text(self.log_console, '\nSuccessfully: ', 'green')
-        insert_colored_text(self.log_console, f'The simulation has completed in {exec_time:.3f}s', 'dark gray')
-        self.results_tab.update_plot(hdf5_filename)
+        self.progress_bar.setRange(0, 100)
+        self.progress_bar.setValue(100)
 
         # Re-enable UI components
         self.set_ui_enabled(True)
-        self.progressBar.setHidden(True)
         
         
     def stop_simulation(self):
-        # TODO: Implement
-        pass
+        if self.process.state() == QProcess.Running:
+            self.process.terminate()
+            
+            if not self.process.waitForFinished(2000):
+                self.process.kill()
         
         
     def keyPressEvent(self, event):
         if (event.modifiers() == Qt.ControlModifier and event.key() == Qt.Key_Q) or \
             event.modifiers() == Qt.ControlModifier and event.key() == Qt.Key_W:
             self.close()
-        elif event.modifiers() == Qt.ControlModifier and event.key() == Qt.Key_E:
-            kill_processes_by_pattern(r'\./main .*\.json')
         elif event.modifiers() == Qt.ControlModifier and event.key() == Qt.Key_R:
-            self.run_simulation()
+            print(f'Simulation started at {time()}')
+            self.start_simulation()
         elif event.modifiers() == Qt.ControlModifier and event.key() == Qt.Key_T:
+            print('Try to stop')
             self.stop_simulation()
         elif event.modifiers() == Qt.ControlModifier | Qt.ShiftModifier and event.key() == Qt.Key_U:
             self.config_tab.upload_config()
@@ -262,16 +286,9 @@ class WindowApp(QMainWindow):
         
     
     def run_cpp(self, args: str) -> None:
-        cmd = ["./main"] + args.split()
-        process = Popen(cmd, stdout=PIPE, stderr=PIPE)
-        
-        for line in process.stdout:
-            self.log_console.appendPlainText(line.strip().decode('utf-8'))
-            
-        for line in process.stderr:
-            self.log_console.appendPlainText(line.strip().decode('utf-8'))
-        
-        process.wait()
+        self.progress_bar.setHidden(False)
+        self.start_time = time()
+        self.process.start('./main', args.split())
 
 
     def show_help(self):
