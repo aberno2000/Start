@@ -13,6 +13,7 @@ __pycache__/
 # Executive files
 main
 test
+argos_nia_start
 *.out
 *.o
 

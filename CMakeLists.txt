@@ -50,10 +50,10 @@ include_directories(${CMAKE_SOURCE_DIR}/include
                     ${Boost_INCLUDE_DIRS}
                     ${HDF5_INCLUDE_DIRS}
                     ${TBB_INCLUDE_DIRS})
-add_executable(main ${SOURCES})
+add_executable(argos_nia_start ${SOURCES})
 
-set_target_properties(main PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}")
-target_link_libraries(main PRIVATE 
+set_target_properties(argos_nia_start PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}")
+target_link_libraries(argos_nia_start PRIVATE 
     aabb gmp mpfr 
     ${GMSH_LIB} ${Boost_LIBRARIES} 
     ${HDF5_LIBRARIES} ${TBB_LIBRARIES} ${TBB_NAMESPACE}

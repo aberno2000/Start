@@ -295,7 +295,7 @@ class WindowApp(QMainWindow):
     def run_cpp(self, args: str) -> None:
         self.progress_bar.setHidden(False)
         self.start_time = time()
-        self.process.start('./main', args.split())
+        self.process.start('./argos_nia_start', args.split())
 
     
     def show_shortcuts(self):
