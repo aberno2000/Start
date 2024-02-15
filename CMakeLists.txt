@@ -11,8 +11,20 @@ project(Start
         by plasma particles."
         LANGUAGES CXX)
 
-set(GMSH_LIB /usr/local/lib/libgmsh.so.4.12)
-set(HDF5_DIR "/usr/local/HDF5-1.14.3-Linux/HDF_Group/HDF5/1.14.3/cmake")
+
+
+find_library(GMSH_LIB
+            NAMES gmsh
+            PATHS /usr/lib /usr/local/lib /usr/lib/x86_64-linux-gnu /usr/lib64 /usr/lib64/mpich/lib /usr/lib64/openmpi/lib
+            NO_DEFAULT_PATH
+            )
+
+if (NOT GMSH_LIB)
+    message(FATAL_ERROR "GMSH library not found")
+else()
+    message(STATUS "GMSH library found: ${GMSH_LIB}")
+endif()
+
 find_package(Boost REQUIRED)
 find_package(HDF5 REQUIRED COMPONENTS CXX)
 
@@ -20,6 +32,7 @@ find_package(HDF5 REQUIRED COMPONENTS CXX)
 find_package(TBB QUIET)
 if (TBB_FOUND)
     set(TBB_NAMESPACE TBB::tbb)
+    message(STATUS "TBB library found: ${TBB_LIB}")
 endif()
 
 execute_process(
