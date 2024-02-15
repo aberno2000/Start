@@ -11,13 +11,15 @@ project(Start
         by plasma particles."
         LANGUAGES CXX)
 
-
-
 find_library(GMSH_LIB
             NAMES gmsh
-            PATHS /usr/lib /usr/local/lib /usr/lib/x86_64-linux-gnu /usr/lib64 /usr/lib64/mpich/lib /usr/lib64/openmpi/lib
-            NO_DEFAULT_PATH
-            )
+            PATHS /usr/lib 
+                  /usr/local/lib
+                  /usr/lib/x86_64-linux-gnu
+                  /usr/lib64 
+                  /usr/lib64/mpich/lib 
+                  /usr/lib64/openmpi/lib
+            NO_DEFAULT_PATH)
 
 if (NOT GMSH_LIB)
     message(FATAL_ERROR "GMSH library not found")
