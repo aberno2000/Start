@@ -48,6 +48,12 @@ class GraphicalEditorTab(QWidget):
         self.layout.addWidget(self.splitter)
         self.setLayout(self.layout)
     
+    
+    def setup_graphical_editor(self):
+        # TODO: Implement
+        pass
+    
+    
     def set_mesh_file(self, file_path):        
         if exists(file_path) and isfile(file_path):
             self.mesh_file = file_path
