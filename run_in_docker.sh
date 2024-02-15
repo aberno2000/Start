@@ -2,6 +2,4 @@
 
 xhost +
 docker build -t startim .
-echo -e "To start app type: \e[1;34mpython3 ui/main.py\e[0m"
-docker run -it -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix startim
-export QT_DEBUG_PLUGINS=1
+docker run -it -e DISPLAY=$DISPLAY -e QT_DEBUG_PLUGINS=1 -v /tmp/.X11-unix:/tmp/.X11-unix startim conda run -n startenv bash -c "./compile.sh -r && python ui/main.py"
