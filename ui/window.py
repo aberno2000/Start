@@ -6,6 +6,7 @@ from PyQt5.QtWidgets import (
     QDockWidget, QScrollArea,
     QApplication
 )
+import signal
 from sys import exit
 from time import time
 from json import dump
@@ -121,15 +122,19 @@ class WindowApp(QMainWindow):
         
         if exitStatus == QProcess.NormalExit:
             self.results_tab.update_plot(self.hdf5_filename)
+            insert_colored_text(self.log_console, '\nSuccessfully: ', 'green')
+            insert_colored_text(self.log_console, f'The simulation has completed in {exec_time:.3f}s', 'dark gray')
             QMessageBox.information(self,
                                     "Process Finished",
                                     f"The simulation has completed in {exec_time:.3f}s")
-            insert_colored_text(self.log_console, '\nSuccessfully: ', 'green')
-            insert_colored_text(self.log_console, f'The simulation has completed in {exec_time:.3f}s', 'dark gray')
         else:
+            signal_name = signal.Signals(exitCode).name
+            
+            insert_colored_text(self.log_console, '\nWarning: ', 'yellow')
+            insert_colored_text(self.log_console, f'The simulation has been forcibly stopped with a code {exitCode} <{signal_name}>.', 'dark gray')
             QMessageBox.information(self, 
                                     "Simulation Stopped", 
-                                    f"The simulation has been forcibly stopped with a code {exitCode}.")
+                                    f"The simulation has been forcibly stopped with a code {exitCode} <{signal_name}>.")
     
     
     def setup_menu_bar(self):
@@ -146,6 +151,7 @@ class WindowApp(QMainWindow):
         
         # Edit Menu
         edit_menu = menu_bar.addMenu('&Edit')
+        edit_menu.addAction('Shortcuts', self.show_shortcuts)
         # TODO: Add actions for Edit menu...
 
         # Configurations Menu
@@ -168,7 +174,6 @@ class WindowApp(QMainWindow):
         
         # Help Menu
         help_menu = menu_bar.addMenu('&Help')
-        help_menu.addAction('Show Shortcuts', self.show_shortcuts)
         help_menu.addAction('About', self.show_help, shortcut='F1')
 
 
