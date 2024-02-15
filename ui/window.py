@@ -117,6 +117,7 @@ class WindowApp(QMainWindow):
     def on_process_finished(self, exitCode, exitStatus):
         self.progress_bar.setHidden(True)
         exec_time = time() - self.start_time
+        self.progress_bar.setValue(100)
         
         if exitStatus == QProcess.NormalExit:
             self.results_tab.update_plot(self.hdf5_filename)
@@ -167,8 +168,8 @@ class WindowApp(QMainWindow):
         
         # Help Menu
         help_menu = menu_bar.addMenu('&Help')
-        about_action = help_menu.addAction('About', self.show_help, shortcut='F1')
-        about_action.setShortcut('F1')
+        help_menu.addAction('Show Shortcuts', self.show_shortcuts)
+        help_menu.addAction('About', self.show_help, shortcut='F1')
 
 
     def create_project(self):
@@ -238,7 +239,6 @@ class WindowApp(QMainWindow):
         # Measure execution time
         self.run_cpp(args)
         self.progress_bar.setRange(0, 100)
-        self.progress_bar.setValue(100)
 
         # Re-enable UI components
         self.set_ui_enabled(True)
@@ -268,6 +268,8 @@ class WindowApp(QMainWindow):
             self.config_tab.save_config_to_file()
         elif event.modifiers() == Qt.ControlModifier | Qt.ShiftModifier and event.key() == Qt.Key_M:
             self.config_tab.upload_mesh_file()
+        elif event.modifiers() == Qt.ControlModifier and event.key() == Qt.Key_L:
+            self.log_dock_widget.setVisible(not self.log_dock_widget.isVisible())
         elif event.modifiers() == Qt.ControlModifier and event.key() == Qt.Key_Tab:
             # Iterating by tabs
             currentTabIndex = self.tab_widget.currentIndex()
@@ -289,6 +291,12 @@ class WindowApp(QMainWindow):
         self.progress_bar.setHidden(False)
         self.start_time = time()
         self.process.start('./main', args.split())
+
+    
+    def show_shortcuts(self):
+        # TODO: Implement
+        # TODO: Add availability to change them
+        pass
 
 
     def show_help(self):
