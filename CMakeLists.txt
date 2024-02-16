@@ -21,12 +21,6 @@ find_library(GMSH_LIB
                   /usr/lib64/openmpi/lib
             NO_DEFAULT_PATH)
 
-if (NOT GMSH_LIB)
-    message(FATAL_ERROR "GMSH library not found")
-else()
-    message(STATUS "GMSH library found: ${GMSH_LIB}")
-endif()
-
 find_package(Boost REQUIRED)
 find_package(HDF5 REQUIRED COMPONENTS CXX)
 
