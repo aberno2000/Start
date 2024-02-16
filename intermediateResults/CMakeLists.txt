@@ -5,7 +5,6 @@ project(IntermediateResults
         DESCRIPTION "Only to compile intermediate results"
         LANGUAGES CXX)
 
-set(GMSH_LIB /usr/local/lib/libgmsh.so.4.12)
 set(HDF5_DIR "/usr/local/HDF5-1.14.3-Linux/HDF_Group/HDF5/1.14.3/cmake")
 find_package(Boost REQUIRED)
 find_package(HDF5 REQUIRED COMPONENTS CXX)
@@ -28,16 +27,11 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(SOURCES
     ${INTERMEDIATE_FILE}
-    ../src/CollisionTracker.cpp
-    ../src/ConfigParser.cpp
-    ../src/HDF5Handler.cpp
     ../src/MathVector.cpp
-    ../src//Mesh.cpp
-    ../src//Particle.cpp
-    ../src//RayTriangleIntersection.cpp
-    ../src//RealNumberGenerator.cpp
-    ../src//Utilities.cpp
-    ../src//VolumeCreator.cpp
+    ../src/Particle.cpp
+    ../src/RayTriangleIntersection.cpp
+    ../src/RealNumberGenerator.cpp
+    ../src/Utilities.cpp
 )
 
 include_directories(${CMAKE_SOURCE_DIR}/../include
@@ -48,7 +42,6 @@ add_executable(a.out ${SOURCES})
 
 set_target_properties(a.out PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}")
 target_link_libraries(a.out PRIVATE 
-    aabb gmp mpfr 
-    ${GMSH_LIB} ${Boost_LIBRARIES} 
+    aabb gmp mpfr ${Boost_LIBRARIES} 
     ${HDF5_LIBRARIES} ${TBB_LIBRARIES} ${TBB_NAMESPACE}
 )
