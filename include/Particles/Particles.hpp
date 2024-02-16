@@ -175,11 +175,23 @@ public:
     constexpr double getRadius() const { return getRadiusFromType(m_type); }
 
     /**
-     * @brief Calculates the collision of a particle with another particle or object.
-     * @param p_mass The mass of the particle.
-     * @param t_mass The mass of the target object.
+     * @brief Chooses the specified scattering model.
+     * @param target particle of gas with which current particle will colide.
+     * @param n_concentration concentration of particles.
+     * @param model scattering model (available: HS/VHS/VSS)
+     *
+     * TODO: Describe the angles
+     * @param omega
+     * @param alpha
+     *
+     * @param time_step simulation time step.
      */
-    void colide(double p_mass, double t_mass) &;
+    void colide(Particle target, double n_concentration, std::string_view model,
+                double time_step, double omega = 0, double alpha = 0) &;
+
+    bool colideHS(Particle target, double n_concentration, double time_step) &;
+    bool colideVHS(Particle target, double n_concentration, double omega, double time_step) &;
+    bool colideVSS(Particle target, double n_concentration, double omega, double alpha, double time_step) &;
 };
 
 using ParticleVector = std::vector<Particle>;

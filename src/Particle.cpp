@@ -203,26 +203,122 @@ double Particle::getPositionModule() const { return PositionVector(CGAL_TO_DOUBL
 double Particle::getEnergy_eV() const { return m_energy * physical_constants::J_eV; }
 double Particle::getVelocityModule() const { return m_velocity.module(); }
 
-void Particle::colide(double p_mass, double t_mass) &
+void Particle::colide(Particle target, double n_concentration, std::string_view model,
+                      double time_step, double omega, double alpha) &
+{
+  if (std::string(model) == "HS")
+    colideHS(target, n_concentration, time_step);
+  else if (std::string(model) == "VHS")
+    colideVHS(target, n_concentration, omega, time_step);
+  else if (std::string(model) == "VHS")
+    colideVSS(target, n_concentration, omega, alpha, time_step);
+  else
+    ERRMSG("No such kind of scattering model. Available only: HS/VHS/VSS");
+}
+
+bool Particle::colideHS(Particle target, double n_concentration, double time_step) &
 {
   RealNumberGenerator rng;
-  double xi_cos{rng(-1, 1)}, xi_sin{sqrt(1 - xi_cos * xi_cos)},
-      phi{rng(0, 2 * std::numbers::pi)};
+  double p_mass{getMass()},
+      t_mass{target.getMass()},
+      sigma{(std::numbers::pi)*std::pow(getRadius() + target.getRadius(), 2)};
 
-  double x{xi_sin * cos(phi)},
-      y{xi_sin * sin(phi)},
-      z{xi_cos},
-      mass_cp{p_mass / (t_mass + p_mass)},
-      mass_ct{t_mass / (t_mass + p_mass)};
+  // Probability of the scattering
+  double Probability{sigma * getVelocityModule() * n_concentration * time_step};
 
-  VelocityVector cm_vel(m_velocity * mass_cp),
-      p_vec(mass_ct * m_velocity);
-  double mp{p_vec.module()};
-  auto angles{p_vec.calcBetaGamma()};
-  VelocityVector dir_vector(x * mp, y * mp, z * mp);
-  dir_vector.rotation(angles);
+  // Result of the collision: if colide -> change attributes of the particle
+  bool iscolide{rng() < Probability};
+  if (iscolide)
+  {
+    double xi_cos{rng(-1, 1)}, xi_sin{sqrt(1 - xi_cos * xi_cos)},
+        phi{rng(0, 2 * std::numbers::pi)};
 
-  m_velocity = dir_vector + cm_vel;
+    double x{xi_sin * cos(phi)}, y{xi_sin * sin(phi)}, z{xi_cos},
+        mass_cp{p_mass / (t_mass + p_mass)},
+        mass_ct{t_mass / (t_mass + p_mass)};
+
+    VelocityVector cm_vel(m_velocity * mass_cp), p_vec(mass_ct * m_velocity);
+    double mp{p_vec.module()};
+    VelocityVector dir_vector(x * mp, y * mp, z * mp);
+
+    m_velocity = dir_vector + cm_vel;
+  }
+  return iscolide;
+}
+
+bool Particle::colideVHS(Particle target, double n_concentration, double omega, double time_step) &
+{
+  RealNumberGenerator rng;
+  double d_reference{(getRadius() + target.getRadius())},
+      mass_constant{getMass() * target.getMass() / (getMass() + target.getMass())},
+      t_mass{target.getMass()}, p_mass{getMass()},
+      Exponent{omega - 1. / 2.};
+
+  double d_vhs_2{(std::pow(d_reference, 2) / std::tgamma(5. / 2. - omega)) *
+                 std::pow(2 * KT_reference /
+                              (mass_constant * getVelocityModule() * getVelocityModule()),
+                          Exponent)};
+
+  double sigma{std::numbers::pi * d_vhs_2},
+      Probability{sigma * getVelocityModule() * n_concentration * time_step};
+
+  bool iscolide{rng() < Probability};
+  if (iscolide)
+  {
+    double xi_cos{rng(-1, 1)}, xi_sin{sqrt(1 - xi_cos * xi_cos)},
+        phi{rng(0, 2 * std::numbers::pi)};
+
+    double x{xi_sin * cos(phi)}, y{xi_sin * sin(phi)}, z{xi_cos},
+        mass_cp{p_mass / (t_mass + p_mass)},
+        mass_ct{t_mass / (t_mass + p_mass)};
+
+    VelocityVector cm_vel(m_velocity * mass_cp), p_vec(mass_ct * m_velocity);
+    double mp{p_vec.module()};
+    VelocityVector dir_vector(x * mp, y * mp, z * mp);
+
+    m_velocity = dir_vector + cm_vel;
+  }
+
+  return iscolide;
+}
+
+bool Particle::colideVSS(Particle target, double n_concentration, double omega,
+                         double alpha, double time_step) &
+{
+  RealNumberGenerator rng;
+  double d_reference{(getRadius() + target.getRadius())},
+      mass_constant{getMass() * target.getMass() / (getMass() + target.getMass())},
+      t_mass{target.getMass()},
+      p_mass{getMass()},
+      Exponent{omega - 1. / 2.};
+
+  double d_vhs_2{(std::pow(d_reference, 2) / std::tgamma(5. / 2. - omega)) *
+                 std::pow(2 * KT_reference /
+                              (mass_constant * getVelocityModule() * getVelocityModule()),
+                          Exponent)};
+
+  double sigma{std::numbers::pi * d_vhs_2},
+      Probability{sigma * getVelocityModule() * n_concentration * time_step};
+
+  bool iscolide{rng() < Probability};
+  if (iscolide)
+  {
+    double xi_cos{2 * std::pow(rng(), 1. / alpha) - 1.}, xi_sin{sqrt(1 - xi_cos * xi_cos)},
+        phi{rng(0, 2 * std::numbers::pi)};
+
+    double x{xi_sin * cos(phi)}, y{xi_sin * sin(phi)}, z{xi_cos},
+        mass_cp{p_mass / (t_mass + p_mass)},
+        mass_ct{t_mass / (t_mass + p_mass)};
+
+    VelocityVector cm_vel(m_velocity * mass_cp), p_vec(mass_ct * m_velocity);
+    double mp{p_vec.module()};
+    auto angles{p_vec.calcBetaGamma()};
+    VelocityVector dir_vector(x * mp, y * mp, z * mp);
+    dir_vector.rotation(angles);
+
+    m_velocity = dir_vector + cm_vel;
+  }
+  return iscolide;
 }
 
 ParticleVector createParticlesWithEnergy(size_t count, ParticleType type,
