@@ -5,11 +5,12 @@ namespace constants
 {
     namespace physical_constants
     {
-        static constinit const double R{8.314};              // [J/k*mol]
-        static constinit const double T{300};                // [k]
-        static constinit const double N_av{6.22e23};         // Avogadro number
-        static constinit const double eV_J{1.602176565e-19}; // Conversion factor of eV to J (1 eV is ...  J)
-        static constinit const double J_eV{6.242e+18};       // Conversion factor of J to eV (1 J  is ... eV)
+        static constinit const double R{8.314};                           // [J/k*mol].
+        static constinit const double T{300};                             // [K].
+        static constinit const double KT_reference{297.0 * 1.380658e-23}; // KT referevnce value [J/kg].
+        static constinit const double N_av{6.22e23};                      // Avogadro number.
+        static constinit const double eV_J{1.602176565e-19};              // Conversion factor of eV to J (1 eV is ...  J).
+        static constinit const double J_eV{6.242e+18};                    // Conversion factor of J to eV (1 J  is ... eV).
 
         /*** Weight of particles in [kg]. ***/
         static constinit const double Ar_mass{6.6335209e-26};
