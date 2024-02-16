@@ -111,6 +111,7 @@ double MathVector::operator*(MathVector const &other) const { return (x * other.
 double MathVector::operator*(MathVector &&other) const { return (x * other.x + y * other.y + z * other.z); }
 double MathVector::dotProduct(MathVector const &other) const { return (*this) * other; }
 double MathVector::dotProduct(MathVector &&other) const { return (*this) * other; }
+MathVector MathVector::crossProduct(MathVector const &other) const { return MathVector(y * other.z - z * other.y, z * other.x - x * other.z, x * other.y - y * other.x); }
 MathVector MathVector::crossProduct(MathVector &&other) const { return MathVector(y * other.z - z * other.y, z * other.x - x * other.z, x * other.y - y * other.x); }
 
 MathVector MathVector::operator/(double value) const
