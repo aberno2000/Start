@@ -6,6 +6,7 @@ from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QStandardItem, QStandardItemModel
 from config_tab import ConfigTab
 from os.path import isfile, exists, basename
+import paraview.simple as pvs
 
 elemTypeToNodeCount = {
     1: 2,    # 2-node line
@@ -47,6 +48,9 @@ class GraphicalEditorTab(QWidget):
         # Add the QSplitter to the main layout
         self.layout.addWidget(self.splitter)
         self.setLayout(self.layout)
+        
+        # Setup graphical editor
+        self.setup_graphical_editor()
     
     
     def setup_graphical_editor(self):

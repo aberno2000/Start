@@ -48,3 +48,7 @@ class ResultsTab(QWidget):
 
         # Refresh the canvas
         self.canvas.draw()
+       
+        
+    def clear_plot(self):
+        self.figure.clear()

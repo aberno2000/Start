@@ -12,7 +12,6 @@ from time import time
 from json import dump
 from PyQt5.QtCore import Qt, QProcess
 from PyQt5.QtGui import QTextCharFormat, QColor
-from subprocess import run, check_output, CalledProcessError
 from config_tab import ConfigTab
 from results_tab import ResultsTab
 from gedit_tab import GraphicalEditorTab
@@ -38,19 +37,6 @@ def insert_colored_text(widget: QPlainTextEdit, text: str, color: str):
     widget.setTextCursor(cursor)
     default_format = QTextCharFormat()
     cursor.mergeCharFormat(default_format)
-
-
-def kill_processes_by_pattern(pattern):
-    try:
-        # Find processes by the given pattern
-        pids = check_output(["pgrep", "-f", pattern]).decode('utf-8').strip().split('\n')
-        for pid in pids:
-            if pid:  # Ensure the pid is not an empty string
-                # Kill each process found by its PID
-                run(["kill", "-9", pid], check=True)
-                print(f"Process with PID {pid} has been killed.")
-    except CalledProcessError as e:
-        print(f"No process found with pattern '{pattern}' or error occurred: {e}")
 
 
 class WindowApp(QMainWindow):
@@ -120,7 +106,7 @@ class WindowApp(QMainWindow):
         exec_time = time() - self.start_time
         self.progress_bar.setValue(100)
         
-        if exitStatus == QProcess.NormalExit:
+        if exitStatus == QProcess.ExitStatus.NormalExit and exitCode == 0:
             self.results_tab.update_plot(self.hdf5_filename)
             insert_colored_text(self.log_console, '\nSuccessfully: ', 'green')
             insert_colored_text(self.log_console, f'The simulation has completed in {exec_time:.3f}s', 'dark gray')
@@ -128,6 +114,7 @@ class WindowApp(QMainWindow):
                                     "Process Finished",
                                     f"The simulation has completed in {exec_time:.3f}s")
         else:
+            self.results_tab.clear_plot()
             signal_name = signal.Signals(exitCode).name
             
             insert_colored_text(self.log_console, '\nWarning: ', 'yellow')
@@ -227,9 +214,6 @@ class WindowApp(QMainWindow):
                 QMessageBox.warning(self, "No Configuration File Selected",
                                     "Simulation aborted because no configuration file was selected.")
                 return
-
-        # Disable UI components
-        self.set_ui_enabled(True)
         
         # Rewrite configs if they have been changed
         try:
@@ -244,9 +228,6 @@ class WindowApp(QMainWindow):
         # Measure execution time
         self.run_cpp(args)
         self.progress_bar.setRange(0, 100)
-
-        # Re-enable UI components
-        self.set_ui_enabled(True)
         
         
     def stop_simulation(self):
@@ -262,10 +243,8 @@ class WindowApp(QMainWindow):
             event.modifiers() == Qt.ControlModifier and event.key() == Qt.Key_W:
             self.close()
         elif event.modifiers() == Qt.ControlModifier and event.key() == Qt.Key_R:
-            print(f'Simulation started at {time()}')
             self.start_simulation()
         elif event.modifiers() == Qt.ControlModifier and event.key() == Qt.Key_T:
-            print('Try to stop')
             self.stop_simulation()
         elif event.modifiers() == Qt.ControlModifier | Qt.ShiftModifier and event.key() == Qt.Key_U:
             self.config_tab.upload_config()
@@ -285,11 +264,6 @@ class WindowApp(QMainWindow):
             self.show_help()
         else:
             super().keyPressEvent(event)
-
-
-    def set_ui_enabled(self, enabled):
-        """Enable or disable UI components."""
-        self.setEnabled(enabled)
         
     
     def run_cpp(self, args: str) -> None:
@@ -300,7 +274,7 @@ class WindowApp(QMainWindow):
     
     def show_shortcuts(self):
         # TODO: Implement
-        # TODO: Add availability to change them
+        # *TODO: Add availability to change them
         pass
 
 
