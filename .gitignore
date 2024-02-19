@@ -24,6 +24,7 @@ argos_nia_start
 *.pos*
 *.msh*
 *.geo*
+*.vtk*
 
 # HDF5 format
 *.hdf5
