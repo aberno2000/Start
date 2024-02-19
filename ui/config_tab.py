@@ -110,9 +110,9 @@ class ConfigTab(QWidget):
         time_step_layout = QHBoxLayout()
         time_step_layout.addWidget(self.time_step_input)
         time_step_layout.addWidget(
-            self.time_step_units, alignment=QtCore.Qt.AlignmentFlag.AlignLeft)
+            self.time_step_units, alignment=QtCore.Qt.AlignLeft)
         time_step_layout.addWidget(
-            self.time_step_converted, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
+            self.time_step_converted, alignment=QtCore.Qt.AlignRight)
         simulation_layout.addRow(QLabel("Time Step:"), time_step_layout)
         self.time_step_input.setFixedWidth(line_edit_width)
         self.time_step_units.setFixedWidth(combobox_width)
@@ -126,9 +126,9 @@ class ConfigTab(QWidget):
         simulation_time_layout = QHBoxLayout()
         simulation_time_layout.addWidget(self.simulation_time_input)
         simulation_time_layout.addWidget(
-            self.simulation_time_units, alignment=QtCore.Qt.AlignmentFlag.AlignLeft)
+            self.simulation_time_units, alignment=QtCore.Qt.AlignLeft)
         simulation_time_layout.addWidget(
-            self.simulation_time_converted, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
+            self.simulation_time_converted, alignment=QtCore.Qt.AlignRight)
         simulation_layout.addRow(
             QLabel("Simulation Time:"), simulation_time_layout)
         self.simulation_time_input.setFixedWidth(line_edit_width)
@@ -142,9 +142,9 @@ class ConfigTab(QWidget):
         temperature_layout = QHBoxLayout()
         temperature_layout.addWidget(self.temperature_input)
         temperature_layout.addWidget(
-            self.temperature_units, alignment=QtCore.Qt.AlignmentFlag.AlignLeft)
+            self.temperature_units, alignment=QtCore.Qt.AlignLeft)
         temperature_layout.addWidget(
-            self.temperature_converted, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
+            self.temperature_converted, alignment=QtCore.Qt.AlignRight)
         simulation_layout.addRow(QLabel("Temperature:"), temperature_layout)
         self.temperature_input.setFixedWidth(line_edit_width)
         self.temperature_units.setFixedWidth(combobox_width)
@@ -158,9 +158,9 @@ class ConfigTab(QWidget):
         pressure_layout = QHBoxLayout()
         pressure_layout.addWidget(self.pressure_input)
         pressure_layout.addWidget(
-            self.pressure_units, alignment=QtCore.Qt.AlignmentFlag.AlignLeft)
+            self.pressure_units, alignment=QtCore.Qt.AlignLeft)
         pressure_layout.addWidget(
-            self.pressure_converted, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
+            self.pressure_converted, alignment=QtCore.Qt.AlignRight)
         simulation_layout.addRow(QLabel("Pressure:"), pressure_layout)
         self.pressure_input.setFixedWidth(line_edit_width)
         self.pressure_units.setFixedWidth(combobox_width)
@@ -174,9 +174,9 @@ class ConfigTab(QWidget):
         volume_layout = QHBoxLayout()
         volume_layout.addWidget(self.volume_input)
         volume_layout.addWidget(
-            self.volume_units, alignment=QtCore.Qt.AlignmentFlag.AlignLeft)
+            self.volume_units, alignment=QtCore.Qt.AlignLeft)
         volume_layout.addWidget(self.volume_converted,
-                                alignment=QtCore.Qt.AlignmentFlag.AlignRight)
+                                alignment=QtCore.Qt.AlignRight)
         simulation_layout.addRow(QLabel("Volume:"), volume_layout)
         self.volume_input.setFixedWidth(line_edit_width)
         self.volume_units.setFixedWidth(combobox_width)
@@ -189,9 +189,9 @@ class ConfigTab(QWidget):
         energy_layout = QHBoxLayout()
         energy_layout.addWidget(self.energy_input)
         energy_layout.addWidget(
-            self.energy_units, alignment=QtCore.Qt.AlignmentFlag.AlignLeft)
+            self.energy_units, alignment=QtCore.Qt.AlignLeft)
         energy_layout.addWidget(self.energy_converted,
-                                alignment=QtCore.Qt.AlignmentFlag.AlignRight)
+                                alignment=QtCore.Qt.AlignRight)
         simulation_layout.addRow(QLabel("Energy:"), energy_layout)
         self.energy_input.setFixedWidth(line_edit_width)
         self.energy_units.setFixedWidth(combobox_width)

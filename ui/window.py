@@ -83,7 +83,7 @@ class WindowApp(QMainWindow):
         exec_time = time() - self.start_time
         self.progress_bar.setValue(100)
         
-        if exitStatus == QProcess.ExitStatus.NormalExit and exitCode == 0:
+        if exitStatus == QProcess.NormalExit and exitCode == 0:
             self.results_tab.update_plot(self.hdf5_filename)
             self.log_console.insert_colored_text('\nSuccessfully: ', 'green')
             self.log_console.insert_colored_text(f'The simulation has completed in {exec_time:.3f}s', 'dark gray')
