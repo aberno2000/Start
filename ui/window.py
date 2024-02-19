@@ -2,41 +2,17 @@ from PyQt5.QtWidgets import (
     QMainWindow, QTabWidget,
     QVBoxLayout, QWidget,
     QMessageBox, QFileDialog,
-    QProgressBar, QPlainTextEdit, 
-    QDockWidget, QScrollArea,
-    QApplication
+    QProgressBar, QScrollArea, QApplication
 )
 import signal
 from sys import exit
 from time import time
 from json import dump
 from PyQt5.QtCore import Qt, QProcess
-from PyQt5.QtGui import QTextCharFormat, QColor
 from config_tab import ConfigTab
 from results_tab import ResultsTab
 from gedit_tab import GraphicalEditorTab
-
-
-def insert_colored_text(widget: QPlainTextEdit, text: str, color: str):
-    """
-    Inserts colored text into a QPlainTextEdit widget.
-
-    Parameters:
-    - widget: QPlainTextEdit, the widget where the text will be inserted.
-    - text: str, the text to insert.
-    - color: str, the name of the color to use for the text.
-    """
-    if not isinstance(widget, QPlainTextEdit):
-        raise ValueError("widget must be a QPlainTextEdit instance")
-    cursor = widget.textCursor()
-    text_format = QTextCharFormat()
-    text_format.setForeground(QColor(color))
-    cursor.mergeCharFormat(text_format)
-    cursor.insertText(text, text_format)
-    cursor.movePosition(cursor.End)
-    widget.setTextCursor(cursor)
-    default_format = QTextCharFormat()
-    cursor.mergeCharFormat(default_format)
+from log_console import LogConsole
 
 
 class WindowApp(QMainWindow):
@@ -59,6 +35,7 @@ class WindowApp(QMainWindow):
         self.results_tab = ResultsTab()
         self.config_tab = ConfigTab()
         self.mesh_tab = GraphicalEditorTab(self.config_tab)
+        self.log_console = LogConsole()
 
         # Connecting signal to detect the selection of mesh file
         self.config_tab.meshFileSelected.connect(self.mesh_tab.set_mesh_file)
@@ -87,18 +64,18 @@ class WindowApp(QMainWindow):
         scroll_area.setWidget(central_widget)
         self.setCentralWidget(scroll_area)
         
-        # Redirecting logs to the console
-        self.setup_log_console()
-        
+        # Add the dock widget to the main window
+        self.addDockWidget(Qt.BottomDockWidgetArea, self.log_console.log_dock_widget)
+
     
     def read_stderr(self):
         errout = self.process.readAllStandardError().data().decode('utf-8').strip()
-        self.log_console.appendPlainText(errout)
-        
-    
+        self.log_console.log_console.appendPlainText(errout)
+
+
     def read_stdout(self):
         out = self.process.readAllStandardOutput().data().decode('utf-8').strip()
-        self.log_console.appendPlainText(out)
+        self.log_console.log_console.appendPlainText(out)
         
     
     def on_process_finished(self, exitCode, exitStatus):
@@ -108,8 +85,8 @@ class WindowApp(QMainWindow):
         
         if exitStatus == QProcess.ExitStatus.NormalExit and exitCode == 0:
             self.results_tab.update_plot(self.hdf5_filename)
-            insert_colored_text(self.log_console, '\nSuccessfully: ', 'green')
-            insert_colored_text(self.log_console, f'The simulation has completed in {exec_time:.3f}s', 'dark gray')
+            self.log_console.insert_colored_text('\nSuccessfully: ', 'green')
+            self.log_console.insert_colored_text(f'The simulation has completed in {exec_time:.3f}s', 'dark gray')
             QMessageBox.information(self,
                                     "Process Finished",
                                     f"The simulation has completed in {exec_time:.3f}s")
@@ -117,8 +94,8 @@ class WindowApp(QMainWindow):
             self.results_tab.clear_plot()
             signal_name = signal.Signals(exitCode).name
             
-            insert_colored_text(self.log_console, '\nWarning: ', 'yellow')
-            insert_colored_text(self.log_console, f'The simulation has been forcibly stopped with a code {exitCode} <{signal_name}>.', 'dark gray')
+            self.log_console.insert_colored_text('\nWarning: ', 'yellow')
+            self.log_console.insert_colored_text(f'The simulation has been forcibly stopped with a code {exitCode} <{signal_name}>.', 'dark gray')
             QMessageBox.information(self, 
                                     "Simulation Stopped", 
                                     f"The simulation has been forcibly stopped with a code {exitCode} <{signal_name}>.")
@@ -183,19 +160,6 @@ class WindowApp(QMainWindow):
         self.tab_widget.addTab(self.mesh_tab, "Mesh")
         self.tab_widget.addTab(self.results_tab, "Results")
         self.tab_widget.addTab(self.config_tab, "Config")
-
-    
-    def setup_log_console(self):
-        self.log_console = QPlainTextEdit()
-        self.log_console.setReadOnly(True)  # Make the console read-only
-
-        self.log_dock_widget = QDockWidget("Log Console", self)
-        self.log_dock_widget.setWidget(self.log_console)
-        self.log_dock_widget.setAllowedAreas(Qt.BottomDockWidgetArea)
-        self.log_dock_widget.setVisible(True)
-
-        # Add the dock widget to the main window
-        self.addDockWidget(Qt.BottomDockWidgetArea, self.log_dock_widget)
 
 
     def start_simulation(self):
