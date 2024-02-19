@@ -217,7 +217,7 @@ class WindowApp(QMainWindow):
         elif event.modifiers() == Qt.ControlModifier | Qt.ShiftModifier and event.key() == Qt.Key_M:
             self.config_tab.upload_mesh_file()
         elif event.modifiers() == Qt.ControlModifier and event.key() == Qt.Key_L:
-            self.log_dock_widget.setVisible(not self.log_dock_widget.isVisible())
+            self.log_console.log_dock_widget.setVisible(not self.log_console.log_dock_widget.isVisible())
         elif event.modifiers() == Qt.ControlModifier and event.key() == Qt.Key_Tab:
             # Iterating by tabs
             currentTabIndex = self.tab_widget.currentIndex()
