@@ -6,6 +6,7 @@ build/
 
 # Ignoring python cache files
 __pycache__/
+python*.btr
 
 # VMD files
 *.xyz
@@ -24,7 +25,6 @@ argos_nia_start
 *.pos*
 *.msh*
 *.geo*
-*.vtk*
 
 # HDF5 format
 *.hdf5
@@ -53,3 +53,7 @@ argos_nia_start
 *.config
 *.cfg
 config*.json
+
+# Drawings
+*.vtk
+*.stp
