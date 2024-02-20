@@ -158,8 +158,8 @@ class WindowApp(QMainWindow):
 
     def setup_tabs(self):
         self.tab_widget.addTab(self.mesh_tab, "Mesh")
+        self.tab_widget.addTab(self.config_tab, "Configurations")
         self.tab_widget.addTab(self.results_tab, "Results")
-        self.tab_widget.addTab(self.config_tab, "Config")
 
 
     def start_simulation(self):
