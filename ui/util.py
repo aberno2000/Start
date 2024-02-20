@@ -1,4 +1,10 @@
-from PyQt5.QtWidgets import QDialog, QFormLayout, QLineEdit, QDialogButtonBox, QVBoxLayout, QMessageBox
+from PyQt5.QtWidgets import (
+    QDialog, QFormLayout, QLineEdit, QDialogButtonBox, 
+    QVBoxLayout, QMessageBox, QPushButton, QTableWidget,
+    QTableWidgetItem, QSizePolicy, QLabel, QHBoxLayout,
+    QWidget, QScrollArea
+)
+from PyQt5.QtCore import QSize
 from converter import is_positive_real_number, is_real_number
 
 class PointDialog(QDialog):
@@ -85,34 +91,74 @@ class LineDialog(QDialog):
 
 
 class SurfaceDialog(QDialog):
-    def __init__(self, parent=None):
+    def __init__(self, parent=None):       
         super().__init__(parent)
-        self.setWindowTitle("Create Surface")
-        
-        layout = QVBoxLayout(self)
-        formLayout = QFormLayout()
-        
-        # Input fields for three points
-        self.inputs = [QLineEdit("0.0") for _ in range(9)]  # x1, y1, z1, x2, y2, z2, x3, y3, z3
-        
-        for i, point in enumerate(['Point 1', 'Point 2', 'Point 3']):
-            formLayout.addRow(f"{point} X:", self.inputs[i*3])
-            formLayout.addRow(f"{point} Y:", self.inputs[i*3+1])
-            formLayout.addRow(f"{point} Z:", self.inputs[i*3+2])
-        
-        layout.addLayout(formLayout)
-        
+        self.setMinimumSize(800, 600)
+        self.setWindowTitle("Create Arbitrary Surface")
+
+        self.mainLayout = QVBoxLayout(self)  # Main layout for the dialog
+        self.scrollArea = QScrollArea(self)  # Scroll area to contain the form
+        self.scrollArea.setWidgetResizable(True)  # Allow the contained widget to resize
+
+        # Container widget for the form
+        self.containerWidget = QWidget()
+        self.formLayout = QFormLayout()  # Form layout for point inputs
+
+        self.inputs = []  # Store all QLineEdit inputs
+
+        # Initialize with 3 points
+        for _ in range(3):
+            self.add_point_fields()
+
+        self.addButton = QPushButton("[+]")
+        self.addButton.setFixedSize(QSize(32, 32))
+        self.addButton.clicked.connect(self.add_point_fields)
+
+        # Set the form layout to the container widget and add it to the scroll area
+        self.containerWidget.setLayout(self.formLayout)
+        self.scrollArea.setWidget(self.containerWidget)
+
+        # Add the scroll area and the add button to the main layout
+        self.mainLayout.addWidget(self.scrollArea)
+        self.mainLayout.addWidget(self.addButton)
+
         self.buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self)
         self.buttons.accepted.connect(self.accept)
         self.buttons.rejected.connect(self.reject)
+
+        # Add dialog buttons to the main layout
+        self.mainLayout.addWidget(self.buttons)
+
+    def add_point_fields(self):
+        point_number = len(self.inputs) // 3 + 1
+        # Create a horizontal layout for the x, y, z inputs
+        hLayout = QHBoxLayout()
         
-        layout.addWidget(self.buttons)
-    
+        x_input = QLineEdit("0.0")
+        y_input = QLineEdit("0.0")
+        z_input = QLineEdit("0.0")
+        
+        self.inputs.extend([x_input, y_input, z_input])
+        
+        # Add the inputs to the horizontal layout
+        hLayout.addWidget(QLabel(f"Point {point_number} X:"))
+        hLayout.addWidget(x_input)
+        hLayout.addWidget(QLabel("Y:"))
+        hLayout.addWidget(y_input)
+        hLayout.addWidget(QLabel("Z:"))
+        hLayout.addWidget(z_input)
+        
+        # Create a container widget for the horizontal layout and add it to the form
+        containerWidget = QWidget()
+        containerWidget.setLayout(hLayout)
+        self.formLayout.addRow(containerWidget)
+
+
     def getValues(self):
         if not all(is_real_number(input_field.text()) for input_field in self.inputs):
             QMessageBox.warning(self, "Invalid input", "All coordinates must be real numbers.")
             return None
-        return tuple(float(field.text()) for field in self.inputs)
+        return [float(field.text()) for field in self.inputs]
 
 
 class SphereDialog(QDialog):
@@ -263,3 +309,29 @@ class CylinderDialog(QDialog):
         return (float(self.xInput.text()), float(self.yInput.text()), float(self.zInput.text()),
                 float(self.radiusInput.text()), float(self.heightInput.text()))
 
+class ShortcutsInfoDialog(QDialog):
+    def __init__(self, shortcuts, parent=None):
+        super().__init__(parent)
+        self.shortcuts = shortcuts
+        self.setWindowTitle("Keyboard Shortcuts")
+        self.init_ui()
+
+
+    def init_ui(self):
+        self.setMinimumSize(700, 400)
+        
+        layout = QVBoxLayout(self)
+        table = QTableWidget(len(self.shortcuts), 3)
+        table.setHorizontalHeaderLabels(["Action", "Shortcut", "Description"])
+        table.setEditTriggers(QTableWidget.NoEditTriggers)  # Make the table read-only
+        table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        
+        for i, shortcut_info in enumerate(self.shortcuts):
+            action, shortcut, description = shortcut_info
+            table.setItem(i, 0, QTableWidgetItem(action))
+            table.setItem(i, 1, QTableWidgetItem(shortcut))
+            table.setItem(i, 2, QTableWidgetItem(description))
+        
+        table.resizeColumnsToContents()
+        layout.addWidget(table)
+        
