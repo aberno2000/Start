@@ -53,47 +53,76 @@ class PointDialog(QDialog):
 class LineDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.setMinimumSize(800, 300)
         self.setWindowTitle("Create Line")
-        
-        layout = QVBoxLayout(self)
-        formLayout = QFormLayout()
-        
-        # Input fields for the start point
-        self.x1Input = QLineEdit("0.0")
-        self.y1Input = QLineEdit("0.0")
-        self.z1Input = QLineEdit("0.0")
-        
-        # Input fields for the end point
-        self.x2Input = QLineEdit("0.0")
-        self.y2Input = QLineEdit("0.0")
-        self.z2Input = QLineEdit("0.0")
-        
-        formLayout.addRow("Start X:", self.x1Input)
-        formLayout.addRow("Start Y:", self.y1Input)
-        formLayout.addRow("Start Z:", self.z1Input)
-        formLayout.addRow("End X:", self.x2Input)
-        formLayout.addRow("End Y:", self.y2Input)
-        formLayout.addRow("End Z:", self.z2Input)
-        
-        layout.addLayout(formLayout)
-        
+
+        self.mainLayout = QVBoxLayout(self)  # Main layout for the dialog
+        self.scrollArea = QScrollArea(self)  # Scroll area to contain the form
+        self.scrollArea.setWidgetResizable(True)  # Allow the contained widget to resize
+
+        # Container widget for the form
+        self.containerWidget = QWidget()
+        self.formLayout = QFormLayout()  # Form layout for point inputs
+
+        self.inputs = []  # Store all QLineEdit inputs
+
+        # Initialize with 2 points as default for a simple line
+        self.add_point_fields()
+        self.add_point_fields()
+
+        self.addButton = QPushButton("[+]")
+        self.addButton.setFixedSize(QSize(32, 32))
+        self.addButton.clicked.connect(self.add_point_fields)
+
+        # Set the form layout to the container widget and add it to the scroll area
+        self.containerWidget.setLayout(self.formLayout)
+        self.scrollArea.setWidget(self.containerWidget)
+
+        # Add the scroll area and the add button to the main layout
+        self.mainLayout.addWidget(self.scrollArea)
+        self.mainLayout.addWidget(self.addButton)
+
         self.buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self)
         self.buttons.accepted.connect(self.accept)
         self.buttons.rejected.connect(self.reject)
+
+        # Add dialog buttons to the main layout
+        self.mainLayout.addWidget(self.buttons)
+
+    def add_point_fields(self):
+        point_number = len(self.inputs) // 3 + 1
+        # Create a horizontal layout for the x, y, z inputs
+        hLayout = QHBoxLayout()
         
-        layout.addWidget(self.buttons)
+        x_input = QLineEdit("0.0")
+        y_input = QLineEdit("0.0")
+        z_input = QLineEdit("0.0")
+        
+        self.inputs.extend([x_input, y_input, z_input])
+        
+        # Add the inputs to the horizontal layout
+        hLayout.addWidget(QLabel(f"Point {point_number} X:"))
+        hLayout.addWidget(x_input)
+        hLayout.addWidget(QLabel("Y:"))
+        hLayout.addWidget(y_input)
+        hLayout.addWidget(QLabel("Z:"))
+        hLayout.addWidget(z_input)
+        
+        # Create a container widget for the horizontal layout and add it to the form
+        containerWidget = QWidget()
+        containerWidget.setLayout(hLayout)
+        self.formLayout.addRow(containerWidget)
 
     def getValues(self):
-        if not all(is_real_number(value.text()) for value in [self.x1Input, self.y1Input, self.z1Input, self.x2Input, self.y2Input, self.z2Input]):
+        if not all(is_real_number(input_field.text()) for input_field in self.inputs):
             QMessageBox.warning(self, "Invalid input", "All coordinates must be real numbers.")
             return None
-        return tuple(float(field.text()) for field in [self.x1Input, self.y1Input, self.z1Input, self.x2Input, self.y2Input, self.z2Input])
-
+        return [float(field.text()) for field in self.inputs]
 
 class SurfaceDialog(QDialog):
     def __init__(self, parent=None):       
         super().__init__(parent)
-        self.setMinimumSize(800, 600)
+        self.setMinimumSize(800, 400)
         self.setWindowTitle("Create Arbitrary Surface")
 
         self.mainLayout = QVBoxLayout(self)  # Main layout for the dialog

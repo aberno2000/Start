@@ -165,16 +165,19 @@ class GraphicalEditor(QFrame):
     def create_line(self):
         dialog = LineDialog(self)
         if dialog.exec_() == QDialog.Accepted and dialog.getValues() is not None:
-            x1, y1, z1, x2, y2, z2 = dialog.getValues()
+            values = dialog.getValues()
             
             # Create points
             points = vtk.vtkPoints()
-            points.InsertNextPoint(x1, y1, z1)
-            points.InsertNextPoint(x2, y2, z2)
+            line = vtk.vtkPolyLine()
             
-            line = vtk.vtkLine()
-            line.GetPointIds().SetId(0, 0)
-            line.GetPointIds().SetId(1, 1)
+            # The number of points in the polyline
+            line.GetPointIds().SetNumberOfIds(len(values) // 3)
+            
+            # Add points and set ids
+            for i in range(0, len(values), 3):
+                point_id = points.InsertNextPoint(values[i], values[i + 1], values[i + 2])
+                line.GetPointIds().SetId(i // 3, point_id)
             
             lines = vtk.vtkCellArray()
             lines.InsertNextCell(line)
