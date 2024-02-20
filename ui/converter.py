@@ -1,4 +1,12 @@
-def is_positive_real_number(value):
+def is_real_number(value: str):
+    try:
+        float(value)
+        return True
+    except ValueError:
+        return False
+    
+
+def is_positive_real_number(value: str):
     try:
         float(value)
         if float(value) < 0:
