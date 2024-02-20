@@ -2,10 +2,10 @@ from PyQt5.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-import matplotlib.pyplot as plt
-from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
+import vtk
 from mesh_renderer import MeshRenderer
 from hdf5handler import HDF5Handler
+from vtkmodules.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 
 
 class ResultsTab(QWidget):
@@ -13,42 +13,58 @@ class ResultsTab(QWidget):
         super().__init__(parent)
         self.layout = QVBoxLayout(self)
         self.setup_ui()
+        self.setup_axes()
+
+
+    def setup_axes(self):
+        self.axes_actor = vtk.vtkAxesActor()
+        self.axes_widget = vtk.vtkOrientationMarkerWidget()
+        self.axes_widget.SetOrientationMarker(self.axes_actor)
+        self.axes_widget.SetInteractor(self.vtkWidget.GetRenderWindow().GetInteractor())
+        self.axes_widget.SetViewport(0.0, 0.0, 0.2, 0.2)
+        self.axes_widget.EnabledOn()
+        self.axes_widget.InteractiveOff()
+        
 
     def setup_ui(self):
-        # Matplotlib plot
-        self.figure = plt.figure()
-        self.canvas = FigureCanvas(self.figure)
-        self.layout.addWidget(self.canvas, 2)
+        self.vtkWidget = QVTKRenderWindowInteractor(self)
+        self.layout.addWidget(self.vtkWidget)
 
-    def ColorBar(self, mesh_renderer):
-        # Create a color map based on the mesh_renderer's colors
-        self.colormap = plt.cm.ScalarMappable(cmap=plt.cm.viridis)
-        self.colormap.set_array([])
+        self.renderer = vtk.vtkRenderer()
+        self.renderer.SetBackground(0.1, 0.2, 0.5) # Light blue
+        self.renderer.SetLayer(0)
+        self.vtkWidget.GetRenderWindow().AddRenderer(self.renderer)
 
-        # Create a color bar next to the 3D plot
-        self.color_bar = plt.colorbar(
-            self.colormap, ax=self.canvas, fraction=0.046, pad=0.04)
-        self.color_bar.set_label("Color Scale")
+        self.interactor = self.vtkWidget.GetRenderWindow().GetInteractor()
+        self.interactor.Initialize()
 
-        # Show the color bar
-        self.color_bar.ax.get_yaxis().labelpad = 15
-        self.canvas.draw()
+    
+    def add_colorbar(self, title='Color Scale'):
+        scalarBar = vtk.vtkScalarBarActor()
+        scalarBar.SetTitle(title)
+        scalarBar.SetNumberOfLabels(4)
+        
+        # Assuming you have a lookup table set up for your mesh actor
+        scalarBar.SetLookupTable(self.actor.GetMapper().GetLookupTable())
+        
+        self.renderer.AddActor2D(scalarBar)
+        self.vtkWidget.GetRenderWindow().Render()
+
 
     def update_plot(self, hdf5_filename):
-        # Clear the current plot
-        self.figure.clear()
+        # Clear any existing actors from the renderer before updating
+        self.clear_plot()
 
-        # Load and render the mesh
+        # Load the mesh data from the HDF5 file
         self.handler = HDF5Handler(hdf5_filename)
         self.mesh = self.handler.read_mesh_from_hdf5()
-        self.renderer = MeshRenderer(self.mesh)
-        self.renderer.ax = self.figure.add_subplot(111, projection="3d")
-        self.renderer._setup_plot()
-        self.canvas.mpl_connect("scroll_event", self.renderer.on_scroll)
-
-        # Refresh the canvas
-        self.canvas.draw()
+        self.mesh_renderer = MeshRenderer(self.mesh)
+        self.mesh_renderer.renderer = self.renderer
+        self.mesh_renderer.render_mesh()
+        self.mesh_renderer.add_scalar_bar()
+        self.vtkWidget.GetRenderWindow().Render()
        
         
     def clear_plot(self):
-        self.figure.clear()
+        self.renderer.RemoveAllViewProps()
+        self.vtkWidget.GetRenderWindow().Render()
