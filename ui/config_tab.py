@@ -470,7 +470,7 @@ class ConfigTab(QWidget):
             self,
             "Select Mesh File",
             "",
-            "Mesh Files (*.msh);;Step Files(*.stp);;All Files (*)",
+            "Mesh Files (*.msh);;Step Files(*.stp);;VTK (*.vtk);;All Files (*)",
             options=options,
             )
         if fileName:
