@@ -3,67 +3,72 @@ import vtk
 class MeshRenderer:
     def __init__(self, mesh):
         self.mesh = mesh
-        self.lookupTable = vtk.vtkLookupTable()
         self.renderer = vtk.vtkRenderer()
+        self.renderWindow = vtk.vtkRenderWindow()
+        self.renderWindow.AddRenderer(self.renderer)
+        self.interactor = vtk.vtkRenderWindowInteractor()
+        self.interactor.SetRenderWindow(self.renderWindow)
         self.setup_colormap()
-        
-        
+
+
     def setup_colormap(self):
-        max_count = max(triangle[4] for triangle in self.mesh)
-        self.lookupTable.SetRange(0, max_count)
+        self.max_count = max(triangle[5] for triangle in self.mesh)
+        self.lookupTable = vtk.vtkLookupTable()
+        self.lookupTable.SetNumberOfTableValues(256)
+        self.lookupTable.SetRange(0, self.max_count)
+        for i in range(256):
+            ratio = i / 255.0
+            self.lookupTable.SetTableValue(i, ratio, 0, 1 - ratio)
         self.lookupTable.Build()
 
 
     def render_mesh(self):
-        for triangle in self.mesh:
-            # Create points for each vertex of the triangle
+        for meshTriangle in self.mesh:
             points = vtk.vtkPoints()
-            points.InsertNextPoint(triangle[1])
-            points.InsertNextPoint(triangle[2])
-            points.InsertNextPoint(triangle[3])
+            polyData = vtk.vtkPolyData()
+            cells = vtk.vtkCellArray()
+
+            for vertex in meshTriangle[1:4]:
+                points.InsertNextPoint(vertex)
             
             # Create a polygon for the points
-            polygon = vtk.vtkPolygon()
-            polygon.GetPointIds().SetNumberOfIds(3) # Triangle
-            for i in range(3):
-                polygon.GetPointIds().SetId(i, i)
+            triangle = vtk.vtkTriangle()
+            triangle.GetPointIds().SetId(0, 0)
+            triangle.GetPointIds().SetId(1, 1)
+            triangle.GetPointIds().SetId(2, 2)
+            cells.InsertNextCell(triangle)
             
-            # Create a PolyData
-            polyData = vtk.vtkPolyData()
             polyData.SetPoints(points)
-            polygons = vtk.vtkCellArray()
-            polygons.InsertNextCell(polygon)
-            polyData.SetPolys(polygons)
+            polyData.SetPolys(cells)
 
-            # Map the count value to a color
-            color = [0] * 3
-            self.lookupTable.GetColor(triangle[4], color)
+            # Map the count value (scalar) to a color
+            scalars = vtk.vtkFloatArray()
+            scalars.SetNumberOfComponents(1)
+            scalars.InsertNextValue(meshTriangle[5])
+
+            polyData.GetCellData().SetScalars(scalars)
+
             mapper = vtk.vtkPolyDataMapper()
             mapper.SetInputData(polyData)
+            mapper.SetScalarRange(0, self.max_count)
+            mapper.SetLookupTable(self.lookupTable)
 
             actor = vtk.vtkActor()
             actor.SetMapper(mapper)
-            actor.GetProperty().SetColor(color)
-            
             self.renderer.AddActor(actor)
-    
-    
+
+
+
     def add_scalar_bar(self):
         scalarBar = vtk.vtkScalarBarActor()
         scalarBar.SetLookupTable(self.lookupTable)
-        scalarBar.SetTitle("Count")
+        scalarBar.SetTitle("Particle Count")
+        scalarBar.SetNumberOfLabels(4)
         self.renderer.AddActor2D(scalarBar)
-    
-    
+
+
     def show(self):
-        # Setup render window, render window interactor, and renderer
-        renderWindow = vtk.vtkRenderWindow()
-        renderWindow.AddRenderer(self.renderer)
-        renderWindowInteractor = vtk.vtkRenderWindowInteractor()
-        renderWindowInteractor.SetRenderWindow(renderWindow)
-        
         self.render_mesh()
         self.add_scalar_bar()
-        
-        renderWindow.Render()
-        renderWindowInteractor.Start()
+        self.renderWindow.Render()
+        self.interactor.Start()
