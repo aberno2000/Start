@@ -2,7 +2,9 @@ from PyQt5.QtWidgets import (
     QMainWindow, QTabWidget,
     QVBoxLayout, QWidget,
     QMessageBox, QFileDialog,
-    QProgressBar, QScrollArea, QApplication
+    QProgressBar, QScrollArea, 
+    QApplication, QColorDialog,
+    QLabel
 )
 import signal
 from sys import exit
@@ -13,6 +15,7 @@ from config_tab import ConfigTab
 from results_tab import ResultsTab
 from gedit_tab import GraphicalEditorTab
 from log_console import LogConsole
+from util import ShortcutsInfoDialog
 
 
 class WindowApp(QMainWindow):
@@ -66,6 +69,10 @@ class WindowApp(QMainWindow):
         
         # Add the dock widget to the main window
         self.addDockWidget(Qt.BottomDockWidgetArea, self.log_console.log_dock_widget)
+        
+        # Setting default background colors of both vtk renderers
+        self.mesh_tab.geditor.renderer.SetBackground(0.1, 0.2, 0.2)
+        self.results_tab.renderer.SetBackground(0.1, 0.2, 0.2)
 
     
     def read_stderr(self):
@@ -115,30 +122,92 @@ class WindowApp(QMainWindow):
         
         # Edit Menu
         edit_menu = menu_bar.addMenu('&Edit')
-        edit_menu.addAction('Shortcuts', self.show_shortcuts)
-        # TODO: Add actions for Edit menu...
+        style_menu = edit_menu.addMenu('Application Style')
+        style_menu.addAction('Default', lambda: self.change_style('default'))
+        style_menu.addAction('Dark', lambda: self.change_style('dark'))
+        style_menu.addAction('Light', lambda: self.change_style('light'))
+        style_menu.addAction('Night', lambda: self.change_style('night'))
+        style_menu.addAction('Classic', lambda: self.change_style('classic'))
+        style_menu.addAction('Bright', lambda: self.change_style('bright'))
+        
+        bg_color_menu = edit_menu.addMenu('Background Color')
+        bg_color_menu.addAction('Default', lambda: self.change_background_color('default'))
+        bg_color_menu.addAction('White', lambda: self.change_background_color('white'))
+        bg_color_menu.addAction('Light Gray', lambda: self.change_background_color('light gray'))
+        bg_color_menu.addAction('Gray', lambda: self.change_background_color('gray'))
+        bg_color_menu.addAction('Dark Gray', lambda: self.change_background_color('dark gray'))
+        bg_color_menu.addAction('Black', lambda: self.change_background_color('black'))
+        bg_color_menu.addAction('Custom', lambda: self.change_background_color('custom'))
+        
+        edit_menu.addAction('Show Shortcuts', self.show_shortcuts)
 
         # Configurations Menu
         configurations_menu = menu_bar.addMenu('&Configurations')
-        configurations_menu.addAction('Upload config', 
+        configurations_menu.addAction('Upload Config', 
                                     self.config_tab.upload_config, 
                                     shortcut='Ctrl+Shift+U')   #  Upload config
-        configurations_menu.addAction('Save config', 
+        configurations_menu.addAction('Save Config', 
                                     self.config_tab.save_config_to_file,
                                     shortcut='Ctrl+Shift+S')   #  Save config
         configurations_menu.addSeparator()
-        configurations_menu.addAction('Upload mesh',
+        configurations_menu.addAction('Upload Mesh',
                                       self.config_tab.upload_mesh_file,
                                       shortcut='Ctrl+Shift+M') #  Upload mesh file
 
         # Solution Menu
         solution_menu = menu_bar.addMenu('&Simulation')
-        solution_menu.addAction('Run', self.start_simulation, shortcut='Ctrl+R')   #  Run
+        solution_menu.addAction('Run', self.start_simulation, shortcut='Ctrl+R') #  Run
         solution_menu.addAction('Stop', self.stop_simulation, shortcut='Ctrl+T') #  Terminate
         
         # Help Menu
         help_menu = menu_bar.addMenu('&Help')
         help_menu.addAction('About', self.show_help, shortcut='F1')
+
+
+    def change_style(self, style):
+        if style == 'dark':
+            self.setStyleSheet("QWidget { background-color: #333; color: white; }")
+        elif style == 'light':
+            self.setStyleSheet("QWidget { background-color: #eee; color: black; }")
+        elif style == 'night':
+            self.setStyleSheet("QWidget { background-color: #000; color: #0f0; }")
+        elif style == 'classic':
+            self.setStyleSheet("QWidget { background-color: #f0f0f0; color: black; }")
+        elif style == 'bright':
+            self.setStyleSheet("QWidget { background-color: white; color: #666; }")
+        elif style == 'default':
+            self.setStyleSheet("")
+        else:
+            self.setStyleSheet("")
+
+    
+    def change_background_color(self, color):
+        if color == "default":
+            bgColor = [0.1, 0.2, 0.2]
+        elif color == "black":
+            bgColor = [0, 0, 0]
+        elif color == "gray":
+            bgColor = [0.5, 0.5, 0.5]
+        elif color == "white":
+            bgColor = [1, 1, 1]
+        elif color == 'light gray':
+            bgColor = [0.75, 0.75, 0.75]
+        elif color == 'dark gray':
+            bgColor = [0.25, 0.25, 0.25]
+        elif color == "custom":
+            # Open a color dialog to let the user choose a color
+            qColor = QColorDialog.getColor()
+            if qColor.isValid():
+                # Convert QColor to a list of normalized RGB values
+                bgColor = [qColor.red() / 255.0, qColor.green() / 255.0, qColor.blue() / 255.0]
+            else:
+                return
+
+        # Set the background color and refresh the render window
+        self.mesh_tab.geditor.renderer.SetBackground(*bgColor)
+        self.results_tab.renderer.SetBackground(*bgColor)
+        self.mesh_tab.geditor.vtkWidget.GetRenderWindow().Render()
+        self.results_tab.vtkWidget.GetRenderWindow().Render()
 
 
     def create_project(self):
@@ -237,9 +306,23 @@ class WindowApp(QMainWindow):
 
     
     def show_shortcuts(self):
-        # TODO: Implement
-        # *TODO: Add availability to change them
-        pass
+        shortcuts = [
+            ("New Project", "Ctrl+N", "Creates a new project."),
+            ("Open Project", "Ctrl+O", "Opens an existing project."),
+            ("Save Project", "Ctrl+S", "Saves the current project."),
+            ("Exit", "Ctrl+Q", "Exits the application."),
+            ("Run Simulation", "Ctrl+R", "Starts the simulation."),
+            ("Stop Simulation", "Ctrl+T", "Stops the currently running simulation."),
+            ("Upload Config", "Ctrl+Shift+U", "Uploads a configuration file."),
+            ("Save Config", "Ctrl+Shift+S", "Saves the current configuration to a file."),
+            ("Upload Mesh", "Ctrl+Shift+M", "Uploads a mesh file."),
+            ("Reset View Size", "R", "Resets the size of the view in the render window. Works only within the editor."),
+            ("Remove Fill", "W", "Removes the fill from the all shapes. Shows the mesh structure. Works only within the editor."),
+            ("Restore Fill", "S", "Retores the fill from the all shapes. Works only within the editor."),
+            ("About", "F1", "Shows information about the application."),
+        ]
+        dialog = ShortcutsInfoDialog(shortcuts, self)
+        dialog.exec_()
 
 
     def show_help(self):
@@ -248,6 +331,7 @@ class WindowApp(QMainWindow):
             "Help",
             "This is help message. Don't forget to write a desc to ur app here pls!!!",
         )
+        
 
     def exit(self):
         exit(0)
