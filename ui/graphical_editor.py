@@ -8,7 +8,10 @@ from PyQt5.QtWidgets import(
 )
 from PyQt5.QtGui import QStandardItem, QMouseEvent, QKeyEvent, QIcon
 from PyQt5.QtCore import Qt, QSize
-from util import SphereDialog, BoxDialog, CylinderDialog
+from util import(
+    PointDialog, LineDialog, SurfaceDialog, 
+    SphereDialog, BoxDialog, CylinderDialog
+)
 
 
 class GraphicalEditor(QFrame):
@@ -44,21 +47,41 @@ class GraphicalEditor(QFrame):
         self.layout = QVBoxLayout()  # Main layout
         self.toolbarLayout = QHBoxLayout()  # Layout for the toolbar
         
-        # Create buttons for the toolbar        
+        # Create buttons for the toolbar
+        self.createPointButton = QPushButton()
+        self.createPointButton.setIcon(QIcon("icons/point.png"))
+        self.createPointButton.setIconSize(QSize(32, 32))
+        self.createPointButton.setFixedSize(QSize(32, 32))
+        
+        self.createLineButton = QPushButton()
+        self.createLineButton.setIcon(QIcon("icons/line.png"))
+        self.createLineButton.setIconSize(QSize(32, 32))
+        self.createLineButton.setFixedSize(QSize(32, 32))
+        
+        self.createSurfaceButton = QPushButton()
+        self.createSurfaceButton.setIcon(QIcon("icons/surface.png"))
+        self.createSurfaceButton.setIconSize(QSize(32, 32))
+        self.createSurfaceButton.setFixedSize(QSize(32, 32))
+        
         self.createSphereButton = QPushButton()
-        self.createSphereButton.setIcon(QIcon("imgs/sphere.png"))
+        self.createSphereButton.setIcon(QIcon("icons/sphere.png"))
         self.createSphereButton.setIconSize(QSize(32, 32))
         self.createSphereButton.setFixedSize(QSize(32, 32))
+        
         self.createBoxButton = QPushButton()
-        self.createBoxButton.setIcon(QIcon("imgs/box.png"))
+        self.createBoxButton.setIcon(QIcon("icons/box.png"))
         self.createBoxButton.setIconSize(QSize(32, 32))
         self.createBoxButton.setFixedSize(QSize(32, 32))
+        
         self.createCylinderButton = QPushButton()
-        self.createCylinderButton.setIcon(QIcon("imgs/cylinder.png"))
+        self.createCylinderButton.setIcon(QIcon("icons/cylinder.png"))
         self.createCylinderButton.setIconSize(QSize(32, 32))
         self.createCylinderButton.setFixedSize(QSize(32, 32))
         
         # Add buttons to the toolbar layout
+        self.toolbarLayout.addWidget(self.createPointButton)
+        self.toolbarLayout.addWidget(self.createLineButton)
+        self.toolbarLayout.addWidget(self.createSurfaceButton)
         self.toolbarLayout.addWidget(self.createSphereButton)
         self.toolbarLayout.addWidget(self.createBoxButton)
         self.toolbarLayout.addWidget(self.createCylinderButton)
@@ -67,6 +90,9 @@ class GraphicalEditor(QFrame):
         self.toolbarLayout.addSpacerItem(self.spacer)
         
         # Connect buttons to methods
+        self.createPointButton.clicked.connect(self.create_point)
+        self.createLineButton.clicked.connect(self.create_line)
+        self.createSurfaceButton.clicked.connect(self.create_surface)
         self.createSphereButton.clicked.connect(self.create_sphere)
         self.createBoxButton.clicked.connect(self.create_box)
         self.createCylinderButton.clicked.connect(self.create_cylinder)
@@ -83,6 +109,109 @@ class GraphicalEditor(QFrame):
         self.renderer.SetLayer(0)
         self.vtkWidget.GetRenderWindow().AddRenderer(self.renderer)
         
+    
+    def create_point(self):
+        dialog = PointDialog(self)
+        if dialog.exec_() == QDialog.Accepted and dialog.getValues() is not None:
+            x, y, z = dialog.getValues()
+            
+            # Create a vtkPoints object and insert the point
+            points = vtk.vtkPoints()
+            points.InsertNextPoint(x, y, z)
+            
+            # Create a PolyData object
+            polyData = vtk.vtkPolyData()
+            polyData.SetPoints(points)
+            
+            # Use vtkVertexGlyphFilter to make the points visible
+            glyphFilter = vtk.vtkVertexGlyphFilter()
+            glyphFilter.SetInputData(polyData)
+            glyphFilter.Update()
+            
+            # Create a mapper and actor for the point
+            mapper = vtk.vtkPolyDataMapper()
+            mapper.SetInputConnection(glyphFilter.GetOutputPort())
+            
+            actor = vtk.vtkActor()
+            actor.SetMapper(mapper)
+            actor.GetProperty().SetPointSize(5)    # Set the size of the point
+            actor.GetProperty().SetColor(1, 0, 0)  # Set the color of the point (red)
+            
+            self.renderer.AddActor(actor)
+            self.vtkWidget.GetRenderWindow().Render()
+            
+            self.action_history.append(actor)
+            self.redo_history.clear()
+            
+            
+    def create_line(self):
+        dialog = LineDialog(self)
+        if dialog.exec_() == QDialog.Accepted and dialog.getValues() is not None:
+            x1, y1, z1, x2, y2, z2 = dialog.getValues()
+            
+            # Create points
+            points = vtk.vtkPoints()
+            points.InsertNextPoint(x1, y1, z1)
+            points.InsertNextPoint(x2, y2, z2)
+            
+            line = vtk.vtkLine()
+            line.GetPointIds().SetId(0, 0)
+            line.GetPointIds().SetId(1, 1)
+            
+            lines = vtk.vtkCellArray()
+            lines.InsertNextCell(line)
+            
+            polyData = vtk.vtkPolyData()
+            polyData.SetPoints(points)
+            polyData.SetLines(lines)
+            
+            mapper = vtk.vtkPolyDataMapper()
+            mapper.SetInputData(polyData)
+            
+            actor = vtk.vtkActor()
+            actor.SetMapper(mapper)
+            
+            self.renderer.AddActor(actor)
+            self.vtkWidget.GetRenderWindow().Render()
+            
+            self.action_history.append(actor)
+            self.redo_history.clear()
+
+    
+    def create_surface(self):
+        dialog = SurfaceDialog(self)
+        if dialog.exec_() == QDialog.Accepted and dialog.getValues() is not None:
+            x1, y1, z1, x2, y2, z2, x3, y3, z3 = dialog.getValues()
+            
+            points = vtk.vtkPoints()
+            points.InsertNextPoint(x1, y1, z1)
+            points.InsertNextPoint(x2, y2, z2)
+            points.InsertNextPoint(x3, y3, z3)
+            
+            triangle = vtk.vtkTriangle()
+            triangle.GetPointIds().SetId(0, 0)
+            triangle.GetPointIds().SetId(1, 1)
+            triangle.GetPointIds().SetId(2, 2)
+            
+            triangles = vtk.vtkCellArray()
+            triangles.InsertNextCell(triangle)
+            
+            polyData = vtk.vtkPolyData()
+            polyData.SetPoints(points)
+            polyData.SetPolys(triangles)
+            
+            mapper = vtk.vtkPolyDataMapper()
+            mapper.SetInputData(polyData)
+            
+            actor = vtk.vtkActor()
+            actor.SetMapper(mapper)
+            
+            self.renderer.AddActor(actor)
+            self.vtkWidget.GetRenderWindow().Render()
+            
+            self.action_history.append(actor)
+            self.redo_history.clear()
+    
     
     def create_sphere(self):
         dialog = SphereDialog(self)
