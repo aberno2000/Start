@@ -1,6 +1,7 @@
 import vtk
 from sys import stdout
 from vtkmodules.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
+from vtkmodules.vtkInteractionStyle import vtkInteractorStyleTrackballCamera
 from PyQt5.QtWidgets import(
     QFrame, QVBoxLayout, QHBoxLayout, 
     QPushButton, QDialog, QSpacerItem,
@@ -47,36 +48,48 @@ class GraphicalEditor(QFrame):
         self.layout = QVBoxLayout()  # Main layout
         self.toolbarLayout = QHBoxLayout()  # Layout for the toolbar
         
-        # Create buttons for the toolbar
+        # Create buttons for the toolbar       
         self.createPointButton = QPushButton()
         self.createPointButton.setIcon(QIcon("icons/point.png"))
         self.createPointButton.setIconSize(QSize(32, 32))
         self.createPointButton.setFixedSize(QSize(32, 32))
+        self.createPointButton.setToolTip('Dot')
         
         self.createLineButton = QPushButton()
         self.createLineButton.setIcon(QIcon("icons/line.png"))
         self.createLineButton.setIconSize(QSize(32, 32))
         self.createLineButton.setFixedSize(QSize(32, 32))
+        self.createLineButton.setToolTip('Line')
         
         self.createSurfaceButton = QPushButton()
         self.createSurfaceButton.setIcon(QIcon("icons/surface.png"))
         self.createSurfaceButton.setIconSize(QSize(32, 32))
         self.createSurfaceButton.setFixedSize(QSize(32, 32))
+        self.createSurfaceButton.setToolTip('Surface')
         
         self.createSphereButton = QPushButton()
         self.createSphereButton.setIcon(QIcon("icons/sphere.png"))
         self.createSphereButton.setIconSize(QSize(32, 32))
         self.createSphereButton.setFixedSize(QSize(32, 32))
+        self.createSphereButton.setToolTip('Sphere')
         
         self.createBoxButton = QPushButton()
         self.createBoxButton.setIcon(QIcon("icons/box.png"))
         self.createBoxButton.setIconSize(QSize(32, 32))
         self.createBoxButton.setFixedSize(QSize(32, 32))
+        self.createBoxButton.setToolTip('Box')
         
         self.createCylinderButton = QPushButton()
         self.createCylinderButton.setIcon(QIcon("icons/cylinder.png"))
         self.createCylinderButton.setIconSize(QSize(32, 32))
         self.createCylinderButton.setFixedSize(QSize(32, 32))
+        self.createCylinderButton.setToolTip('Cylinder')
+        
+        self.eraserButton = QPushButton()
+        self.eraserButton.setIcon(QIcon("icons/eraser.png"))
+        self.eraserButton.setIconSize(QSize(32, 32))
+        self.eraserButton.setFixedSize(QSize(32, 32))
+        self.eraserButton.setToolTip('Erase all')
         
         # Add buttons to the toolbar layout
         self.toolbarLayout.addWidget(self.createPointButton)
@@ -85,6 +98,7 @@ class GraphicalEditor(QFrame):
         self.toolbarLayout.addWidget(self.createSphereButton)
         self.toolbarLayout.addWidget(self.createBoxButton)
         self.toolbarLayout.addWidget(self.createCylinderButton)
+        self.toolbarLayout.addWidget(self.eraserButton)
         
         self.spacer = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
         self.toolbarLayout.addSpacerItem(self.spacer)
@@ -96,6 +110,7 @@ class GraphicalEditor(QFrame):
         self.createSphereButton.clicked.connect(self.create_sphere)
         self.createBoxButton.clicked.connect(self.create_box)
         self.createCylinderButton.clicked.connect(self.create_cylinder)
+        self.eraserButton.clicked.connect(lambda: self.remove_all_actors())
         
 
     def setup_ui(self):
@@ -104,10 +119,13 @@ class GraphicalEditor(QFrame):
         self.layout.addWidget(self.vtkWidget)
         self.setLayout(self.layout)
 
-        self.renderer = vtk.vtkRenderer()        
-        self.renderer.SetBackground(0.1, 0.2, 0.5) # Light blue
-        self.renderer.SetLayer(0)
+        self.renderer = vtk.vtkRenderer()
         self.vtkWidget.GetRenderWindow().AddRenderer(self.renderer)
+        
+        self.interactor = self.vtkWidget.GetRenderWindow().GetInteractor()
+        self.interactorStyle = vtkInteractorStyleTrackballCamera()
+        self.interactor.SetInteractorStyle(self.interactorStyle)
+        self.interactor.Initialize()
         
     
     def create_point(self):
@@ -180,37 +198,38 @@ class GraphicalEditor(QFrame):
     
     def create_surface(self):
         dialog = SurfaceDialog(self)
-        if dialog.exec_() == QDialog.Accepted and dialog.getValues() is not None:
-            x1, y1, z1, x2, y2, z2, x3, y3, z3 = dialog.getValues()
+        if dialog.exec_() == QDialog.Accepted:
+            values = dialog.getValues()
             
-            points = vtk.vtkPoints()
-            points.InsertNextPoint(x1, y1, z1)
-            points.InsertNextPoint(x2, y2, z2)
-            points.InsertNextPoint(x3, y3, z3)
-            
-            triangle = vtk.vtkTriangle()
-            triangle.GetPointIds().SetId(0, 0)
-            triangle.GetPointIds().SetId(1, 1)
-            triangle.GetPointIds().SetId(2, 2)
-            
-            triangles = vtk.vtkCellArray()
-            triangles.InsertNextCell(triangle)
-            
-            polyData = vtk.vtkPolyData()
-            polyData.SetPoints(points)
-            polyData.SetPolys(triangles)
-            
-            mapper = vtk.vtkPolyDataMapper()
-            mapper.SetInputData(polyData)
-            
-            actor = vtk.vtkActor()
-            actor.SetMapper(mapper)
-            
-            self.renderer.AddActor(actor)
-            self.vtkWidget.GetRenderWindow().Render()
-            
-            self.action_history.append(actor)
-            self.redo_history.clear()
+            # Assuming values are flat [x1, y1, z1, x2, y2, z2, ...]
+            if values is not None and len(values) >= 9:  # At least 3 points
+                points = vtk.vtkPoints()
+                polyData = vtk.vtkPolyData()
+                
+                # Insert points into vtkPoints
+                for i in range(0, len(values), 3):
+                    points.InsertNextPoint(values[i], values[i+1], values[i+2])
+                
+                polyData.SetPoints(points)
+                
+                # Use Delaunay2D to create the surface
+                delaunay = vtk.vtkDelaunay2D()
+                delaunay.SetInputData(polyData)
+                delaunay.Update()
+                
+                # Create mapper and actor for the surface
+                mapper = vtk.vtkPolyDataMapper()
+                mapper.SetInputConnection(delaunay.GetOutputPort())
+                
+                actor = vtk.vtkActor()
+                actor.SetMapper(mapper)
+                
+                self.renderer.AddActor(actor)
+                self.vtkWidget.GetRenderWindow().Render()
+                
+                # Add to history for undo/redo functionality
+                self.action_history.append(actor)
+                self.redo_history.clear()
     
     
     def create_sphere(self):
@@ -298,6 +317,16 @@ class GraphicalEditor(QFrame):
         self.axes_widget.InteractiveOff()
 
 
+    def remove_all_actors(self):
+        actors = self.renderer.GetActors()
+        actors.InitTraversal()
+        for i in range(actors.GetNumberOfItems()):
+            actor = actors.GetNextActor()
+            self.renderer.RemoveActor(actor)
+        
+        self.vtkWidget.GetRenderWindow().Render()
+
+
     def display_mesh(self, mesh_file_path: str):
         vtk_file_path = mesh_file_path.replace('.msh', '.vtk')
         
@@ -316,11 +345,7 @@ class GraphicalEditor(QFrame):
             return
 
         # Remove all previous actors
-        actors = self.renderer.GetActors()
-        actors.InitTraversal()
-        for i in range(actors.GetNumberOfItems()):
-            actor = actors.GetNextActor()
-            self.renderer.RemoveActor(actor)
+        self.remove_all_actors()
 
         # Add new actor
         actor = vtk.vtkActor()
@@ -340,7 +365,6 @@ class GraphicalEditor(QFrame):
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_Z and event.modifiers() & Qt.ControlModifier:
-            print('Ctrl+Z pressed')
             self.undo_action()
         elif event.key() == Qt.Key_Y and event.modifiers() & Qt.ControlModifier:
             self.redo_action()

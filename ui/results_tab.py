@@ -6,6 +6,7 @@ import vtk
 from mesh_renderer import MeshRenderer
 from hdf5handler import HDF5Handler
 from vtkmodules.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
+from vtkmodules.vtkInteractionStyle import vtkInteractorStyleTrackballCamera
 
 
 class ResultsTab(QWidget):
@@ -31,11 +32,12 @@ class ResultsTab(QWidget):
         self.layout.addWidget(self.vtkWidget)
 
         self.renderer = vtk.vtkRenderer()
-        self.renderer.SetBackground(0.1, 0.2, 0.5) # Light blue
         self.renderer.SetLayer(0)
         self.vtkWidget.GetRenderWindow().AddRenderer(self.renderer)
 
         self.interactor = self.vtkWidget.GetRenderWindow().GetInteractor()
+        self.interactorStyle = vtkInteractorStyleTrackballCamera()
+        self.interactor.SetInteractorStyle(self.interactorStyle)
         self.interactor.Initialize()
 
     

@@ -25,7 +25,6 @@ class GraphicalEditorTab(QWidget):
         super().__init__(parent)
         self.layout = QVBoxLayout(self)
         self.config_tab = config_tab
-
         self.setup_ui()
 
     def setup_ui(self):        
