@@ -33,11 +33,6 @@ argos_nia_start
 # GNU plot files
 *.gp
 
-# Pictures
-*.jpg
-*.jpeg
-*.png
-
 # CSVs
 *.csv
 
