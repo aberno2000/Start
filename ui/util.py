@@ -6,6 +6,14 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtCore import QSize
 from converter import is_positive_real_number, is_real_number
+from os.path import exists, isfile
+
+
+def is_file_valid(path: str):
+    if not exists(path) or not isfile(path) or not path:
+        return False
+    return True
+
 
 class PointDialog(QDialog):
     def __init__(self, parent=None):
