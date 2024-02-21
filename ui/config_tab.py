@@ -5,7 +5,6 @@ from PyQt5.QtWidgets import (
 )
 import sys
 import gmsh
-from os.path import isfile, exists
 from PyQt5 import QtCore
 from PyQt5.QtCore import pyqtSignal
 from json import load, dump, JSONDecodeError
@@ -13,6 +12,7 @@ from multiprocessing import cpu_count
 from platform import platform
 from converter import Converter, is_positive_real_number
 from mesh_dialog import MeshDialog, CaptureGmshLog
+from util import is_file_valid
 
 MIN_TIME = 1e-9
 MAX_PRESSURE = 300.0
@@ -238,8 +238,8 @@ class ConfigTab(QWidget):
 
 
     def check_validity_of_params(self):
-        if not exists(self.mesh_file) or not isfile(self.mesh_file):
-            return
+        if not is_file_valid(self.mesh_file):
+            return None
 
         if not self.thread_count or \
             int(self.thread_count) > get_thread_count() or \
@@ -476,7 +476,6 @@ class ConfigTab(QWidget):
         if fileName:
             self.mesh_file = fileName
             self.mesh_file_label.setText(f"Selected: {fileName}")
-            self.meshFileSelected.emit(self.mesh_file)
             QMessageBox.information(
                 self, "Mesh File Selected", f"File: {self.mesh_file}"
             )
@@ -494,9 +493,15 @@ class ConfigTab(QWidget):
                     self.convert_stp_to_msh(fileName, mesh_size, mesh_dim)
                 except ValueError as e:
                     QMessageBox.warning(self, "Invalid Input", str(e))
-                    return
+                    return None
         else:
             self.mesh_file = fileName
+        
+        if self.config_file_path.endswith('.stp'):
+            self.mesh_file.replace('.stp', '.msh')
+        if self.config_file_path.endswith('.vtk'):
+            self.mesh_file.replace('.vtk', '.msh')
+        self.meshFileSelected.emit(self.mesh_file)
 
     def ask_to_upload_mesh_file(self):
         if self.mesh_file:
@@ -507,8 +512,6 @@ class ConfigTab(QWidget):
                 self.upload_mesh_file()
             else:
                 pass
-        else:
-            self.upload_mesh_file()
 
     def convert_stp_to_msh(self, file_path, mesh_size, mesh_dim):
         original_stdout = sys.stdout  # Save a reference to the original standard output
@@ -533,7 +536,7 @@ class ConfigTab(QWidget):
         except Exception as e:
             QMessageBox.critical(
                 self, "Error", f"An error occurred during conversion: {str(e)}")
-            return
+            return None
         finally:
             gmsh.finalize()
             sys.stdout = original_stdout  # Restore stdout to its original state
@@ -542,7 +545,7 @@ class ConfigTab(QWidget):
         if "Error" in log_output:
             QMessageBox.critical(
                 self, "Conversion Error", "An error occurred during mesh generation. Please check the file and parameters.")
-            return
+            return None
         else:
             self.mesh_file = output_file
             QMessageBox.information(

@@ -15,7 +15,7 @@ from config_tab import ConfigTab
 from results_tab import ResultsTab
 from gedit_tab import GraphicalEditorTab
 from log_console import LogConsole
-from util import ShortcutsInfoDialog
+from util import ShortcutsInfoDialog, is_file_valid
 
 
 class WindowApp(QMainWindow):
@@ -91,6 +91,13 @@ class WindowApp(QMainWindow):
         self.progress_bar.setValue(100)
         
         if exitStatus == QProcess.NormalExit and exitCode == 0:
+            if not is_file_valid(self.hdf5_filename):
+                QMessageBox.warning(self, 
+                                    "Invalid HDF5 File", 
+                                    "Something wrong with HDF5 file. Can't update results. Check the name of the file, try to rename it. Going back...")
+                self.stop_simulation()
+                return
+                
             self.results_tab.update_plot(self.hdf5_filename)
             self.log_console.insert_colored_text('\nSuccessfully: ', 'green')
             self.log_console.insert_colored_text(f'The simulation has completed in {exec_time:.3f}s', 'dark gray')
@@ -253,7 +260,7 @@ class WindowApp(QMainWindow):
             with open(self.config_tab.config_file_path, "w") as file:
                 dump(config_content, file, indent=4)  # Serialize dict to JSON
         except Exception as e:
-            QMessageBox.critical(self, "Error", f"Failed to save configuration: {e}")
+            QMessageBox.critical(self, "Error", f"Failed to save configuration")
             return
         self.hdf5_filename = self.config_tab.mesh_file.replace(".msh", ".hdf5")
         args = f"{self.config_tab.config_file_path}"
@@ -313,6 +320,7 @@ class WindowApp(QMainWindow):
             ("Exit", "Ctrl+Q", "Exits the application."),
             ("Run Simulation", "Ctrl+R", "Starts the simulation."),
             ("Stop Simulation", "Ctrl+T", "Stops the currently running simulation."),
+            ("Hide/Show Log Console", "Ctrl+L", "Toggles visibility of the log console"),
             ("Upload Config", "Ctrl+Shift+U", "Uploads a configuration file."),
             ("Save Config", "Ctrl+Shift+S", "Saves the current configuration to a file."),
             ("Upload Mesh", "Ctrl+Shift+M", "Uploads a mesh file."),
