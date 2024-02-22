@@ -1,10 +1,11 @@
-from PyQt5.QtWidgets import QApplication
-from window import WindowApp
 import sys
 from inst_deps import check_and_install_packages
 
 # Installing dependencies
 check_and_install_packages(["numpy", "h5py", "gmsh", "matplotlib", "PyQt5", "vtk"])
+
+from PyQt5.QtWidgets import QApplication
+from window import WindowApp
 
 dark_stylesheet = """
 QWidget {
@@ -14,7 +15,7 @@ QWidget {
 """
 
 
-def main():
+def main():    
     app = QApplication(sys.argv)
     app.setStyleSheet(dark_stylesheet)
     main_window = WindowApp()

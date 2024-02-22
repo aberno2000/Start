@@ -6,7 +6,7 @@ from PyQt5.QtWidgets import (
 import sys
 import gmsh
 from PyQt5 import QtCore
-from PyQt5.QtCore import pyqtSignal
+from PyQt5.QtCore import pyqtSignal, QThread
 from json import load, dump, JSONDecodeError
 from multiprocessing import cpu_count
 from platform import platform
@@ -30,14 +30,17 @@ class ConfigTab(QWidget):
     # Signal to check if mesh file was selected by user
     meshFileSelected = pyqtSignal(str)
 
-    def __init__(self, parent=None):
-        super().__init__(parent)
+    def __init__(self, log_console, parent=None):
+        super().__init__(parent)        
         self.layout = QVBoxLayout(self)
-
+        
         self.converter = Converter()
         self.setup_ui()
         self.mesh_file = ""
         self.config_file_path = ""
+        
+        self.log_console = log_console
+        self.log_console.logSignal.connect(self.log_console.appendLog)
 
     def setup_ui(self):
         self.setup_mesh_group()
@@ -184,8 +187,9 @@ class ConfigTab(QWidget):
         # Energy with units
         self.energy_input = QLineEdit()
         self.energy_units = QComboBox()
-        self.energy_units.addItems(["eV", "J"])
-        self.energy_converted = QLabel("0.0 eV")
+        self.energy_units.addItems(["eV", "keV", "J", "kJ", "cal"])
+        self.energy_units.setCurrentText("J")
+        self.energy_converted = QLabel("0.0 J")
         energy_layout = QHBoxLayout()
         energy_layout.addWidget(self.energy_input)
         energy_layout.addWidget(
@@ -234,7 +238,7 @@ class ConfigTab(QWidget):
         self.volume_converted.setText(
             f"{self.converter.to_cubic_meters(self.volume_input.text(), self.volume_units.currentText())} m³")
         self.energy_converted.setText(
-            f"{self.converter.to_electron_volts(self.energy_input.text(), self.energy_units.currentText())} eV")
+            f"{self.converter.to_joules(self.energy_input.text(), self.energy_units.currentText())} J")
 
 
     def check_validity_of_params(self):
@@ -313,7 +317,7 @@ class ConfigTab(QWidget):
         self.volume = self.converter.to_cubic_meters(
             self.volume_input.text(), self.volume_units.currentText()
         )
-        self.energy = self.converter.to_electron_volts(
+        self.energy = self.converter.to_joules(
             self.energy_input.text(), self.energy_units.currentText()
         )
 
@@ -365,6 +369,7 @@ class ConfigTab(QWidget):
             QMessageBox.warning(
                 self, "No Configuration File Selected", "No configuration file was uploaded.")
             return
+        self.log_console.logSignal.emit(f'Selected configuration: {self.config_file_path}')
 
     def read_config_file(self, config_file_path):
         config = str()
@@ -429,7 +434,7 @@ class ConfigTab(QWidget):
             self.temperature_units.setCurrentIndex(0)
             self.pressure_units.setCurrentIndex(1)
             self.volume_units.setCurrentIndex(2)
-            self.energy_units.setCurrentIndex(0)
+            self.energy_units.setCurrentIndex(2)
 
         except Exception as e:
             QMessageBox.critical(self, "Error Applying Configuration",
@@ -459,8 +464,10 @@ class ConfigTab(QWidget):
                 with open(config_file_path, "w") as file:
                     dump(config_content, file, indent=4)  # Serialize dict to JSON
                 QMessageBox.information(self, "Success", f"Configuration saved to {config_file_path}")
+                self.log_console.logSignal.emit(f'Successfully saved data to new config: {config_file_path}')
             except Exception as e:
-                QMessageBox.critical(self, "Error", f"Failed to save configuration: {e}")
+                QMessageBox.critical(self, "Error", f"Failed to save configuration")
+                self.log_console.insert_colored_text(f'Error: Failed to save configuration to {config_file_path}')
                 
     def upload_mesh_file(self):
         # Open a file dialog when the button is clicked and filter for .msh files
@@ -502,6 +509,7 @@ class ConfigTab(QWidget):
         if self.config_file_path.endswith('.vtk'):
             self.mesh_file.replace('.vtk', '.msh')
         self.meshFileSelected.emit(self.mesh_file)
+        self.log_console.logSignal.emit(f'Uploaded mesh: {self.mesh_file}')
 
     def ask_to_upload_mesh_file(self):
         if self.mesh_file:
@@ -512,8 +520,11 @@ class ConfigTab(QWidget):
                 self.upload_mesh_file()
             else:
                 pass
+        else:
+            self.upload_mesh_file()
+        self.log_console.logSignal.emit(f'Uploaded mesh: {self.mesh_file}')
 
-    def convert_stp_to_msh(self, file_path, mesh_size, mesh_dim):
+    def convert_stp_to_msh(self, file_path, mesh_size, mesh_dim):        
         original_stdout = sys.stdout  # Save a reference to the original standard output
         redirected_output = CaptureGmshLog()
         sys.stdout = redirected_output  # Redirect stdout to capture Gmsh logs
@@ -545,8 +556,10 @@ class ConfigTab(QWidget):
         if "Error" in log_output:
             QMessageBox.critical(
                 self, "Conversion Error", "An error occurred during mesh generation. Please check the file and parameters.")
+            self.log_console.logSignal.emit(f'Error: Can\'t convert {file_path} to {output_file}')
             return None
         else:
             self.mesh_file = output_file
             QMessageBox.information(
                 self, "Conversion Completed", f"Mesh generated: {self.mesh_file}")
+            self.log_console.logSignal.emit(f'Successfully converted {file_path} to {output_file}. Mesh size is {mesh_size}. Mesh dimension: {mesh_dim}')

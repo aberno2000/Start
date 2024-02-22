@@ -1,12 +1,14 @@
 from PyQt5.QtWidgets import (
     QVBoxLayout, QPlainTextEdit,
-    QWidget, QDockWidget,
+    QWidget, QDockWidget
 )
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QTextCharFormat, QColor
     
 
 class LogConsole(QWidget):
+    logSignal = pyqtSignal(str)
+    
     def __init__(self, parent=None):
         super().__init__(parent)
         self.layout = QVBoxLayout(self)
@@ -21,7 +23,6 @@ class LogConsole(QWidget):
         self.log_dock_widget.setWidget(self.log_console)
         self.log_dock_widget.setAllowedAreas(Qt.BottomDockWidgetArea)
         self.log_dock_widget.setVisible(True)
-
 
     def insert_colored_text(self, text: str, color: str):
         """
@@ -41,3 +42,8 @@ class LogConsole(QWidget):
         self.log_console.setTextCursor(cursor)
         default_format = QTextCharFormat()
         cursor.mergeCharFormat(default_format)
+        
+        
+    def appendLog(self, message):
+        self.log_console.appendPlainText(message)
+        

@@ -3,20 +3,19 @@ from PyQt5.QtWidgets import (
     QVBoxLayout, QWidget,
     QMessageBox, QFileDialog,
     QProgressBar, QScrollArea, 
-    QApplication, QColorDialog,
-    QLabel
+    QApplication, QColorDialog
 )
 import signal
 from sys import exit
 from time import time
 from json import dump
+from converter import ansi_to_segments, insert_segments_into_log_console
 from PyQt5.QtCore import Qt, QProcess
 from config_tab import ConfigTab
 from results_tab import ResultsTab
 from gedit_tab import GraphicalEditorTab
 from log_console import LogConsole
 from util import ShortcutsInfoDialog, is_file_valid
-
 
 class WindowApp(QMainWindow):
     def __init__(self):
@@ -33,12 +32,13 @@ class WindowApp(QMainWindow):
         rect = screen.availableGeometry()
         self.setGeometry(rect)
 
+        self.log_console = LogConsole()
+
         # Create tab widget and tabs
         self.tab_widget = QTabWidget()
         self.results_tab = ResultsTab()
-        self.config_tab = ConfigTab()
+        self.config_tab = ConfigTab(self.log_console)
         self.mesh_tab = GraphicalEditorTab(self.config_tab)
-        self.log_console = LogConsole()
 
         # Connecting signal to detect the selection of mesh file
         self.config_tab.meshFileSelected.connect(self.mesh_tab.set_mesh_file)
@@ -77,13 +77,15 @@ class WindowApp(QMainWindow):
     
     def read_stderr(self):
         errout = self.process.readAllStandardError().data().decode('utf-8').strip()
-        self.log_console.log_console.appendPlainText(errout)
+        segments = ansi_to_segments(errout)
+        insert_segments_into_log_console(segments, self.log_console)
 
 
     def read_stdout(self):
         out = self.process.readAllStandardOutput().data().decode('utf-8').strip()
-        self.log_console.log_console.appendPlainText(out)
-        
+        segments = ansi_to_segments(out)
+        insert_segments_into_log_console(segments, self.log_console)
+
     
     def on_process_finished(self, exitCode, exitStatus):
         self.progress_bar.setHidden(True)
@@ -99,16 +101,23 @@ class WindowApp(QMainWindow):
                 return
                 
             self.results_tab.update_plot(self.hdf5_filename)
-            self.log_console.insert_colored_text('\nSuccessfully: ', 'green')
+            self.log_console.insert_colored_text('Successfully: ', 'green')
             self.log_console.insert_colored_text(f'The simulation has completed in {exec_time:.3f}s', 'dark gray')
             QMessageBox.information(self,
                                     "Process Finished",
                                     f"The simulation has completed in {exec_time:.3f}s")
         else:
             self.results_tab.clear_plot()
-            signal_name = signal.Signals(exitCode).name
             
-            self.log_console.insert_colored_text('\nWarning: ', 'yellow')
+            try:
+                signal_name = signal.Signals(exitCode).name
+            except ValueError:
+                QMessageBox.warning(self,
+                                    "Simulation Stopped",
+                                    f"Got signal {exitCode} which is undefined!")
+                signal_name = "Undefined"
+            
+            self.log_console.insert_colored_text('Warning: ', 'yellow')
             self.log_console.insert_colored_text(f'The simulation has been forcibly stopped with a code {exitCode} <{signal_name}>.', 'dark gray')
             QMessageBox.information(self, 
                                     "Simulation Stopped", 
