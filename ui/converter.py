@@ -1,3 +1,20 @@
+from re import compile, split
+
+ANSI_COLOR_REGEX = compile(r'\033\[(\d+)(;\d+)*m')
+ANSI_TO_QCOLOR = {
+    '0': ('light gray', False),  # Reset to default
+    '1': ('', True),             # Bold text
+    '4': ('', True),             # Underline
+    '30': 'black',
+    '31': 'red',
+    '32': 'green',
+    '33': 'yellow',
+    '34': 'blue',
+    '35': 'magenta',
+    '36': 'cyan',
+    '37': 'white',
+}
+
 def is_real_number(value: str):
     try:
         float(value)
@@ -15,6 +32,47 @@ def is_positive_real_number(value: str):
     except ValueError:
         return False
 
+
+def ansi_to_segments(text: str):
+    segments = []
+    current_color = 'light gray'  # Default color
+    is_bold = False  # Track if bold text is needed
+    buffer = ""
+
+    # Function to append text segments
+    def append_segment(text, color):
+        if text:  # Only append non-empty segments
+            segments.append((text.strip() + '\n', color))
+
+    # Split the text by ANSI escape codes
+    parts = split(r'(\033\[\d+(?:;\d+)*m)', text)
+    for part in parts:
+        if not part:  # Skip empty strings
+            continue
+        # Check if the part is an ANSI escape code
+        if part.startswith('\033['):
+            codes = part[2:-1].split(';')  # Remove leading '\033[' and trailing 'm', then split
+            for code in codes:
+                if code in ANSI_TO_QCOLOR:
+                    color_info = ANSI_TO_QCOLOR[code]
+                    if isinstance(color_info, tuple):
+                        color, is_bold = color_info
+                        if not color:  # If no color change, keep current color
+                            continue
+                    else:
+                        color = color_info
+                    append_segment(buffer, current_color)  # Append the current buffer with the current color
+                    buffer = ""  # Reset buffer
+                    current_color = color  # Update current color
+                    break  # Only apply the first matching color
+        else:
+            buffer += part  # Add text to the buffer
+    append_segment(buffer, current_color)  # Append any remaining text
+    return segments
+
+def insert_segments_into_log_console(segments, logConsole):
+    for text, color in segments:
+        logConsole.insert_colored_text(text, color)
 
 class Converter:
     @staticmethod
@@ -56,9 +114,29 @@ class Converter:
         return value * unit_factors.get(unit, 0)
 
     @staticmethod
-    def to_electron_volts(value, unit):
+    def to_joules(value, unit):
+        """
+        Converts a given energy value from a specified unit to joules (J).
+
+        Parameters:
+        - value (str): The energy value to convert.
+        - unit (str): The unit of the given value. Supported units: "eV", "keV", "J", "kJ", "cal".
+
+        Returns:
+        - float: The converted value in joules.
+        """
         if not is_positive_real_number(value):
             return 0.0
         value = float(value)
-        unit_factors = {"J": 6.2415093433e18, "eV": 1.0}
-        return value * unit_factors.get(unit, 0)
+        
+        # Conversion factors to joules
+        unit_factors = {
+            "eV": 1.602176634e-19,  # 1 eV to Joules
+            "keV": 1.602176634e-16, # 1 keV to Joules
+            "J": 1.,                # 1 Joule to Joules
+            "kJ": 1e3,              # 1 kilojoule to Joules
+            "cal": 4.184,           # 1 calorie to Joules
+        }
+        
+        return value * unit_factors.get(unit, 0)  # Default to 0 if unit is unsupported
+
