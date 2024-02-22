@@ -103,7 +103,7 @@ class WindowApp(QMainWindow):
                 
             self.results_tab.update_plot(self.hdf5_filename)
             self.log_console.insert_colored_text('Successfully: ', 'green')
-            self.log_console.insert_colored_text(f'The simulation has completed in {exec_time:.3f}s', 'dark gray')
+            self.log_console.insert_colored_text(f'The simulation has completed in {exec_time:.3f}s\n', 'dark gray')
             QMessageBox.information(self,
                                     "Process Finished",
                                     f"The simulation has completed in {exec_time:.3f}s")
@@ -119,10 +119,10 @@ class WindowApp(QMainWindow):
                 signal_name = "Undefined"
             
             self.log_console.insert_colored_text('Warning: ', 'yellow')
-            self.log_console.insert_colored_text(f'The simulation has been forcibly stopped with a code {exitCode} <{signal_name}>.', 'dark gray')
+            self.log_console.insert_colored_text(f'The simulation has been forcibly stopped with a code {exitCode} <{signal_name}>\n', 'dark gray')
             QMessageBox.information(self, 
                                     "Simulation Stopped", 
-                                    f"The simulation has been forcibly stopped with a code {exitCode} <{signal_name}>.")
+                                    f"The simulation has been forcibly stopped with a code {exitCode} <{signal_name}>")
     
     
     def setup_menu_bar(self):
