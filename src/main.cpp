@@ -1,10 +1,10 @@
 #include "../include/Utilities/CollisionTracker.hpp"
 #include "../include/Utilities/ConfigParser.hpp"
 
-void simulateMovement(size_t particles_count, double dt, double total_time,
-                      ParticleType ptype,
-                      std::string_view outfile, std::string_view hdf5filename,
-                      unsigned int num_threads = std::thread::hardware_concurrency())
+void simulateMovement(ConfigParser const &configObj,
+                      double gasConcentration,
+                      std::string_view mshfilename,
+                      std::string_view hdf5filename)
 {
     MeshParamVector mesh;
 
@@ -12,20 +12,18 @@ void simulateMovement(size_t particles_count, double dt, double total_time,
     // To finilize GMSH as soon as possible.
     {
         GMSHVolumeCreator volumeCreator;
-        mesh = volumeCreator.getMeshParams(outfile);
+        mesh = volumeCreator.getMeshParams(mshfilename);
     }
-    auto pgs(createParticlesWithVelocities(particles_count, ptype,
-                                           -50, -50, -50,
-                                           100, 100, 100, -50, -50, -50,
-                                           50, 50, 50));
+    auto pgs(createParticlesWithVelocities(configObj.getParticlesCount(),
+                                           configObj.getProjective(),
+                                           -100, -100, -100, // Min: xyz
+                                           100, 100, 100,    // Max: xyz
+                                           -100, -100, -100, // Min: Vxyz
+                                           100, 100, 100     // Max: Vxyz
+                                           ));
 
-    // Limitation to restrict start program with threads count > it has.
-    num_threads = (num_threads > std::thread::hardware_concurrency())
-                      ? std::thread::hardware_concurrency()
-                      : num_threads;
-
-    CollisionTracker ct(pgs, mesh, dt, total_time);
-    auto counterMap{ct.trackCollisions(num_threads)};
+    CollisionTracker ct(pgs, mesh, configObj, gasConcentration);
+    auto counterMap{ct.trackCollisions(configObj.getNumThreads())};
 
     auto mapEnd{counterMap.end()};
     for (auto &triangle : mesh)
@@ -41,18 +39,17 @@ void checkRestrictions(double time_step, size_t particles_count, std::string_vie
 {
     if (not util::exists(mshfilename))
     {
-        std::cerr << std::format("Error: File {} doesn't exist\n", mshfilename);
+        ERRMSG(util::stringify("File (", mshfilename, ") doesn't exist"));
         std::exit(EXIT_FAILURE);
     }
-    if (time_step == 0.0)
+    if (time_step <= 0.0)
     {
-        std::cerr << "Error: Time step can't be 0.\n";
+        ERRMSG(util::stringify("Time step can't be less or equal 0"));
         std::exit(EXIT_FAILURE);
     }
     if (particles_count > 10'000'000)
     {
-        std::cerr << std::format("Error: Particles count limited by 10'000'000.\nBut you entered {}\n",
-                                 particles_count);
+        ERRMSG(util::stringify("Particles count limited by 10'000'000.\nBut you entered ", particles_count));
         std::exit(EXIT_FAILURE);
     }
 }
@@ -61,7 +58,7 @@ int main(int argc, char *argv[])
 {
     if (argc != 2)
     {
-        std::cerr << std::format("Usage: {} <config_file>\n", argv[0]);
+        ERRMSG(util::stringify("Usage: ", argv[0], " <config_file>"));
         return EXIT_FAILURE;
     }
 
@@ -72,9 +69,12 @@ int main(int argc, char *argv[])
         hdf5filename(mshfilename.substr(0, mshfilename.find(".")) + ".hdf5");
 
     checkRestrictions(configParser.getTimeStep(), configParser.getParticlesCount(), configFilename);
-    simulateMovement(configParser.getParticlesCount(), configParser.getTimeStep(),
-                     configParser.getSimulationTime(), configParser.getProjective(), mshfilename, hdf5filename,
-                     configParser.getNumThreads());
+    double gasConcentration(util::calculateConcentration(configFilename));
+
+    if (gasConcentration < gasConcentrationMinimalValue)
+        WARNINGMSG(util::stringify("Something wrong with the concentration of the gas. Its value is ", gasConcentration, ". Simulation might considerably slows down"));
+
+    simulateMovement(configParser, gasConcentration, mshfilename, hdf5filename);
 
     return EXIT_SUCCESS;
 }

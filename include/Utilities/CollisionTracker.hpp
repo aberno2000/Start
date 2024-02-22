@@ -12,6 +12,7 @@
 #include "../Generators/VolumeCreator.hpp"
 #include "../Geometry/Mesh.hpp"
 #include "../Particles/Particles.hpp"
+#include "ConfigParser.hpp"
 
 /**
  * @brief The `CollisionTracker` class is responsible for tracking
@@ -21,63 +22,63 @@
  *          particle collection and determine collision events with elements of a provided mesh.
  *          It operates in a concurrent environment, managing thread synchronization and safe data access.
  */
-class CollisionTracker final
+class CollisionTracker
 {
 private:
-    ParticleVector &m_particles;               // Reference to a vector of particles to be processed.
-    MeshParamVector const &m_mesh;             // Reference to a vector representing the mesh for collision detection.
-    double m_dt;                               // Time step for updating particle positions.
-    double m_total_time;                       // Total simulation time for which collisions are tracked.
-    static constinit std::mutex m_map_mutex;   // Mutex for synchronizing access to the collision map.
-    static std::atomic<size_t> m_counter;      // Count of the settled particles. Needs for optimization.
-    static std::atomic_flag m_stop_processing; // Flag-checker for condition (counter >= size of particles).
+  ParticleVector &m_particles;               // Reference to a vector of particles to be processed.
+  MeshParamVector const &m_mesh;             // Reference to a vector representing the mesh for collision detection.
+  ConfigParser const &m_configObj;           // `ConfigParser` object that keeps all necessary simulation parameters.
+  double m_gasConcentration;                 // Concentration of the gas.
+  static constinit std::mutex m_map_mutex;   // Mutex for synchronizing access to the collision map.
+  static std::atomic<size_t> m_counter;      // Count of the settled particles. Needs for optimization.
+  static std::atomic_flag m_stop_processing; // Flag-checker for condition (counter >= size of particles).
 
-    /**
-     * @brief Processes a segment of the particle collection to detect collisions.
-     *
-     * @details This method runs in multiple threads, each processing a specified range of particles.
-     *          It updates particle positions and detects collisions with mesh elements,
-     *          recording collision counts.
-     *
-     * @param start_index The starting index in the particle vector for this segment.
-     * @param end_index The ending index in the particle vector for this segment.
-     * @param m Reference to the map tracking the number of collisions for each mesh element.
-     */
-    void processSegment(size_t start_index, size_t end_index,
-                        std::unordered_map<size_t, int> &m, AABB_Tree const &tree);
+  /**
+   * @brief Processes a segment of the particle collection to detect collisions.
+   *
+   * @details This method runs in multiple threads, each processing a specified range of particles.
+   *          It updates particle positions and detects collisions with mesh elements,
+   *          recording collision counts.
+   *
+   * @param start_index The starting index in the particle vector for this segment.
+   * @param end_index The ending index in the particle vector for this segment.
+   * @param m Reference to the map tracking the number of collisions for each mesh element.
+   */
+  void processSegment(size_t start_index, size_t end_index,
+                      std::unordered_map<size_t, int> &m, AABB_Tree const &tree);
 
 public:
-    /**
-     * @brief Constructs a new CollisionTracker object.
-     *
-     * @details Initializes the collision tracker with a given set of particles, a mesh,
-     *          a time step, and a total simulation time.
-     *
-     * @param pgs Reference to the vector of particles.
-     * @param mesh Reference to the vector of mesh elements.
-     * @param dt Time step for the simulation.
-     * @param total_time Total time for which the simulation is run.
-     */
-    CollisionTracker(ParticleVector &particles, MeshParamVector const &mesh,
-                     double time_step, double total_time)
-        : m_particles(particles), m_mesh(mesh),
-          m_dt(time_step), m_total_time(total_time) {}
-    CollisionTracker(ParticleVector &particles, MeshParamVector &&mesh,
-                     double time_step, double total_time)
-        : m_particles(particles), m_mesh(std::move(mesh)),
-          m_dt(time_step), m_total_time(total_time) {}
+  /**
+   * @brief Constructs a new CollisionTracker object.
+   *
+   * @details Initializes the collision tracker with a given set of particles, a mesh,
+   *          a time step, and a total simulation time.
+   *
+   * @param pgs Reference to the vector of particles.
+   * @param mesh Reference to the vector of mesh elements.
+   * @param dt Time step for the simulation.
+   * @param total_time Total time for which the simulation is run.
+   */
+  CollisionTracker(ParticleVector &particles, MeshParamVector const &mesh,
+                   ConfigParser const &configObj, double gasConcentration)
+      : m_particles(particles), m_mesh(mesh), m_configObj(configObj),
+        m_gasConcentration(gasConcentration) {}
+  CollisionTracker(ParticleVector &particles, MeshParamVector &&mesh,
+                   ConfigParser const &configObj, double gasConcentration)
+      : m_particles(particles), m_mesh(std::move(mesh)),
+        m_configObj(configObj), m_gasConcentration(gasConcentration) {}
 
-    /**
-     * @brief Tracks collisions in a concurrent manner and returns a map of collision counts.
-     *
-     * @details Sets up and manages multiple threads, each processing a segment of particles, to detect
-     *          collisions against the mesh elements. The method aggregates collision
-     *          data from all threads into a single map.
-     * @param num_threads Number of threads to execute (default: $(nproc) value).
-     *
-     * @return std::unordered_map<size_t, int> Map with keys as mesh element IDs and values as collision counts.
-     */
-    std::unordered_map<size_t, int> trackCollisions(unsigned int num_threads = std::thread::hardware_concurrency());
+  /**
+   * @brief Tracks collisions in a concurrent manner and returns a map of collision counts.
+   *
+   * @details Sets up and manages multiple threads, each processing a segment of particles, to detect
+   *          collisions against the mesh elements. The method aggregates collision
+   *          data from all threads into a single map.
+   * @param num_threads Number of threads to execute (default: $(nproc) value).
+   *
+   * @return std::unordered_map<size_t, int> Map with keys as mesh element IDs and values as collision counts.
+   */
+  std::unordered_map<size_t, int> trackCollisions(unsigned int num_threads = std::thread::hardware_concurrency());
 };
 
 #endif // !COLLISIONTRACKER_HPP

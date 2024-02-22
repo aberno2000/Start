@@ -12,7 +12,10 @@ std::atomic_flag CollisionTracker::m_stop_processing = ATOMIC_FLAG_INIT;
 void CollisionTracker::processSegment(size_t start_index, size_t end_index,
                                       std::unordered_map<size_t, int> &m, AABB_Tree const &tree)
 {
-    for (double t{}; t <= m_total_time && !m_stop_processing.test(); t += m_dt)
+    Particle gasParticle(m_configObj.getGas());
+    for (double t{};
+         t <= m_configObj.getSimulationTime() && !m_stop_processing.test();
+         t += m_configObj.getTimeStep())
     {
         std::for_each(std::execution::par,
                       m_particles.begin() + start_index,
@@ -24,7 +27,10 @@ void CollisionTracker::processSegment(size_t start_index, size_t end_index,
                               return;
 
                           Point3 prev(p.getCentre());
-                          p.updatePosition(m_dt);
+                          if (p.colide(gasParticle, m_gasConcentration,
+                                       m_configObj.getScatteringModel(),
+                                       m_configObj.getTimeStep()))
+                              p.updatePosition(m_configObj.getTimeStep());
                           Ray3 ray(prev, p.getCentre());
 
                           // Check ray on degeneracy

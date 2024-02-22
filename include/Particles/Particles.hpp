@@ -10,6 +10,8 @@
 using namespace constants;
 using namespace particle_types;
 using namespace physical_constants;
+using namespace viscosity_temperature_index;
+using namespace VSS_deflection_parameter;
 
 /// @brief Represents a particle in a simulation.
 class Particle
@@ -94,6 +96,46 @@ private:
     }
 
     /**
+     * @brief Gets viscosity temperature index from the specified type of the particle.
+     * @param type Type of the particle represented as enum.
+     * @return viscosity temperature index of the particle [no measure units].
+     */
+    constexpr double getViscosityTemperatureIndexFromType(ParticleType type) const
+    {
+        switch (type)
+        {
+        case ParticleType::Ar:
+            return Ar_VTI;
+        case ParticleType::Ne:
+            return Ne_VTI;
+        case ParticleType::He:
+            return He_VTI;
+        default:
+            return 0;
+        }
+    }
+
+    /**
+     * @brief Gets VSS deflection parameter from the specified type of the particle.
+     * @param type Type of the particle represented as enum.
+     * @return VSS deflection parameter of the particle [no measure units].
+     */
+    constexpr double getVSSDeflectionParameterFromType(ParticleType type) const
+    {
+        switch (type)
+        {
+        case ParticleType::Ar:
+            return Ar_VSS_TI;
+        case ParticleType::Ne:
+            return Ne_VSS_TI;
+        case ParticleType::He:
+            return He_VSS_TI;
+        default:
+            return 0;
+        }
+    }
+
+    /**
      * @brief Calculates velocity module from energy of particle and then
      * calculates Vx, Vy, Vz from this module using random numbers.
      * Formula:
@@ -123,6 +165,7 @@ private:
 
 public:
     Particle() {}
+    Particle(ParticleType type_);
     Particle(ParticleType type_, double x_, double y_, double z_, double energy_);
     Particle(ParticleType type_, double x_, double y_, double z_, double vx_, double vy_, double vz_);
     Particle(ParticleType type_, Point3 const &centre, double vx_, double vy_, double vz_);
@@ -173,25 +216,22 @@ public:
     constexpr aabb::AABB const &getBoundingBox() const { return m_boundingBox; }
     constexpr double getMass() const { return getMassFromType(m_type); }
     constexpr double getRadius() const { return getRadiusFromType(m_type); }
+    constexpr float getViscosityTemperatureIndex() const { return getViscosityTemperatureIndexFromType(m_type); }
+    constexpr float getVSSDeflectionParameter() const { return getVSSDeflectionParameterFromType(m_type); }
 
     /**
      * @brief Chooses the specified scattering model.
      * @param target particle of gas with which current particle will colide.
      * @param n_concentration concentration of particles.
      * @param model scattering model (available: HS/VHS/VSS)
-     *
-     * TODO: Describe the angles
-     * @param omega
-     * @param alpha
-     *
      * @param time_step simulation time step.
+     * @return `true` if colided, otherwise `false`.
      */
-    void colide(Particle target, double n_concentration, std::string_view model,
-                double time_step, double omega = 0, double alpha = 0) &;
+    bool colide(Particle target, double n_concentration, std::string_view model, double time_step);
 
-    bool colideHS(Particle target, double n_concentration, double time_step) &;
-    bool colideVHS(Particle target, double n_concentration, double omega, double time_step) &;
-    bool colideVSS(Particle target, double n_concentration, double omega, double alpha, double time_step) &;
+    bool colideHS(Particle target, double n_concentration, double time_step);
+    bool colideVHS(Particle target, double n_concentration, double omega, double time_step);
+    bool colideVSS(Particle target, double n_concentration, double omega, double alpha, double time_step);
 };
 
 using ParticleVector = std::vector<Particle>;

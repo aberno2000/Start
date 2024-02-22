@@ -107,9 +107,9 @@ double util::calculateConcentration(std::string_view config)
     if (parser.isInvalid())
         return -1.0;
 
-    // n = PV/RT
-    return parser.getPressure() * parser.getVolume() /
-           parser.getTemperature() * constants::physical_constants::R;
+    // n = PV/RT * N_Avogadro
+    return parser.getPressure() * parser.getVolume() * constants::physical_constants::N_av /
+           (parser.getTemperature() * constants::physical_constants::R);
 }
 
 bool util::exists(std::string_view filename)

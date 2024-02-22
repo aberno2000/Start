@@ -40,6 +40,22 @@ namespace constants
         static constinit const double Ag_radius{160e-12};
     }
 
+    // Book: The DSMC method G. A. Bird Version 1.2; 2013. 286 p. (Table A.1) - omega
+    namespace viscosity_temperature_index
+    {
+        static constinit const float Ar_VTI{0.81};
+        static constinit const float Ne_VTI{0.66};
+        static constinit const float He_VTI{0.66};
+    }
+
+    // Book: The DSMC method G. A. Bird Version 1.2; 2013. 286 p. (Table A.2) - alpha
+    namespace VSS_deflection_parameter
+    {
+        static constinit const float Ar_VSS_TI{1.40};
+        static constinit const float Ne_VSS_TI{1.31};
+        static constinit const float He_VSS_TI{1.26};
+    }
+
     namespace particle_types
     {
         enum ParticleType
@@ -58,6 +74,8 @@ namespace constants
             Unknown
         };
     }
+
+    static constinit const double gasConcentrationMinimalValue{1e18};
 }
 
 #endif // !CONSTANTS_HPP

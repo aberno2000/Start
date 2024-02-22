@@ -23,6 +23,16 @@ void Particle::calculateEnergyJFromVelocity(double vx, double vy, double vz) { m
 void Particle::calculateEnergyJFromVelocity(VelocityVector const &v) { calculateEnergyJFromVelocity(VelocityVector(v.getX(), v.getZ(), v.getZ())); }
 void Particle::calculateEnergyJFromVelocity(VelocityVector &&v) noexcept { calculateEnergyJFromVelocity(v.getX(), v.getZ(), v.getZ()); }
 
+// Creates dummy particle object with all nils value
+Particle::Particle(ParticleType type_)
+    : m_type(type_),
+      m_centre(Point3(0, 0, 0)),
+      m_velocity(0, 0, 0)
+{
+  m_boundingBox = aabb::AABB({0 - getRadius(), 0 - getRadius(), 0 - getRadius()},
+                             {0 + getRadius(), 0 + getRadius(), 0 + getRadius()});
+}
+
 Particle::Particle(ParticleType type_, double x_, double y_, double z_,
                    double energy_)
     : m_type(type_),
@@ -203,20 +213,20 @@ double Particle::getPositionModule() const { return PositionVector(CGAL_TO_DOUBL
 double Particle::getEnergy_eV() const { return m_energy * physical_constants::J_eV; }
 double Particle::getVelocityModule() const { return m_velocity.module(); }
 
-void Particle::colide(Particle target, double n_concentration, std::string_view model,
-                      double time_step, double omega, double alpha) &
+bool Particle::colide(Particle target, double n_concentration, std::string_view model, double time_step)
 {
   if (std::string(model) == "HS")
-    colideHS(target, n_concentration, time_step);
+    return colideHS(target, n_concentration, time_step);
   else if (std::string(model) == "VHS")
-    colideVHS(target, n_concentration, omega, time_step);
-  else if (std::string(model) == "VHS")
-    colideVSS(target, n_concentration, omega, alpha, time_step);
+    return colideVHS(target, n_concentration, getViscosityTemperatureIndex(), time_step);
+  else if (std::string(model) == "VSS")
+    return colideVSS(target, n_concentration, getViscosityTemperatureIndex(), getVSSDeflectionParameter(), time_step);
   else
     ERRMSG("No such kind of scattering model. Available only: HS/VHS/VSS");
+  return false;
 }
 
-bool Particle::colideHS(Particle target, double n_concentration, double time_step) &
+bool Particle::colideHS(Particle target, double n_concentration, double time_step)
 {
   RealNumberGenerator rng;
   double p_mass{getMass()},
@@ -246,7 +256,7 @@ bool Particle::colideHS(Particle target, double n_concentration, double time_ste
   return iscolide;
 }
 
-bool Particle::colideVHS(Particle target, double n_concentration, double omega, double time_step) &
+bool Particle::colideVHS(Particle target, double n_concentration, double omega, double time_step)
 {
   RealNumberGenerator rng;
   double d_reference{(getRadius() + target.getRadius())},
@@ -283,7 +293,7 @@ bool Particle::colideVHS(Particle target, double n_concentration, double omega, 
 }
 
 bool Particle::colideVSS(Particle target, double n_concentration, double omega,
-                         double alpha, double time_step) &
+                         double alpha, double time_step)
 {
   RealNumberGenerator rng;
   double d_reference{(getRadius() + target.getRadius())},
@@ -319,19 +329,6 @@ bool Particle::colideVSS(Particle target, double n_concentration, double omega,
     m_velocity = dir_vector + cm_vel;
   }
   return iscolide;
-}
-
-ParticleVector createParticlesWithEnergy(size_t count, ParticleType type,
-                                         double x, double y, double z,
-                                         double minenergy, double maxenergy)
-{
-  RealNumberGenerator rng;
-  ParticleVector particles;
-
-  for (size_t i{}; i < count; ++i)
-    particles.emplace_back(type, x, y, z, rng(minenergy, maxenergy));
-
-  return particles;
 }
 
 ParticleVector createParticlesWithVelocities(size_t count, ParticleType type,
@@ -387,6 +384,19 @@ ParticleVector createParticlesWithVelocities(size_t count, ParticleType type,
 
     particles.emplace_back(type, x, y, z, vx, vy, vz);
   }
+
+  return particles;
+}
+
+ParticleVector createParticlesWithEnergy(size_t count, ParticleType type,
+                                         double x, double y, double z,
+                                         double minenergy, double maxenergy)
+{
+  RealNumberGenerator rng;
+  ParticleVector particles;
+
+  for (size_t i{}; i < count; ++i)
+    particles.emplace_back(type, x, y, z, rng(minenergy, maxenergy));
 
   return particles;
 }
