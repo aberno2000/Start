@@ -3,15 +3,14 @@ from PyQt5.QtWidgets import (
     QMessageBox, QLabel, QLineEdit, QFormLayout,
     QGroupBox, QFileDialog, QPushButton
 )
-import sys
-import gmsh
+import sys, gmsh
 from PyQt5 import QtCore
-from PyQt5.QtCore import pyqtSignal, QThread
+from PyQt5.QtCore import pyqtSignal
 from json import load, dump, JSONDecodeError
 from multiprocessing import cpu_count
 from platform import platform
-from converter import Converter, is_positive_real_number
-from mesh_dialog import MeshDialog, CaptureGmshLog
+from util.converter import Converter, is_positive_real_number
+from util.mesh_dialog import MeshDialog, CaptureGmshLog
 from util import is_file_valid
 
 MIN_TIME = 1e-9

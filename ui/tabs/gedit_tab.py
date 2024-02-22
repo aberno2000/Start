@@ -4,9 +4,9 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QStandardItemModel
-from config_tab import ConfigTab
+from .config_tab import ConfigTab
 from os.path import isfile, exists, basename
-from graphical_editor import GraphicalEditor
+from .graphical_editor import GraphicalEditor
 
 
 elemTypeToNodeCount = {

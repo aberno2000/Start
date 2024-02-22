@@ -3,8 +3,8 @@ from PyQt5.QtWidgets import (
     QWidget,
 )
 import vtk
-from mesh_renderer import MeshRenderer
-from hdf5handler import HDF5Handler
+from util.mesh_renderer import MeshRenderer
+from data.hdf5handler import HDF5Handler
 from vtkmodules.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 from vtkmodules.vtkInteractionStyle import vtkInteractorStyleTrackballCamera
 

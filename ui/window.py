@@ -9,13 +9,13 @@ import signal
 from sys import exit
 from time import time
 from json import dump
-from converter import ansi_to_segments, insert_segments_into_log_console
+from util.converter import ansi_to_segments, insert_segments_into_log_console
 from PyQt5.QtCore import Qt, QProcess
 from PyQt5.QtGui import QColor
-from config_tab import ConfigTab
-from results_tab import ResultsTab
-from gedit_tab import GraphicalEditorTab
-from log_console import LogConsole
+from tabs.config_tab import ConfigTab
+from tabs.results_tab import ResultsTab
+from tabs.gedit_tab import GraphicalEditorTab
+from logger.log_console import LogConsole
 from util import ShortcutsInfoDialog, is_file_valid
 
 class WindowApp(QMainWindow):

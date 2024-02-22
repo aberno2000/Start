@@ -1,5 +1,5 @@
 import sys
-from inst_deps import check_and_install_packages
+from util.inst_deps import check_and_install_packages
 
 # Installing dependencies
 check_and_install_packages(["numpy", "h5py", "gmsh", "matplotlib", "PyQt5", "vtk"])

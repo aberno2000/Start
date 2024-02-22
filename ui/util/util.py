@@ -5,7 +5,7 @@ from PyQt5.QtWidgets import (
     QWidget, QScrollArea
 )
 from PyQt5.QtCore import QSize
-from converter import is_positive_real_number, is_real_number
+from .converter import is_positive_real_number, is_real_number
 from os.path import exists, isfile
 
 
