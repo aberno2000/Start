@@ -42,27 +42,32 @@ using Tetrahedron3 = Kernel::Tetrahedron_3;
 #define STATUS_TO_STR(status) util::getStatusName(status)
 
 #define CGAL_TO_DOUBLE(var) CGAL::to_double(var)
-#define ERRMSG_ABS_PATH(desc) std::cerr << std::format("\033[1;31mERROR:\033[0m\033[1m {}: {}({} line): {}: \033[1;31m{}\033[0m\033[1m\n", \
+#define ERRMSG_ABS_PATH(desc) std::cerr << std::format("\033[1;31mError:\033[0m\033[1m {}: {}({} line): {}: \033[1;31m{}\033[0m\033[1m\n", \
                                                        util::getCurTime(),                                                                 \
                                                        std::source_location::current().file_name(),                                        \
                                                        std::source_location::current().line(),                                             \
                                                        __PRETTY_FUNCTION__, desc);
-#define LOGMSG_ABS_PATH(desc) std::clog << std::format("LOG: {}: {}({} line): {}: {}\n",            \
+#define LOGMSG_ABS_PATH(desc) std::clog << std::format("Log: {}: {}({} line): {}: {}\n",            \
                                                        util::getCurTime(),                          \
                                                        std::source_location::current().file_name(), \
                                                        std::source_location::current().line(),      \
                                                        __PRETTY_FUNCTION__, desc);
 #define EXTRACT_FILE_NAME(filepath) std::filesystem::path(std::string(filepath).c_str()).filename().string()
-#define ERRMSG(desc) std::cerr << std::format("\033[1;31mERROR:\033[0m\033[1m {}: {}({} line): {}: \033[1;31m{}\033[0m\033[1m\n", \
+#define ERRMSG(desc) std::cerr << std::format("\033[1;31mError:\033[0m\033[1m {}: {}({} line): {}: \033[1;31m{}\033[0m\033[1m\n", \
                                               util::getCurTime(),                                                                 \
                                               EXTRACT_FILE_NAME(std::source_location::current().file_name()),                     \
                                               std::source_location::current().line(),                                             \
                                               __PRETTY_FUNCTION__, desc);
-#define LOGMSG(desc) std::clog << std::format("LOG: {}: {}({} line): {}: {}\n",                               \
+#define LOGMSG(desc) std::clog << std::format("Log: {}: {}({} line): {}: {}\n",                               \
                                               util::getCurTime(),                                             \
                                               EXTRACT_FILE_NAME(std::source_location::current().file_name()), \
                                               std::source_location::current().line(),                         \
                                               __PRETTY_FUNCTION__, desc);
+#define WARNINGMSG(desc) std::cerr << std::format("\033[1;33mWarning:\033[0m\033[1m {}: {}({} line): {}: {}\n",   \
+                                                  util::getCurTime(),                                             \
+                                                  EXTRACT_FILE_NAME(std::source_location::current().file_name()), \
+                                                  std::source_location::current().line(),                         \
+                                                  __PRETTY_FUNCTION__, desc);
 
 namespace util
 {
