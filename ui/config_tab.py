@@ -369,7 +369,7 @@ class ConfigTab(QWidget):
             QMessageBox.warning(
                 self, "No Configuration File Selected", "No configuration file was uploaded.")
             return
-        self.log_console.logSignal.emit(f'Selected configuration: {self.config_file_path}')
+        self.log_console.logSignal.emit(f'Selected configuration: {self.config_file_path}\n')
 
     def read_config_file(self, config_file_path):
         config = str()
@@ -464,10 +464,10 @@ class ConfigTab(QWidget):
                 with open(config_file_path, "w") as file:
                     dump(config_content, file, indent=4)  # Serialize dict to JSON
                 QMessageBox.information(self, "Success", f"Configuration saved to {config_file_path}")
-                self.log_console.logSignal.emit(f'Successfully saved data to new config: {config_file_path}')
+                self.log_console.logSignal.emit(f'Successfully saved data to new config: {config_file_path}\n')
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Failed to save configuration")
-                self.log_console.insert_colored_text(f'Error: Failed to save configuration to {config_file_path}')
+                self.log_console.logSignal.emit(f'Error: Failed to save configuration to {config_file_path}\n')
                 
     def upload_mesh_file(self):
         # Open a file dialog when the button is clicked and filter for .msh files
@@ -509,7 +509,7 @@ class ConfigTab(QWidget):
         if self.config_file_path.endswith('.vtk'):
             self.mesh_file.replace('.vtk', '.msh')
         self.meshFileSelected.emit(self.mesh_file)
-        self.log_console.logSignal.emit(f'Uploaded mesh: {self.mesh_file}')
+        self.log_console.logSignal.emit(f'Uploaded mesh: {self.mesh_file}\n')
 
     def ask_to_upload_mesh_file(self):
         if self.mesh_file:
@@ -522,7 +522,7 @@ class ConfigTab(QWidget):
                 pass
         else:
             self.upload_mesh_file()
-        self.log_console.logSignal.emit(f'Uploaded mesh: {self.mesh_file}')
+        self.log_console.logSignal.emit(f'Uploaded mesh: {self.mesh_file}\n')
 
     def convert_stp_to_msh(self, file_path, mesh_size, mesh_dim):        
         original_stdout = sys.stdout  # Save a reference to the original standard output
@@ -556,10 +556,10 @@ class ConfigTab(QWidget):
         if "Error" in log_output:
             QMessageBox.critical(
                 self, "Conversion Error", "An error occurred during mesh generation. Please check the file and parameters.")
-            self.log_console.logSignal.emit(f'Error: Can\'t convert {file_path} to {output_file}')
+            self.log_console.logSignal.emit(f'Error: Can\'t convert {file_path} to {output_file}\n')
             return None
         else:
             self.mesh_file = output_file
             QMessageBox.information(
                 self, "Conversion Completed", f"Mesh generated: {self.mesh_file}")
-            self.log_console.logSignal.emit(f'Successfully converted {file_path} to {output_file}. Mesh size is {mesh_size}. Mesh dimension: {mesh_dim}')
+            self.log_console.logSignal.emit(f'Successfully converted {file_path} to {output_file}. Mesh size is {mesh_size}. Mesh dimension: {mesh_dim}\n')

@@ -11,6 +11,7 @@ from time import time
 from json import dump
 from converter import ansi_to_segments, insert_segments_into_log_console
 from PyQt5.QtCore import Qt, QProcess
+from PyQt5.QtGui import QColor
 from config_tab import ConfigTab
 from results_tab import ResultsTab
 from gedit_tab import GraphicalEditorTab
@@ -183,18 +184,25 @@ class WindowApp(QMainWindow):
     def change_style(self, style):
         if style == 'dark':
             self.setStyleSheet("QWidget { background-color: #333; color: white; }")
+            self.log_console.setDefaultTextColor(QColor('white'))
         elif style == 'light':
             self.setStyleSheet("QWidget { background-color: #eee; color: black; }")
+            self.log_console.setDefaultTextColor(QColor('black'))
         elif style == 'night':
             self.setStyleSheet("QWidget { background-color: #000; color: #0f0; }")
+            self.log_console.setDefaultTextColor(QColor('white'))
         elif style == 'classic':
             self.setStyleSheet("QWidget { background-color: #f0f0f0; color: black; }")
+            self.log_console.setDefaultTextColor(QColor('black'))
         elif style == 'bright':
             self.setStyleSheet("QWidget { background-color: white; color: #666; }")
+            self.log_console.setDefaultTextColor(QColor('black'))
         elif style == 'default':
             self.setStyleSheet("")
+            self.log_console.setDefaultTextColor(QColor('dark gray'))
         else:
             self.setStyleSheet("")
+            self.log_console.setDefaultTextColor(QColor('dark gray'))
 
     
     def change_background_color(self, color):

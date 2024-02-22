@@ -3,7 +3,7 @@ from PyQt5.QtWidgets import (
     QWidget, QDockWidget
 )
 from PyQt5.QtCore import Qt, pyqtSignal
-from PyQt5.QtGui import QTextCharFormat, QColor
+from PyQt5.QtGui import QTextCharFormat, QTextCursor, QColor
     
 
 class LogConsole(QWidget):
@@ -18,11 +18,22 @@ class LogConsole(QWidget):
     def setup_ui(self):
         self.log_console = QPlainTextEdit()
         self.log_console.setReadOnly(True)  # Make the console read-only
-
+        
+        self.setDefaultTextColor(QColor('dark gray'))
         self.log_dock_widget = QDockWidget("Log Console", self)
         self.log_dock_widget.setWidget(self.log_console)
         self.log_dock_widget.setAllowedAreas(Qt.BottomDockWidgetArea)
         self.log_dock_widget.setVisible(True)
+        
+    def setDefaultTextColor(self, color):
+        textFormat = QTextCharFormat()
+        textFormat.setForeground(color)
+
+        cursor = self.log_console.textCursor()
+        cursor.select(QTextCursor.Document)
+        cursor.mergeCharFormat(textFormat)
+        cursor.clearSelection()
+        self.log_console.setTextCursor(cursor)
 
     def insert_colored_text(self, text: str, color: str):
         """
