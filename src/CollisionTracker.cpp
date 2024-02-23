@@ -91,7 +91,10 @@ std::unordered_map<size_t, int> CollisionTracker::trackCollisions(unsigned int n
     // Initializing AABB-tree
     auto tree{constructAABBTreeFromMeshParams(m_mesh)};
     if (!tree)
-        ERRMSG("Failed to fill AABB tree for 2D mesh");
+    {
+        ERRMSG("Failed to fill AABB tree for 2D mesh. Exiting...");
+        std::exit(EXIT_FAILURE);
+    }
 
     // Create threads and assign each a segment of particles to process
     for (size_t i{}; i < num_threads; ++i)
