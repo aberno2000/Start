@@ -1,3 +1,4 @@
+# 3.14 CMake version supports 6.28 version of ROOT CERN, that supports C++20 standard
 cmake_minimum_required(VERSION 3.14 FATAL_ERROR)
 
 project(IntermediateResults
