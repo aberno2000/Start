@@ -40,6 +40,7 @@ argos_nia_start
 *.tar*
 *.rar
 *.zip
+*.tgz
 
 # Caches
 *.cache*
