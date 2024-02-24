@@ -1,5 +1,5 @@
 #!/bin/bash
 
-xhost +
+xhost +local:docker
 docker build -t startim .
-docker run -it -e DISPLAY=$DISPLAY -e QT_DEBUG_PLUGINS=1 -v /tmp/.X11-unix:/tmp/.X11-unix startim conda run -n startenv bash -c "./compile.sh -r && python ui/main.py"
+docker run -it -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix -v /dev/dri:/dev/dri startim
