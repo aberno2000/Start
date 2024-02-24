@@ -13,6 +13,12 @@ void simulateMovement(ConfigParser const &configObj,
     {
         GMSHVolumeCreator volumeCreator;
         mesh = volumeCreator.getMeshParams(mshfilename);
+
+        if (mesh.empty())
+        {
+            ERRMSG(util::stringify("Something wrong with filling of the mesh. Mesh file is ", mshfilename, ". Exiting..."));
+            std::exit(EXIT_FAILURE);
+        }
     }
     auto pgs(createParticlesWithVelocities(configObj.getParticlesCount(),
                                            configObj.getProjective(),
