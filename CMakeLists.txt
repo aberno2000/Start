@@ -57,6 +57,6 @@ add_executable(argos_nia_start ${SOURCES})
 set_target_properties(argos_nia_start PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}")
 target_link_libraries(argos_nia_start PRIVATE 
     aabb gmp mpfr 
-    ${GMSH_LIB} /usr/local/lib/libgmsh.so.4.12 ${Boost_LIBRARIES} 
+    ${GMSH_LIB} ${Boost_LIBRARIES} 
     ${HDF5_LIBRARIES} ${TBB_LIBRARIES} ${TBB_NAMESPACE}
 )
