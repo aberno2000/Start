@@ -43,6 +43,7 @@ private:
    * @param start_index The starting index in the particle vector for this segment.
    * @param end_index The ending index in the particle vector for this segment.
    * @param m Reference to the map tracking the number of collisions for each mesh element.
+   * @param tree AABB tree for the mesh.
    */
   void processSegment(size_t start_index, size_t end_index,
                       std::unordered_map<size_t, int> &m, AABB_Tree const &tree);
@@ -54,10 +55,10 @@ public:
    * @details Initializes the collision tracker with a given set of particles, a mesh,
    *          a time step, and a total simulation time.
    *
-   * @param pgs Reference to the vector of particles.
+   * @param particles Reference to the vector of particles.
    * @param mesh Reference to the vector of mesh elements.
-   * @param dt Time step for the simulation.
-   * @param total_time Total time for which the simulation is run.
+   * @param configObj Config object to get all necessary simulation params.
+   * @param gasConcentration Concentration of the gas in the volume.
    */
   CollisionTracker(ParticleVector &particles, MeshParamVector const &mesh,
                    ConfigParser const &configObj, double gasConcentration)
