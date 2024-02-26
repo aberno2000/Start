@@ -152,6 +152,7 @@ class WindowApp(QMainWindow):
         style_menu.addAction('Night', lambda: self.change_style('night'))
         style_menu.addAction('Classic', lambda: self.change_style('classic'))
         style_menu.addAction('Bright', lambda: self.change_style('bright'))
+        style_menu.addAction('Custom', lambda: self.change_style('custom'))
         
         bg_color_menu = edit_menu.addMenu('Background Color')
         bg_color_menu.addAction('Default', lambda: self.change_background_color('default'))
@@ -206,6 +207,25 @@ class WindowApp(QMainWindow):
         elif style == 'default':
             self.setStyleSheet("")
             self.log_console.setDefaultTextColor(QColor('dark gray'))
+        elif style == 'custom':
+            QMessageBox.information(self, "Application Color", "Choose application color")
+            appColor = QColorDialog.getColor()
+            
+            QMessageBox.information(self, "Application Fonr Color", "Choose font color of the application")
+            appFontColor = QColorDialog.getColor()
+            if appColor.isValid() and appFontColor.isValid():
+                appColorHex = appColor.name()
+                appFontColorHex = appFontColor.name()
+                self.setStyleSheet(f"QWidget {{ background-color: {appColorHex}; color: {appFontColorHex}; }}")
+            else:
+                return
+
+            QMessageBox.information(self, "Logger Font Color", "Choose font color in the logger")
+            logFontColor = QColorDialog.getColor()
+            if appColor.isValid():
+                self.log_console.setDefaultTextColor(logFontColor)
+            else:
+                return
         else:
             self.setStyleSheet("")
             self.log_console.setDefaultTextColor(QColor('dark gray'))
