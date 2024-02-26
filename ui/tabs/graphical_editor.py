@@ -22,7 +22,6 @@ class GraphicalEditor(QFrame):
         self.setup_ui()
         self.setup_interaction()
         self.setup_axes()
-        self.selected_actor = None
         
         self.action_history = [] # Track added actors
         self.redo_history = []   # Track undone actors for redo
@@ -373,73 +372,7 @@ class GraphicalEditor(QFrame):
             self.redo_action()
         else:
             super().keyPressEvent(event)
-
-
-    def eventFilter(self, source, event):
-        if event.type() == QMouseEvent.MouseButtonPress and event.button() == Qt.LeftButton:
-            self.on_mouse_press(event)
-        elif event.type() == QKeyEvent.KeyPress and event.key() == Qt.Key_Escape:
-            self.deselect_actor()
-        return super(GraphicalEditor, self).eventFilter(source, event)
-
-
-    def on_mouse_press(self, event):
-        click_pos = self.vtkWidget.mapFromGlobal(event.globalPos())
-        self.picker.Pick(click_pos.x(), click_pos.y(), 0, self.renderer)
-
-        pickedCellID = self.picker.GetCellId()
-        pickedActor = self.picker.GetActor()
-        if pickedCellID != -1 and pickedActor:
-            # Red color when selected
-            self.highlight_cell(pickedActor, pickedCellID)
             
-    
-    def highlight_cell(self, actor, cellId):
-        if self.selected_actor:
-            # Remove previously selected actor's highlight
-            self.renderer.RemoveActor(self.selected_actor)
-            self.selected_actor = None
-        
-        # Create an IdList and add the cell ID
-        idList = vtk.vtkIdList()
-        idList.InsertNextId(cellId)
-        
-        # Use vtkExtractCells to extract the specified cell
-        cellExtractor = vtk.vtkExtractCells()
-        cellExtractor.SetInputData(actor.GetMapper().GetInput())
-        cellExtractor.SetCellList(idList)  # Use SetCellList instead of AddCellId
-        cellExtractor.Update()
-        
-        # Map the extracted cell and create an actor for it
-        mapper = vtk.vtkDataSetMapper()
-        mapper.SetInputConnection(cellExtractor.GetOutputPort())
-        
-        self.selected_actor = vtk.vtkActor()
-        self.selected_actor.SetMapper(mapper)
-        self.selected_actor.GetProperty().SetColor(1, 0, 0)  # Highlight with red
-        self.selected_actor.GetProperty().SetLineWidth(2)
-        
-        # Add the actor for the highlighted cell to the renderer
-        self.renderer.AddActor(self.selected_actor)
-        self.vtkWidget.GetRenderWindow().Render()
-
-
-    def select_actor(self, actor):
-        # Reset prev selection
-        if self.selected_actor is not None:
-            self.deselect_actor()
-        self.selected_actor = actor
-        actor.GetProperty().SetColor(1, 0, 0)
-        self.vtkWidget.GetRenderWindow().Render()
-    
-
-    def deselect_actor(self):
-        # Reset selection
-        if self.selected_actor:
-            self.selected_actor.GetProperty().DeepCopy(vtk.vtkProperty())
-            self.vtkWidget.GetRenderWindow().Render()
-            self.selected_actor = None
-    
     
     def parse_vtk_polydata_and_populate_tree(self, vtk_file_path, tree_model):
         reader = vtk.vtkGenericDataObjectReader()
