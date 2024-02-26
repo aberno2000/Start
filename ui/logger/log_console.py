@@ -81,7 +81,7 @@ class LogConsole(QWidget):
         """
         Handles commands entered in the command input field.
         """
-        command = self.command_input.text()
+        command = self.command_input.text().strip().lower()
         self.appendLog(f'>> {command}')
         
         if command:
