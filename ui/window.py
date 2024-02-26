@@ -12,7 +12,6 @@ from json import dump
 from util.converter import ansi_to_segments, insert_segments_into_log_console
 from PyQt5.QtCore import Qt, QProcess
 from PyQt5.QtGui import QColor
-from PyQt5.QtTest import QSignalSpy
 from tabs.config_tab import ConfigTab
 from tabs.results_tab import ResultsTab
 from tabs.gedit_tab import GraphicalEditorTab
@@ -311,6 +310,7 @@ class WindowApp(QMainWindow):
         
         
     def keyPressEvent(self, event):
+        # Main bindings
         if (event.modifiers() == Qt.ControlModifier and event.key() == Qt.Key_Q) or \
             event.modifiers() == Qt.ControlModifier and event.key() == Qt.Key_W:
             self.close()
@@ -334,6 +334,20 @@ class WindowApp(QMainWindow):
             self.tab_widget.setCurrentIndex(nextTabIndex)
         elif event.key() == Qt.Key_F1:
             self.show_help()
+            
+        # Aligning by axes
+        elif event.modifiers() == Qt.ControlModifier | Qt.ShiftModifier and event.key() == Qt.Key_X:
+            self.mesh_tab.geditor.align_view_by_axis('x')
+        elif event.modifiers() == Qt.ControlModifier | Qt.ShiftModifier and event.key() == Qt.Key_Y:
+            self.mesh_tab.geditor.align_view_by_axis('y')
+        elif event.modifiers() == Qt.ControlModifier | Qt.ShiftModifier and event.key() == Qt.Key_Z:
+            self.mesh_tab.geditor.align_view_by_axis('z')
+            
+        # History bindings
+        elif event.modifiers() & Qt.ControlModifier and event.key() == Qt.Key_Z:
+            self.mesh_tab.geditor.undo_action()
+        elif event.modifiers() & Qt.ControlModifier and event.key() == Qt.Key_Y:
+            self.mesh_tab.geditor.redo_action()
         else:
             super().keyPressEvent(event)
         
@@ -360,6 +374,11 @@ class WindowApp(QMainWindow):
             ("Remove Fill", "W", "Removes the fill from the all shapes. Shows the mesh structure. Works only within the editor."),
             ("Restore Fill", "S", "Retores the fill from the all shapes. Works only within the editor."),
             ("About", "F1", "Shows information about the application."),
+            ("Undo", "Ctrl+Z", "Reverses the most recent action, allowing you to step back through your changes one at a time."),
+            ("Redo", "Ctrl+Y", "Reapplies actions that were previously undone using the Undo function, letting you move forward after reversing changes."),
+            ("Align by X axis", "Ctrl+Shift+X", "Make an alignment by X axis."),
+            ("Align by Y axis", "Ctrl+Shift+Y", "Make an alignment by Y axis."),
+            ("Align by Z axis", "Ctrl+Shift+Z", "Make an alignment by Z axis.")
         ]
         dialog = ShortcutsInfoDialog(shortcuts, self)
         dialog.exec_()
