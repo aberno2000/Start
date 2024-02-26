@@ -7,8 +7,8 @@ from PyQt5.QtWidgets import(
     QPushButton, QDialog, QSpacerItem,
     QSizePolicy
 )
-from PyQt5.QtGui import QStandardItem, QMouseEvent, QKeyEvent, QIcon
-from PyQt5.QtCore import Qt, QSize
+from PyQt5.QtGui import QStandardItem, QIcon
+from PyQt5.QtCore import QSize
 from util import(
     PointDialog, LineDialog, SurfaceDialog, 
     SphereDialog, BoxDialog, CylinderDialog
@@ -363,17 +363,31 @@ class GraphicalEditor(QFrame):
 
         self.vtkWidget.GetRenderWindow().GetInteractor().SetPicker(self.picker)
         self.vtkWidget.installEventFilter(self) # Capturing mouse events
-
-
-    def keyPressEvent(self, event):
-        if event.key() == Qt.Key_Z and event.modifiers() & Qt.ControlModifier:
-            self.undo_action()
-        elif event.key() == Qt.Key_Y and event.modifiers() & Qt.ControlModifier:
-            self.redo_action()
-        else:
-            super().keyPressEvent(event)
-            
     
+    
+    def align_view_by_axis(self, axis: str):
+        axis = axis.strip().lower()
+        
+        if axis not in ['x', 'y', 'z']:
+            return
+        
+        camera = self.renderer.GetActiveCamera()
+        if axis == 'x':
+            camera.SetPosition(1, 0, 0)
+            camera.SetViewUp(0, 0, 1)
+        elif axis == 'y':
+            camera.SetPosition(0, 1, 0)
+            camera.SetViewUp(0, 0, 1)
+        elif axis == 'z':
+            camera.SetPosition(0, 0, 1)
+            camera.SetViewUp(0, 1, 0)
+            
+        camera.SetFocalPoint(0, 0, 0)
+        
+        self.renderer.ResetCamera()
+        self.vtkWidget.GetRenderWindow().Render()
+
+            
     def parse_vtk_polydata_and_populate_tree(self, vtk_file_path, tree_model):
         reader = vtk.vtkGenericDataObjectReader()
         reader.SetFileName(vtk_file_path)
