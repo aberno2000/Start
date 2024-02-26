@@ -11,6 +11,9 @@ from util import is_file_valid
 class LogConsole(QWidget):
     logSignal = pyqtSignal(str)
     runSimulationSignal = pyqtSignal(str)
+    uploadMeshSignal = pyqtSignal(str)
+    uploadConfigSignal = pyqtSignal(str)
+    saveConfigSignal = pyqtSignal(str)
     
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -89,11 +92,11 @@ class LogConsole(QWidget):
             self.log_console.clear()
         elif command == 'exit' or command == 'quit':
             QApplication.quit()
-        elif command.startswith('run') or command.startswith('start'):
+        elif command.startswith('run ') or command.startswith('start '):
             splitted_command = command.split()
             
             if len(splitted_command) != 2:
-                self.appendLog(f"Usage: {splitted_command[0]} <config.json>")
+                self.appendLog(f"Usage: {splitted_command[0]} <config_name.json>")
                 self.command_input.clear()
                 return
 
@@ -104,6 +107,50 @@ class LogConsole(QWidget):
                 return
             
             self.runSimulationSignal.emit(configFile)
+            
+        elif command.startswith('upload mesh '):
+            splitted_command = command.split()
+            
+            if len(splitted_command) != 3:
+                self.appendLog(f"Usage: {splitted_command[0]} {splitted_command[1]} <meshfile.[msh|stp|vtk]>. Make sure that you specify mesh file correctly. Check name of the files and path")
+                self.command_input.clear()
+                return
+
+            meshFile = splitted_command[2]
+            if not is_file_valid(meshFile):
+                self.appendLog(f"Invalid or missing file: {meshFile}")
+                self.command_input.clear()
+                return
+                
+            self.uploadMeshSignal.emit(meshFile)
+            
+        elif command.startswith('upload config '):
+            splitted_command = command.split()
+            
+            if len(splitted_command) != 3:
+                self.appendLog(f"Usage: {splitted_command[0]} {splitted_command[1]} <config_name.json>")
+                self.command_input.clear()
+                return
+
+            configFile = splitted_command[2]
+            if not is_file_valid(configFile):
+                self.appendLog(f"Invalid or missing file: {configFile}")
+                self.command_input.clear()
+                return
+                
+            self.uploadConfigSignal.emit(configFile)
+            
+        elif command.startswith('save config '):
+            splitted_command = command.split()
+            
+            if len(splitted_command) != 3:
+                self.appendLog(f"Usage: {splitted_command[0]} {splitted_command[1]} <config_name.json>")
+                self.command_input.clear()
+                return
+
+            configFile = splitted_command[2]                
+            self.saveConfigSignal.emit(configFile)
+            
         elif command.strip() == '':
             return
         else:

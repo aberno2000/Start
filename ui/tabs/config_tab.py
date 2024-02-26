@@ -241,9 +241,6 @@ class ConfigTab(QWidget):
 
 
     def check_validity_of_params(self):
-        if not is_file_valid(self.mesh_file):
-            return None
-
         if not self.thread_count or \
             int(self.thread_count) > get_thread_count() or \
             int(self.thread_count) < 1:
@@ -454,6 +451,29 @@ class ConfigTab(QWidget):
                                  f"An error occurred while applying the configuration: {e}")
             return None
 
+
+    def save_config_to_file_with_filename(self, configFile):
+        if not is_file_valid(self.mesh_file):
+            QMessageBox.warning(self, f"Mesh file '{self.mesh_file}' can't be selected")
+            return
+        
+        config_content = self.validate_input()
+        if not config_content:
+            QMessageBox.critical(
+                self, "Error", f"Failed to save configuration")
+            return
+    
+        if configFile:
+            try:
+                with open(configFile, "w") as file:
+                    dump(config_content, file, indent=4)  # Serialize dict to JSON
+                QMessageBox.information(self, "Success", f"Configuration saved to {configFile}")
+                self.log_console.logSignal.emit(f'Successfully saved data to new config: {configFile}\n')
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"Failed to save configuration")
+                self.log_console.logSignal.emit(f'Error: Failed to save configuration to {configFile}\n')
+
+
     def save_config_to_file(self):
         config_content = self.validate_input()
         if not config_content:
@@ -482,6 +502,40 @@ class ConfigTab(QWidget):
                 QMessageBox.critical(self, "Error", f"Failed to save configuration")
                 self.log_console.logSignal.emit(f'Error: Failed to save configuration to {config_file_path}\n')
                 
+    
+    def upload_mesh_file_with_filename(self, meshfilename):
+        if meshfilename:
+            self.mesh_file = meshfilename
+            self.mesh_file_label.setText(f"Selected: {meshfilename}")
+            QMessageBox.information(
+                self, "Mesh File Selected", f"File: {self.mesh_file}"
+            )
+
+        if meshfilename.endswith('.stp'):
+            # Show dialog for user input
+            dialog = MeshDialog(self)
+            if dialog.exec_():
+                mesh_size, mesh_dim = dialog.get_values()
+                try:
+                    mesh_size = float(mesh_size)
+                    mesh_dim = int(mesh_dim)
+                    if mesh_dim not in [2, 3]:
+                        raise ValueError("Mesh dimensions must be 2 or 3.")
+                    self.convert_stp_to_msh(meshfilename, mesh_size, mesh_dim)
+                except ValueError as e:
+                    QMessageBox.warning(self, "Invalid Input", str(e))
+                    return None
+        else:
+            self.mesh_file = meshfilename
+        
+        if self.config_file_path.endswith('.stp'):
+            self.mesh_file.replace('.stp', '.msh')
+        if self.config_file_path.endswith('.vtk'):
+            self.mesh_file.replace('.vtk', '.msh')
+        self.meshFileSelected.emit(self.mesh_file)
+        self.log_console.logSignal.emit(f'Uploaded mesh: {self.mesh_file}\n')
+                
+    
     def upload_mesh_file(self):
         # Open a file dialog when the button is clicked and filter for .msh files
         options = QFileDialog.Options()

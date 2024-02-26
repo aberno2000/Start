@@ -47,6 +47,9 @@ class WindowApp(QMainWindow):
         
         # Connecting signal to tun the simulation from the CLI
         self.log_console.runSimulationSignal.connect(self.start_simulation_from_CLI)
+        self.log_console.uploadMeshSignal.connect(self.config_tab.upload_mesh_file_with_filename)
+        self.log_console.uploadConfigSignal.connect(self.config_tab.upload_config_with_filename)
+        self.log_console.saveConfigSignal.connect(self.config_tab.save_config_to_file_with_filename)
 
         # Setup Tabs
         self.setup_tabs()
