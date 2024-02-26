@@ -64,6 +64,8 @@ class ResultsTab(QWidget):
         self.mesh_renderer.renderer = self.renderer
         self.mesh_renderer.render_mesh()
         self.mesh_renderer.add_scalar_bar()
+        
+        self.renderer.ResetCamera()
         self.vtkWidget.GetRenderWindow().Render()
        
         
