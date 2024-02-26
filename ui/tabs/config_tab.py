@@ -352,6 +352,20 @@ class ConfigTab(QWidget):
             return None
 
         return self.check_validity_of_params()
+    
+    
+    def upload_config_with_filename(self, configFile: str):
+        self.config_file_path = configFile
+        if is_file_valid(self.config_file_path):  # If a file was selected
+            if self.read_config_file(self.config_file_path) == 1:
+                return
+            self.meshFileSelected.emit(self.mesh_file)
+        else:
+            QMessageBox.warning(
+                self, "No Configuration File Selected", "No configuration file was uploaded.")
+            return
+        self.log_console.logSignal.emit(f'Selected configuration: {self.config_file_path}\n')
+
 
     def upload_config(self):                
         options = QFileDialog.Options()

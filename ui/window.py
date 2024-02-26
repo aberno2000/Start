@@ -12,13 +12,14 @@ from json import dump
 from util.converter import ansi_to_segments, insert_segments_into_log_console
 from PyQt5.QtCore import Qt, QProcess
 from PyQt5.QtGui import QColor
+from PyQt5.QtTest import QSignalSpy
 from tabs.config_tab import ConfigTab
 from tabs.results_tab import ResultsTab
 from tabs.gedit_tab import GraphicalEditorTab
 from logger.log_console import LogConsole
 from util import ShortcutsInfoDialog, is_file_valid
 
-class WindowApp(QMainWindow):
+class WindowApp(QMainWindow):    
     def __init__(self):
         super().__init__()
         self.process = QProcess(self)
@@ -43,6 +44,9 @@ class WindowApp(QMainWindow):
 
         # Connecting signal to detect the selection of mesh file
         self.config_tab.meshFileSelected.connect(self.mesh_tab.set_mesh_file)
+        
+        # Connecting signal to tun the simulation from the CLI
+        self.log_console.runSimulationSignal.connect(self.start_simulation_from_CLI)
 
         # Setup Tabs
         self.setup_tabs()
@@ -254,6 +258,14 @@ class WindowApp(QMainWindow):
         self.tab_widget.addTab(self.config_tab, "Configurations")
         self.tab_widget.addTab(self.results_tab, "Results")
 
+
+    def start_simulation_from_CLI(self, configFile):
+        self.config_tab.upload_config_with_filename(configFile)
+        self.hdf5_filename = self.config_tab.mesh_file.replace(".msh", ".hdf5")
+        args = f"{self.config_tab.config_file_path}"
+        self.run_cpp(args)
+        self.progress_bar.setRange(0, 100)
+    
 
     def start_simulation(self):
         config_content = self.config_tab.validate_input()
