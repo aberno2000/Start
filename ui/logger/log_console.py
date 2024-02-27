@@ -1,11 +1,12 @@
 from PyQt5.QtWidgets import (
     QVBoxLayout, QPlainTextEdit,
-    QWidget, QDockWidget, QLineEdit,
+    QWidget, QDockWidget,
     QApplication
 )
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QTextCharFormat, QTextCursor, QColor
 from util import is_file_valid
+from logger.cli_history import CommandLineHistory
     
 
 class LogConsole(QWidget):
@@ -25,7 +26,7 @@ class LogConsole(QWidget):
         self.log_console = QPlainTextEdit()
         self.log_console.setReadOnly(True)  # Make the console read-only
         
-        self.command_input = CommandLineEdit()
+        self.command_input = CommandLineHistory()
         self.command_input.setPlaceholderText('Enter command...')
         self.command_input.returnPressed.connect(self.handle_command)
         
@@ -156,31 +157,4 @@ class LogConsole(QWidget):
         else:
             self.appendLog(f"Unknown command: {command}")
         self.command_input.clear()
-
-
-class CommandLineEdit(QLineEdit):
-    def __init__(self, *args, **kwargs):
-        super(CommandLineEdit, self).__init__(*args, **kwargs)
-        self.history = []
-        self.history_idx = -1
-
-    def keyPressEvent(self, event):
-        if event.key() == Qt.Key_Up:
-            # Your logic for handling the up arrow key
-            if self.history_idx > 0:
-                self.history_idx -= 1
-                self.setText(self.history[self.history_idx])
-            elif self.history:
-                self.history_idx = 0
-                self.setText(self.history[0])
-        elif event.key() == Qt.Key_Down:
-            # Your logic for handling the down arrow key
-            if self.history_idx < len(self.history) - 1:
-                self.history_idx += 1
-                self.setText(self.history[self.history_idx])
-            else:
-                self.history_idx = len(self.history)
-                self.clear()
-        else:
-            super().keyPressEvent(event)
 
