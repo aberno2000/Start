@@ -17,6 +17,7 @@ from tabs.results_tab import ResultsTab
 from tabs.gedit_tab import GraphicalEditorTab
 from logger.log_console import LogConsole
 from util import ShortcutsInfoDialog, is_file_valid
+from util.util import align_view_by_axis
 
 class WindowApp(QMainWindow):    
     def __init__(self):
@@ -358,10 +359,13 @@ class WindowApp(QMainWindow):
         # Aligning by axes
         elif event.modifiers() == Qt.ControlModifier | Qt.ShiftModifier and event.key() == Qt.Key_X:
             self.mesh_tab.geditor.align_view_by_axis('x')
+            self.results_tab.align_view_by_axis('x')
         elif event.modifiers() == Qt.ControlModifier | Qt.ShiftModifier and event.key() == Qt.Key_Y:
             self.mesh_tab.geditor.align_view_by_axis('y')
+            self.results_tab.align_view_by_axis('y')
         elif event.modifiers() == Qt.ControlModifier | Qt.ShiftModifier and event.key() == Qt.Key_Z:
             self.mesh_tab.geditor.align_view_by_axis('z')
+            self.results_tab.align_view_by_axis('z')
             
         # History bindings
         elif event.modifiers() & Qt.ControlModifier and event.key() == Qt.Key_Z:

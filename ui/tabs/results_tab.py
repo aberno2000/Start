@@ -1,12 +1,12 @@
-from PyQt5.QtWidgets import (
-    QVBoxLayout,
-    QWidget,
-)
 import vtk
+from PyQt5.QtGui import QKeyEvent
+from PyQt5.QtWidgets import QVBoxLayout, QWidget
+from PyQt5.QtCore import Qt
 from util.mesh_renderer import MeshRenderer
 from data.hdf5handler import HDF5Handler
 from vtkmodules.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 from vtkmodules.vtkInteractionStyle import vtkInteractorStyleTrackballCamera
+from util.util import align_view_by_axis
 
 
 class ResultsTab(QWidget):
@@ -72,3 +72,7 @@ class ResultsTab(QWidget):
     def clear_plot(self):
         self.renderer.RemoveAllViewProps()
         self.vtkWidget.GetRenderWindow().Render()
+        
+    
+    def align_view_by_axis(self, axis: str):
+        align_view_by_axis(axis, self.renderer, self.vtkWidget)

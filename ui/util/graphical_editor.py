@@ -2,17 +2,18 @@ import vtk
 from sys import stdout
 from vtkmodules.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 from vtkmodules.vtkInteractionStyle import vtkInteractorStyleTrackballCamera
+from PyQt5.QtGui import QStandardItem, QIcon
+from PyQt5.QtCore import QSize
 from PyQt5.QtWidgets import(
     QFrame, QVBoxLayout, QHBoxLayout, 
     QPushButton, QDialog, QSpacerItem,
     QSizePolicy
 )
-from PyQt5.QtGui import QStandardItem, QIcon
-from PyQt5.QtCore import QSize
 from util import(
     PointDialog, LineDialog, SurfaceDialog, 
-    SphereDialog, BoxDialog, CylinderDialog
+    SphereDialog, BoxDialog, CylinderDialog,
 )
+from util.util import align_view_by_axis
 
 
 class GraphicalEditor(QFrame):
@@ -366,26 +367,7 @@ class GraphicalEditor(QFrame):
     
     
     def align_view_by_axis(self, axis: str):
-        axis = axis.strip().lower()
-        
-        if axis not in ['x', 'y', 'z']:
-            return
-        
-        camera = self.renderer.GetActiveCamera()
-        if axis == 'x':
-            camera.SetPosition(1, 0, 0)
-            camera.SetViewUp(0, 0, 1)
-        elif axis == 'y':
-            camera.SetPosition(0, 1, 0)
-            camera.SetViewUp(0, 0, 1)
-        elif axis == 'z':
-            camera.SetPosition(0, 0, 1)
-            camera.SetViewUp(0, 1, 0)
-            
-        camera.SetFocalPoint(0, 0, 0)
-        
-        self.renderer.ResetCamera()
-        self.vtkWidget.GetRenderWindow().Render()
+        align_view_by_axis(axis, self.renderer, self.vtkWidget)
 
             
     def parse_vtk_polydata_and_populate_tree(self, vtk_file_path, tree_model):

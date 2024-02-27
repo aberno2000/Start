@@ -7,6 +7,8 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import QSize
 from .converter import is_positive_real_number, is_real_number
 from os.path import exists, isfile
+from vtk import vtkRenderer
+from vtkmodules.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 
 
 def is_file_valid(path: str):
@@ -372,3 +374,26 @@ class ShortcutsInfoDialog(QDialog):
         table.resizeColumnsToContents()
         layout.addWidget(table)
         
+
+
+def align_view_by_axis(axis: str, renderer: vtkRenderer, vtkWidget: QVTKRenderWindowInteractor):
+    axis = axis.strip().lower()
+        
+    if axis not in ['x', 'y', 'z']:
+        return
+      
+    camera = renderer.GetActiveCamera()
+    if axis == 'x':
+        camera.SetPosition(1, 0, 0)
+        camera.SetViewUp(0, 0, 1)
+    elif axis == 'y':
+        camera.SetPosition(0, 1, 0)
+        camera.SetViewUp(0, 0, 1)
+    elif axis == 'z':
+        camera.SetPosition(0, 0, 1)
+        camera.SetViewUp(0, 1, 0)
+            
+    camera.SetFocalPoint(0, 0, 0)
+        
+    renderer.ResetCamera()
+    vtkWidget.GetRenderWindow().Render()
