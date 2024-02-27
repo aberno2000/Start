@@ -349,7 +349,7 @@ class WindowApp(QMainWindow):
             return
         
         self.log_console.insert_colored_text('Successfully: ', 'green')
-        self.log_console.insert_colored_text(f'Project save into {project_dir} directory\n', 'dark gray')
+        self.log_console.insert_colored_text(f'Project had been saved into {project_dir} directory\n', 'dark gray')
 
 
     def setup_tabs(self):
