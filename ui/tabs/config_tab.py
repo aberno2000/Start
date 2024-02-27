@@ -375,11 +375,11 @@ class ConfigTab(QWidget):
             if self.read_config_file(self.config_file_path) == 1:
                 return
             self.meshFileSelected.emit(self.mesh_file)
+            self.log_console.logSignal.emit(f'Selected configuration: {self.config_file_path}\n')
         else:
             QMessageBox.warning(
                 self, "No Configuration File Selected", "No configuration file was uploaded.")
             return
-        self.log_console.logSignal.emit(f'Selected configuration: {self.config_file_path}\n')
 
     def read_config_file(self, config_file_path):
         config = str()
