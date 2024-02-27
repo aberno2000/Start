@@ -467,10 +467,8 @@ class ConfigTab(QWidget):
             try:
                 with open(configFile, "w") as file:
                     dump(config_content, file, indent=4)  # Serialize dict to JSON
-                QMessageBox.information(self, "Success", f"Configuration saved to {configFile}")
                 self.log_console.logSignal.emit(f'Successfully saved data to new config: {configFile}\n')
             except Exception as e:
-                QMessageBox.critical(self, "Error", f"Failed to save configuration")
                 self.log_console.logSignal.emit(f'Error: Failed to save configuration to {configFile}\n')
 
 

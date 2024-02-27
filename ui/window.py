@@ -5,7 +5,7 @@ from PyQt5.QtWidgets import (
     QProgressBar, QScrollArea, 
     QApplication, QColorDialog
 )
-import signal
+import signal, os
 from sys import exit
 from time import time
 from json import dump
@@ -17,7 +17,7 @@ from tabs.results_tab import ResultsTab
 from tabs.gedit_tab import GraphicalEditorTab
 from logger.log_console import LogConsole
 from util import ShortcutsInfoDialog, is_file_valid
-from util.util import align_view_by_axis
+from shutil import rmtree, copy
 
 class WindowApp(QMainWindow):    
     def __init__(self):
@@ -190,62 +190,69 @@ class WindowApp(QMainWindow):
 
 
     def change_style(self, style):
+        self.setupFontColor = 'dark gray'
+        
         if style == 'dark':
-            self.setStyleSheet("QWidget { background-color: #333; color: white; }")
+            self.setupFontColor = 'white'
+            self.setStyleSheet(f'QWidget {{ background-color: #333; color: {self.setupFontColor}; }}')
             self.log_console.setDefaultTextColor(QColor('white'))
         elif style == 'light':
-            self.setStyleSheet("QWidget { background-color: #eee; color: black; }")
+            self.setupFontColor = 'black'
+            self.setStyleSheet(f'QWidget {{ background-color: #eee; color: {self.setupFontColor}; }}')
             self.log_console.setDefaultTextColor(QColor('black'))
         elif style == 'night':
-            self.setStyleSheet("QWidget { background-color: #000; color: #0f0; }")
+            self.setupFontColor = 'green'
+            self.setStyleSheet(f'QWidget {{ background-color: #000; color: {self.setupFontColor}; }}')
             self.log_console.setDefaultTextColor(QColor('white'))
         elif style == 'classic':
-            self.setStyleSheet("QWidget { background-color: #f0f0f0; color: black; }")
+            self.setupFontColor = 'black'
+            self.setStyleSheet(f'QWidget {{ background-color: #f0f0f0; color: {self.setupFontColor}; }}')
             self.log_console.setDefaultTextColor(QColor('black'))
         elif style == 'bright':
-            self.setStyleSheet("QWidget { background-color: white; color: #666; }")
+            self.setupFontColor = 'dark gray'
+            self.setStyleSheet(f'QWidget {{ background-color: white; color: {self.setupFontColor}; }}')
             self.log_console.setDefaultTextColor(QColor('black'))
         elif style == 'default':
-            self.setStyleSheet("")
+            self.setStyleSheet('')
             self.log_console.setDefaultTextColor(QColor('dark gray'))
         elif style == 'custom':
-            QMessageBox.information(self, "Application Color", "Choose application color")
+            QMessageBox.information(self, 'Application Color', 'Choose application color')
             appColor = QColorDialog.getColor()
             
-            QMessageBox.information(self, "Application Fonr Color", "Choose font color of the application")
+            QMessageBox.information(self, 'Application Fonr Color', 'Choose font color of the application')
             appFontColor = QColorDialog.getColor()
             if appColor.isValid() and appFontColor.isValid():
                 appColorHex = appColor.name()
                 appFontColorHex = appFontColor.name()
-                self.setStyleSheet(f"QWidget {{ background-color: {appColorHex}; color: {appFontColorHex}; }}")
+                self.setStyleSheet(f'QWidget {{ background-color: {appColorHex}; color: {appFontColorHex}; }}')
             else:
                 return
 
-            QMessageBox.information(self, "Logger Font Color", "Choose font color in the logger")
+            QMessageBox.information(self, 'Logger Font Color', 'Choose font color in the logger')
             logFontColor = QColorDialog.getColor()
             if appColor.isValid():
                 self.log_console.setDefaultTextColor(logFontColor)
             else:
                 return
         else:
-            self.setStyleSheet("")
+            self.setStyleSheet('')
             self.log_console.setDefaultTextColor(QColor('dark gray'))
 
     
     def change_background_color(self, color):
-        if color == "default":
+        if color == 'default':
             bgColor = [0.1, 0.2, 0.2]
-        elif color == "black":
+        elif color == 'black':
             bgColor = [0, 0, 0]
-        elif color == "gray":
+        elif color == 'gray':
             bgColor = [0.5, 0.5, 0.5]
-        elif color == "white":
+        elif color == 'white':
             bgColor = [1, 1, 1]
         elif color == 'light gray':
             bgColor = [0.75, 0.75, 0.75]
         elif color == 'dark gray':
             bgColor = [0.25, 0.25, 0.25]
-        elif color == "custom":
+        elif color == 'custom':
             # Open a color dialog to let the user choose a color
             qColor = QColorDialog.getColor()
             if qColor.isValid():
@@ -262,35 +269,102 @@ class WindowApp(QMainWindow):
 
 
     def create_project(self):
-        # TODO: Implement
-        pass
+        options = QFileDialog.Options()
+        project_dir = QFileDialog.getExistingDirectory(self, 'Choose Project Directory', options=options)
+        
+        if not project_dir:
+            return
+    
+        if os.path.exists(project_dir):
+            rmtree(project_dir)
+        os.makedirs(project_dir, exist_ok=True)
+        
+        self.log_console.insert_colored_text('Successfully: ', 'green')
+        self.log_console.insert_colored_text(f'Created new project directory: {project_dir}\n', 'dark gray')
 
 
     def open_project(self):
-        # TODO: Implement
-        pass
+        options = QFileDialog.Options()
+        project_dir = QFileDialog.getExistingDirectory(self, 'Choose Project Directory', options=options)
+        
+        if not project_dir:
+            return
+
+        files = os.listdir(project_dir)
+        paths = [os.path.join(project_dir, file) for file in files]
+        
+        if len(paths) != 5 or \
+            not paths[0].endswith('.vtk') or not paths[1].endswith('.json') or \
+            not paths[2].endswith('.vtk') or not paths[3].endswith('.json') or \
+            not paths[4].endswith('.json'):
+                self.log_console.insert_colored_text('Error: ', 'red')
+                self.log_console.insert_colored_text(f'Can\'t open the project, check contegrity of all the files in directory {project_dir}. There must be 5 files\n', 'dark gray')
+                QMessageBox.critical(self, 'Open Project', f'Can\'t open the project, check contegrity of all the files in directory {project_dir}. There must be 5 files')
+                return
+        
+        self.mesh_tab.geditor.load_scene(self.log_console, paths[0], paths[1])
+        self.results_tab.load_scene(self.log_console, paths[2], paths[3])
+        self.config_tab.upload_config_with_filename(paths[4])
     
     
     def save_project(self):
-        # TODO: Implement
-        pass
+        options = QFileDialog.Options()
+        project_dir = QFileDialog.getExistingDirectory(self, 'Choose Project Directory', options=options)
+        
+        if not project_dir:
+            return
+        
+        # Generating all project files
+        self.mesh_tab.geditor.save_scene(self.log_console)
+        self.results_tab.save_scene(self.log_console)
+        
+        if not self.config_tab.config_file_path:
+            self.config_tab.save_config_to_file()
+
+        # Check if the directory exists. If yes, remove it and create a fresh one
+        if os.path.exists(project_dir):
+            rmtree(project_dir)
+        os.makedirs(project_dir, exist_ok=True)
+
+        try:
+            original_files = [
+                'scene_actors_meshTab.vtk', 'scene_camera_meshTab.json',
+                'scene_actors_resultsTab.vtk', 'scene_camera_resultsTab.json'
+            ]
+            original_files.append(os.path.basename(self.config_tab.config_file_path))
+
+            # Move the generated files to the chosen project directory
+            for file_name in original_files:
+                src = file_name  # Assuming these files are in the current working directory
+                dst = os.path.join(project_dir, file_name)
+                copy(src, dst)
+        except Exception as e:
+            self.log_console.insert_colored_text(f'Error: {e}\n', 'red')
+        
+        self.log_console.insert_colored_text('Successfully: ', 'green')
+        self.log_console.insert_colored_text(f'Project save into {project_dir} directory\n', 'dark gray')
 
 
     def setup_tabs(self):
-        self.tab_widget.addTab(self.mesh_tab, "Mesh")
-        self.tab_widget.addTab(self.config_tab, "Configurations")
-        self.tab_widget.addTab(self.results_tab, "Results")
+        self.tab_widget.addTab(self.mesh_tab, 'Mesh')
+        self.tab_widget.addTab(self.config_tab, 'Configurations')
+        self.tab_widget.addTab(self.results_tab, 'Results')
 
 
     def start_simulation_from_CLI(self, configFile):
         self.config_tab.upload_config_with_filename(configFile)
-        self.hdf5_filename = self.config_tab.mesh_file.replace(".msh", ".hdf5")
-        args = f"{self.config_tab.config_file_path}"
+        self.hdf5_filename = self.config_tab.mesh_file.replace('.msh', '.hdf5')
+        args = f'{self.config_tab.config_file_path}'
         self.run_cpp(args)
         self.progress_bar.setRange(0, 100)
     
 
     def start_simulation(self):
+        if not is_file_valid(self.config_tab.config_file_path):
+            self.config_tab.save_config_to_file()
+        else:
+            self.config_tab.save_config_to_file_with_filename(self.config_tab.config_file_path)
+        
         config_content = self.config_tab.validate_input()
         if config_content is None:
             return
@@ -312,7 +386,7 @@ class WindowApp(QMainWindow):
             with open(self.config_tab.config_file_path, "w") as file:
                 dump(config_content, file, indent=4)  # Serialize dict to JSON
         except Exception as e:
-            QMessageBox.critical(self, "Error", f"Failed to save configuration")
+            QMessageBox.critical(self, "Error", f"Failed to save configuration: {e}")
             return
         self.hdf5_filename = self.config_tab.mesh_file.replace(".msh", ".hdf5")
         args = f"{self.config_tab.config_file_path}"
@@ -366,6 +440,9 @@ class WindowApp(QMainWindow):
         elif event.modifiers() == Qt.ControlModifier | Qt.ShiftModifier and event.key() == Qt.Key_Z:
             self.mesh_tab.geditor.align_view_by_axis('z')
             self.results_tab.align_view_by_axis('z')
+        elif event.modifiers() == Qt.ControlModifier | Qt.ShiftModifier and event.key() == Qt.Key_C:
+            self.mesh_tab.geditor.align_view_by_axis('center')
+            self.results_tab.align_view_by_axis('center')
             
         # History bindings
         elif event.modifiers() & Qt.ControlModifier and event.key() == Qt.Key_Z:
@@ -402,7 +479,8 @@ class WindowApp(QMainWindow):
             ("Redo", "Ctrl+Y", "Reapplies actions that were previously undone using the Undo function, letting you move forward after reversing changes."),
             ("Align by X axis", "Ctrl+Shift+X", "Make an alignment by X axis."),
             ("Align by Y axis", "Ctrl+Shift+Y", "Make an alignment by Y axis."),
-            ("Align by Z axis", "Ctrl+Shift+Z", "Make an alignment by Z axis.")
+            ("Align by Z axis", "Ctrl+Shift+Z", "Make an alignment by Z axis."),
+            ("Align by center", "Ctrl+Shift+C", "Make an alignment by center."),
         ]
         dialog = ShortcutsInfoDialog(shortcuts, self)
         dialog.exec_()

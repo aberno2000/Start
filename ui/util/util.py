@@ -1,14 +1,15 @@
+import vtk
 from PyQt5.QtWidgets import (
     QDialog, QFormLayout, QLineEdit, QDialogButtonBox, 
     QVBoxLayout, QMessageBox, QPushButton, QTableWidget,
     QTableWidgetItem, QSizePolicy, QLabel, QHBoxLayout,
-    QWidget, QScrollArea
+    QWidget, QScrollArea, QApplication
 )
 from PyQt5.QtCore import QSize
 from .converter import is_positive_real_number, is_real_number
 from os.path import exists, isfile
-from vtk import vtkRenderer
 from vtkmodules.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
+from json import dump, load
 
 
 def is_file_valid(path: str):
@@ -376,10 +377,10 @@ class ShortcutsInfoDialog(QDialog):
         
 
 
-def align_view_by_axis(axis: str, renderer: vtkRenderer, vtkWidget: QVTKRenderWindowInteractor):
+def align_view_by_axis(axis: str, renderer: vtk.vtkRenderer, vtkWidget: QVTKRenderWindowInteractor):
     axis = axis.strip().lower()
         
-    if axis not in ['x', 'y', 'z']:
+    if axis not in ['x', 'y', 'z', 'center']:
         return
       
     camera = renderer.GetActiveCamera()
@@ -392,8 +393,131 @@ def align_view_by_axis(axis: str, renderer: vtkRenderer, vtkWidget: QVTKRenderWi
     elif axis == 'z':
         camera.SetPosition(0, 0, 1)
         camera.SetViewUp(0, 1, 0)
+    elif axis == 'center':
+        camera.SetPosition(1, 1, 1)
+        camera.SetViewUp(0, 0, 1)
             
     camera.SetFocalPoint(0, 0, 0)
         
     renderer.ResetCamera()
     vtkWidget.GetRenderWindow().Render()
+    
+
+def save_scene(renderer: vtk.vtkRenderer, logConsole, actors_file='scene_actors.vtk', camera_file='scene_camera.json'):
+    if save_actors(renderer, logConsole, actors_file) is not None and \
+        save_camera_settings(renderer, logConsole, camera_file) is not None:
+    
+        logConsole.insert_colored_text('Successfully: ', 'green')
+        logConsole.insert_colored_text(f'Saved scene from to the files: {actors_file} and {camera_file}\n', 'dark gray')
+    
+
+def save_actors(renderer: vtk.vtkRenderer, logConsole, actors_file='scene_actors.vtk'):
+    try:
+        actors_collection = renderer.GetActors()
+        actors_collection.InitTraversal()
+        
+        if actors_collection.GetNumberOfItems() == 0:
+            with open(actors_file, 'w') as f:
+                f.write('')
+            return None
+        
+        for i in range(actors_collection.GetNumberOfItems()):
+            actor = actors_collection.GetNextActor()
+            if actor.GetMapper() is not None:
+                data = actor.GetMapper().GetInput()
+                
+                if isinstance(data, vtk.vtkPolyData):
+                    writer = vtk.vtkPolyDataWriter()
+                elif isinstance(data, vtk.vtkUnstructuredGrid):
+                    writer = vtk.vtkUnstructuredGridWriter()
+                else:
+                    logConsole.insert_colored_text('Warning: ', 'yellow')
+                    logConsole.insert_colored_text(f'Actor {i} data type is not supported for saving', 'red')
+                    continue
+                
+                writer.SetFileName(actors_file)
+                writer.SetInputData(data)
+                writer.Write()
+                
+        return 1
+    except Exception as e:
+        logConsole.insert_colored_text('Error: ', 'red')
+        logConsole.insert_colored_text(f'Failed to save actors: {e}\n', 'dark gray')
+        return None
+        
+        
+def save_camera_settings(renderer: vtk.vtkRenderer, logConsole, camera_file='scene_camera.json'):
+    try:
+        camera = renderer.GetActiveCamera()
+        camera_settings = {
+            'position': camera.GetPosition(),
+            'focal_point': camera.GetFocalPoint(),
+            'view_up': camera.GetViewUp(),
+            'clip_range': camera.GetClippingRange(),
+        }
+        with open(camera_file, 'w') as f:
+            dump(camera_settings, f)
+
+        return 1
+    except Exception as e:
+        logConsole.insert_colored_text('Error: ', 'red')
+        logConsole.insert_colored_text(f'Failed to save camera settings: {e}\n', 'dark gray')
+        return None
+        
+
+def load_scene(vtkWidget: QVTKRenderWindowInteractor, renderer: vtk.vtkRenderer, logConsole, actors_file='scene_actors.vtk', camera_file='scene_camera.json'):
+    if load_actors(renderer, logConsole, actors_file) is not None and \
+        load_camera_settings(renderer, logConsole, camera_file) is not None:
+    
+        vtkWidget.GetRenderWindow().Render()
+        logConsole.insert_colored_text('Successfully: ', 'green')
+        logConsole.insert_colored_text(f'Loaded scene from the files: {actors_file} and {camera_file}\n', 'dark gray')
+
+
+def load_actors(renderer: vtk.vtkRenderer, logConsole, actors_file='scene_actors.vtk'):
+    try:
+        reader = vtk.vtkGenericDataObjectReader()
+        reader.SetFileName(actors_file)
+        reader.Update()
+        
+        dataObject = reader.GetOutput()
+        
+        if reader.IsFilePolyData():
+            mapper = vtk.vtkPolyDataMapper()
+            mapper.SetInputData(dataObject)
+        elif reader.IsFileUnstructuredGrid():
+            mapper = vtk.vtkDataSetMapper()
+            mapper.SetInputData(dataObject)
+        else:
+            logConsole.insert_colored_text('Error: ', 'red')
+            logConsole.insert_colored_text(f'Unsupported data type in file {actors_file}\n', 'dark gray')
+            return None
+
+        actor = vtk.vtkActor()
+        actor.SetMapper(mapper)
+        renderer.AddActor(actor)
+
+        return 1
+    except Exception as e:
+        logConsole.insert_colored_text('Error: ', 'red')
+        logConsole.insert_colored_text(f'Failed to load actors: {e}\n', 'dark gray')
+        return None
+        
+        
+def load_camera_settings(renderer: vtk.vtkRenderer, logConsole, camera_file='scene_camera.json'):
+    try:
+        with open(camera_file, 'r') as f:
+            camera_settings = load(f)
+        
+        camera = renderer.GetActiveCamera()
+        camera.SetPosition(*camera_settings['position'])
+        camera.SetFocalPoint(*camera_settings['focal_point'])
+        camera.SetViewUp(*camera_settings['view_up'])
+        camera.SetClippingRange(*camera_settings['clip_range'])
+        
+        renderer.ResetCamera()
+        return 1
+    except Exception as e:
+        logConsole.insert_colored_text('Error: ', 'red')
+        logConsole.insert_colored_text(f'Failed to load camera settings: {e}\n', 'dark gray')
+        return None

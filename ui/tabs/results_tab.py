@@ -1,4 +1,4 @@
-import vtk
+import vtk, json
 from PyQt5.QtGui import QKeyEvent
 from PyQt5.QtWidgets import QVBoxLayout, QWidget
 from PyQt5.QtCore import Qt
@@ -6,7 +6,7 @@ from util.mesh_renderer import MeshRenderer
 from data.hdf5handler import HDF5Handler
 from vtkmodules.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 from vtkmodules.vtkInteractionStyle import vtkInteractorStyleTrackballCamera
-from util.util import align_view_by_axis
+from util.util import align_view_by_axis, save_scene, load_scene
 
 
 class ResultsTab(QWidget):
@@ -76,3 +76,12 @@ class ResultsTab(QWidget):
     
     def align_view_by_axis(self, axis: str):
         align_view_by_axis(axis, self.renderer, self.vtkWidget)
+        
+
+    def save_scene(self, logConsole, actors_file='scene_actors_resultsTab.vtk', camera_file='scene_camera_resultsTab.json'):
+        save_scene(self.renderer, logConsole, actors_file, camera_file)
+            
+            
+    def load_scene(self, logConsole, actors_file='scene_actors_resultsTab.vtk', camera_file='scene_camera_resultsTab.json'):
+        load_scene(self.vtkWidget, self.renderer, logConsole, actors_file, camera_file)
+

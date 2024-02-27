@@ -13,7 +13,7 @@ from util import(
     PointDialog, LineDialog, SurfaceDialog, 
     SphereDialog, BoxDialog, CylinderDialog,
 )
-from util.util import align_view_by_axis
+from util.util import align_view_by_axis, save_scene, load_scene
 
 
 class GraphicalEditor(QFrame):
@@ -400,4 +400,12 @@ class GraphicalEditor(QFrame):
             cellPointsStr = ', '.join([str(cellPoints.GetId(j)) for j in range(cellPoints.GetNumberOfIds())])
             cellItem = QStandardItem(f"Cell {i} ({cellType}): Points [{cellPointsStr}]")
             cellsItem.appendRow(cellItem)
+            
+    
+    def save_scene(self, logConsole, actors_file='scene_actors_meshTab.vtk', camera_file='scene_camera_meshTab.json'):
+        save_scene(self.renderer, logConsole, actors_file, camera_file)
+            
+            
+    def load_scene(self, logConsole, actors_file='scene_actors_meshTab.vtk', camera_file='scene_camera_meshTab.json'):
+        load_scene(self.vtkWidget, self.renderer, logConsole, actors_file, camera_file)
 
