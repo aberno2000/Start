@@ -334,12 +334,19 @@ class WindowApp(QMainWindow):
             original_files.append(os.path.basename(self.config_tab.config_file_path))
 
             # Move the generated files to the chosen project directory
-            for file_name in original_files:
-                src = file_name  # Assuming these files are in the current working directory
-                dst = os.path.join(project_dir, file_name)
+            for filename in original_files:
+                src = filename  # Assuming these files are in the current working directory
+                dst = os.path.join(project_dir, filename)
                 copy(src, dst)
+            
+            # Deleting unnecessary .vtks and .jsons
+            original_files = original_files[:4]
+            for filename in original_files:
+                os.remove(filename)
+            
         except Exception as e:
-            self.log_console.insert_colored_text(f'Error: {e}\n', 'red')
+            self.log_console.insert_colored_text(f'Error: {e}: Nothing to save or any file error occured\n', 'red')
+            return
         
         self.log_console.insert_colored_text('Successfully: ', 'green')
         self.log_console.insert_colored_text(f'Project save into {project_dir} directory\n', 'dark gray')
