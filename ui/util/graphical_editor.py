@@ -3,7 +3,7 @@ from sys import stdout
 from vtkmodules.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 from vtkmodules.vtkInteractionStyle import vtkInteractorStyleTrackballCamera
 from PyQt5.QtGui import QStandardItem, QIcon
-from PyQt5.QtCore import QSize
+from PyQt5.QtCore import QSize, pyqtSignal
 from PyQt5.QtWidgets import(
     QFrame, QVBoxLayout, QHBoxLayout, 
     QPushButton, QDialog, QSpacerItem,
@@ -17,6 +17,8 @@ from util.util import align_view_by_axis, save_scene, load_scene
 
 
 class GraphicalEditor(QFrame):
+    updateTreeSignal = pyqtSignal(str, str)
+    
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setup_toolbar()
@@ -28,7 +30,7 @@ class GraphicalEditor(QFrame):
         self.redo_history = []   # Track undone actors for redo
         
     
-    def undo_action(self):
+    def undo_action_actor(self):
         if self.action_history:
             actor = self.action_history.pop()
             self.renderer.RemoveActor(actor)
@@ -36,7 +38,7 @@ class GraphicalEditor(QFrame):
             self.vtkWidget.GetRenderWindow().Render()
 
 
-    def redo_action(self):
+    def redo_action_actor(self):
         if self.redo_history:
             actor = self.redo_history.pop()
             self.action_history.append(actor)
@@ -161,6 +163,7 @@ class GraphicalEditor(QFrame):
             self.action_history.append(actor)
             self.redo_history.clear()
             
+            self.updateTreeSignal.emit('Point', f'Point: ({x}, {y}, {z})')
             
     def create_line(self):
         dialog = LineDialog(self)

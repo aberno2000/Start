@@ -21,7 +21,7 @@ from shutil import rmtree, copy
 
 class WindowApp(QMainWindow):    
     def __init__(self):
-        super().__init__()
+        super().__init__()        
         self.process = QProcess(self)
         self.process.readyReadStandardError.connect(self.read_stderr)
         self.process.readyReadStandardOutput.connect(self.read_stdout)
@@ -81,6 +81,9 @@ class WindowApp(QMainWindow):
         # Setting default background colors of both vtk renderers
         self.mesh_tab.geditor.renderer.SetBackground(0.1, 0.2, 0.2)
         self.results_tab.renderer.SetBackground(0.1, 0.2, 0.2)
+        
+        self.change_style('dark')
+        self.change_background_color('white')
 
     
     def read_stderr(self):
@@ -190,7 +193,7 @@ class WindowApp(QMainWindow):
 
 
     def change_style(self, style):
-        self.setupFontColor = 'dark gray'
+        self.setupFontColor = 'white'
         
         if style == 'dark':
             self.setupFontColor = 'white'
@@ -213,8 +216,8 @@ class WindowApp(QMainWindow):
             self.setStyleSheet(f'QWidget {{ background-color: white; color: {self.setupFontColor}; }}')
             self.log_console.setDefaultTextColor(QColor('black'))
         elif style == 'default':
-            self.setStyleSheet('')
-            self.log_console.setDefaultTextColor(QColor('dark gray'))
+            self.setStyleSheet(f'QWidget {{ background-color: #333; color: {self.setupFontColor}; }}')
+            self.log_console.setDefaultTextColor(QColor(self.setupFontColor))
         elif style == 'custom':
             QMessageBox.information(self, 'Application Color', 'Choose application color')
             appColor = QColorDialog.getColor()
@@ -453,9 +456,11 @@ class WindowApp(QMainWindow):
             
         # History bindings
         elif event.modifiers() & Qt.ControlModifier and event.key() == Qt.Key_Z:
-            self.mesh_tab.geditor.undo_action()
+            self.mesh_tab.geditor.undo_action_actor()
+            self.mesh_tab.undo_action_tree_view()
         elif event.modifiers() & Qt.ControlModifier and event.key() == Qt.Key_Y:
-            self.mesh_tab.geditor.redo_action()
+            self.mesh_tab.geditor.redo_action_actor()
+            self.mesh_tab.redo_action_tree_view()
         else:
             super().keyPressEvent(event)
         
