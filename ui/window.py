@@ -121,6 +121,10 @@ class WindowApp(QMainWindow):
             QMessageBox.information(self,
                                     "Process Finished",
                                     f"The simulation has completed in {exec_time:.3f}s")
+            
+            # Moving to the results tab after finishing
+            self.tab_widget.setCurrentIndex(2)
+            
         elif exitStatus == QProcess.CrashExit and exitCode == 11:
             self.results_tab.clear_plot()
             
@@ -496,7 +500,7 @@ class WindowApp(QMainWindow):
             ("Exit", "Ctrl+Q", "Exits the application."),
             ("Run Simulation", "Ctrl+R", "Starts the simulation."),
             ("Stop Simulation", "Ctrl+T", "Stops the currently running simulation."),
-            ("Tab Switch", "Ctrl+Tab", "Switches current tab to the next one.")
+            ("Tab Switch", "Ctrl+Tab", "Switches current tab to the next one."),
             ("Hide/Show Log Console", "Ctrl+L", "Toggles visibility of the log console"),
             ("Upload Config", "Ctrl+Shift+U", "Uploads a configuration file."),
             ("Save Config", "Ctrl+Shift+S", "Saves the current configuration to a file."),

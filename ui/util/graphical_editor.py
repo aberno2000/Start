@@ -26,6 +26,9 @@ class GraphicalEditor(QFrame):
         self.setup_interaction()
         self.setup_axes()
         
+        # Yellow is the default color for all new created actors
+        self.createdActorDefaultColor = [1, 1, 0]
+        
         self.action_history = [] # Track added actors
         self.redo_history = []   # Track undone actors for redo
         
@@ -87,12 +90,6 @@ class GraphicalEditor(QFrame):
         self.createCylinderButton.setFixedSize(QSize(32, 32))
         self.createCylinderButton.setToolTip('Cylinder')
         
-        self.eraserButton = QPushButton()
-        self.eraserButton.setIcon(QIcon("icons/eraser.png"))
-        self.eraserButton.setIconSize(QSize(32, 32))
-        self.eraserButton.setFixedSize(QSize(32, 32))
-        self.eraserButton.setToolTip('Erase all')
-        
         # Add buttons to the toolbar layout
         self.toolbarLayout.addWidget(self.createPointButton)
         self.toolbarLayout.addWidget(self.createLineButton)
@@ -100,7 +97,6 @@ class GraphicalEditor(QFrame):
         self.toolbarLayout.addWidget(self.createSphereButton)
         self.toolbarLayout.addWidget(self.createBoxButton)
         self.toolbarLayout.addWidget(self.createCylinderButton)
-        self.toolbarLayout.addWidget(self.eraserButton)
         
         self.spacer = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
         self.toolbarLayout.addSpacerItem(self.spacer)
@@ -112,7 +108,6 @@ class GraphicalEditor(QFrame):
         self.createSphereButton.clicked.connect(self.create_sphere)
         self.createBoxButton.clicked.connect(self.create_box)
         self.createCylinderButton.clicked.connect(self.create_cylinder)
-        self.eraserButton.clicked.connect(lambda: self.remove_all_actors())
         
 
     def setup_ui(self):
@@ -155,7 +150,7 @@ class GraphicalEditor(QFrame):
             actor = vtk.vtkActor()
             actor.SetMapper(mapper)
             actor.GetProperty().SetPointSize(5)    # Set the size of the point
-            actor.GetProperty().SetColor(1, 0, 0)  # Set the color of the point (red)
+            actor.GetProperty().SetColor(self.createdActorDefaultColor)  # Set the color of the point (red)
             
             self.renderer.AddActor(actor)
             self.vtkWidget.GetRenderWindow().Render()
@@ -173,6 +168,7 @@ class GraphicalEditor(QFrame):
             # Create points
             points = vtk.vtkPoints()
             line = vtk.vtkPolyLine()
+            points_str_list = []
             
             # The number of points in the polyline
             line.GetPointIds().SetNumberOfIds(len(values) // 3)
@@ -181,6 +177,7 @@ class GraphicalEditor(QFrame):
             for i in range(0, len(values), 3):
                 point_id = points.InsertNextPoint(values[i], values[i + 1], values[i + 2])
                 line.GetPointIds().SetId(i // 3, point_id)
+                points_str_list.append(f'Point{i // 3 + 1}: {values[i]} {values[i + 1]} {values[i + 2]}')
             
             lines = vtk.vtkCellArray()
             lines.InsertNextCell(line)
@@ -194,12 +191,16 @@ class GraphicalEditor(QFrame):
             
             actor = vtk.vtkActor()
             actor.SetMapper(mapper)
+            actor.GetProperty().SetColor(self.createdActorDefaultColor)
             
             self.renderer.AddActor(actor)
             self.vtkWidget.GetRenderWindow().Render()
             
             self.action_history.append(actor)
             self.redo_history.clear()
+            
+            line_str = 'Line'
+            self.updateTreeSignal.emit(line_str, '\n'.join(points_str_list))
 
     
     def create_surface(self):
@@ -211,10 +212,14 @@ class GraphicalEditor(QFrame):
             if values is not None and len(values) >= 9:  # At least 3 points
                 points = vtk.vtkPoints()
                 polyData = vtk.vtkPolyData()
+                points_str_list = []
                 
                 # Insert points into vtkPoints
+                pid = 1
                 for i in range(0, len(values), 3):
                     points.InsertNextPoint(values[i], values[i+1], values[i+2])
+                    points_str_list.append(f'Point{pid}: ({values[i]}, {values[i+1]}, {values[i+2]})')
+                    pid += 1
                 
                 polyData.SetPoints(points)
                 
@@ -229,6 +234,7 @@ class GraphicalEditor(QFrame):
                 
                 actor = vtk.vtkActor()
                 actor.SetMapper(mapper)
+                actor.GetProperty().SetColor(self.createdActorDefaultColor)
                 
                 self.renderer.AddActor(actor)
                 self.vtkWidget.GetRenderWindow().Render()
@@ -236,12 +242,18 @@ class GraphicalEditor(QFrame):
                 # Add to history for undo/redo functionality
                 self.action_history.append(actor)
                 self.redo_history.clear()
+                
+                surface_str = 'Surface'
+                self.updateTreeSignal.emit(surface_str, '\n'.join(points_str_list))
     
     
     def create_sphere(self):
         dialog = SphereDialog(self)
         if dialog.exec_() == QDialog.Accepted and dialog.getValues() is not None:
             x, y, z, radius = dialog.getValues()
+            sphere_data_str = []
+            sphere_data_str.append(f'Center: ({x}, {y}, {z})')
+            sphere_data_str.append(f'Radius: {radius}')
             
             sphereSource = vtk.vtkSphereSource()
             sphereSource.SetCenter(x, y, z)
@@ -253,6 +265,7 @@ class GraphicalEditor(QFrame):
             
             actor = vtk.vtkActor()
             actor.SetMapper(mapper)
+            actor.GetProperty().SetColor(self.createdActorDefaultColor)
             
             # Change history vars
             self.action_history.append(actor)
@@ -260,12 +273,20 @@ class GraphicalEditor(QFrame):
             
             self.renderer.AddActor(actor)
             self.vtkWidget.GetRenderWindow().Render()
+            
+            center_str = 'Sphere'
+            self.updateTreeSignal.emit(center_str, '\n'.join(sphere_data_str))
 
 
     def create_box(self):
         dialog = BoxDialog(self)
         if dialog.exec_() == QDialog.Accepted and dialog.getValues() is not None:
             x, y, z, length, width, height = dialog.getValues()
+            box_data_str = []
+            box_data_str.append(f'Primary Point: ({x}, {y}, {z})')
+            box_data_str.append(f'Length: {length}')
+            box_data_str.append(f'Width: {width}')
+            box_data_str.append(f'Height: {height}')
             
             boxSource = vtk.vtkCubeSource()
             boxSource.SetBounds(x - length / 2., x + length / 2., 
@@ -278,6 +299,7 @@ class GraphicalEditor(QFrame):
             
             actor = vtk.vtkActor()
             actor.SetMapper(mapper)
+            actor.GetProperty().SetColor(self.createdActorDefaultColor)
             
             # Change history vars
             self.action_history.append(actor)
@@ -285,17 +307,24 @@ class GraphicalEditor(QFrame):
             
             self.renderer.AddActor(actor)
             self.vtkWidget.GetRenderWindow().Render()
+            
+            box_str = 'Box'
+            self.updateTreeSignal.emit(box_str, '\n'.join(box_data_str))
 
 
     def create_cylinder(self):
         dialog = CylinderDialog(self)
         if dialog.exec_() == QDialog.Accepted and dialog.getValues() is not None:
             x, y, z, radius, height = dialog.getValues()
+            cylinder_data_str = []
+            cylinder_data_str.append(f'Primary Point: ({x}, {y}, {z})')
+            cylinder_data_str.append(f'Radius: {radius}')
+            cylinder_data_str.append(f'Height: {height}')
         
             cylinderSource = vtk.vtkCylinderSource()
             cylinderSource.SetRadius(radius)
             cylinderSource.SetHeight(height)
-            cylinderSource.SetCenter(0, 0, 0)
+            cylinderSource.SetCenter(x, y, z)
             cylinderSource.Update()
             
             mapper = vtk.vtkPolyDataMapper()
@@ -303,7 +332,7 @@ class GraphicalEditor(QFrame):
             
             actor = vtk.vtkActor()
             actor.SetMapper(mapper)
-            actor.SetPosition(x, y, z)
+            actor.GetProperty().SetColor(self.createdActorDefaultColor)
             
             # Change history vars
             self.action_history.append(actor)
@@ -311,6 +340,9 @@ class GraphicalEditor(QFrame):
             
             self.renderer.AddActor(actor)
             self.vtkWidget.GetRenderWindow().Render()
+            
+            cylinder_str = 'Cylinder'
+            self.updateTreeSignal.emit(cylinder_str, '\n'.join(cylinder_data_str))
 
 
     def setup_axes(self):
@@ -321,7 +353,17 @@ class GraphicalEditor(QFrame):
         self.axes_widget.SetViewport(0.0, 0.0, 0.2, 0.2)
         self.axes_widget.EnabledOn()
         self.axes_widget.InteractiveOff()
-
+        
+    
+    def add_actor(self, actor):
+        self.renderer.AddActor(actor)
+        self.vtkWidget.GetRenderWindow().Render()
+        
+    
+    def remove_actor(self, actor):
+        self.renderer.RemoveActor(actor)
+        self.vtkWidget.GetRenderWindow().Render()
+        
 
     def remove_all_actors(self):
         actors = self.renderer.GetActors()
@@ -359,6 +401,8 @@ class GraphicalEditor(QFrame):
         self.renderer.AddActor(actor)
         self.renderer.ResetCamera()
         self.vtkWidget.GetRenderWindow().Render()
+        
+        return actor
         
         
     def setup_interaction(self):        
@@ -403,7 +447,9 @@ class GraphicalEditor(QFrame):
             cellPointsStr = ', '.join([str(cellPoints.GetId(j)) for j in range(cellPoints.GetNumberOfIds())])
             cellItem = QStandardItem(f"Cell {i} ({cellType}): Points [{cellPointsStr}]")
             cellsItem.appendRow(cellItem)
-            
+        
+        return data
+        
     
     def save_scene(self, logConsole, actors_file='scene_actors_meshTab.vtk', camera_file='scene_camera_meshTab.json'):
         save_scene(self.renderer, logConsole, actors_file, camera_file)

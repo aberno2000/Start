@@ -1,4 +1,4 @@
-import gmsh
+import gmsh, vtk
 from PyQt5.QtWidgets import (
     QVBoxLayout, QWidget, QSplitter, QTreeView, QMessageBox
 )
@@ -7,17 +7,6 @@ from PyQt5.QtGui import QStandardItemModel, QStandardItem
 from .config_tab import ConfigTab
 from util.graphical_editor import GraphicalEditor
 from os.path import isfile, exists, basename
-
-
-elemTypeToNodeCount = {
-    1: 2,    # 2-node line
-    2: 3,    # 3-node triangle
-    3: 4,    # 4-node quadrangle
-    4: 4,    # 4-node tetrahedron
-    5: 8,    # 8-node hexahedron
-    6: 6,    # 6-node prism
-    7: 5,    # 5-node pyramid
-}
 
 
 class GraphicalEditorTab(QWidget):
@@ -31,6 +20,7 @@ class GraphicalEditorTab(QWidget):
         self.object_idx = 0
         self.undo_stack = []
         self.redo_stack = []
+
 
     def setup_ui(self):        
         # Initialize an empty QTreeView
@@ -60,7 +50,6 @@ class GraphicalEditorTab(QWidget):
             if action['action'] == 'add':
                 row = action['row']
                 self.model.removeRow(row)
-                self.object_idx -= 1
 
                 # Prepare an action for the redo stack with descriptive data.
                 redo_action = {
@@ -70,6 +59,22 @@ class GraphicalEditorTab(QWidget):
                     'data': action['data']
                 }
                 self.redo_stack.append(redo_action)
+                self.object_idx -= 1
+                
+            if action['action'] == 'addDifficult':
+                row = action['row']
+                data = action['data']
+                self.model.removeRows(0, 2)
+                self.geditor.remove_actor(self.actorFromMesh)
+                
+                redo_action = {
+                    'action': 'addDifficult',
+                    'row': self.object_idx,
+                    'data': data,
+                    'parent': self.model.invisibleRootItem()
+                }
+                self.redo_stack.append(redo_action)
+                self.object_idx -= 1
 
 
     def redo_action_tree_view(self):
@@ -82,22 +87,63 @@ class GraphicalEditorTab(QWidget):
                 row = action.get('row')
 
                 if figure_type and data is not None:                    
-                    items = QStandardItem(f'Created objects[{self.object_idx}]: ' + figure_type + 's')
+                    items = QStandardItem(f'Created objects[{self.object_idx}]: ' + figure_type)
                     item = QStandardItem(data)
 
                     self.model.appendRow(items)
                     items.appendRow(item)
                     self.treeView.setModel(self.model)
 
-                    # Update undo stack accordingly without resetting the model.
-                    self.undo_stack.append({
+                    # Update undo stack accordingly without resetting the model
+                    action = {
                         'action': 'add',
                         'row': row,
                         'figure_type': figure_type,
                         'data': data
-                    })
-
+                    }
+                    self.undo_stack.append()
                     self.object_idx += 1
+            
+            if action['action'] == 'addDifficult':
+                data = action.get('data')
+                row = action.get('row')
+                
+                if not data.IsA("vtkUnstructuredGrid"):
+                    print("Data is not an unstructured grid.")
+                    return
+                        
+                unstructuredGrid = vtk.vtkUnstructuredGrid.SafeDownCast(data)
+
+                pointsItem = QStandardItem("Points")
+                self.model.appendRow(pointsItem)
+                
+                for i in range(unstructuredGrid.GetNumberOfPoints()):
+                    point = unstructuredGrid.GetPoint(i)
+                    pointItem = QStandardItem(f"Point {i}: ({point[0]:.3f}, {point[1]:.3f}, {point[2]:.3f})")
+                    pointsItem.appendRow(pointItem)
+                
+                cellsItem = QStandardItem("Cells")
+                self.model.appendRow(cellsItem)
+                
+                for i in range(unstructuredGrid.GetNumberOfCells()):
+                    cell = unstructuredGrid.GetCell(i)
+                    cellType = vtk.vtkCellTypes.GetClassNameFromTypeId(cell.GetCellType())
+                    cellPoints = cell.GetPointIds()
+                    cellPointsStr = ', '.join([str(cellPoints.GetId(j)) for j in range(cellPoints.GetNumberOfIds())])
+                    cellItem = QStandardItem(f"Cell {i} ({cellType}): Points [{cellPointsStr}]")
+                    cellsItem.appendRow(cellItem)
+                    
+                self.treeView.setModel(self.model)
+                action = {
+                    'action': 'addDifficult',
+                    'row': self.object_idx,
+                    'data': data,
+                    'parent': self.model.invisibleRootItem()
+                }
+                
+                self.geditor.add_actor(self.actorFromMesh)
+                self.undo_stack.append(action)
+                self.object_idx += 1
 
 
     def set_mesh_file(self, file_path):        
@@ -105,7 +151,7 @@ class GraphicalEditorTab(QWidget):
             self.mesh_file = file_path
             self.vtk_file = self.mesh_file.replace('.msh', '.vtk')
             self.initialize_tree()
-            self.geditor.display_mesh(self.mesh_file)
+            self.actorFromMesh = self.geditor.display_mesh(self.mesh_file)
         else:
             QMessageBox.warning(self, "Warning", f"Unable to open file {file_path}")
             return None
@@ -121,14 +167,23 @@ class GraphicalEditorTab(QWidget):
         
         # Converting from .msh to .vtk
         gmsh.write(self.vtk_file)
-        self.geditor.parse_vtk_polydata_and_populate_tree(self.vtk_file, self.model)
+        data = self.geditor.parse_vtk_polydata_and_populate_tree(self.vtk_file, self.model)
         
         gmsh.finalize()
         self.treeView.setModel(self.model)
         
+        action = {
+            'action': 'addDifficult',
+            'row': self.object_idx,
+            'data': data,
+            'parent': self.model.invisibleRootItem()
+        }
+        self.undo_stack.append(action)
+        self.object_idx += 1
+        
         
     def updateTreeModel(self, figure_type: str, data: str):
-        items = QStandardItem(f'Created objects[{self.object_idx}]: ' + figure_type + 's')
+        items = QStandardItem(f'Created objects[{self.object_idx}]: ' + figure_type)
         self.model.appendRow(items)
         item = QStandardItem(data)
         items.appendRow(item)
@@ -140,7 +195,7 @@ class GraphicalEditorTab(QWidget):
             'row': self.object_idx,
             'figure_type': figure_type,
             'data': data,
-            'parent': self.model.invisibleRootItem()  # Storing parent for context, might need refactoring
+            'parent': self.model.invisibleRootItem()
         }
         self.undo_stack.append(action)
         self.object_idx += 1
