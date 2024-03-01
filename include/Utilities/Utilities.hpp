@@ -109,7 +109,7 @@ namespace util
     std::string stringify(Args &&...args)
     {
         std::ostringstream oss;
-        (oss << ... << args);
+        (oss << ... << std::forward<Args>(args));
         return oss.str();
     }
 
