@@ -64,7 +64,7 @@ class PointDialog(QDialog):
 class LineDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setMinimumSize(800, 300)
+        self.setMinimumSize(400, 300)
         self.setWindowTitle("Create Line")
 
         self.mainLayout = QVBoxLayout(self)  # Main layout for the dialog
@@ -133,7 +133,7 @@ class LineDialog(QDialog):
 class SurfaceDialog(QDialog):
     def __init__(self, parent=None):       
         super().__init__(parent)
-        self.setMinimumSize(800, 400)
+        self.setMinimumSize(400, 300)
         self.setWindowTitle("Create Arbitrary Surface")
 
         self.mainLayout = QVBoxLayout(self)  # Main layout for the dialog
