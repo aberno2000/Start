@@ -37,7 +37,7 @@ class LogConsole(QWidget):
         container.setLayout(self.layout)
         
         self.setDefaultTextColor(QColor('dark gray'))
-        self.log_dock_widget = QDockWidget("Log Console", self)
+        self.log_dock_widget = QDockWidget("Console", self)
         self.log_dock_widget.setWidget(container)
         self.log_dock_widget.setAllowedAreas(Qt.BottomDockWidgetArea)
         self.log_dock_widget.setVisible(True)
