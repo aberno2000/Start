@@ -101,7 +101,7 @@ class GraphicalEditorTab(QWidget):
                         'figure_type': figure_type,
                         'data': data
                     }
-                    self.undo_stack.append()
+                    self.undo_stack.append(action)
                     self.object_idx += 1
             
             if action['action'] == 'addDifficult':
