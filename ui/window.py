@@ -28,6 +28,7 @@ class WindowApp(QMainWindow):
         self.process.finished.connect(self.on_process_finished)
         
         self.setWindowTitle("Particle Collision Simulator")
+        self.setupFontColor = 'white'
         
         # Retrieve the size of the primary screen
         screen = QApplication.primaryScreen()
@@ -40,6 +41,8 @@ class WindowApp(QMainWindow):
         self.tab_widget = QTabWidget()
         self.results_tab = ResultsTab()
         self.config_tab = ConfigTab(self.log_console)
+        self.config_tab.requestToMoveToTheNextTab.connect(self.switch_tab)
+        self.config_tab.requestToStartSimulation.connect(self.start_simulation)
         self.mesh_tab = GraphicalEditorTab(self.config_tab)
 
         # Connecting signal to detect the selection of mesh file
@@ -78,12 +81,13 @@ class WindowApp(QMainWindow):
         # Add the dock widget to the main window
         self.addDockWidget(Qt.BottomDockWidgetArea, self.log_console.log_dock_widget)
         
-        # Setting default background colors of both vtk renderers
-        self.mesh_tab.geditor.renderer.SetBackground(0.1, 0.2, 0.2)
-        self.results_tab.renderer.SetBackground(0.1, 0.2, 0.2)
-        
+        # Setting default app style and backgrounds of the graphical editors        
         self.change_style('dark')
         self.change_background_color('white')
+        
+        # Setting by default axes alignment by center
+        self.mesh_tab.geditor.align_view_by_axis('center')
+        self.results_tab.align_view_by_axis('center')
 
     
     def read_stderr(self):
@@ -113,10 +117,18 @@ class WindowApp(QMainWindow):
                 
             self.results_tab.update_plot(self.hdf5_filename)
             self.log_console.insert_colored_text('Successfully: ', 'green')
-            self.log_console.insert_colored_text(f'The simulation has completed in {exec_time:.3f}s\n', 'dark gray')
+            self.log_console.insert_colored_text(f'The simulation has completed in {exec_time:.3f}s\n', self.setupFontColor)
             QMessageBox.information(self,
                                     "Process Finished",
                                     f"The simulation has completed in {exec_time:.3f}s")
+        elif exitStatus == QProcess.CrashExit and exitCode == 11:
+            self.results_tab.clear_plot()
+            
+            QMessageBox.information(self,
+                                    "Uknnown Error",
+                                    f"Something went wrong at the start of the simulation. Maybe specified particle count is a small amount, try to increase this field. Current particle count is {self.config_tab.particles_count}\n")
+            self.log_console.insert_colored_text('Warning: ', 'yellow')
+            self.log_console.insert_colored_text(f'Something went wrong at the start of the simulation. Maybe specified particle count is a small amount, try to increase this field. Current particle count is {self.config_tab.particles_count}\n', self.setupFontColor)
         else:
             self.results_tab.clear_plot()
             
@@ -129,7 +141,7 @@ class WindowApp(QMainWindow):
                 signal_name = "Undefined"
             
             self.log_console.insert_colored_text('Warning: ', 'yellow')
-            self.log_console.insert_colored_text(f'The simulation has been forcibly stopped with a code {exitCode} <{signal_name}>\n', 'dark gray')
+            self.log_console.insert_colored_text(f'The simulation has been forcibly stopped with a code {exitCode} <{signal_name}>\n', self.setupFontColor)
             QMessageBox.information(self, 
                                     "Simulation Stopped", 
                                     f"The simulation has been forcibly stopped with a code {exitCode} <{signal_name}>")
@@ -163,7 +175,7 @@ class WindowApp(QMainWindow):
         bg_color_menu.addAction('White', lambda: self.change_background_color('white'))
         bg_color_menu.addAction('Light Gray', lambda: self.change_background_color('light gray'))
         bg_color_menu.addAction('Gray', lambda: self.change_background_color('gray'))
-        bg_color_menu.addAction('Dark Gray', lambda: self.change_background_color('dark gray'))
+        bg_color_menu.addAction(self.setupFontColor, lambda: self.change_background_color(self.setupFontColor))
         bg_color_menu.addAction('Black', lambda: self.change_background_color('black'))
         bg_color_menu.addAction('Custom', lambda: self.change_background_color('custom'))
         
@@ -192,9 +204,7 @@ class WindowApp(QMainWindow):
         help_menu.addAction('About', self.show_help, shortcut='F1')
 
 
-    def change_style(self, style):
-        self.setupFontColor = 'white'
-        
+    def change_style(self, style):        
         if style == 'dark':
             self.setupFontColor = 'white'
             self.setStyleSheet(f'QWidget {{ background-color: #333; color: {self.setupFontColor}; }}')
@@ -212,7 +222,7 @@ class WindowApp(QMainWindow):
             self.setStyleSheet(f'QWidget {{ background-color: #f0f0f0; color: {self.setupFontColor}; }}')
             self.log_console.setDefaultTextColor(QColor('black'))
         elif style == 'bright':
-            self.setupFontColor = 'dark gray'
+            self.setupFontColor = self.setupFontColor
             self.setStyleSheet(f'QWidget {{ background-color: white; color: {self.setupFontColor}; }}')
             self.log_console.setDefaultTextColor(QColor('black'))
         elif style == 'default':
@@ -239,7 +249,7 @@ class WindowApp(QMainWindow):
                 return
         else:
             self.setStyleSheet('')
-            self.log_console.setDefaultTextColor(QColor('dark gray'))
+            self.log_console.setDefaultTextColor(QColor(self.setupFontColor))
 
     
     def change_background_color(self, color):
@@ -253,7 +263,7 @@ class WindowApp(QMainWindow):
             bgColor = [1, 1, 1]
         elif color == 'light gray':
             bgColor = [0.75, 0.75, 0.75]
-        elif color == 'dark gray':
+        elif color == self.setupFontColor:
             bgColor = [0.25, 0.25, 0.25]
         elif color == 'custom':
             # Open a color dialog to let the user choose a color
@@ -283,7 +293,7 @@ class WindowApp(QMainWindow):
         os.makedirs(project_dir, exist_ok=True)
         
         self.log_console.insert_colored_text('Successfully: ', 'green')
-        self.log_console.insert_colored_text(f'Created new project directory: {project_dir}\n', 'dark gray')
+        self.log_console.insert_colored_text(f'Created new project directory: {project_dir}\n', self.setupFontColor)
 
 
     def open_project(self):
@@ -301,7 +311,7 @@ class WindowApp(QMainWindow):
             not paths[2].endswith('.vtk') or not paths[3].endswith('.json') or \
             not paths[4].endswith('.json'):
                 self.log_console.insert_colored_text('Error: ', 'red')
-                self.log_console.insert_colored_text(f'Can\'t open the project, check contegrity of all the files in directory {project_dir}. There must be 5 files\n', 'dark gray')
+                self.log_console.insert_colored_text(f'Can\'t open the project, check contegrity of all the files in directory {project_dir}. There must be 5 files\n', self.setupFontColor)
                 QMessageBox.critical(self, 'Open Project', f'Can\'t open the project, check contegrity of all the files in directory {project_dir}. There must be 5 files')
                 return
         
@@ -348,11 +358,11 @@ class WindowApp(QMainWindow):
                 os.remove(filename)
             
         except Exception as e:
-            self.log_console.insert_colored_text(f'Error: {e}: Nothing to save or any file error occured\n', 'red')
+            self.log_console.insert_colored_text(f'Error: Exception: {e}: Nothing to save or any file error occured\n', 'red')
             return
         
         self.log_console.insert_colored_text('Successfully: ', 'green')
-        self.log_console.insert_colored_text(f'Project had been saved into {project_dir} directory\n', 'dark gray')
+        self.log_console.insert_colored_text(f'Project had been saved into {project_dir} directory\n', self.setupFontColor)
 
 
     def setup_tabs(self):
@@ -371,6 +381,9 @@ class WindowApp(QMainWindow):
 
     def start_simulation(self):
         if not is_file_valid(self.config_tab.config_file_path):
+            QMessageBox.information(self,
+                                    "Save Configurataion",
+                                    "You need to save the configuration before start the simulation")
             self.config_tab.save_config_to_file()
         else:
             self.config_tab.save_config_to_file_with_filename(self.config_tab.config_file_path)
@@ -392,11 +405,11 @@ class WindowApp(QMainWindow):
                 return
         
         # Rewrite configs if they have been changed
-        try:
+        try:            
             with open(self.config_tab.config_file_path, "w") as file:
                 dump(config_content, file, indent=4)  # Serialize dict to JSON
         except Exception as e:
-            QMessageBox.critical(self, "Error", f"Failed to save configuration: {e}")
+            QMessageBox.critical(self, "Error", f"Failed to save configuration: Exception: {e}")
             return
         self.hdf5_filename = self.config_tab.mesh_file.replace(".msh", ".hdf5")
         args = f"{self.config_tab.config_file_path}"
@@ -413,6 +426,14 @@ class WindowApp(QMainWindow):
             if not self.process.waitForFinished(2000):
                 self.process.kill()
         
+        
+    def switch_tab(self):
+        # Iterating by tabs
+        currentTabIndex = self.tab_widget.currentIndex()
+        totalTabs = self.tab_widget.count()
+        nextTabIndex = (currentTabIndex + 1) % totalTabs
+        self.tab_widget.setCurrentIndex(nextTabIndex)
+    
         
     def keyPressEvent(self, event):
         # Main bindings
@@ -432,11 +453,7 @@ class WindowApp(QMainWindow):
         elif event.modifiers() == Qt.ControlModifier and event.key() == Qt.Key_L:
             self.log_console.log_dock_widget.setVisible(not self.log_console.log_dock_widget.isVisible())
         elif event.modifiers() == Qt.ControlModifier and event.key() == Qt.Key_Tab:
-            # Iterating by tabs
-            currentTabIndex = self.tab_widget.currentIndex()
-            totalTabs = self.tab_widget.count()
-            nextTabIndex = (currentTabIndex + 1) % totalTabs
-            self.tab_widget.setCurrentIndex(nextTabIndex)
+            self.switch_tab()
         elif event.key() == Qt.Key_F1:
             self.show_help()
             
@@ -479,6 +496,7 @@ class WindowApp(QMainWindow):
             ("Exit", "Ctrl+Q", "Exits the application."),
             ("Run Simulation", "Ctrl+R", "Starts the simulation."),
             ("Stop Simulation", "Ctrl+T", "Stops the currently running simulation."),
+            ("Tab Switch", "Ctrl+Tab", "Switches current tab to the next one.")
             ("Hide/Show Log Console", "Ctrl+L", "Toggles visibility of the log console"),
             ("Upload Config", "Ctrl+Shift+U", "Uploads a configuration file."),
             ("Save Config", "Ctrl+Shift+S", "Saves the current configuration to a file."),

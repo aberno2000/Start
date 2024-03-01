@@ -1,11 +1,12 @@
 from PyQt5.QtWidgets import (
     QVBoxLayout, QHBoxLayout, QWidget, QComboBox,
     QMessageBox, QLabel, QLineEdit, QFormLayout,
-    QGroupBox, QFileDialog, QPushButton
+    QGroupBox, QFileDialog, QPushButton,
+    QSizePolicy, QSpacerItem
 )
 import sys, gmsh
 from PyQt5 import QtCore
-from PyQt5.QtCore import pyqtSignal
+from PyQt5.QtCore import QSize, pyqtSignal
 from json import load, dump, JSONDecodeError
 from multiprocessing import cpu_count
 from platform import platform
@@ -28,6 +29,8 @@ def get_os_info():
 class ConfigTab(QWidget):
     # Signal to check if mesh file was selected by user
     meshFileSelected = pyqtSignal(str)
+    requestToMoveToTheNextTab = pyqtSignal()
+    requestToStartSimulation = pyqtSignal()
 
     def __init__(self, log_console, parent=None):
         super().__init__(parent)        
@@ -46,6 +49,26 @@ class ConfigTab(QWidget):
         self.setup_particles_group()
         self.setup_scattering_model_group()
         self.setup_simulation_parameters_group()
+        self.setup_next_button()
+        
+        
+    def setup_next_button(self):
+        button_layout = QHBoxLayout()
+        nextButton = QPushButton('Next >')
+        nextButton.setFixedSize(QSize(50, 25))
+        nextButton.setToolTip('Check this tab and move to the next with starting the simulation')
+        nextButton.clicked.connect(self.next_button_on_clicked)
+        
+        spacer = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
+        button_layout.addSpacerItem(spacer)
+        
+        button_layout.addWidget(nextButton)
+        self.layout.addLayout(button_layout)
+        
+    
+    def next_button_on_clicked(self):
+        self.validate_input_with_highlight()
+        
         
     def setup_mesh_group(self):
         self.mesh_file_label = QLabel("No file selected")
@@ -290,7 +313,7 @@ class ConfigTab(QWidget):
                 "Model": self.model_input.currentText(),
             }
         except ValueError as e:
-            QMessageBox.critical(self, "Invalid Input", f"Error in input fields: {e}")
+            QMessageBox.critical(self, "Invalid Input", f"Error in input fields: Exception: {e}")
             return None
         return config
         
@@ -349,6 +372,124 @@ class ConfigTab(QWidget):
             return None
 
         return self.check_validity_of_params()
+    
+    
+    def validate_input_with_highlight(self):
+        # Reset styles before validation
+        self.reset_input_styles()
+
+        all_valid = True
+        self.invalid_fields = []
+
+        # Validate thread count input
+        thread_count = self.thread_count_input.text()
+        if not thread_count.isdigit() or int(thread_count) < 1 or int(thread_count) > get_thread_count():
+            self.highlight_invalid(self.thread_count_input)
+            self.invalid_fields.append('Thread Count')
+            all_valid = False
+
+        # Validate particles count input
+        particles_count = self.particles_count_input.text()
+        if not particles_count.isdigit() or int(particles_count) <= 0:
+            self.highlight_invalid(self.particles_count_input)
+            self.invalid_fields.append('Particle Count')
+            all_valid = False
+
+        # Validate numeric inputs
+        if not self.validate_and_convert_numbers():
+            all_valid = False
+            
+        if self.invalid_fields:
+            QMessageBox.warning(
+                self,
+                "Incomplete Configuration",
+                "Please fill in the following fields before starting the simulation:\n"
+                + "\n".join(self.invalid_fields),
+            )
+            return None
+        else:
+            if not self.mesh_file:
+                QMessageBox.information(self,
+                                        "Mesh File",
+                                        "Firstly, You need to select the mesh file")
+                self.upload_mesh_file()
+
+            QMessageBox.information(self,
+                                    "Value Checker",
+                                    "All fields are valid. Staring the simulation...")
+            self.requestToMoveToTheNextTab.emit()
+            self.requestToStartSimulation.emit()
+
+        return all_valid
+            
+            
+    def highlight_invalid(self, widget):
+        widget.setStyleSheet("""
+            QLineEdit {
+                border: 0.5px solid red;
+                border-radius: 2px;
+            }
+        """)
+    
+            
+    def reset_input_styles(self):
+        self.thread_count_input.setStyleSheet("")
+        self.particles_count_input.setStyleSheet("")
+        self.time_step_input.setStyleSheet("")
+        self.simulation_time_input.setStyleSheet("")
+        self.temperature_input.setStyleSheet("")
+        self.pressure_input.setStyleSheet("")
+        self.volume_input.setStyleSheet("")
+        self.energy_input.setStyleSheet("")
+    
+    
+    def validate_and_convert_numbers(self):        
+        # Initialize validation status
+        valid = True
+
+        # Validate and convert time step
+        time_step_value = self.converter.to_seconds(self.time_step_input.text(), self.time_step_units.currentText())
+        if time_step_value is None or time_step_value < MIN_TIME or not self.time_step_input.text():
+            self.highlight_invalid(self.time_step_input)
+            self.invalid_fields.append('Time Step')
+            valid = False
+
+        # Validate and convert simulation time
+        simulation_time_value = self.converter.to_seconds(self.simulation_time_input.text(), self.simulation_time_units.currentText())
+        if simulation_time_value is None or simulation_time_value < MIN_TIME or not self.simulation_time_input.text():
+            self.highlight_invalid(self.simulation_time_input)
+            self.invalid_fields.append('Simulation Time')
+            valid = False
+
+        # Temperature validation
+        temperature_value = self.converter.to_kelvin(self.temperature_input.text(), self.temperature_units.currentText())
+        if temperature_value is None or not self.temperature_input.text():
+            self.highlight_invalid(self.temperature_input)
+            self.invalid_fields.append('Temperature')
+            valid = False
+
+        # Pressure validation
+        pressure_value = self.converter.to_pascal(self.pressure_input.text(), self.pressure_units.currentText())
+        if pressure_value is None or pressure_value < 0 or pressure_value > MAX_PRESSURE or not self.pressure_input.text():
+            self.highlight_invalid(self.pressure_input)
+            self.invalid_fields.append('Pressure')
+            valid = False
+
+        # Volume validation
+        volume_value = self.converter.to_cubic_meters(self.volume_input.text(), self.volume_units.currentText())
+        if volume_value is None or not self.volume_input.text():
+            self.highlight_invalid(self.volume_input)
+            self.invalid_fields.append('Volume')
+            valid = False
+
+        # Energy validation
+        energy_value = self.converter.to_joules(self.energy_input.text(), self.energy_units.currentText())
+        if energy_value is None or not self.energy_input.text():
+            self.highlight_invalid(self.energy_input)
+            self.invalid_fields.append('Energy')
+            valid = False
+
+        return valid
     
     
     def upload_config_with_filename(self, configFile: str):
@@ -448,7 +589,7 @@ class ConfigTab(QWidget):
 
         except Exception as e:
             QMessageBox.critical(self, "Error Applying Configuration",
-                                 f"An error occurred while applying the configuration: {e}")
+                                 f"An error occurred while applying the configuration: Exception: {e}")
             return None
 
 
@@ -469,7 +610,7 @@ class ConfigTab(QWidget):
                     dump(config_content, file, indent=4)  # Serialize dict to JSON
                 self.log_console.logSignal.emit(f'Successfully saved data to new config: {configFile}\n')
             except Exception as e:
-                self.log_console.logSignal.emit(f'Error: Failed to save configuration to {configFile}\n')
+                self.log_console.logSignal.emit(f'Error: Failed to save configuration to {configFile}: Exception: {e}\n')
 
 
     def save_config_to_file(self):
@@ -482,7 +623,7 @@ class ConfigTab(QWidget):
         # Ask the user where to save the file
         options = QFileDialog.Options()
         options |= QFileDialog.DontUseNativeDialog
-        config_file_path, _ = QFileDialog.getSaveFileName(
+        self.config_file_path, _ = QFileDialog.getSaveFileName(
             self,
             "Save Configuration",
             "",  # Start directory
@@ -490,15 +631,19 @@ class ConfigTab(QWidget):
             options=options,
         )
         
-        if config_file_path:
+        # Adding extension if needed
+        if not self.config_file_path.endswith('.json'):
+            self.config_file_path += '.json'
+        
+        if self.config_file_path:
             try:
-                with open(config_file_path, "w") as file:
+                with open(self.config_file_path, "w") as file:
                     dump(config_content, file, indent=4)  # Serialize dict to JSON
-                QMessageBox.information(self, "Success", f"Configuration saved to {config_file_path}")
-                self.log_console.logSignal.emit(f'Successfully saved data to new config: {config_file_path}\n')
+                QMessageBox.information(self, "Success", f"Configuration saved to {self.config_file_path}")
+                self.log_console.logSignal.emit(f'Successfully saved data to new config: {self.config_file_path}\n')
             except Exception as e:
-                QMessageBox.critical(self, "Error", f"Failed to save configuration")
-                self.log_console.logSignal.emit(f'Error: Failed to save configuration to {config_file_path}\n')
+                QMessageBox.critical(self, "Error", f"Failed to save configuration: Exception: {e}")
+                self.log_console.logSignal.emit(f'Error: Failed to save configuration to {self.config_file_path}: Exception: {e}\n')
                 
     
     def upload_mesh_file_with_filename(self, meshfilename):
