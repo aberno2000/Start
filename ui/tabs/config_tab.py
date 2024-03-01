@@ -2,7 +2,7 @@ from PyQt5.QtWidgets import (
     QVBoxLayout, QHBoxLayout, QWidget, QComboBox,
     QMessageBox, QLabel, QLineEdit, QFormLayout,
     QGroupBox, QFileDialog, QPushButton,
-    QSizePolicy, QSpacerItem
+    QSizePolicy, QSpacerItem, QDialog
 )
 import sys, gmsh
 from PyQt5 import QtCore
@@ -657,8 +657,9 @@ class ConfigTab(QWidget):
         if meshfilename.endswith('.stp'):
             # Show dialog for user input
             dialog = MeshDialog(self)
-            if dialog.exec_():
+            if dialog.exec() == QDialog.Accepted:
                 mesh_size, mesh_dim = dialog.get_values()
+                
                 try:
                     mesh_size = float(mesh_size)
                     mesh_dim = int(mesh_dim)
@@ -668,6 +669,9 @@ class ConfigTab(QWidget):
                 except ValueError as e:
                     QMessageBox.warning(self, "Invalid Input", str(e))
                     return None
+            else:
+                QMessageBox.critical(self, "Error", "Dialog was closed by user. Invalid mesh size or mesh dimensions")
+                return
         else:
             self.mesh_file = meshfilename
         
@@ -700,7 +704,7 @@ class ConfigTab(QWidget):
         if fileName.endswith('.stp'):
             # Show dialog for user input
             dialog = MeshDialog(self)
-            if dialog.exec_():
+            if dialog.exec() == QDialog.Accepted:
                 mesh_size, mesh_dim = dialog.get_values()
                 try:
                     mesh_size = float(mesh_size)
@@ -711,6 +715,9 @@ class ConfigTab(QWidget):
                 except ValueError as e:
                     QMessageBox.warning(self, "Invalid Input", str(e))
                     return None
+            else:
+                QMessageBox.critical(self, "Error", "Dialog was closed by user. Invalid mesh size or mesh dimensions")
+                return
         else:
             self.mesh_file = fileName
         
