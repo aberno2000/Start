@@ -451,10 +451,10 @@ class GraphicalEditor(QFrame):
         return data
         
     
-    def save_scene(self, logConsole, actors_file='scene_actors_meshTab.vtk', camera_file='scene_camera_meshTab.json'):
-        save_scene(self.renderer, logConsole, actors_file, camera_file)
+    def save_scene(self, logConsole, fontColor, actors_file='scene_actors_meshTab.vtk', camera_file='scene_camera_meshTab.json'):
+        save_scene(self.renderer, logConsole, fontColor, actors_file, camera_file)
             
             
-    def load_scene(self, logConsole, actors_file='scene_actors_meshTab.vtk', camera_file='scene_camera_meshTab.json'):
-        load_scene(self.vtkWidget, self.renderer, logConsole, actors_file, camera_file)
+    def load_scene(self, logConsole, fontColor, actors_file='scene_actors_meshTab.vtk', camera_file='scene_camera_meshTab.json'):
+        load_scene(self.vtkWidget, self.renderer, logConsole, fontColor, actors_file, camera_file)
 

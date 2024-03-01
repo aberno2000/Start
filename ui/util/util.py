@@ -3,7 +3,7 @@ from PyQt5.QtWidgets import (
     QDialog, QFormLayout, QLineEdit, QDialogButtonBox, 
     QVBoxLayout, QMessageBox, QPushButton, QTableWidget,
     QTableWidgetItem, QSizePolicy, QLabel, QHBoxLayout,
-    QWidget, QScrollArea, QApplication
+    QWidget, QScrollArea
 )
 from PyQt5.QtCore import QSize
 from .converter import is_positive_real_number, is_real_number
@@ -403,50 +403,44 @@ def align_view_by_axis(axis: str, renderer: vtk.vtkRenderer, vtkWidget: QVTKRend
     vtkWidget.GetRenderWindow().Render()
     
 
-def save_scene(renderer: vtk.vtkRenderer, logConsole, actors_file='scene_actors.vtk', camera_file='scene_camera.json'):
-    if save_actors(renderer, logConsole, actors_file) is not None and \
-        save_camera_settings(renderer, logConsole, camera_file) is not None:
+def save_scene(renderer: vtk.vtkRenderer, logConsole, fontColor, actors_file='scene_actors.vtk', camera_file='scene_camera.json'):
+    if save_actors(renderer, logConsole, fontColor, actors_file) is not None and \
+        save_camera_settings(renderer, logConsole, fontColor, camera_file) is not None:
     
         logConsole.insert_colored_text('Successfully: ', 'green')
-        logConsole.insert_colored_text(f'Saved scene from to the files: {actors_file} and {camera_file}\n', 'dark gray')
+        logConsole.insert_colored_text(f'Saved scene from to the files: {actors_file} and {camera_file}\n', fontColor)
     
 
-def save_actors(renderer: vtk.vtkRenderer, logConsole, actors_file='scene_actors.vtk'):
+def save_actors(renderer: vtk.vtkRenderer, logConsole, fontColor, actors_file='scene_actors.vtk'):
     try:
+        append_filter = vtk.vtkAppendPolyData()
         actors_collection = renderer.GetActors()
         actors_collection.InitTraversal()
         
-        if actors_collection.GetNumberOfItems() == 0:
-            with open(actors_file, 'w') as f:
-                f.write('')
-            return None
-        
         for i in range(actors_collection.GetNumberOfItems()):
             actor = actors_collection.GetNextActor()
-            if actor.GetMapper() is not None:
-                data = actor.GetMapper().GetInput()
-                
-                if isinstance(data, vtk.vtkPolyData):
-                    writer = vtk.vtkPolyDataWriter()
-                elif isinstance(data, vtk.vtkUnstructuredGrid):
-                    writer = vtk.vtkUnstructuredGridWriter()
-                else:
-                    logConsole.insert_colored_text('Warning: ', 'yellow')
-                    logConsole.insert_colored_text(f'Actor {i} data type is not supported for saving', 'red')
-                    continue
-                
-                writer.SetFileName(actors_file)
-                writer.SetInputData(data)
-                writer.Write()
-                
+            if actor.GetMapper() and actor.GetMapper().GetInput():
+                poly_data = actor.GetMapper().GetInput()
+                if isinstance(poly_data, vtk.vtkPolyData):
+                    append_filter.AddInputData(poly_data)
+        
+        append_filter.Update()
+
+        writer = vtk.vtkPolyDataWriter()
+        writer.SetFileName(actors_file)
+        writer.SetInputData(append_filter.GetOutput())
+        writer.Write()
+
+        logConsole.insert_colored_text('Info: ', 'blue')
+        logConsole.insert_colored_text(f'Saved all actors to {actors_file}\n', fontColor)
         return 1
     except Exception as e:
         logConsole.insert_colored_text('Error: ', 'red')
-        logConsole.insert_colored_text(f'Failed to save actors: {e}\n', 'dark gray')
+        logConsole.insert_colored_text(f'Failed to save actors: {e}\n', fontColor)
         return None
         
         
-def save_camera_settings(renderer: vtk.vtkRenderer, logConsole, camera_file='scene_camera.json'):
+def save_camera_settings(renderer: vtk.vtkRenderer, logConsole, fontColor, camera_file='scene_camera.json'):
     try:
         camera = renderer.GetActiveCamera()
         camera_settings = {
@@ -461,50 +455,43 @@ def save_camera_settings(renderer: vtk.vtkRenderer, logConsole, camera_file='sce
         return 1
     except Exception as e:
         logConsole.insert_colored_text('Error: ', 'red')
-        logConsole.insert_colored_text(f'Failed to save camera settings: {e}\n', 'dark gray')
+        logConsole.insert_colored_text(f'Failed to save camera settings: {e}\n', fontColor)
         return None
         
 
-def load_scene(vtkWidget: QVTKRenderWindowInteractor, renderer: vtk.vtkRenderer, logConsole, actors_file='scene_actors.vtk', camera_file='scene_camera.json'):
-    if load_actors(renderer, logConsole, actors_file) is not None and \
-        load_camera_settings(renderer, logConsole, camera_file) is not None:
+def load_scene(vtkWidget: QVTKRenderWindowInteractor, renderer: vtk.vtkRenderer, logConsole, fontColor, actors_file='scene_actors.vtk', camera_file='scene_camera.json'):
+    if load_actors(renderer, logConsole, fontColor, actors_file) is not None and \
+        load_camera_settings(renderer, logConsole, fontColor, camera_file) is not None:
     
         vtkWidget.GetRenderWindow().Render()
         logConsole.insert_colored_text('Successfully: ', 'green')
-        logConsole.insert_colored_text(f'Loaded scene from the files: {actors_file} and {camera_file}\n', 'dark gray')
+        logConsole.insert_colored_text(f'Loaded scene from the files: {actors_file} and {camera_file}\n', fontColor)
 
 
-def load_actors(renderer: vtk.vtkRenderer, logConsole, actors_file='scene_actors.vtk'):
+def load_actors(renderer: vtk.vtkRenderer, logConsole, fontColor, actors_file='scene_actors.vtk'):
     try:
-        reader = vtk.vtkGenericDataObjectReader()
+        reader = vtk.vtkPolyDataReader()
         reader.SetFileName(actors_file)
         reader.Update()
         
-        dataObject = reader.GetOutput()
+        mapper = vtk.vtkPolyDataMapper()
+        mapper.SetInputData(reader.GetOutput())
         
-        if reader.IsFilePolyData():
-            mapper = vtk.vtkPolyDataMapper()
-            mapper.SetInputData(dataObject)
-        elif reader.IsFileUnstructuredGrid():
-            mapper = vtk.vtkDataSetMapper()
-            mapper.SetInputData(dataObject)
-        else:
-            logConsole.insert_colored_text('Error: ', 'red')
-            logConsole.insert_colored_text(f'Unsupported data type in file {actors_file}\n', 'dark gray')
-            return None
-
         actor = vtk.vtkActor()
         actor.SetMapper(mapper)
         renderer.AddActor(actor)
+        renderer.ResetCamera()
 
+        logConsole.insert_colored_text('Info: ', 'blue')
+        logConsole.insert_colored_text(f'Loaded actors from {actors_file}\n', fontColor)
         return 1
     except Exception as e:
         logConsole.insert_colored_text('Error: ', 'red')
-        logConsole.insert_colored_text(f'Failed to load actors: {e}\n', 'dark gray')
+        logConsole.insert_colored_text(f'Failed to load actors: {e}\n', fontColor)
         return None
         
         
-def load_camera_settings(renderer: vtk.vtkRenderer, logConsole, camera_file='scene_camera.json'):
+def load_camera_settings(renderer: vtk.vtkRenderer, logConsole, fontColor, camera_file='scene_camera.json'):
     try:
         with open(camera_file, 'r') as f:
             camera_settings = load(f)
@@ -519,5 +506,5 @@ def load_camera_settings(renderer: vtk.vtkRenderer, logConsole, camera_file='sce
         return 1
     except Exception as e:
         logConsole.insert_colored_text('Error: ', 'red')
-        logConsole.insert_colored_text(f'Failed to load camera settings: {e}\n', 'dark gray')
+        logConsole.insert_colored_text(f'Failed to load camera settings: {e}\n', fontColor)
         return None

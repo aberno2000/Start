@@ -76,12 +76,4 @@ class ResultsTab(QWidget):
     
     def align_view_by_axis(self, axis: str):
         align_view_by_axis(axis, self.renderer, self.vtkWidget)
-        
-
-    def save_scene(self, logConsole, actors_file='scene_actors_resultsTab.vtk', camera_file='scene_camera_resultsTab.json'):
-        save_scene(self.renderer, logConsole, actors_file, camera_file)
-            
-            
-    def load_scene(self, logConsole, actors_file='scene_actors_resultsTab.vtk', camera_file='scene_camera_resultsTab.json'):
-        load_scene(self.vtkWidget, self.renderer, logConsole, actors_file, camera_file)
 

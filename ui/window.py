@@ -187,10 +187,10 @@ class WindowApp(QMainWindow):
 
         # Configurations Menu
         configurations_menu = menu_bar.addMenu('&Configurations')
-        configurations_menu.addAction('Upload Config', 
+        configurations_menu.addAction('Upload Configuration', 
                                     self.config_tab.upload_config, 
                                     shortcut='Ctrl+Shift+U')   #  Upload config
-        configurations_menu.addAction('Save Config', 
+        configurations_menu.addAction('Save Configuration',
                                     self.config_tab.save_config_to_file,
                                     shortcut='Ctrl+Shift+S')   #  Save config
         configurations_menu.addSeparator()
@@ -226,7 +226,7 @@ class WindowApp(QMainWindow):
             self.setStyleSheet(f'QWidget {{ background-color: #f0f0f0; color: {self.setupFontColor}; }}')
             self.log_console.setDefaultTextColor(QColor('black'))
         elif style == 'bright':
-            self.setupFontColor = self.setupFontColor
+            self.setupFontColor = 'white'
             self.setStyleSheet(f'QWidget {{ background-color: white; color: {self.setupFontColor}; }}')
             self.log_console.setDefaultTextColor(QColor('black'))
         elif style == 'default':
@@ -310,18 +310,16 @@ class WindowApp(QMainWindow):
         files = os.listdir(project_dir)
         paths = [os.path.join(project_dir, file) for file in files]
         
-        if len(paths) != 5 or \
+        if len(paths) != 3 or \
             not paths[0].endswith('.vtk') or not paths[1].endswith('.json') or \
-            not paths[2].endswith('.vtk') or not paths[3].endswith('.json') or \
-            not paths[4].endswith('.json'):
+            not paths[2].endswith('.json'):
                 self.log_console.insert_colored_text('Error: ', 'red')
                 self.log_console.insert_colored_text(f'Can\'t open the project, check contegrity of all the files in directory {project_dir}. There must be 5 files\n', self.setupFontColor)
                 QMessageBox.critical(self, 'Open Project', f'Can\'t open the project, check contegrity of all the files in directory {project_dir}. There must be 5 files')
                 return
         
-        self.mesh_tab.geditor.load_scene(self.log_console, paths[0], paths[1])
-        self.results_tab.load_scene(self.log_console, paths[2], paths[3])
-        self.config_tab.upload_config_with_filename(paths[4])
+        self.mesh_tab.geditor.load_scene(self.log_console, self.setupFontColor, paths[0], paths[1])
+        self.config_tab.upload_config_with_filename(paths[2])
     
     
     def save_project(self):
@@ -332,8 +330,7 @@ class WindowApp(QMainWindow):
             return
         
         # Generating all project files
-        self.mesh_tab.geditor.save_scene(self.log_console)
-        self.results_tab.save_scene(self.log_console)
+        self.mesh_tab.geditor.save_scene(self.log_console, self.setupFontColor)
         
         if not self.config_tab.config_file_path:
             self.config_tab.save_config_to_file()
@@ -344,10 +341,7 @@ class WindowApp(QMainWindow):
         os.makedirs(project_dir, exist_ok=True)
 
         try:
-            original_files = [
-                'scene_actors_meshTab.vtk', 'scene_camera_meshTab.json',
-                'scene_actors_resultsTab.vtk', 'scene_camera_resultsTab.json'
-            ]
+            original_files = ['scene_actors_meshTab.vtk', 'scene_camera_meshTab.json']
             original_files.append(os.path.basename(self.config_tab.config_file_path))
 
             # Move the generated files to the chosen project directory
@@ -362,7 +356,8 @@ class WindowApp(QMainWindow):
                 os.remove(filename)
             
         except Exception as e:
-            self.log_console.insert_colored_text(f'Error: Exception: {e}: Nothing to save or any file error occured\n', 'red')
+            self.log_console.insert_colored_text(f'Error: {e}: Nothing to save or any file error occured\n', 'red')
+            self.log_console.insert_colored_text('', self.setupFontColor)
             return
         
         self.log_console.insert_colored_text('Successfully: ', 'green')
