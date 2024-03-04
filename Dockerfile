@@ -32,8 +32,9 @@ RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.7 1 
 COPY ./gmsh-4.12.2-source.tgz /app
 RUN mkdir -pv gmsh/gmsh_build && tar -xzvf gmsh-4.12.2-source.tgz && mv gmsh-4.12.2-source/ gmsh/ \
     && rm -rf *.tgz && cd gmsh/gmsh_build && cmake -DENABLE_BUILD_DYNAMIC=1 -DENABLE_FLTK=0 ../gmsh-4.12.2-source/ \
-    && cmake --build . --config Release && cmake --install .
+    && cmake --build . --config Release && cmake --install . && rm -rfv gmsh/
 
 # Copying all contents from the current directory to the Docker directory /app
 COPY . /app/start/
 WORKDIR /app/start
+RUN rm -rf gmsh-4.12.2-source && ./compile.sh -r
