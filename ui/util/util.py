@@ -11,6 +11,7 @@ from os.path import exists, isfile
 from vtkmodules.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 from json import dump, load
 
+DEFAULT_QLINEEDIT_STYLE = str("QLineEdit { background-color: light gray; color: black; }")
 
 def is_file_valid(path: str):
     if not exists(path) or not isfile(path) or not path:
@@ -34,6 +35,10 @@ class PointDialog(QDialog):
         self.xInput = QLineEdit("0.0")
         self.yInput = QLineEdit("0.0")
         self.zInput = QLineEdit("0.0")
+        
+        self.xInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
+        self.yInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
+        self.zInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
         
         formLayout.addRow("Center X:", self.xInput)
         formLayout.addRow("Center Y:", self.yInput)
@@ -109,6 +114,10 @@ class LineDialog(QDialog):
         y_input = QLineEdit("0.0")
         z_input = QLineEdit("0.0")
         
+        x_input.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
+        y_input.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
+        z_input.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
+        
         self.inputs.extend([x_input, y_input, z_input])
         
         # Add the inputs to the horizontal layout
@@ -178,6 +187,10 @@ class SurfaceDialog(QDialog):
         y_input = QLineEdit("0.0")
         z_input = QLineEdit("0.0")
         
+        x_input.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
+        y_input.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
+        z_input.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
+        
         self.inputs.extend([x_input, y_input, z_input])
         
         # Add the inputs to the horizontal layout
@@ -218,6 +231,11 @@ class SphereDialog(QDialog):
         self.yInput = QLineEdit("0.0")
         self.zInput = QLineEdit("0.0")
         self.radiusInput = QLineEdit("5.0")
+        
+        self.xInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
+        self.yInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
+        self.zInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
+        self.radiusInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
         
         formLayout.addRow("Center X:", self.xInput)
         formLayout.addRow("Center Y:", self.yInput)
@@ -263,6 +281,13 @@ class BoxDialog(QDialog):
         self.lengthInput = QLineEdit("5.0")
         self.widthInput = QLineEdit("5.0")
         self.heightInput = QLineEdit("5.0")
+        
+        self.xInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
+        self.yInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
+        self.zInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
+        self.lengthInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
+        self.widthInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
+        self.heightInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
         
         formLayout.addRow("Center X:", self.xInput)
         formLayout.addRow("Center Y:", self.yInput)
@@ -315,6 +340,12 @@ class CylinderDialog(QDialog):
         self.zInput = QLineEdit("0.0")
         self.radiusInput = QLineEdit("2.5")
         self.heightInput = QLineEdit("5.0")
+        
+        self.xInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
+        self.yInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
+        self.zInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
+        self.radiusInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
+        self.heightInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
         
         formLayout.addRow("Center X:", self.xInput)
         formLayout.addRow("Center Y:", self.yInput)

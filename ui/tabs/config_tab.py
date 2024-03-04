@@ -35,6 +35,7 @@ class ConfigTab(QWidget):
     def __init__(self, log_console, parent=None):
         super().__init__(parent)        
         self.layout = QVBoxLayout(self)
+        self.default_qlineedit_style = str("QLineEdit { background-color: light gray; color: black; }")
         
         self.converter = Converter()
         self.setup_ui()
@@ -86,6 +87,7 @@ class ConfigTab(QWidget):
         particles_layout = QFormLayout()
 
         self.particles_count_input = QLineEdit()
+        self.particles_count_input.setStyleSheet(self.default_qlineedit_style)
         particles_layout.addRow(QLabel("Count:"), self.particles_count_input)
 
         self.projective_input = QComboBox()
@@ -121,6 +123,7 @@ class ConfigTab(QWidget):
 
         # Thread count
         self.thread_count_input = QLineEdit()
+        self.thread_count_input.setStyleSheet(self.default_qlineedit_style)
         thread_count_layout = QHBoxLayout()
         thread_count_layout.addWidget(self.thread_count_input)
         simulation_layout.addRow(QLabel("Thread count:"), thread_count_layout)
@@ -128,6 +131,7 @@ class ConfigTab(QWidget):
 
         # Time Step with units
         self.time_step_input = QLineEdit()
+        self.time_step_input.setStyleSheet(self.default_qlineedit_style)
         self.time_step_units = QComboBox()
         self.time_step_units.addItems(["ns", "μs", "ms", "s", "min"])
         self.time_step_units.setCurrentText("ms")
@@ -144,6 +148,7 @@ class ConfigTab(QWidget):
 
         # Simulation time with units
         self.simulation_time_input = QLineEdit()
+        self.simulation_time_input.setStyleSheet(self.default_qlineedit_style)
         self.simulation_time_units = QComboBox()
         self.simulation_time_units.addItems(["ns", "μs", "ms", "s", "min"])
         self.simulation_time_units.setCurrentText("s")
@@ -161,6 +166,7 @@ class ConfigTab(QWidget):
 
         # Temperature with units
         self.temperature_input = QLineEdit()
+        self.temperature_input.setStyleSheet(self.default_qlineedit_style)
         self.temperature_units = QComboBox()
         self.temperature_units.addItems(["K", "F", "C"])
         self.temperature_converted = QLabel("0.0 K")
@@ -176,6 +182,7 @@ class ConfigTab(QWidget):
 
         # Pressure with units
         self.pressure_input = QLineEdit()
+        self.pressure_input.setStyleSheet(self.default_qlineedit_style)
         self.pressure_units = QComboBox()
         self.pressure_units.addItems(["mPa", "Pa", "kPa", "psi"])
         self.pressure_units.setCurrentText("Pa")
@@ -192,6 +199,7 @@ class ConfigTab(QWidget):
 
         # Volume with units
         self.volume_input = QLineEdit()
+        self.volume_input.setStyleSheet(self.default_qlineedit_style)
         self.volume_units = QComboBox()
         self.volume_units.addItems(["mm³", "cm³", "m³"])
         self.volume_units.setCurrentText("m³")
@@ -208,6 +216,7 @@ class ConfigTab(QWidget):
 
         # Energy with units
         self.energy_input = QLineEdit()
+        self.energy_input.setStyleSheet(self.default_qlineedit_style)
         self.energy_units = QComboBox()
         self.energy_units.addItems(["eV", "keV", "J", "kJ", "cal"])
         self.energy_units.setCurrentText("J")
@@ -428,6 +437,7 @@ class ConfigTab(QWidget):
             QLineEdit {
                 border: 0.5px solid red;
                 border-radius: 2px;
+                background-color: light gray;
             }
         """)
     
