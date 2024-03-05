@@ -1,8 +1,6 @@
 #ifndef PARTICLES_HPP
 #define PARTICLES_HPP
 
-#include <aabb/AABB.h>
-
 #include "../Geometry/MathVector.hpp"
 #include "../Utilities/Constants.hpp"
 #include "../Utilities/Utilities.hpp"
@@ -21,7 +19,6 @@ private:
     Point3 m_centre;           // Position in Cartesian coordinates (x, y, z).
     VelocityVector m_velocity; // Velocity vector (Vx, Vy, Vz).
     double m_energy{};         // Particle energy [J].
-    aabb::AABB m_boundingBox;  // Axis-aligned bounding box.
 
     /**
      * @brief Gets radius from the specified type of the particle.
@@ -192,14 +189,6 @@ public:
     bool overlaps(Particle const &other) const;
     bool overlaps(Particle &&other) const;
 
-    /**
-     * @brief Checks if the particle out of specified bounds.
-     * @param bounding_volume Bounding volume.
-     * @return `true` if the particle out of bounds, otherwise `false`.
-     */
-    bool isOutOfBounds(aabb::AABB const &bounding_volume) const;
-    bool isOutOfBounds(aabb::AABB &&bounding_volume) const;
-
     /* === Getters for particle params. === */
     double getX() const;
     double getY() const;
@@ -213,7 +202,6 @@ public:
     double getVelocityModule() const;
     constexpr Point3 const &getCentre() const { return m_centre; }
     constexpr VelocityVector const &getVelocityVector() const { return m_velocity; }
-    constexpr aabb::AABB const &getBoundingBox() const { return m_boundingBox; }
     constexpr double getMass() const { return getMassFromType(m_type); }
     constexpr double getRadius() const { return getRadiusFromType(m_type); }
     constexpr float getViscosityTemperatureIndex() const { return getViscosityTemperatureIndexFromType(m_type); }

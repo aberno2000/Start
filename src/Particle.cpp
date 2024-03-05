@@ -26,12 +26,8 @@ void Particle::calculateEnergyJFromVelocity(VelocityVector &&v) noexcept { calcu
 // Creates dummy particle object with all nils value
 Particle::Particle(ParticleType type_)
     : m_type(type_),
-      m_centre(Point3(0, 0, 0)),
-      m_velocity(0, 0, 0)
-{
-  m_boundingBox = aabb::AABB({0 - getRadius(), 0 - getRadius(), 0 - getRadius()},
-                             {0 + getRadius(), 0 + getRadius(), 0 + getRadius()});
-}
+    m_centre(Point3(0, 0, 0)),
+    m_velocity(0, 0, 0) {}
 
 Particle::Particle(ParticleType type_, double x_, double y_, double z_,
                    double energy_)
@@ -40,8 +36,6 @@ Particle::Particle(ParticleType type_, double x_, double y_, double z_,
       m_energy(energy_)
 {
   calculateVelocityFromEnergy_J();
-  m_boundingBox = aabb::AABB({x_ - getRadius(), y_ - getRadius(), z_ - getRadius()},
-                             {x_ + getRadius(), y_ + getRadius(), z_ + getRadius()});
 }
 
 Particle::Particle(ParticleType type_, double x_, double y_, double z_,
@@ -82,12 +76,6 @@ Particle::Particle(ParticleType type_, Point3 const &centre, double energy_)
       m_energy(energy_)
 {
   calculateVelocityFromEnergy_J();
-  m_boundingBox = aabb::AABB({CGAL_TO_DOUBLE(m_centre.x()) - getRadius(),
-                              CGAL_TO_DOUBLE(m_centre.y()) - getRadius(),
-                              CGAL_TO_DOUBLE(m_centre.z()) - getRadius()},
-                             {CGAL_TO_DOUBLE(m_centre.x()) + getRadius(),
-                              CGAL_TO_DOUBLE(m_centre.y()) + getRadius(),
-                              CGAL_TO_DOUBLE(m_centre.z()) + getRadius()});
 }
 
 Particle::Particle(ParticleType type_, Point3 &&centre, double energy_)
@@ -96,12 +84,6 @@ Particle::Particle(ParticleType type_, Point3 &&centre, double energy_)
       m_energy(energy_)
 {
   calculateVelocityFromEnergy_J();
-  m_boundingBox = aabb::AABB({CGAL_TO_DOUBLE(m_centre.x()) - getRadius(),
-                              CGAL_TO_DOUBLE(m_centre.y()) - getRadius(),
-                              CGAL_TO_DOUBLE(m_centre.z()) - getRadius()},
-                             {CGAL_TO_DOUBLE(m_centre.x()) + getRadius(),
-                              CGAL_TO_DOUBLE(m_centre.y()) + getRadius(),
-                              CGAL_TO_DOUBLE(m_centre.z()) + getRadius()});
 }
 
 Particle::Particle(ParticleType type_, double x_, double y_, double z_,
@@ -152,14 +134,6 @@ void Particle::updatePosition(double dt)
       upd_z{CGAL_TO_DOUBLE(m_centre.z()) + getVz() * dt};
 
   m_centre = Point3(upd_x, upd_y, upd_z);
-
-  // Update the bounding box to the new position
-  m_boundingBox = aabb::AABB({CGAL_TO_DOUBLE(m_centre.x()) - getRadius(),
-                              CGAL_TO_DOUBLE(m_centre.y()) - getRadius(),
-                              CGAL_TO_DOUBLE(m_centre.z()) - getRadius()},
-                             {CGAL_TO_DOUBLE(m_centre.x()) + getRadius(),
-                              CGAL_TO_DOUBLE(m_centre.y()) + getRadius(),
-                              CGAL_TO_DOUBLE(m_centre.z()) + getRadius()});
 }
 
 bool Particle::overlaps(Particle const &other) const
@@ -183,26 +157,6 @@ bool Particle::overlaps(Particle &&other) const
                                                 CGAL_TO_DOUBLE(other.m_centre.y()),
                                                 CGAL_TO_DOUBLE(other.m_centre.z())))};
   return distance_ < (getRadius() + other.getRadius());
-}
-
-bool Particle::isOutOfBounds(aabb::AABB const &bounding_volume) const
-{
-  return (m_boundingBox.lowerBound[0] <= bounding_volume.lowerBound[0] ||
-          m_boundingBox.upperBound[0] >= bounding_volume.upperBound[0] ||
-          m_boundingBox.lowerBound[1] <= bounding_volume.lowerBound[1] ||
-          m_boundingBox.upperBound[1] >= bounding_volume.upperBound[1] ||
-          m_boundingBox.lowerBound[2] <= bounding_volume.lowerBound[2] ||
-          m_boundingBox.upperBound[2] >= bounding_volume.upperBound[2]);
-}
-
-bool Particle::isOutOfBounds(aabb::AABB &&bounding_volume) const
-{
-  return (m_boundingBox.lowerBound[0] <= bounding_volume.lowerBound[0] ||
-          m_boundingBox.upperBound[0] >= bounding_volume.upperBound[0] ||
-          m_boundingBox.lowerBound[1] <= bounding_volume.lowerBound[1] ||
-          m_boundingBox.upperBound[1] >= bounding_volume.upperBound[1] ||
-          m_boundingBox.lowerBound[2] <= bounding_volume.lowerBound[2] ||
-          m_boundingBox.upperBound[2] >= bounding_volume.upperBound[2]);
 }
 
 double Particle::getX() const { return CGAL_TO_DOUBLE(m_centre.x()); }
