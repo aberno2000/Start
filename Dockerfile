@@ -20,10 +20,6 @@ RUN apt-get update && apt-get install -y software-properties-common wget bzip2 \
 # Adding g++-13 and reset DEBIAN_FRONTEND variable
 ENV CXX=g++-13 DEBIAN_FRONTEND=
 
-# Installing AABB from the git repo and installing miniconda
-RUN git clone https://github.com/lohedges/aabbcc && \
-    cd aabbcc && make build && make install
-
 # Installing dependencies on python
 RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.7 1 && \
     pip install numpy h5py gmsh matplotlib PyQt5 vtk
