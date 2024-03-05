@@ -85,10 +85,10 @@ include_directories(${CMAKE_SOURCE_DIR}/include
                     ${HDF5_INCLUDE_DIRS}
                     ${TBB_INCLUDE_DIRS}
                     ${GMP_INCLUDE_DIR})
-add_executable(argos_nia_start ${SOURCES})
+add_executable(nia_start ${SOURCES})
 
-set_target_properties(argos_nia_start PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}")
-target_link_libraries(argos_nia_start PRIVATE 
+set_target_properties(nia_start PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}")
+target_link_libraries(nia_start PRIVATE 
     ${CGAL_NAMESPACE}
     ${CGAL_LIBRARIES}
     ${GMSH_LIBRARIES} 
