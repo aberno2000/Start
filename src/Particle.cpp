@@ -8,10 +8,8 @@ void Particle::calculateVelocityFromEnergy_J()
 
   RealNumberGenerator rng;
   [[maybe_unused]] double v{std::sqrt(2 * m_energy / getMass())},
-      theta{rng(0 - std::numeric_limits<long double>::min(),
-                std::numbers::pi + std::numeric_limits<long double>::min())},
-      phi{rng(0 - std::numeric_limits<long double>::min(),
-              2 * std::numbers::pi + std::numeric_limits<long double>::min())},
+      theta{rng(0 - std::numeric_limits<long double>::min(), std::numbers::pi + std::numeric_limits<long double>::min())},
+      phi{rng(0 - std::numeric_limits<long double>::min(), 2 * std::numbers::pi + std::numeric_limits<long double>::min())},
       vx{getRadius() * sin(theta) * cos(phi)},
       vy{getRadius() * sin(theta) * sin(phi)},
       vz{getRadius() * cos(theta)};
@@ -42,33 +40,19 @@ Particle::Particle(ParticleType type_, double x_, double y_, double z_,
                    double vx_, double vy_, double vz_)
     : m_type(type_),
       m_centre(Point3(x_, y_, z_)),
-      m_velocity(MathVector(vx_, vy_, vz_)),
-      m_boundingBox({x_ - getRadius(), y_ - getRadius(), z_ - getRadius()},
-                    {x_ + getRadius(), y_ + getRadius(), z_ + getRadius()}) { calculateEnergyJFromVelocity(m_velocity); }
+      m_velocity(MathVector(vx_, vy_, vz_))) { calculateEnergyJFromVelocity(m_velocity); }
 
 Particle::Particle(ParticleType type_, Point3 const &centre,
                    double vx_, double vy_, double vz_)
     : m_type(type_),
       m_centre(centre),
-      m_velocity(MathVector(vx_, vy_, vz_)),
-      m_boundingBox({CGAL_TO_DOUBLE(m_centre.x()) - getRadius(),
-                     CGAL_TO_DOUBLE(m_centre.y()) - getRadius(),
-                     CGAL_TO_DOUBLE(m_centre.z()) - getRadius()},
-                    {CGAL_TO_DOUBLE(m_centre.x()) + getRadius(),
-                     CGAL_TO_DOUBLE(m_centre.y()) + getRadius(),
-                     CGAL_TO_DOUBLE(m_centre.z()) + getRadius()}) { calculateEnergyJFromVelocity(m_velocity); }
+      m_velocity(MathVector(vx_, vy_, vz_))) { calculateEnergyJFromVelocity(m_velocity); }
 
 Particle::Particle(ParticleType type_, Point3 &&centre,
                    double vx_, double vy_, double vz_)
     : m_type(type_),
       m_centre(std::move(centre)),
-      m_velocity(MathVector(vx_, vy_, vz_)),
-      m_boundingBox({CGAL_TO_DOUBLE(m_centre.x()) - getRadius(),
-                     CGAL_TO_DOUBLE(m_centre.y()) - getRadius(),
-                     CGAL_TO_DOUBLE(m_centre.z()) - getRadius()},
-                    {CGAL_TO_DOUBLE(m_centre.x()) + getRadius(),
-                     CGAL_TO_DOUBLE(m_centre.y()) + getRadius(),
-                     CGAL_TO_DOUBLE(m_centre.z()) + getRadius()}) { calculateEnergyJFromVelocity(m_velocity); }
+      m_velocity(MathVector(vx_, vy_, vz_))) { calculateEnergyJFromVelocity(m_velocity); }
 
 Particle::Particle(ParticleType type_, Point3 const &centre, double energy_)
     : m_type(type_),
@@ -90,41 +74,25 @@ Particle::Particle(ParticleType type_, double x_, double y_, double z_,
                    VelocityVector const &velvec)
     : m_type(type_),
       m_centre(Point3(x_, y_, z_)),
-      m_velocity(velvec),
-      m_boundingBox({x_ - getRadius(), y_ - getRadius(), z_ - getRadius()},
-                    {x_ + getRadius(), y_ + getRadius(), z_ + getRadius()}) { calculateEnergyJFromVelocity(m_velocity); }
+      m_velocity(velvec)) { calculateEnergyJFromVelocity(m_velocity); }
 
 Particle::Particle(ParticleType type_, double x_, double y_, double z_,
                    VelocityVector &&velvec)
     : m_type(type_),
       m_centre(Point3(x_, y_, z_)),
-      m_velocity(std::move(velvec)),
-      m_boundingBox({x_ - getRadius(), y_ - getRadius(), z_ - getRadius()},
-                    {x_ + getRadius(), y_ + getRadius(), z_ + getRadius()}) { calculateEnergyJFromVelocity(m_velocity); }
+      m_velocity(std::move(velvec))}) { calculateEnergyJFromVelocity(m_velocity); }
 
 Particle::Particle(ParticleType type_, Point3 const &centre,
                    VelocityVector const &velvec)
     : m_type(type_),
       m_centre(centre),
-      m_velocity(velvec),
-      m_boundingBox({CGAL_TO_DOUBLE(m_centre.x()) - getRadius(),
-                     CGAL_TO_DOUBLE(m_centre.y()) - getRadius(),
-                     CGAL_TO_DOUBLE(m_centre.z()) - getRadius()},
-                    {CGAL_TO_DOUBLE(m_centre.x()) + getRadius(),
-                     CGAL_TO_DOUBLE(m_centre.y()) + getRadius(),
-                     CGAL_TO_DOUBLE(m_centre.z()) + getRadius()}) { calculateEnergyJFromVelocity(m_velocity); }
+      m_velocity(velvec)) { calculateEnergyJFromVelocity(m_velocity); }
 
 Particle::Particle(ParticleType type_, Point3 &&centre,
                    VelocityVector &&velvec)
     : m_type(type_),
       m_centre(std::move(centre)),
-      m_velocity(std::move(velvec)),
-      m_boundingBox({CGAL_TO_DOUBLE(m_centre.x()) - getRadius(),
-                     CGAL_TO_DOUBLE(m_centre.y()) - getRadius(),
-                     CGAL_TO_DOUBLE(m_centre.z()) - getRadius()},
-                    {CGAL_TO_DOUBLE(m_centre.x()) + getRadius(),
-                     CGAL_TO_DOUBLE(m_centre.y()) + getRadius(),
-                     CGAL_TO_DOUBLE(m_centre.z()) + getRadius()}) { calculateEnergyJFromVelocity(m_velocity); }
+      m_velocity(std::move(velvec))) { calculateEnergyJFromVelocity(m_velocity); }
 
 void Particle::updatePosition(double dt)
 {

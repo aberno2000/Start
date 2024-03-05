@@ -158,7 +158,7 @@ private:
      */
     void calculateEnergyJFromVelocity(double vx, double vy, double vz);
     void calculateEnergyJFromVelocity(VelocityVector const &v);
-    void calculateEnergyJFromVelocity(VelocityVector &&v) _GLIBCXX_NOEXCEPT;
+    void calculateEnergyJFromVelocity(VelocityVector &&v) noexcept;
 
 public:
     Particle() {}

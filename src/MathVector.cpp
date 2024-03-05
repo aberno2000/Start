@@ -135,6 +135,6 @@ void MathVector::rotation(double beta, double gamma)
     rotate_z(gamma);
 }
 void MathVector::rotation(std::pair<double, double> const &p) { rotation(p.first, p.second); }
-void MathVector::rotation(std::pair<double, double> &&p) _GLIBCXX_NOEXCEPT { rotation(p.first, p.second); }
+void MathVector::rotation(std::pair<double, double> &&p) noexcept { rotation(p.first, p.second); }
 
-MathVector MathVector::sign() const _GLIBCXX_NOEXCEPT { return MathVector(util::signFunc(x), util::signFunc(y), util::signFunc(z)); }
+MathVector MathVector::sign() const noexcept { return MathVector(util::signFunc(x), util::signFunc(y), util::signFunc(z)); }

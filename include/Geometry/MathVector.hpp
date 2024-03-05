@@ -84,15 +84,13 @@ public:
     double distance(MathVector &&other) const;
 
     /// @brief Clears the vector (Sets all components to null).
-    void clear() & _GLIBCXX_NOEXCEPT { *this = 0; }
+    void clear() & noexcept { *this = 0; }
 
     /**
      * @brief Checker for empty vector (are all values null).
      * @return `true` if vector is null, otherwise `false`.
      */
-    _GLIBCXX_NODISCARD
-    constexpr bool
-    isNull() const { return (x == 0 && y == 0 && z == 0); }
+    [[nodiscard]] constexpr bool isNull() const { return (x == 0 && y == 0 && z == 0); }
 
     /**
      * @brief Checks if vectors are parallel.
@@ -181,7 +179,7 @@ public:
      */
     void rotation(double beta, double gamma);
     void rotation(std::pair<double, double> const &p);
-    void rotation(std::pair<double, double> &&p) _GLIBCXX_NOEXCEPT;
+    void rotation(std::pair<double, double> &&p) noexcept;
 
     /**
      * @brief Returns a MathVector where each component is the sign of the corresponding component.
@@ -190,7 +188,7 @@ public:
      *          a new vector with these sign values.
      * @return MathVector with each component being -1, 0, or 1.
      */
-    MathVector sign() const _GLIBCXX_NOEXCEPT;
+    MathVector sign() const noexcept;
 };
 
 /* --> Aliases for human readability. <-- */

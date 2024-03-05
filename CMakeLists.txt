@@ -27,8 +27,20 @@ else()
                 NO_DEFAULT_PATH)
 endif()
 
+if(MSVC)
+    set(GMP_DIR "C:/Program Files/CGAL-5.6.1/auxiliary/gmp")
+    find_path(GMP_INCLUDE_DIR NAMES gmp.h HINTS ${GMP_DIR}/include)
+    find_library(GMP_LIBRARIES NAMES gmp libgmp HINTS ${GMP_DIR}/lib)
+endif()
+
 find_package(Boost REQUIRED)
+find_package(CGAL REQUIRED)
 find_package(HDF5 REQUIRED COMPONENTS CXX)
+
+if(CGAL_FOUND)
+    set(CGAL_NAMESPACE CGAL::CGAL)
+    message(STATUS "CGAL library found: ${CGAL_LIB}")
+endif()
 
 # Adding support of TBB library if some OS requires it
 find_package(TBB QUIET)
@@ -75,7 +87,7 @@ add_executable(argos_nia_start ${SOURCES})
 
 set_target_properties(argos_nia_start PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}")
 target_link_libraries(argos_nia_start PRIVATE 
-    gmp mpfr 
-    ${GMSH_LIB} ${Boost_LIBRARIES} 
+    gmp mpfr ${CGAL_NAMESPACE}
+    ${GMSH_LIB} ${Boost_LIBRARIES} ${GMP_LIBRARIES}
     ${HDF5_LIBRARIES} ${TBB_LIBRARIES} ${TBB_NAMESPACE}
 )
