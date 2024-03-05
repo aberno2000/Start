@@ -1,6 +1,6 @@
 import io
 from PyQt5.QtWidgets import QDialog, QLineEdit, QPushButton, QVBoxLayout, QLabel
-
+from .util import DEFAULT_QLINEEDIT_STYLE
 
 class CaptureGmshLog(io.StringIO):
     def __init__(self, *args, **kwargs):
@@ -21,11 +21,13 @@ class MeshDialog(QDialog):
 
         # Mesh size input
         self.mesh_size_input = QLineEdit(self)
+        self.mesh_size_input.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
         self.layout.addWidget(QLabel("Mesh Size:"))
         self.layout.addWidget(self.mesh_size_input)
 
         # Mesh dimensions input
         self.mesh_dim_input = QLineEdit(self)
+        self.mesh_dim_input.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
         self.layout.addWidget(QLabel("Mesh Dimensions (2 or 3):"))
         self.layout.addWidget(self.mesh_dim_input)
 
