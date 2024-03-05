@@ -484,7 +484,14 @@ class WindowApp(QMainWindow):
     def run_cpp(self, args: str) -> None:
         self.progress_bar.setHidden(False)
         self.start_time = time()
-        self.process.start('./argos_nia_start', args.split())
+        
+        # Checking OS
+        if os.name == 'nt':
+            executable_path = 'Release/nia_start.exe'
+        else:
+            executable_path = './nia_start'
+        self.process.start(executable_path, args.split())
+        
 
     
     def show_shortcuts(self):
