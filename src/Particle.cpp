@@ -40,19 +40,19 @@ Particle::Particle(ParticleType type_, double x_, double y_, double z_,
                    double vx_, double vy_, double vz_)
     : m_type(type_),
       m_centre(Point3(x_, y_, z_)),
-      m_velocity(MathVector(vx_, vy_, vz_))) { calculateEnergyJFromVelocity(m_velocity); }
+      m_velocity(MathVector(vx_, vy_, vz_)) { calculateEnergyJFromVelocity(m_velocity); }
 
 Particle::Particle(ParticleType type_, Point3 const &centre,
                    double vx_, double vy_, double vz_)
     : m_type(type_),
       m_centre(centre),
-      m_velocity(MathVector(vx_, vy_, vz_))) { calculateEnergyJFromVelocity(m_velocity); }
+      m_velocity(MathVector(vx_, vy_, vz_)) { calculateEnergyJFromVelocity(m_velocity); }
 
 Particle::Particle(ParticleType type_, Point3 &&centre,
                    double vx_, double vy_, double vz_)
     : m_type(type_),
       m_centre(std::move(centre)),
-      m_velocity(MathVector(vx_, vy_, vz_))) { calculateEnergyJFromVelocity(m_velocity); }
+      m_velocity(MathVector(vx_, vy_, vz_)) { calculateEnergyJFromVelocity(m_velocity); }
 
 Particle::Particle(ParticleType type_, Point3 const &centre, double energy_)
     : m_type(type_),
@@ -74,25 +74,25 @@ Particle::Particle(ParticleType type_, double x_, double y_, double z_,
                    VelocityVector const &velvec)
     : m_type(type_),
       m_centre(Point3(x_, y_, z_)),
-      m_velocity(velvec)) { calculateEnergyJFromVelocity(m_velocity); }
+      m_velocity(velvec) { calculateEnergyJFromVelocity(m_velocity); }
 
 Particle::Particle(ParticleType type_, double x_, double y_, double z_,
                    VelocityVector &&velvec)
     : m_type(type_),
       m_centre(Point3(x_, y_, z_)),
-      m_velocity(std::move(velvec))}) { calculateEnergyJFromVelocity(m_velocity); }
+      m_velocity(std::move(velvec)) { calculateEnergyJFromVelocity(m_velocity); }
 
 Particle::Particle(ParticleType type_, Point3 const &centre,
                    VelocityVector const &velvec)
     : m_type(type_),
       m_centre(centre),
-      m_velocity(velvec)) { calculateEnergyJFromVelocity(m_velocity); }
+      m_velocity(velvec) { calculateEnergyJFromVelocity(m_velocity); }
 
 Particle::Particle(ParticleType type_, Point3 &&centre,
                    VelocityVector &&velvec)
     : m_type(type_),
       m_centre(std::move(centre)),
-      m_velocity(std::move(velvec))) { calculateEnergyJFromVelocity(m_velocity); }
+      m_velocity(std::move(velvec)) { calculateEnergyJFromVelocity(m_velocity); }
 
 void Particle::updatePosition(double dt)
 {

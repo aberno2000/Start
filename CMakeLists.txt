@@ -15,6 +15,7 @@ if (WIN32)
                 NAMES gmsh
                 PATHS "C:/Program Files/gmsh-4.12.2-Windows64-sdk/lib"
                 NO_DEFAULT_PATH)
+    find_package(CGAL REQUIRED)
 else()
     find_library(GMSH_LIB
                 NAMES gmsh
@@ -34,7 +35,6 @@ if(MSVC)
 endif()
 
 find_package(Boost REQUIRED)
-find_package(CGAL REQUIRED)
 find_package(HDF5 REQUIRED COMPONENTS CXX)
 
 if(CGAL_FOUND)
