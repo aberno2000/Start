@@ -11,13 +11,17 @@ project(Start
         LANGUAGES CXX)
 
 if (WIN32)
-    find_library(GMSH_LIB
+    find_library(GMSH_LIBRARIES
                 NAMES gmsh
                 PATHS "C:/Program Files/gmsh-4.12.2-Windows64-sdk/lib"
                 NO_DEFAULT_PATH)
     find_package(CGAL REQUIRED)
+    if(CGAL_FOUND)
+        set(CGAL_NAMESPACE CGAL::CGAL)
+        message(STATUS "CGAL library found: ${CGAL_LIBRARIES}")
+    endif()
 else()
-    find_library(GMSH_LIB
+    find_library(GMSH_LIBRARIES
                 NAMES gmsh
                 PATHS /usr/lib 
                       /usr/local/lib
@@ -29,24 +33,21 @@ else()
 endif()
 
 if(MSVC)
-    set(GMP_DIR "C:/Program Files/CGAL-5.6.1/auxiliary/gmp")
-    find_path(GMP_INCLUDE_DIR NAMES gmp.h HINTS ${GMP_DIR}/include)
-    find_library(GMP_LIBRARIES NAMES gmp libgmp HINTS ${GMP_DIR}/lib)
+    find_package(GMP REQUIRED)
+    if(GMP_FOUND)
+        message(STATUS "GMP found\nGMP libraries: ${GMP_LIBRARIES}")
+        message(STATUS "GMP include dir: ${GMP_INCLUDE_DIR}")
+    endif()
 endif()
 
 find_package(Boost REQUIRED)
 find_package(HDF5 REQUIRED COMPONENTS CXX)
 
-if(CGAL_FOUND)
-    set(CGAL_NAMESPACE CGAL::CGAL)
-    message(STATUS "CGAL library found: ${CGAL_LIB}")
-endif()
-
 # Adding support of TBB library if some OS requires it
 find_package(TBB QUIET)
 if (TBB_FOUND)
     set(TBB_NAMESPACE TBB::tbb)
-    message(STATUS "TBB library found: ${TBB_LIB}")
+    message(STATUS "TBB library found: ${TBB_LIBRARIES}")
 endif()
 
 if (MSVC)
@@ -82,12 +83,18 @@ set(SOURCES
 include_directories(${CMAKE_SOURCE_DIR}/include
                     ${Boost_INCLUDE_DIRS}
                     ${HDF5_INCLUDE_DIRS}
-                    ${TBB_INCLUDE_DIRS})
+                    ${TBB_INCLUDE_DIRS}
+                    ${GMP_INCLUDE_DIR})
 add_executable(argos_nia_start ${SOURCES})
 
 set_target_properties(argos_nia_start PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}")
 target_link_libraries(argos_nia_start PRIVATE 
-    gmp mpfr ${CGAL_NAMESPACE}
-    ${GMSH_LIB} ${Boost_LIBRARIES} ${GMP_LIBRARIES}
-    ${HDF5_LIBRARIES} ${TBB_LIBRARIES} ${TBB_NAMESPACE}
+    ${CGAL_NAMESPACE}
+    ${CGAL_LIBRARIES}
+    ${GMSH_LIBRARIES} 
+    ${Boost_LIBRARIES} 
+    ${GMP_LIBRARIES}
+    ${HDF5_LIBRARIES}
+    ${TBB_NAMESPACE}
+    ${TBB_LIBRARIES}
 )

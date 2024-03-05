@@ -29,7 +29,7 @@ private:
   MeshParamVector const &m_mesh;             // Reference to a vector representing the mesh for collision detection.
   ConfigParser const &m_configObj;           // `ConfigParser` object that keeps all necessary simulation parameters.
   double m_gasConcentration;                 // Concentration of the gas.
-  static constinit std::mutex m_map_mutex;   // Mutex for synchronizing access to the collision map.
+  static std::mutex m_map_mutex;             // Mutex for synchronizing access to the collision map.
   static std::atomic<size_t> m_counter;      // Count of the settled particles. Needs for optimization.
   static std::atomic_flag m_stop_processing; // Flag-checker for condition (counter >= size of particles).
 

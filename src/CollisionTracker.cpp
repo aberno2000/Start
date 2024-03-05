@@ -5,7 +5,7 @@
 #include "../include/Utilities/CollisionTracker.hpp"
 #include "../include/Utilities/Utilities.hpp"
 
-constinit std::mutex CollisionTracker::m_map_mutex;
+std::mutex CollisionTracker::m_map_mutex;
 std::atomic<size_t> CollisionTracker::m_counter = 0ul;
 std::atomic_flag CollisionTracker::m_stop_processing = ATOMIC_FLAG_INIT;
 

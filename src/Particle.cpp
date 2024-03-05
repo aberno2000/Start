@@ -1,3 +1,5 @@
+#include <numbers>
+
 #include "../include/Generators/RealNumberGenerator.hpp"
 #include "../include/Particles/Particles.hpp"
 
