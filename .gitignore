@@ -3,6 +3,8 @@
 x64/
 *.vcxproj*
 *.sln
+Debug/
+Release/
 
 # Visual Studio Code files
 .vscode/
