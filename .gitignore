@@ -1,5 +1,17 @@
+# Visual Studio files
+.vs/
+x64/
+*.vcxproj*
+*.sln
+
 # Visual Studio Code files
 .vscode/
+
+# Some of CMake files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+*.dir
 
 # Build files
 build/
