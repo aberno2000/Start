@@ -10,15 +10,22 @@ project(Start
         by plasma particles."
         LANGUAGES CXX)
 
-find_library(GMSH_LIB
-            NAMES gmsh
-            PATHS /usr/lib 
-                  /usr/local/lib
-                  /usr/lib/x86_64-linux-gnu
-                  /usr/lib64 
-                  /usr/lib64/mpich/lib 
-                  /usr/lib64/openmpi/lib
-            NO_DEFAULT_PATH)
+if (WIN32)
+    find_library(GMSH_LIB
+                NAMES gmsh
+                PATHS "C:/Program Files/gmsh-4.12.2-Windows64-sdk/lib"
+                NO_DEFAULT_PATH)
+else()
+    find_library(GMSH_LIB
+                NAMES gmsh
+                PATHS /usr/lib 
+                      /usr/local/lib
+                      /usr/lib/x86_64-linux-gnu
+                      /usr/lib64 
+                      /usr/lib64/mpich/lib 
+                      /usr/lib64/openmpi/lib
+                NO_DEFAULT_PATH)
+endif()
 
 find_package(Boost REQUIRED)
 find_package(HDF5 REQUIRED COMPONENTS CXX)
@@ -30,7 +37,19 @@ if (TBB_FOUND)
     message(STATUS "TBB library found: ${TBB_LIB}")
 endif()
 
-set(CMAKE_CXX_FLAGS "-Wall -Wpedantic -Wextra -lpthread -O3")
+if (MSVC)
+    # Using Visual C++ compiler (MSVC)
+    add_compile_options(/W4)  # Equivalent to -Wall in GCC/Clang
+
+    # Separate the optimization flags for Release build
+    string(REPLACE "/RTC1" "" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
+    string(REPLACE "/O2" "" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /O2")
+else()
+    # Assuming GCC/Clang compiler
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wpedantic -Wextra -pthread -O3")
+endif()
+
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -56,7 +75,7 @@ add_executable(argos_nia_start ${SOURCES})
 
 set_target_properties(argos_nia_start PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}")
 target_link_libraries(argos_nia_start PRIVATE 
-    aabb gmp mpfr 
+    gmp mpfr 
     ${GMSH_LIB} ${Boost_LIBRARIES} 
     ${HDF5_LIBRARIES} ${TBB_LIBRARIES} ${TBB_NAMESPACE}
 )
