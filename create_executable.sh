@@ -1,6 +1,5 @@
 #!/bin/bash
 
 ./compile.sh
-pyinstaller --onefile --add-binary='./argos_nia_start:.' --paths=./ui --name NIA_Start ui/main.py
-pyinstaller NIA_Start.spec
-
+pyinstaller --onefile --add-binary='./nia_start:.' --paths=./ui --name nia_start ui/main.py
+pyinstaller nia_start.spec
