@@ -1,9 +1,15 @@
-import vtk
 from sys import stdout
 from vtkmodules.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 from vtkmodules.vtkInteractionStyle import vtkInteractorStyleTrackballCamera
 from PyQt5.QtGui import QStandardItem, QIcon
 from PyQt5.QtCore import QSize, pyqtSignal
+from vtk import(
+    vtkRenderer, vtkPoints, vtkPolyData, vtkVertexGlyphFilter, vtkPolyLine,
+    vtkCellArray, vtkPolyDataMapper, vtkActor, vtkDelaunay2D, vtkSphereSource,
+    vtkCubeSource, vtkCylinderSource, vtkAxesActor, vtkOrientationMarkerWidget,
+    vtkGenericDataObjectReader, vtkDataSetMapper, vtkCellPicker, vtkUnstructuredGrid,
+    vtkCellTypes
+)
 from PyQt5.QtWidgets import(
     QFrame, QVBoxLayout, QHBoxLayout, 
     QPushButton, QDialog, QSpacerItem,
@@ -116,7 +122,7 @@ class GraphicalEditor(QFrame):
         self.layout.addWidget(self.vtkWidget)
         self.setLayout(self.layout)
 
-        self.renderer = vtk.vtkRenderer()
+        self.renderer = vtkRenderer()
         self.vtkWidget.GetRenderWindow().AddRenderer(self.renderer)
         
         self.interactor = self.vtkWidget.GetRenderWindow().GetInteractor()
@@ -131,23 +137,23 @@ class GraphicalEditor(QFrame):
             x, y, z = dialog.getValues()
             
             # Create a vtkPoints object and insert the point
-            points = vtk.vtkPoints()
+            points = vtkPoints()
             points.InsertNextPoint(x, y, z)
             
             # Create a PolyData object
-            polyData = vtk.vtkPolyData()
+            polyData = vtkPolyData()
             polyData.SetPoints(points)
             
             # Use vtkVertexGlyphFilter to make the points visible
-            glyphFilter = vtk.vtkVertexGlyphFilter()
+            glyphFilter = vtkVertexGlyphFilter()
             glyphFilter.SetInputData(polyData)
             glyphFilter.Update()
             
             # Create a mapper and actor for the point
-            mapper = vtk.vtkPolyDataMapper()
+            mapper = vtkPolyDataMapper()
             mapper.SetInputConnection(glyphFilter.GetOutputPort())
             
-            actor = vtk.vtkActor()
+            actor = vtkActor()
             actor.SetMapper(mapper)
             actor.GetProperty().SetPointSize(5)    # Set the size of the point
             actor.GetProperty().SetColor(self.createdActorDefaultColor)  # Set the color of the point (red)
@@ -166,8 +172,8 @@ class GraphicalEditor(QFrame):
             values = dialog.getValues()
             
             # Create points
-            points = vtk.vtkPoints()
-            line = vtk.vtkPolyLine()
+            points = vtkPoints()
+            line = vtkPolyLine()
             points_str_list = []
             
             # The number of points in the polyline
@@ -179,17 +185,17 @@ class GraphicalEditor(QFrame):
                 line.GetPointIds().SetId(i // 3, point_id)
                 points_str_list.append(f'Point{i // 3 + 1}: {values[i]} {values[i + 1]} {values[i + 2]}')
             
-            lines = vtk.vtkCellArray()
+            lines = vtkCellArray()
             lines.InsertNextCell(line)
             
-            polyData = vtk.vtkPolyData()
+            polyData = vtkPolyData()
             polyData.SetPoints(points)
             polyData.SetLines(lines)
             
-            mapper = vtk.vtkPolyDataMapper()
+            mapper = vtkPolyDataMapper()
             mapper.SetInputData(polyData)
             
-            actor = vtk.vtkActor()
+            actor = vtkActor()
             actor.SetMapper(mapper)
             actor.GetProperty().SetColor(self.createdActorDefaultColor)
             
@@ -210,8 +216,8 @@ class GraphicalEditor(QFrame):
             
             # Assuming values are flat [x1, y1, z1, x2, y2, z2, ...]
             if values is not None and len(values) >= 9:  # At least 3 points
-                points = vtk.vtkPoints()
-                polyData = vtk.vtkPolyData()
+                points = vtkPoints()
+                polyData = vtkPolyData()
                 points_str_list = []
                 
                 # Insert points into vtkPoints
@@ -224,15 +230,15 @@ class GraphicalEditor(QFrame):
                 polyData.SetPoints(points)
                 
                 # Use Delaunay2D to create the surface
-                delaunay = vtk.vtkDelaunay2D()
+                delaunay = vtkDelaunay2D()
                 delaunay.SetInputData(polyData)
                 delaunay.Update()
                 
                 # Create mapper and actor for the surface
-                mapper = vtk.vtkPolyDataMapper()
+                mapper = vtkPolyDataMapper()
                 mapper.SetInputConnection(delaunay.GetOutputPort())
                 
-                actor = vtk.vtkActor()
+                actor = vtkActor()
                 actor.SetMapper(mapper)
                 actor.GetProperty().SetColor(self.createdActorDefaultColor)
                 
@@ -255,15 +261,15 @@ class GraphicalEditor(QFrame):
             sphere_data_str.append(f'Center: ({x}, {y}, {z})')
             sphere_data_str.append(f'Radius: {radius}')
             
-            sphereSource = vtk.vtkSphereSource()
+            sphereSource = vtkSphereSource()
             sphereSource.SetCenter(x, y, z)
             sphereSource.SetRadius(radius)
             sphereSource.Update()
             
-            mapper = vtk.vtkPolyDataMapper()
+            mapper = vtkPolyDataMapper()
             mapper.SetInputConnection(sphereSource.GetOutputPort())
             
-            actor = vtk.vtkActor()
+            actor = vtkActor()
             actor.SetMapper(mapper)
             actor.GetProperty().SetColor(self.createdActorDefaultColor)
             
@@ -288,16 +294,16 @@ class GraphicalEditor(QFrame):
             box_data_str.append(f'Width: {width}')
             box_data_str.append(f'Height: {height}')
             
-            boxSource = vtk.vtkCubeSource()
+            boxSource = vtkCubeSource()
             boxSource.SetBounds(x - length / 2., x + length / 2., 
                                 y - width / 2., y + width / 2., 
                                 z - height / 2., z + height / 2.)
             boxSource.Update()
             
-            mapper = vtk.vtkPolyDataMapper()
+            mapper = vtkPolyDataMapper()
             mapper.SetInputConnection(boxSource.GetOutputPort())
             
-            actor = vtk.vtkActor()
+            actor = vtkActor()
             actor.SetMapper(mapper)
             actor.GetProperty().SetColor(self.createdActorDefaultColor)
             
@@ -321,16 +327,16 @@ class GraphicalEditor(QFrame):
             cylinder_data_str.append(f'Radius: {radius}')
             cylinder_data_str.append(f'Height: {height}')
         
-            cylinderSource = vtk.vtkCylinderSource()
+            cylinderSource = vtkCylinderSource()
             cylinderSource.SetRadius(radius)
             cylinderSource.SetHeight(height)
             cylinderSource.SetCenter(x, y, z)
             cylinderSource.Update()
             
-            mapper = vtk.vtkPolyDataMapper()
+            mapper = vtkPolyDataMapper()
             mapper.SetInputConnection(cylinderSource.GetOutputPort())
             
-            actor = vtk.vtkActor()
+            actor = vtkActor()
             actor.SetMapper(mapper)
             actor.GetProperty().SetColor(self.createdActorDefaultColor)
             
@@ -346,8 +352,8 @@ class GraphicalEditor(QFrame):
 
 
     def setup_axes(self):
-        self.axes_actor = vtk.vtkAxesActor()
-        self.axes_widget = vtk.vtkOrientationMarkerWidget()
+        self.axes_actor = vtkAxesActor()
+        self.axes_widget = vtkOrientationMarkerWidget()
         self.axes_widget.SetOrientationMarker(self.axes_actor)
         self.axes_widget.SetInteractor(self.vtkWidget.GetRenderWindow().GetInteractor())
         self.axes_widget.SetViewport(0.0, 0.0, 0.2, 0.2)
@@ -378,15 +384,15 @@ class GraphicalEditor(QFrame):
     def display_mesh(self, mesh_file_path: str):
         vtk_file_path = mesh_file_path.replace('.msh', '.vtk')
         
-        reader = vtk.vtkGenericDataObjectReader()
+        reader = vtkGenericDataObjectReader()
         reader.SetFileName(vtk_file_path)
         reader.Update()  # Make sure to update the reader to actually read the file
         
         if reader.IsFilePolyData():
-            mapper = vtk.vtkPolyDataMapper()
+            mapper = vtkPolyDataMapper()
             mapper.SetInputConnection(reader.GetOutputPort())
         elif reader.IsFileUnstructuredGrid():
-            mapper = vtk.vtkDataSetMapper()
+            mapper = vtkDataSetMapper()
             mapper.SetInputConnection(reader.GetOutputPort())
         else:
             print("Unsupported dataset type", file=stdout)
@@ -396,7 +402,7 @@ class GraphicalEditor(QFrame):
         self.remove_all_actors()
 
         # Add new actor
-        actor = vtk.vtkActor()
+        actor = vtkActor()
         actor.SetMapper(mapper)
         self.renderer.AddActor(actor)
         self.renderer.ResetCamera()
@@ -406,7 +412,7 @@ class GraphicalEditor(QFrame):
         
         
     def setup_interaction(self):        
-        self.picker = vtk.vtkCellPicker()
+        self.picker = vtkCellPicker()
         self.picker.SetTolerance(0.005)
 
         self.vtkWidget.GetRenderWindow().GetInteractor().SetPicker(self.picker)
@@ -418,7 +424,7 @@ class GraphicalEditor(QFrame):
 
             
     def parse_vtk_polydata_and_populate_tree(self, vtk_file_path, tree_model):
-        reader = vtk.vtkGenericDataObjectReader()
+        reader = vtkGenericDataObjectReader()
         reader.SetFileName(vtk_file_path)
         reader.Update()
         
@@ -427,7 +433,7 @@ class GraphicalEditor(QFrame):
             print("Data is not an unstructured grid.", file=stdout)
             return
                 
-        unstructuredGrid = vtk.vtkUnstructuredGrid.SafeDownCast(data)
+        unstructuredGrid = vtkUnstructuredGrid.SafeDownCast(data)
 
         pointsItem = QStandardItem("Points")
         tree_model.appendRow(pointsItem)
@@ -442,7 +448,7 @@ class GraphicalEditor(QFrame):
         
         for i in range(unstructuredGrid.GetNumberOfCells()):
             cell = unstructuredGrid.GetCell(i)
-            cellType = vtk.vtkCellTypes.GetClassNameFromTypeId(cell.GetCellType())
+            cellType = vtkCellTypes.GetClassNameFromTypeId(cell.GetCellType())
             cellPoints = cell.GetPointIds()
             cellPointsStr = ', '.join([str(cellPoints.GetId(j)) for j in range(cellPoints.GetNumberOfIds())])
             cellItem = QStandardItem(f"Cell {i} ({cellType}): Points [{cellPointsStr}]")

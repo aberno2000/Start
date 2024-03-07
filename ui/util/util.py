@@ -1,4 +1,7 @@
-import vtk
+from vtk import (
+    vtkRenderer, vtkPolyData, vtkPolyDataWriter, vtkAppendPolyData,
+    vtkPolyDataReader, vtkPolyDataMapper, vtkActor
+)
 from PyQt5.QtWidgets import (
     QDialog, QFormLayout, QLineEdit, QDialogButtonBox, 
     QVBoxLayout, QMessageBox, QPushButton, QTableWidget,
@@ -10,8 +13,7 @@ from .converter import is_positive_real_number, is_real_number
 from os.path import exists, isfile
 from vtkmodules.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 from json import dump, load
-
-DEFAULT_QLINEEDIT_STYLE = str("QLineEdit { background-color: light gray; color: black; }")
+from .styles import DEFAULT_QLINEEDIT_STYLE
 
 def is_file_valid(path: str):
     if not exists(path) or not isfile(path) or not path:
@@ -408,7 +410,7 @@ class ShortcutsInfoDialog(QDialog):
         
 
 
-def align_view_by_axis(axis: str, renderer: vtk.vtkRenderer, vtkWidget: QVTKRenderWindowInteractor):
+def align_view_by_axis(axis: str, renderer: vtkRenderer, vtkWidget: QVTKRenderWindowInteractor):
     axis = axis.strip().lower()
         
     if axis not in ['x', 'y', 'z', 'center']:
@@ -434,7 +436,7 @@ def align_view_by_axis(axis: str, renderer: vtk.vtkRenderer, vtkWidget: QVTKRend
     vtkWidget.GetRenderWindow().Render()
     
 
-def save_scene(renderer: vtk.vtkRenderer, logConsole, fontColor, actors_file='scene_actors.vtk', camera_file='scene_camera.json'):
+def save_scene(renderer: vtkRenderer, logConsole, fontColor, actors_file='scene_actors.vtk', camera_file='scene_camera.json'):
     if save_actors(renderer, logConsole, fontColor, actors_file) is not None and \
         save_camera_settings(renderer, logConsole, fontColor, camera_file) is not None:
     
@@ -442,9 +444,9 @@ def save_scene(renderer: vtk.vtkRenderer, logConsole, fontColor, actors_file='sc
         logConsole.insert_colored_text(f'Saved scene from to the files: {actors_file} and {camera_file}\n', fontColor)
     
 
-def save_actors(renderer: vtk.vtkRenderer, logConsole, fontColor, actors_file='scene_actors.vtk'):
+def save_actors(renderer: vtkRenderer, logConsole, fontColor, actors_file='scene_actors.vtk'):
     try:
-        append_filter = vtk.vtkAppendPolyData()
+        append_filter = vtkAppendPolyData()
         actors_collection = renderer.GetActors()
         actors_collection.InitTraversal()
         
@@ -452,12 +454,12 @@ def save_actors(renderer: vtk.vtkRenderer, logConsole, fontColor, actors_file='s
             actor = actors_collection.GetNextActor()
             if actor.GetMapper() and actor.GetMapper().GetInput():
                 poly_data = actor.GetMapper().GetInput()
-                if isinstance(poly_data, vtk.vtkPolyData):
+                if isinstance(poly_data, vtkPolyData):
                     append_filter.AddInputData(poly_data)
         
         append_filter.Update()
 
-        writer = vtk.vtkPolyDataWriter()
+        writer = vtkPolyDataWriter()
         writer.SetFileName(actors_file)
         writer.SetInputData(append_filter.GetOutput())
         writer.Write()
@@ -471,7 +473,7 @@ def save_actors(renderer: vtk.vtkRenderer, logConsole, fontColor, actors_file='s
         return None
         
         
-def save_camera_settings(renderer: vtk.vtkRenderer, logConsole, fontColor, camera_file='scene_camera.json'):
+def save_camera_settings(renderer: vtkRenderer, logConsole, fontColor, camera_file='scene_camera.json'):
     try:
         camera = renderer.GetActiveCamera()
         camera_settings = {
@@ -490,7 +492,7 @@ def save_camera_settings(renderer: vtk.vtkRenderer, logConsole, fontColor, camer
         return None
         
 
-def load_scene(vtkWidget: QVTKRenderWindowInteractor, renderer: vtk.vtkRenderer, logConsole, fontColor, actors_file='scene_actors.vtk', camera_file='scene_camera.json'):
+def load_scene(vtkWidget: QVTKRenderWindowInteractor, renderer: vtkRenderer, logConsole, fontColor, actors_file='scene_actors.vtk', camera_file='scene_camera.json'):
     if load_actors(renderer, logConsole, fontColor, actors_file) is not None and \
         load_camera_settings(renderer, logConsole, fontColor, camera_file) is not None:
     
@@ -499,16 +501,16 @@ def load_scene(vtkWidget: QVTKRenderWindowInteractor, renderer: vtk.vtkRenderer,
         logConsole.insert_colored_text(f'Loaded scene from the files: {actors_file} and {camera_file}\n', fontColor)
 
 
-def load_actors(renderer: vtk.vtkRenderer, logConsole, fontColor, actors_file='scene_actors.vtk'):
+def load_actors(renderer: vtkRenderer, logConsole, fontColor, actors_file='scene_actors.vtk'):
     try:
-        reader = vtk.vtkPolyDataReader()
+        reader = vtkPolyDataReader()
         reader.SetFileName(actors_file)
         reader.Update()
         
-        mapper = vtk.vtkPolyDataMapper()
+        mapper = vtkPolyDataMapper()
         mapper.SetInputData(reader.GetOutput())
         
-        actor = vtk.vtkActor()
+        actor = vtkActor()
         actor.SetMapper(mapper)
         renderer.AddActor(actor)
         renderer.ResetCamera()
@@ -522,7 +524,7 @@ def load_actors(renderer: vtk.vtkRenderer, logConsole, fontColor, actors_file='s
         return None
         
         
-def load_camera_settings(renderer: vtk.vtkRenderer, logConsole, fontColor, camera_file='scene_camera.json'):
+def load_camera_settings(renderer: vtkRenderer, logConsole, fontColor, camera_file='scene_camera.json'):
     try:
         with open(camera_file, 'r') as f:
             camera_settings = load(f)
