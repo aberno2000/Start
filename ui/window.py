@@ -18,6 +18,7 @@ from tabs.gedit_tab import GraphicalEditorTab
 from logger.log_console import LogConsole
 from util import ShortcutsInfoDialog, is_file_valid
 from shutil import rmtree, copy
+from util.styles import *
 
 class WindowApp(QMainWindow):    
     def __init__(self):
@@ -28,7 +29,7 @@ class WindowApp(QMainWindow):
         self.process.finished.connect(self.on_process_finished)
         
         self.setWindowTitle("Particle Collision Simulator")
-        self.setupFontColor = 'white'
+        self.setupFontColor = DEFAULT_FONT_COLOR
         
         # Retrieve the size of the primary screen
         screen = QApplication.primaryScreen()
@@ -208,29 +209,29 @@ class WindowApp(QMainWindow):
         help_menu.addAction('About', self.show_help, shortcut='F1')
 
 
-    def change_style(self, style):        
+    def change_style(self, style):
         if style == 'dark':
             self.setupFontColor = 'white'
-            self.setStyleSheet(f'QWidget {{ background-color: #333; color: {self.setupFontColor}; }}')
+            self.setStyleSheet(APPSTYLE_DARK)
             self.log_console.setDefaultTextColor(QColor('white'))
         elif style == 'light':
             self.setupFontColor = 'black'
-            self.setStyleSheet(f'QWidget {{ background-color: #eee; color: {self.setupFontColor}; }}')
+            self.setStyleSheet(APPSTYLE_LIGHT)
             self.log_console.setDefaultTextColor(QColor('black'))
         elif style == 'night':
             self.setupFontColor = 'green'
-            self.setStyleSheet(f'QWidget {{ background-color: #000; color: {self.setupFontColor}; }}')
+            self.setStyleSheet(APPSTYLE_NIGHT)
             self.log_console.setDefaultTextColor(QColor('white'))
         elif style == 'classic':
             self.setupFontColor = 'black'
-            self.setStyleSheet(f'QWidget {{ background-color: #f0f0f0; color: {self.setupFontColor}; }}')
+            self.setStyleSheet(APPSTYLE_CLASSIC)
             self.log_console.setDefaultTextColor(QColor('black'))
         elif style == 'bright':
             self.setupFontColor = 'white'
-            self.setStyleSheet(f'QWidget {{ background-color: white; color: {self.setupFontColor}; }}')
+            self.setStyleSheet(APPSTYLE_BRIGHT)
             self.log_console.setDefaultTextColor(QColor('black'))
         elif style == 'default':
-            self.setStyleSheet(f'QWidget {{ background-color: #333; color: {self.setupFontColor}; }}')
+            self.setStyleSheet(APPSTYLE_DEFAULT)
             self.log_console.setDefaultTextColor(QColor(self.setupFontColor))
         elif style == 'custom':
             QMessageBox.information(self, 'Application Color', 'Choose application color')
