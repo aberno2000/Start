@@ -21,14 +21,14 @@ def is_file_valid(path: str):
     return True
 
 def is_path_accessable(path):
-    if not exists(path):
-        return False
-    
     try:
         with open(path, 'r') as file:
             pass
         return True
     except IOError as e:
+        print("CANT READ")
+        with open("/app/log.txt", 'w') as f:
+            f.write("CANT READ")
         return False
 
 class PointDialog(QDialog):
