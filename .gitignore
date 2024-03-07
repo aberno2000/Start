@@ -27,6 +27,7 @@ python*.btr
 main
 test
 argos_nia_start
+nia_start
 *.out
 *.o
 
