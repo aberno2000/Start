@@ -119,12 +119,12 @@ class WindowApp(QMainWindow):
             self.results_tab.update_plot(self.hdf5_filename)
             self.log_console.insert_colored_text('Successfully: ', 'green')
             self.log_console.insert_colored_text(f'The simulation has completed in {exec_time:.3f}s\n', self.setupFontColor)
-            QMessageBox.information(self,
-                                    "Process Finished",
-                                    f"The simulation has completed in {exec_time:.3f}s")
             
             # Moving to the results tab after finishing
             self.tab_widget.setCurrentIndex(2)
+            QMessageBox.information(self,
+                                    "Process Finished",
+                                    f"The simulation has completed in {exec_time:.3f}s\n\nScalar bar:\nLeft side - particles count.\nRight side - normalized value.\n\n*Normalized Value = (Scalar Value - Range Min) / (Range Max - Range Min)")
             
         elif exitStatus == QProcess.CrashExit and exitCode == 11:
             self.results_tab.clear_plot()

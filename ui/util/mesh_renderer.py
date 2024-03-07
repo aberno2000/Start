@@ -20,7 +20,10 @@ class MeshRenderer:
         self.default_num_labels = 5 # Default labels count
         self.setup_colormap()
         
-        # Default style of the scalar bar
+        # Setting default style of the scalar bar
+        self.configure_font_properties()
+        
+    def configure_font_properties(self):
         self.scalarBar.SetWidth(0.1)
         self.scalarBar.SetHeight(0.75)
         text_property = self.scalarBar.GetLabelTextProperty()
@@ -29,7 +32,7 @@ class MeshRenderer:
         text_property.SetBold(True)
         text_property.SetItalic(False)
         text_property.SetColor(0, 0, 0)
-        
+
         title_text_property = self.scalarBar.GetTitleTextProperty()
         title_text_property.SetFontSize(12)
         title_text_property.SetFontFamilyAsString("Noto Sans SemiBold")

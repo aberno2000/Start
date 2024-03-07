@@ -176,6 +176,7 @@ class ResultsTab(QWidget):
                 
     def change_division_number(self):
         dialog = QDialog(self)
+        dialog.setFixedWidth(250)
         dialog.setWindowTitle('Change Division Number')
         layout = QVBoxLayout(dialog)
 
