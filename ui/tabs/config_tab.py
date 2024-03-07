@@ -623,7 +623,6 @@ class ConfigTab(QWidget):
     def save_config_to_file_with_filename(self, configFile):
         if not is_file_valid(self.mesh_file) or not is_path_accessable(self.mesh_file):
             QMessageBox.warning(self, "File Error", f"Mesh file '{self.mesh_file}' can't be selected. Check path or existance of it")
-            self.mesh_file = ''
             return
         
         config_content = self.validate_input()
