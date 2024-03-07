@@ -20,6 +20,16 @@ def is_file_valid(path: str):
         return False
     return True
 
+def is_path_accessable(path):
+    if not exists(path):
+        return False
+    
+    try:
+        with open(path, 'r') as file:
+            pass
+        return True
+    except IOError as e:
+        return False
 
 class PointDialog(QDialog):
     def __init__(self, parent=None):
