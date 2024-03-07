@@ -21,9 +21,9 @@ class MeshRenderer:
         self.setup_colormap()
         
         # Setting default style of the scalar bar
-        self.configure_font_properties()
+        self.setup_default_scalarbar_properties()
         
-    def configure_font_properties(self):
+    def setup_default_scalarbar_properties(self):
         self.scalarBar.SetWidth(0.1)
         self.scalarBar.SetHeight(0.75)
         text_property = self.scalarBar.GetLabelTextProperty()

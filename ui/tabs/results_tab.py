@@ -98,14 +98,17 @@ class ResultsTab(QWidget):
         action_change_scale = QAction('Change Scale', self)
         action_change_font = QAction('Change Font', self)
         action_change_divs = QAction('Change Number of Divisions', self)
+        action_reset = QAction('Reset To Default Settings', self)
 
         action_change_scale.triggered.connect(self.change_scale)
         action_change_font.triggered.connect(self.change_font)
         action_change_divs.triggered.connect(self.change_division_number)
+        action_reset.triggered.connect(self.reset_to_default)
 
         context_menu.addAction(action_change_scale)
         context_menu.addAction(action_change_font)
         context_menu.addAction(action_change_divs)
+        context_menu.addAction(action_reset)
 
         context_menu.exec_(self.mapToGlobal(self.scalarBarSettingsButton.pos()))
 
@@ -202,3 +205,9 @@ class ResultsTab(QWidget):
             self.vtkWidget.GetRenderWindow().Render()
         except ValueError:
             QMessageBox.warning(self, "Invalid Input", "Division number must be numeric")
+            
+    def reset_to_default(self):
+        self.mesh_renderer.setup_default_scalarbar_properties()
+        self.apply_divs(str(self.mesh_renderer.default_num_labels))
+        self.vtkWidget.GetRenderWindow().Render()
+            
