@@ -38,6 +38,8 @@ if(MSVC)
         message(STATUS "GMP found\nGMP libraries: ${GMP_LIBRARIES}")
         message(STATUS "GMP include dir: ${GMP_INCLUDE_DIR}")
     endif()
+else()
+    set(GMP_LIBRARIES gmp)
 endif()
 
 find_package(Boost REQUIRED)
