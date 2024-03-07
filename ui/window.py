@@ -379,12 +379,13 @@ class WindowApp(QMainWindow):
         self.progress_bar.setRange(0, 100)
     
 
-    def start_simulation(self):
+    def start_simulation(self):        
         if not is_file_valid(self.config_tab.config_file_path):
-            QMessageBox.information(self,
-                                    "Save Configurataion",
-                                    "You need to save the configuration before start the simulation")
+            QMessageBox.warning(self,
+                                "Save Configurataion",
+                                "You need to save the configuration before start the simulation. Checking your input in config tab...")
             self.config_tab.save_config_to_file()
+            return
         else:
             self.config_tab.save_config_to_file_with_filename(self.config_tab.config_file_path)
         

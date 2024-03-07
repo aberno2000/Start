@@ -5,6 +5,7 @@ from PyQt5.QtWidgets import (
     QSizePolicy, QSpacerItem, QDialog
 )
 import sys, gmsh
+from os.path import dirname
 from PyQt5 import QtCore
 from PyQt5.QtCore import QSize, pyqtSignal
 from json import load, dump, JSONDecodeError
@@ -13,6 +14,7 @@ from platform import platform
 from util.converter import Converter, is_positive_real_number
 from util.mesh_dialog import MeshDialog, CaptureGmshLog
 from util import is_file_valid
+from util.util import is_path_accessable
 from util.util import DEFAULT_QLINEEDIT_STYLE
 
 MIN_TIME = 1e-9
@@ -508,6 +510,13 @@ class ConfigTab(QWidget):
         if is_file_valid(self.config_file_path):  # If a file was selected
             if self.read_config_file(self.config_file_path) == 1:
                 return
+            
+            if not is_path_accessable(self.mesh_file):
+                QMessageBox.warning(self,
+                                    "File Error",
+                                    f"Your file is unaccessable. Check the path or permissons to this path: {dirname(self.config_file_path)}")
+                return
+            
             self.meshFileSelected.emit(self.mesh_file)
             self.log_console.logSignal.emit(f'Selected configuration: {self.config_file_path}\n')
         else:
@@ -526,6 +535,13 @@ class ConfigTab(QWidget):
         if self.config_file_path:  # If a file was selected
             if self.read_config_file(self.config_file_path) == 1:
                 return
+
+            if not is_path_accessable(self.mesh_file):
+                QMessageBox.warning(self,
+                                    "File Error",
+                                    f"Your file is unaccessable. Check the path or permissons to this path: {dirname(self.config_file_path)}")
+                return
+            
             self.meshFileSelected.emit(self.mesh_file)
             self.log_console.logSignal.emit(f'Selected configuration: {self.config_file_path}\n')
         else:
@@ -605,8 +621,9 @@ class ConfigTab(QWidget):
 
 
     def save_config_to_file_with_filename(self, configFile):
-        if not is_file_valid(self.mesh_file):
-            QMessageBox.warning(self, f"Mesh file '{self.mesh_file}' can't be selected")
+        if not is_file_valid(self.mesh_file) or not is_path_accessable(self.mesh_file):
+            QMessageBox.warning(self, "File Error", f"Mesh file '{self.mesh_file}' can't be selected. Check path or existance of it")
+            self.mesh_file = ''
             return
         
         config_content = self.validate_input()
