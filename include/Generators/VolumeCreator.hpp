@@ -41,7 +41,6 @@ public:
 
 using SphereD = std::tuple<Point3, double>;
 using SphereVector = std::vector<SphereD>;
-using SphereSpan = std::span<SphereD const>;
 
 /// @brief Represents Box volume.
 class Box final : public IVolume
@@ -182,7 +181,7 @@ public:
      * @param spheres Span of spheres.
      * @return Vector of created sphere tags.
      */
-    static std::vector<int> createSpheres(SphereSpan spheres);
+    static std::vector<int> createSpheres(SphereVector spheres);
 };
 
 /**
@@ -241,7 +240,7 @@ public:
                           double dx = 100, double dy = 100, double dz = 100);
     void createSphereAndMesh(double meshSize, int meshDim, std::string_view outputPath,
                              double x = 0, double y = 0, double z = 0, double r = 100);
-    void createSpheresAndMesh(SphereSpan spheres, double meshSize,
+    void createSpheresAndMesh(SphereVector spheres, double meshSize,
                               int meshDim, std::string_view outputPath);
     void createCylinderAndMesh(double meshSize, int meshDim, std::string_view outputPath,
                                double x = 0, double y = 0, double z = 0,

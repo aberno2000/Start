@@ -128,13 +128,11 @@ double util::calculateVolumeOfTetrahedron3(Tetrahedron3 const &tetrahedron)
 {
     Point3 const &A{tetrahedron[0]},
         &B{tetrahedron[1]},
-        &C = tetrahedron[2],
-        &D = tetrahedron[3];
+        &C{tetrahedron[2]},
+        &D{tetrahedron[3]};
 
     // Construct vectors AB, AC, and AD
-    Kernel::Vector_3 AB = B - A;
-    Kernel::Vector_3 AC = C - A;
-    Kernel::Vector_3 AD = D - A;
+    Kernel::Vector_3 AB{B - A}, AC{C - A}, AD{D - A};
 
     // Compute the scalar triple product (AB . (AC x AD))
     double scalarTripleProduct{CGAL::scalar_product(AB, CGAL::cross_product(AC, AD))};

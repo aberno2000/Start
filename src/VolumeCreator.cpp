@@ -66,15 +66,15 @@ int VolumeCreator::createCone(double x, double y, double z,
     return gmsh::model::occ::addCone(x, y, z, dx, dy, dz, r1, r2, tag, angle);
 }
 
-std::vector<int> VolumeCreator::createSpheres(SphereSpan spheres)
+std::vector<int> VolumeCreator::createSpheres(SphereVector spheres)
 {
     std::vector<int> dimTags;
     for (auto const &sphere : spheres)
     {
         Point3 centre{std::get<0>(sphere)};
-        dimTags.emplace_back(VolumeCreator::createSphere(CGAL::to_double(centre.x()),
-                                                         CGAL::to_double(centre.y()),
-                                                         CGAL::to_double(centre.z()),
+        dimTags.emplace_back(VolumeCreator::createSphere(CGAL_TO_DOUBLE(centre.x()),
+                                                         CGAL_TO_DOUBLE(centre.y()),
+                                                         CGAL_TO_DOUBLE(centre.z()),
                                                          std::get<1>(sphere)));
     }
     return dimTags;
@@ -105,7 +105,7 @@ void GMSHVolumeCreator::createSphereAndMesh(double meshSize, int meshDim, std::s
     gmshSynchronizer(meshSize, meshDim, outputPath);
 }
 
-void GMSHVolumeCreator::createSpheresAndMesh(SphereSpan spheres, double meshSize,
+void GMSHVolumeCreator::createSpheresAndMesh(SphereVector spheres, double meshSize,
                                              int meshDim, std::string_view outputPath)
 {
     VolumeCreator::createSpheres(spheres);

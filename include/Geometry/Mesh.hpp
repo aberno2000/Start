@@ -119,7 +119,7 @@ public:
      * @param msh_filename The filename of the Gmsh .msh file to parse.
      * @return Volume value.
      */
-    static double getVolumeFromMesh(std::string_view msh_filename);
+    static double getVolumeFromTetrahedronMesh(std::string_view msh_filename);
 };
 
 #endif // !MESH_HPP
