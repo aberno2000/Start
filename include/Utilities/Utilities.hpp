@@ -42,12 +42,11 @@ using Tetrahedron3 = Kernel::Tetrahedron_3;
 #define STATUS_TO_STR(status) util::getStatusName(status)
 
 #ifdef __linux__
-    #define COMMON_PRETTY_FUNC __PRETTY_FUNCTION__
+#define COMMON_PRETTY_FUNC __PRETTY_FUNCTION__
 #endif
 #ifdef _WIN32
-    #define COMMON_PRETTY_FUNC __FUNCSIG__
+#define COMMON_PRETTY_FUNC __FUNCSIG__
 #endif
-
 
 #define CGAL_TO_DOUBLE(var) CGAL::to_double(var)
 #define ERRMSG_ABS_PATH(desc) std::cerr << std::format("\033[1;31mError:\033[0m\033[1m {}: {}({} line): {}: \033[1;31m{}\033[0m\033[1m\n", \
@@ -160,6 +159,16 @@ namespace util
      * @return `true` if file exists, otherwise `false`.
      */
     bool exists(std::string_view filename);
+
+    /**
+     * @brief Calculates the volume of a tetrahedron.
+     * @details This function computes the volume of a tetrahedron by utilizing the CGAL library. The volume is calculated
+     *          based on the determinant of a matrix constructed from the coordinates of the tetrahedron's vertices. The formula
+     *          for the volume of a tetrahedron given its vertices A, B, C, and D is |dot(AB, cross(AC, AD))| / 6.
+     * @param tetrahedron The tetrahedron whose volume is to be calculated.
+     * @return The volume of the tetrahedron.
+     */
+    double calculateVolumeOfTetrahedron3(Tetrahedron3 const &tetrahedron);
 }
 
 #endif // !UTILITIES_HPP

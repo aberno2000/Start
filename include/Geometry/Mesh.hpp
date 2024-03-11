@@ -21,12 +21,12 @@
  */
 using MeshParam = std::tuple<size_t, Triangle3, double, int>;
 using MeshParamVector = std::vector<MeshParam>;
-using MeshTetrahedron = Tetrahedron3;
-using MeshTetrahedronVector = std::vector<MeshTetrahedron>;
-using MeshParamIterator = MeshParamVector::const_iterator;
 
 using MeshOnlyTriangle = std::vector<Triangle3>;
 using MeshOnlyTriangleConstIter = MeshOnlyTriangle::const_iterator;
+
+using TetrahedronMeshParam = Tetrahedron3;
+using TetrahedronMeshParamVector = std::vector<TetrahedronMeshParam>;
 
 // Custom property map with CGAL::AABB_triangle_primitive
 using Primitive = CGAL::AABB_triangle_primitive<Kernel, MeshOnlyTriangleConstIter>;
@@ -61,6 +61,15 @@ public:
      * @return A vector containing information about each triangle in the mesh.
      */
     static MeshParamVector getMeshParams(std::string_view msh_filename);
+
+    /**
+     * @brief Gets mesh parameters for tetrahedron elements from a Gmsh .msh file.
+     * @details This method opens a specified .msh file, reads the mesh nodes and tetrahedron elements,
+     *          then calculates the parameters for each tetrahedron (centroid and volume).
+     * @param msh_filename The name of the .msh file to be read.
+     * @return A vector of tuples, each containing the tetrahedron ID, its vertices, and volume.
+     */
+    static TetrahedronMeshParamVector getTetrahedronMeshParams(std::string_view msh_filename);
 
     /**
      * @brief Determines if a ray intersects with a given triangle in the mesh.

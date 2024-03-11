@@ -99,6 +99,59 @@ MeshParamVector Mesh::getMeshParams(std::string_view msh_filename)
     return result;
 }
 
+TetrahedronMeshParamVector Mesh::getTetrahedronMeshParams(std::string_view msh_filename)
+{
+    TetrahedronMeshParamVector result;
+    try
+    {
+        gmsh::open(msh_filename.data());
+
+        std::vector<size_t> nodeTags;
+        std::vector<double> coords;
+        std::vector<double> parametricCoords;
+        gmsh::model::mesh::getNodes(nodeTags, coords, parametricCoords);
+
+        std::vector<double> xyz;
+        for (size_t i{}; i < coords.size(); i += 3)
+        {
+            xyz.emplace_back(coords[i]);
+            xyz.emplace_back(coords[i + 1]);
+            xyz.emplace_back(coords[i + 2]);
+        }
+
+        std::vector<size_t> elTags, nodeTagsByEl;
+        gmsh::model::mesh::getElementsByType(4, elTags, nodeTagsByEl, -1);
+
+        std::vector<std::vector<size_t>> nodeTagsPerEl;
+        for (size_t i{}; i < nodeTagsByEl.size(); i += 4)
+            nodeTagsPerEl.push_back({nodeTagsByEl[i], nodeTagsByEl[i + 1], nodeTagsByEl[i + 2], nodeTagsByEl[i + 3]});
+
+        for (size_t i{}; i < elTags.size(); ++i)
+        {
+            std::vector<size_t> nodes = nodeTagsPerEl[i];
+
+            std::array<std::vector<double>, 4> vertices;
+            for (int j{}; j < 4; ++j)
+                vertices[j] = {xyz[(nodes[j] - 1) * 3], xyz[(nodes[j] - 1) * 3 + 1], xyz[(nodes[j] - 1) * 3 + 2]};
+
+            result.emplace_back(
+                Tetrahedron3(Point3(vertices[0][0], vertices[0][1], vertices[0][2]),
+                             Point3(vertices[1][0], vertices[1][1], vertices[1][2]),
+                             Point3(vertices[2][0], vertices[2][1], vertices[2][2]),
+                             Point3(vertices[3][0], vertices[3][1], vertices[3][2])));
+        }
+    }
+    catch (std::exception const &e)
+    {
+        std::cerr << e.what() << '\n';
+    }
+    catch (...)
+    {
+        std::cerr << "Something went wrong\n";
+    }
+    return result;
+}
+
 double Mesh::getVolumeFromMesh(std::string_view msh_filename)
 {
     double result{};

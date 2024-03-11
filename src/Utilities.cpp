@@ -123,3 +123,22 @@ bool util::exists(std::string_view filename)
     return (_stat(filename.data(), std::addressof(buf)) == 0);
 #endif
 }
+
+double util::calculateVolumeOfTetrahedron3(Tetrahedron3 const &tetrahedron)
+{
+    Point3 const &A{tetrahedron[0]},
+        &B{tetrahedron[1]},
+        &C = tetrahedron[2],
+        &D = tetrahedron[3];
+
+    // Construct vectors AB, AC, and AD
+    Kernel::Vector_3 AB = B - A;
+    Kernel::Vector_3 AC = C - A;
+    Kernel::Vector_3 AD = D - A;
+
+    // Compute the scalar triple product (AB . (AC x AD))
+    double scalarTripleProduct{CGAL::scalar_product(AB, CGAL::cross_product(AC, AD))};
+
+    // The volume of the tetrahedron is the absolute value of the scalar triple product divided by 6
+    return std::abs(scalarTripleProduct) / 6.0;
+}
