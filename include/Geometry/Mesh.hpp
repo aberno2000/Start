@@ -15,7 +15,7 @@
 
 /**
  * @brief Represents triangle mesh parameters (for surfaces):
- * int, double, double, double, double, double, double, double, double, double, double, int.
+ * size_t, double, double, double, double, double, double, double, double, double, double, int.
  * id,  x1,     y1,     z1,     x2,     y2,     z2,     x3,     y3,     z3,     dS,     counter.
  * `counter` is counter of settled objects on specific triangle (defines by its `id` field).
  */
@@ -25,14 +25,35 @@ using MeshParamVector = std::vector<MeshParam>;
 using MeshOnlyTriangle = std::vector<Triangle3>;
 using MeshOnlyTriangleConstIter = MeshOnlyTriangle::const_iterator;
 
-using TetrahedronMeshParam = Tetrahedron3;
-using TetrahedronMeshParamVector = std::vector<TetrahedronMeshParam>;
-
 // Custom property map with CGAL::AABB_triangle_primitive
 using Primitive = CGAL::AABB_triangle_primitive<Kernel, MeshOnlyTriangleConstIter>;
 using Traits = CGAL::AABB_traits<Kernel, Primitive>;
 using AABB_Tree = CGAL::AABB_tree<Traits>;
 
+/**
+ * @brief Represents tetrahedron mesh parameters (for volumes):
+ * int,     Point3,         Point3,         Point3,          Point3,    double.
+ * id,  vertex1(x,y,z), vertex2(x,y,z), vertex3(x,y,z),  vertex3(x,y,z),  dS.
+ */
+using TetrahedronMeshParam = std::tuple<size_t, Tetrahedron3, double>;
+using TetrahedronMeshParamVector = std::vector<TetrahedronMeshParam>;
+
+/**
+ * @brief Constructs an AABB tree from a given mesh parameter vector.
+ *
+ * This function builds an Axis-Aligned Bounding Box (AABB) tree from a collection
+ * of triangles, which are extracted from the provided mesh parameters. The AABB
+ * tree can be used for efficient geometric queries such as collision detection,
+ * ray intersection, and nearest point computation.
+ *
+ * @param meshParams A vector containing mesh parameters, where each entry
+ * represents a triangle in the mesh. Each MeshParam is expected to contain a
+ * Triangle3 object along with its associated properties.
+ *
+ * @return An optional AABB tree constructed from the provided mesh parameters.
+ * If the input meshParams is empty or only contains degenerate triangles,
+ * the function returns std::nullopt.
+ */
 std::optional<AABB_Tree> constructAABBTreeFromMeshParams(MeshParamVector const &meshParams);
 
 /// @brief Represents GMSH mesh.

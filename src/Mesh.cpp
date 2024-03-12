@@ -6,7 +6,10 @@
 std::optional<AABB_Tree> constructAABBTreeFromMeshParams(MeshParamVector const &meshParams)
 {
     if (meshParams.empty())
+    {
+        ERRMSG("Can't construct AABB for triangle mesh -> mesh is empty");
         return std::nullopt;
+    }
 
     MeshOnlyTriangle triangles;
     for (auto const &meshParam : meshParams)
@@ -17,7 +20,10 @@ std::optional<AABB_Tree> constructAABBTreeFromMeshParams(MeshParamVector const &
     }
 
     if (triangles.empty())
+    {
+        ERRMSG("Can't create AABB for triangle mesh -> triangles from the mesh are invalid (all degenerate)");
         return std::nullopt;
+    }
 
     return AABB_Tree(std::cbegin(triangles), std::cend(triangles));
 }
@@ -128,17 +134,19 @@ TetrahedronMeshParamVector Mesh::getTetrahedronMeshParams(std::string_view msh_f
 
         for (size_t i{}; i < elTags.size(); ++i)
         {
+            size_t tetrahedronID{elTags[i]};
             std::vector<size_t> nodes = nodeTagsPerEl[i];
 
             std::array<std::vector<double>, 4> vertices;
             for (int j{}; j < 4; ++j)
                 vertices[j] = {xyz[(nodes[j] - 1) * 3], xyz[(nodes[j] - 1) * 3 + 1], xyz[(nodes[j] - 1) * 3 + 2]};
 
-            result.emplace_back(
-                Tetrahedron3(Point3(vertices[0][0], vertices[0][1], vertices[0][2]),
-                             Point3(vertices[1][0], vertices[1][1], vertices[1][2]),
-                             Point3(vertices[2][0], vertices[2][1], vertices[2][2]),
-                             Point3(vertices[3][0], vertices[3][1], vertices[3][2])));
+            Tetrahedron3 tetrahedron(Point3(vertices[0][0], vertices[0][1], vertices[0][2]),
+                                     Point3(vertices[1][0], vertices[1][1], vertices[1][2]),
+                                     Point3(vertices[2][0], vertices[2][1], vertices[2][2]),
+                                     Point3(vertices[3][0], vertices[3][1], vertices[3][2]));
+
+            result.emplace_back(tetrahedronID, tetrahedron, util::calculateVolumeOfTetrahedron3(tetrahedron));
         }
     }
     catch (std::exception const &e)
@@ -156,7 +164,7 @@ double Mesh::getVolumeFromTetrahedronMesh(std::string_view msh_filename)
 {
     double totalVolume{};
     auto tetrahedronMesh{getTetrahedronMeshParams(msh_filename)};
-    for (auto tetrahedron : tetrahedronMesh)
-        totalVolume += util::calculateVolumeOfTetrahedron3(tetrahedron);
+    for (auto const &tetrahedron : tetrahedronMesh)
+        totalVolume += util::calculateVolumeOfTetrahedron3(std::get<1>(tetrahedron));
     return totalVolume;
 }
