@@ -26,9 +26,6 @@ def is_path_accessable(path):
             pass
         return True
     except IOError as e:
-        print("CANT READ")
-        with open("/app/log.txt", 'w') as f:
-            f.write("CANT READ")
         return False
 
 class PointDialog(QDialog):
