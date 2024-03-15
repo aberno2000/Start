@@ -10,7 +10,7 @@ std::atomic<size_t> CollisionTracker::m_counter = 0ul;
 std::atomic_flag CollisionTracker::m_stop_processing = ATOMIC_FLAG_INIT;
 
 void CollisionTracker::processSegment(size_t start_index, size_t end_index,
-                                      std::unordered_map<size_t, int> &m, AABB_Tree const &tree)
+                                      std::unordered_map<size_t, int> &m, AABB_Tree_Triangle const &tree)
 {
     Particle gasParticle(m_configObj.getGas());
     for (double t{};

@@ -21,22 +21,21 @@
  */
 using MeshParam = std::tuple<size_t, Triangle3, double, int>;
 using MeshParamVector = std::vector<MeshParam>;
-
-using MeshOnlyTriangle = std::vector<Triangle3>;
-using MeshOnlyTriangleConstIter = MeshOnlyTriangle::const_iterator;
+using TriangleVector = std::vector<Triangle3>;
+using TriangleVectorConstIter = TriangleVector::const_iterator;
 
 // Custom property map with CGAL::AABB_triangle_primitive
-using Primitive = CGAL::AABB_triangle_primitive<Kernel, MeshOnlyTriangleConstIter>;
-using Traits = CGAL::AABB_traits<Kernel, Primitive>;
-using AABB_Tree = CGAL::AABB_tree<Traits>;
+using TrianglePrimitive = CGAL::AABB_triangle_primitive<Kernel, TriangleVectorConstIter>;
+using TriangleTraits = CGAL::AABB_traits<Kernel, TrianglePrimitive>;
+using AABB_Tree_Triangle = CGAL::AABB_tree<TriangleTraits>;
 
 /**
  * @brief Represents tetrahedron mesh parameters (for volumes):
  * int,     Point3,         Point3,         Point3,          Point3,    double.
- * id,  vertex1(x,y,z), vertex2(x,y,z), vertex3(x,y,z),  vertex3(x,y,z),  dS.
+ * id,  vertex1(x,y,z), vertex2(x,y,z), vertex3(x,y,z),  vertex3(x,y,z),  dV.
  */
-using TetrahedronMeshParam = std::tuple<size_t, Tetrahedron3, double>;
-using TetrahedronMeshParamVector = std::vector<TetrahedronMeshParam>;
+using MeshTetrahedronParam = std::tuple<size_t, Tetrahedron3, double>;
+using MeshTetrahedronParamVector = std::vector<MeshTetrahedronParam>;
 
 /**
  * @brief Constructs an AABB tree from a given mesh parameter vector.
@@ -54,7 +53,7 @@ using TetrahedronMeshParamVector = std::vector<TetrahedronMeshParam>;
  * If the input meshParams is empty or only contains degenerate triangles,
  * the function returns std::nullopt.
  */
-std::optional<AABB_Tree> constructAABBTreeFromMeshParams(MeshParamVector const &meshParams);
+std::optional<AABB_Tree_Triangle> constructAABBTreeFromMeshParams(MeshParamVector const &meshParams);
 
 /// @brief Represents GMSH mesh.
 class Mesh
@@ -90,7 +89,7 @@ public:
      * @param msh_filename The name of the .msh file to be read.
      * @return A vector of tuples, each containing the tetrahedron ID, its vertices, and volume.
      */
-    static TetrahedronMeshParamVector getTetrahedronMeshParams(std::string_view msh_filename);
+    static MeshTetrahedronParamVector getTetrahedronMeshParams(std::string_view msh_filename);
 
     /**
      * @brief Determines if a ray intersects with a given triangle in the mesh.

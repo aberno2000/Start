@@ -272,7 +272,7 @@ public:
      * @param msh_filename The path to the file containing mesh data.
      * @return MeshParamVector containing mesh parameters.
      */
-    TetrahedronMeshParamVector getTetrahedronMeshParams(std::string_view msh_filename);
+    MeshTetrahedronParamVector getTetrahedronMeshParams(std::string_view msh_filename);
 
     /**
      * @brief Executes the Gmsh application unless the `-nopopup` argument is provided.
