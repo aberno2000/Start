@@ -1,6 +1,9 @@
 #ifndef PARTICLES_HPP
 #define PARTICLES_HPP
 
+#include <CGAL/Bbox_3.h>
+#include <atomic>
+
 #include "../Geometry/MathVector.hpp"
 #include "../Utilities/Constants.hpp"
 #include "../Utilities/Utilities.hpp"
@@ -15,10 +18,13 @@ using namespace VSS_deflection_parameter;
 class Particle
 {
 private:
-    ParticleType m_type{};     // Type of the particle.
-    Point3 m_centre;           // Position in Cartesian coordinates (x, y, z).
-    VelocityVector m_velocity; // Velocity vector (Vx, Vy, Vz).
-    double m_energy{};         // Particle energy [J].
+    static std::atomic<size_t> m_nextId; ///< Static member for generating unique IDs.
+    size_t m_id;                         ///< Id of the particle.
+    ParticleType m_type{};               ///< Type of the particle.
+    Point3 m_centre;                     ///< Position in Cartesian coordinates (x, y, z).
+    VelocityVector m_velocity;           ///< Velocity vector (Vx, Vy, Vz).
+    double m_energy{};                   ///< Particle energy [J].
+    CGAL::Bbox_3 m_bbox;                 ///< Bounding box for particle.
 
     /**
      * @brief Gets radius from the specified type of the particle.
@@ -160,8 +166,11 @@ private:
     void calculateEnergyJFromVelocity(VelocityVector const &v);
     void calculateEnergyJFromVelocity(VelocityVector &&v) noexcept;
 
+    /// @brief Calculates bounding box for the current particle.
+    void calculateBoundingBox();
+
 public:
-    Particle() {}
+    Particle() : m_bbox(0, 0, 0, 0, 0, 0) {}
     Particle(ParticleType type_);
     Particle(ParticleType type_, double x_, double y_, double z_, double energy_);
     Particle(ParticleType type_, double x_, double y_, double z_, double vx_, double vy_, double vz_);
@@ -190,6 +199,7 @@ public:
     bool overlaps(Particle &&other) const;
 
     /* === Getters for particle params. === */
+    constexpr size_t getId() const { return m_id; }
     double getX() const;
     double getY() const;
     double getZ() const;
@@ -202,6 +212,7 @@ public:
     double getVelocityModule() const;
     constexpr Point3 const &getCentre() const { return m_centre; }
     constexpr VelocityVector const &getVelocityVector() const { return m_velocity; }
+    constexpr CGAL::Bbox_3 const &getBoundingBox() const { return m_bbox; }
     constexpr double getMass() const { return getMassFromType(m_type); }
     constexpr double getRadius() const { return getRadiusFromType(m_type); }
     constexpr float getViscosityTemperatureIndex() const { return getViscosityTemperatureIndexFromType(m_type); }
