@@ -46,7 +46,7 @@ private:
    * @param tree AABB tree for the mesh.
    */
   void processSegment(size_t start_index, size_t end_index,
-                      std::unordered_map<size_t, int> &m, AABB_Tree const &tree);
+                      std::unordered_map<size_t, int> &m, AABB_Tree_Triangle const &tree);
 
 public:
   /**
