@@ -3,7 +3,7 @@
 #include "../include/Geometry/MathVector.hpp"
 #include "../include/Geometry/Mesh.hpp"
 
-std::optional<AABB_Tree> constructAABBTreeFromMeshParams(MeshParamVector const &meshParams)
+std::optional<AABB_Tree_Triangle> constructAABBTreeFromMeshParams(MeshParamVector const &meshParams)
 {
     if (meshParams.empty())
     {
@@ -11,7 +11,7 @@ std::optional<AABB_Tree> constructAABBTreeFromMeshParams(MeshParamVector const &
         return std::nullopt;
     }
 
-    MeshOnlyTriangle triangles;
+    TriangleVector triangles;
     for (auto const &meshParam : meshParams)
     {
         auto const &triangle{std::get<1>(meshParam)};
@@ -25,7 +25,7 @@ std::optional<AABB_Tree> constructAABBTreeFromMeshParams(MeshParamVector const &
         return std::nullopt;
     }
 
-    return AABB_Tree(std::cbegin(triangles), std::cend(triangles));
+    return AABB_Tree_Triangle(std::cbegin(triangles), std::cend(triangles));
 }
 
 size_t Mesh::isRayIntersectTriangleImpl(Ray3 const &ray, MeshParam const &triangle)
@@ -105,9 +105,9 @@ MeshParamVector Mesh::getMeshParams(std::string_view msh_filename)
     return result;
 }
 
-TetrahedronMeshParamVector Mesh::getTetrahedronMeshParams(std::string_view msh_filename)
+MeshTetrahedronParamVector Mesh::getTetrahedronMeshParams(std::string_view msh_filename)
 {
-    TetrahedronMeshParamVector result;
+    MeshTetrahedronParamVector result;
     try
     {
         gmsh::open(msh_filename.data());
