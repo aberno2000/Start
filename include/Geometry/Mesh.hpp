@@ -1,6 +1,8 @@
 #ifndef MESH_HPP
 #define MESH_HPP
 
+#include <format>
+#include <iostream>
 #include <optional>
 #include <string_view>
 #include <tuple>
@@ -19,10 +21,12 @@
  * id,  x1,     y1,     z1,     x2,     y2,     z2,     x3,     y3,     z3,     dS,     counter.
  * `counter` is counter of settled objects on specific triangle (defines by its `id` field).
  */
-using MeshParam = std::tuple<size_t, Triangle3, double, int>;
-using MeshParamVector = std::vector<MeshParam>;
+using MeshTriangleParam = std::tuple<size_t, Triangle3, double, int>;
+using MeshTriangleParamVector = std::vector<MeshTriangleParam>;
 using TriangleVector = std::vector<Triangle3>;
 using TriangleVectorConstIter = TriangleVector::const_iterator;
+
+std::ostream &operator<<(std::ostream &os, MeshTriangleParam const &meshParam);
 
 // Custom property map with CGAL::AABB_triangle_primitive
 using TrianglePrimitive = CGAL::AABB_triangle_primitive<Kernel, TriangleVectorConstIter>;
@@ -36,6 +40,8 @@ using AABB_Tree_Triangle = CGAL::AABB_tree<TriangleTraits>;
  */
 using MeshTetrahedronParam = std::tuple<size_t, Tetrahedron3, double>;
 using MeshTetrahedronParamVector = std::vector<MeshTetrahedronParam>;
+
+std::ostream &operator<<(std::ostream &os, MeshTetrahedronParam const &meshParam);
 
 /**
  * @brief Constructs an AABB tree from a given mesh parameter vector.
@@ -53,15 +59,15 @@ using MeshTetrahedronParamVector = std::vector<MeshTetrahedronParam>;
  * If the input meshParams is empty or only contains degenerate triangles,
  * the function returns std::nullopt.
  */
-std::optional<AABB_Tree_Triangle> constructAABBTreeFromMeshParams(MeshParamVector const &meshParams);
+std::optional<AABB_Tree_Triangle> constructAABBTreeFromMeshParams(MeshTriangleParamVector const &meshParams);
 
 /// @brief Represents GMSH mesh.
 class Mesh
 {
 private:
-    static size_t isRayIntersectTriangleImpl(Ray3 const &ray, MeshParam const &triangle);
+    static size_t isRayIntersectTriangleImpl(Ray3 const &ray, MeshTriangleParam const &triangle);
     static std::optional<std::tuple<size_t, Point3>>
-    getIntersectionPointImpl(Ray3 const &ray, MeshParam const &triangle);
+    getIntersectionPointImpl(Ray3 const &ray, MeshTriangleParam const &triangle);
     static double calcTetrahedronVolume(MathVector const &a, MathVector const &b, MathVector const &c, MathVector const &d);
 
 public:
@@ -80,7 +86,7 @@ public:
      * @param msh_filename The filename of the Gmsh .msh file to parse.
      * @return A vector containing information about each triangle in the mesh.
      */
-    static MeshParamVector getMeshParams(std::string_view msh_filename);
+    static MeshTriangleParamVector getMeshParams(std::string_view msh_filename);
 
     /**
      * @brief Gets mesh parameters for tetrahedron elements from a Gmsh .msh file.
@@ -109,10 +115,10 @@ public:
      * @return Returns the index or ID of the triangle (as size_t) if the ray intersects with it.
      *         If there is no intersection, it returns a special value (usually -1 cast to size_t) to indicate this.
      */
-    static size_t isRayIntersectTriangle(Ray3 const &ray, MeshParam const &triangle) { return isRayIntersectTriangleImpl(ray, triangle); }
-    static size_t isRayIntersectTriangle(Ray3 &&ray, MeshParam const &triangle) { return isRayIntersectTriangleImpl(std::move(ray), triangle); }
-    static size_t isRayIntersectTriangle(Ray3 const &ray, MeshParam &&triangle) { return isRayIntersectTriangleImpl(ray, std::move(triangle)); }
-    static size_t isRayIntersectTriangle(Ray3 &&ray, MeshParam &&triangle) { return isRayIntersectTriangleImpl(std::move(ray), std::move(triangle)); }
+    static size_t isRayIntersectTriangle(Ray3 const &ray, MeshTriangleParam const &triangle) { return isRayIntersectTriangleImpl(ray, triangle); }
+    static size_t isRayIntersectTriangle(Ray3 &&ray, MeshTriangleParam const &triangle) { return isRayIntersectTriangleImpl(std::move(ray), triangle); }
+    static size_t isRayIntersectTriangle(Ray3 const &ray, MeshTriangleParam &&triangle) { return isRayIntersectTriangleImpl(ray, std::move(triangle)); }
+    static size_t isRayIntersectTriangle(Ray3 &&ray, MeshTriangleParam &&triangle) { return isRayIntersectTriangleImpl(std::move(ray), std::move(triangle)); }
 
     /**
      * @brief Gets intersection point of ray and triangle if ray intersects the triangle.
@@ -126,13 +132,13 @@ public:
      *         If the particle doesn't intersect with the specified triangle, it returns `std::nullopt`
      */
     static std::optional<std::tuple<size_t, Point3>>
-    getIntersectionPoint(Ray3 const &ray, MeshParam const &triangle) { return getIntersectionPointImpl(ray, triangle); }
+    getIntersectionPoint(Ray3 const &ray, MeshTriangleParam const &triangle) { return getIntersectionPointImpl(ray, triangle); }
     static std::optional<std::tuple<size_t, Point3>>
-    getIntersectionPoint(Ray3 &&ray, MeshParam const &triangle) { return getIntersectionPointImpl(std::move(ray), triangle); }
+    getIntersectionPoint(Ray3 &&ray, MeshTriangleParam const &triangle) { return getIntersectionPointImpl(std::move(ray), triangle); }
     static std::optional<std::tuple<size_t, Point3>>
-    getIntersectionPoint(Ray3 const &ray, MeshParam &&triangle) { return getIntersectionPointImpl(ray, std::move(triangle)); }
+    getIntersectionPoint(Ray3 const &ray, MeshTriangleParam &&triangle) { return getIntersectionPointImpl(ray, std::move(triangle)); }
     static std::optional<std::tuple<size_t, Point3>>
-    getIntersectionPoint(Ray3 &&ray, MeshParam &&triangle) { return getIntersectionPointImpl(std::move(ray), std::move(triangle)); }
+    getIntersectionPoint(Ray3 &&ray, MeshTriangleParam &&triangle) { return getIntersectionPointImpl(std::move(ray), std::move(triangle)); }
 
     /**
      * @brief Calculates volume value from the specified mesh file.

@@ -396,3 +396,11 @@ ParticleVector createParticlesWithEnergy(size_t count, ParticleType type,
 
 	return particles;
 }
+
+std::ostream &operator<<(std::ostream &os, Particle const &particle)
+{
+    std::cout << std::format("Particle[{}]:\nCenter: {} {} {}\nRadius: {}\nVelocity components: {} {} {}\nEnergy: {} eV\n\n",
+                             particle.getId(), particle.getX(), particle.getY(), particle.getZ(), particle.getRadius(),
+                             particle.getVx(), particle.getVy(), particle.getVz(), particle.getEnergy_eV());
+    return os;
+}

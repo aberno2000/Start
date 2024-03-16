@@ -233,6 +233,8 @@ public:
     bool colideVSS(Particle target, double n_concentration, double omega, double alpha, double time_step);
 };
 
+std::ostream &operator<<(std::ostream &os, Particle const &particle);
+
 using ParticleVector = std::vector<Particle>;
 
 /// @brief Generates a vector of particles with specified velocity ranges.
