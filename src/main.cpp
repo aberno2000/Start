@@ -6,7 +6,7 @@ void simulateMovement(ConfigParser const &configObj,
                       std::string_view mshfilename,
                       std::string_view hdf5filename)
 {
-    MeshParamVector mesh;
+    MeshParamTriangleVector mesh;
 
     // Optimization 1: Artificial space for handling GMSH app.
     // To finilize GMSH as soon as possible.

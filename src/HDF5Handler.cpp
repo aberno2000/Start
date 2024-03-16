@@ -55,13 +55,13 @@ void HDF5Handler::readDataset(std::string_view groupName, std::string_view datas
     H5Gclose(grp_id);
 }
 
-void HDF5Handler::saveMeshToHDF5(MeshParamVector const &mesh)
+void HDF5Handler::saveMeshToHDF5(MeshTriangleParamVector const &mesh)
 {
     if (mesh.empty())
         return;
 
     auto minTriangle{*std::min_element(mesh.cbegin(), mesh.cend(),
-                                       [](MeshParam const &a, MeshParam const &b)
+                                       [](MeshTriangleParam const &a, MeshTriangleParam const &b)
                                        { return std::get<0>(a) < std::get<0>(b); })};
     m_firstID = std::get<0>(minTriangle);
 
@@ -87,13 +87,13 @@ void HDF5Handler::saveMeshToHDF5(MeshParamVector const &mesh)
     }
 }
 
-void HDF5Handler::saveMeshToHDF5(MeshParamVector &&mesh)
+void HDF5Handler::saveMeshToHDF5(MeshTriangleParamVector &&mesh)
 {
     if (mesh.empty())
         return;
 
     auto minTriangle{*std::min_element(mesh.cbegin(), mesh.cend(),
-                                       [](MeshParam const &a, MeshParam const &b)
+                                       [](MeshTriangleParam const &a, MeshTriangleParam const &b)
                                        { return std::get<0>(a) < std::get<0>(b); })};
     m_firstID = std::get<0>(minTriangle);
 
@@ -117,9 +117,9 @@ void HDF5Handler::saveMeshToHDF5(MeshParamVector &&mesh)
     }
 }
 
-MeshParamVector HDF5Handler::readMeshFromHDF5()
+MeshTriangleParamVector HDF5Handler::readMeshFromHDF5()
 {
-    MeshParamVector mesh;
+    MeshTriangleParamVector mesh;
     hsize_t num_objs{};
     H5Gget_num_objs(m_file_id, std::addressof(num_objs));
     m_lastID = m_firstID + num_objs;

@@ -263,14 +263,14 @@ public:
     /**
      * @brief Retrieves mesh parameters from a specified file.
      * @param msh_filename The path to the file containing mesh data.
-     * @return MeshParamVector containing mesh parameters.
+     * @return Triangle mesh containing mesh parameters.
      */
-    MeshParamVector getMeshParams(std::string_view msh_filename);
+    MeshTriangleParamVector getMeshParams(std::string_view msh_filename);
 
     /**
      * @brief Retrieves tetrahedron mesh parameters from a specified file.
      * @param msh_filename The path to the file containing mesh data.
-     * @return MeshParamVector containing mesh parameters.
+     * @return Triangle mesh containing mesh parameters.
      */
     MeshTetrahedronParamVector getTetrahedronMeshParams(std::string_view msh_filename);
 

@@ -26,7 +26,7 @@ class CollisionTracker
 {
 private:
   ParticleVector &m_particles;               // Reference to a vector of particles to be processed.
-  MeshParamVector const &m_mesh;             // Reference to a vector representing the mesh for collision detection.
+  MeshTriangleParamVector const &m_mesh;             // Reference to a vector representing the mesh for collision detection.
   ConfigParser const &m_configObj;           // `ConfigParser` object that keeps all necessary simulation parameters.
   double m_gasConcentration;                 // Concentration of the gas.
   static std::mutex m_map_mutex;             // Mutex for synchronizing access to the collision map.
@@ -60,11 +60,11 @@ public:
    * @param configObj Config object to get all necessary simulation params.
    * @param gasConcentration Concentration of the gas in the volume.
    */
-  CollisionTracker(ParticleVector &particles, MeshParamVector const &mesh,
+  CollisionTracker(ParticleVector &particles, MeshTriangleParamVector const &mesh,
                    ConfigParser const &configObj, double gasConcentration)
       : m_particles(particles), m_mesh(mesh), m_configObj(configObj),
         m_gasConcentration(gasConcentration) {}
-  CollisionTracker(ParticleVector &particles, MeshParamVector &&mesh,
+  CollisionTracker(ParticleVector &particles, MeshTriangleParamVector &&mesh,
                    ConfigParser const &configObj, double gasConcentration)
       : m_particles(particles), m_mesh(std::move(mesh)),
         m_configObj(configObj), m_gasConcentration(gasConcentration) {}

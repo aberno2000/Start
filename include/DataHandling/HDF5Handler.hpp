@@ -87,8 +87,8 @@ public:
      * @throws `std::runtime_error` if it fails to create a group or dataset within the HDF5 file,
      *         or if writing to the dataset fails.
      */
-    void saveMeshToHDF5(MeshParamVector const &mesh);
-    void saveMeshToHDF5(MeshParamVector &&mesh);
+    void saveMeshToHDF5(MeshTriangleParamVector const &mesh);
+    void saveMeshToHDF5(MeshTriangleParamVector &&mesh);
 
     /**
      * @brief Reads mesh data from the HDF5 file starting from a specified object ID.
@@ -99,7 +99,7 @@ public:
      *          from the HDF5 file, starting from the triangle with ID `firstObjectID`.
      * @throws `std::runtime_error` if it fails to open a group or dataset within the HDF5 file.
      */
-    MeshParamVector readMeshFromHDF5();
+    MeshTriangleParamVector readMeshFromHDF5();
 };
 
 #endif // !HDF5HANDLER_HPP

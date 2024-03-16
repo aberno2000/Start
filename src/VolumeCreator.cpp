@@ -153,7 +153,7 @@ void GMSHVolumeCreator::createVolume(VolumeType vtype, double meshSize,
     }
 }
 
-MeshParamVector GMSHVolumeCreator::getMeshParams(std::string_view msh_filename) { return Mesh::getMeshParams(msh_filename); }
+MeshTriangleParamVector GMSHVolumeCreator::getMeshParams(std::string_view msh_filename) { return Mesh::getMeshParams(msh_filename); }
 
 MeshTetrahedronParamVector GMSHVolumeCreator::getTetrahedronMeshParams(std::string_view msh_filename) { return Mesh::getTetrahedronMeshParams(msh_filename); }
 
