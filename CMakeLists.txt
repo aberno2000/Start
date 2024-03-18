@@ -69,10 +69,12 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(SOURCES
+    # src/tracking_particles_in_volume.cpp # Uncomment this line if want to compile this file and comment src/main.cpp 
+    src/main.cpp
     src/CollisionTracker.cpp
     src/ConfigParser.cpp
+    src/Grid3D.cpp
     src/HDF5Handler.cpp
-    src/main.cpp
     src/MathVector.cpp
     src/Mesh.cpp
     src/Particle.cpp
