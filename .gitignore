@@ -69,3 +69,6 @@ config*.json
 # Pyinstaller files
 dist/
 *.spec
+
+# My project directories
+proj*/*
