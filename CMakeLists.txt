@@ -40,9 +40,13 @@ if(MSVC)
 else()
     set(GMP_LIBRARIES gmp)
 endif()
+include_directories(${GMP_INCLUDE_DIR})
 
 find_package(Boost REQUIRED)
+include_directories(${Boost_INCLUDE_DIRS})
+
 find_package(HDF5 REQUIRED COMPONENTS CXX)
+include_directories(${HDF5_INCLUDE_DIRS})
 
 find_package(MPI REQUIRED)
 if(MPI_FOUND)
@@ -66,6 +70,7 @@ if (TBB_FOUND)
     set(TBB_NAMESPACE TBB::tbb)
     message(STATUS "TBB library found")
 endif()
+include_directories(${TBB_INCLUDE_DIRS})
 
 if (MSVC)
     # Using Visual C++ compiler (MSVC)
@@ -98,12 +103,7 @@ set(SOURCES
     src/Utilities.cpp
     src/VolumeCreator.cpp
 )
-
-include_directories(${CMAKE_SOURCE_DIR}/include
-                    ${Boost_INCLUDE_DIRS}
-                    ${HDF5_INCLUDE_DIRS}
-                    ${TBB_INCLUDE_DIRS}
-                    ${GMP_INCLUDE_DIR})
+include_directories(${CMAKE_SOURCE_DIR}/include)
 add_executable(nia_start ${SOURCES})
 
 set_target_properties(nia_start PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}")
