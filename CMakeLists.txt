@@ -36,7 +36,6 @@ if(MSVC)
     find_package(GMP REQUIRED)
     if(GMP_FOUND)
         message(STATUS "GMP found\nGMP libraries: ${GMP_LIBRARIES}")
-        message(STATUS "GMP include dir: ${GMP_INCLUDE_DIR}")
     endif()
 else()
     set(GMP_LIBRARIES gmp)
@@ -45,11 +44,27 @@ endif()
 find_package(Boost REQUIRED)
 find_package(HDF5 REQUIRED COMPONENTS CXX)
 
+find_package(MPI REQUIRED)
+if(MPI_FOUND)
+    message(STATUS "MPI found\nMPI libraries: ${MPI_LIBRARIES}")
+endif()
+include_directories(${MPI_INCLUDE_PATH})
+
+find_package(Trilinos REQUIRED PATHS "/usr/local/lib/cmake/Trilinos")
+if (Trilinos_FOUND)
+    message(STATUS "Trilinos found\nTrilinos libraries: ${Trilinos_LIBRARIES}")
+    message(STATUS "Trilinos include dirs: ${Trilinos_INCLUDE_DIRS}")
+else()
+    message(FATAL_ERROR "Trilinos not found")
+endif()
+include_directories(${Trilinos_INCLUDE_DIRS})
+link_directories(${Trilinos_LIBRARY_DIRS})
+
 # Adding support of TBB library if some OS requires it
 find_package(TBB QUIET)
 if (TBB_FOUND)
     set(TBB_NAMESPACE TBB::tbb)
-    message(STATUS "TBB library found: ${TBB_LIBRARIES}")
+    message(STATUS "TBB library found")
 endif()
 
 if (MSVC)
@@ -69,8 +84,8 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(SOURCES
-    # src/tracking_particles_in_volume.cpp # Uncomment this line if want to compile this file and comment src/main.cpp 
-    src/main.cpp
+    src/tracking_particles_in_volume.cpp # Uncomment this line if want to compile this file and comment src/main.cpp 
+    # src/main.cpp
     src/CollisionTracker.cpp
     src/ConfigParser.cpp
     src/Grid3D.cpp
@@ -101,4 +116,6 @@ target_link_libraries(nia_start PRIVATE
     ${HDF5_LIBRARIES}
     ${TBB_NAMESPACE}
     ${TBB_LIBRARIES}
+    ${MPI_LIBRARIES}
+    ${Trilinos_LIBRARIES}
 )
