@@ -44,7 +44,10 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char *argv[])
 
     // 2. Creating box in the GMSH application.
     GMSHVolumeCreator vc;
-    vc.createBoxAndMesh(10, 3, k_mesh_filename);
+    double boxMeshSize{};
+    std::cout << "Enter box mesh size: ";
+    std::cin >> boxMeshSize;
+    vc.createBoxAndMesh(boxMeshSize, 3, k_mesh_filename);
 
     // 3. Filling the tetrahedron mesh
     auto tetrahedronMesh{vc.getTetrahedronMeshParams(k_mesh_filename)};
@@ -52,7 +55,7 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char *argv[])
 
     // 4. Getting edge size from user.
     double edgeSize{};
-    std::cout << "Enter mesh size (size of the cube edge): ";
+    std::cout << "Enter 2nd mesh size (size of the cube edge): ";
     std::cin >> edgeSize;
 
     // 5. Creating grid.
@@ -202,17 +205,29 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char *argv[])
             for (Eigen::SparseMatrix<double>::InnerIterator it(globalStiffnessMatrix, k); it; ++it)
                 std::cout << std::format("({}, {}) = {}\n", it.row(), it.col(), it.value());
 
-        // 8. Calculating X in Ax=b, where b = 0
+        // 8. Calculating equation Ax=b, where b = 0.
         Eigen::SparseMatrix<double> A{globalStiffnessMatrix};
         Eigen::VectorXd b(globalMatrixSize), x(globalMatrixSize);
         b.setZero();
 
-        Eigen::BiCGSTAB<Eigen::SparseMatrix<double>> solver;
-        solver.compute(A);
-        x = solver.solve(x);
+        std::cout << "A matrix:\n"
+                  << A << '\n';
 
-        std::cout << "Solution x:\n"
-                  << x << '\n';
+        Eigen::BiCGSTAB<Eigen::SparseMatrix<double>> solver;
+        solver.compute(A);   // Initializing iterative solver with matrix A.
+        x = solver.solve(x); // Utilizing iterative computation of equation Ax=b.
+
+        std::cout << "Solution x:\n";
+        if (x.isZero())
+            std::cout << "x is vector with all nulls and size " << x.size();
+        else
+            std::cout << x;
+        std::endl(std::cout);
+
+        Eigen::VectorXd r{A * x};       // Since b is already zero -> A*x.
+        double residual_norm{r.norm()}; // Compute the Euclidean norm of the residual.
+        std::cout << std::format("Residual norm: {}\n", residual_norm);
+        std::cout << "Solver information after computation: " << solver.info() << '\n';
     }
     Kokkos::finalize();
 
