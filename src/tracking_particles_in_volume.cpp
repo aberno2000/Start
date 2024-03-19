@@ -219,7 +219,7 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char *argv[])
 
         std::cout << "Solution x:\n";
         if (x.isZero())
-            std::cout << "x is vector with all nulls and size " << x.size();
+            std::cout << std::format("x is a vector with all nulls. |x| = {}\n", x.size());
         else
             std::cout << x;
         std::endl(std::cout);
