@@ -1,3 +1,4 @@
+import gmsh
 from sys import stdout
 from vtkmodules.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 from vtkmodules.vtkInteractionStyle import vtkInteractorStyleTrackballCamera
@@ -13,13 +14,14 @@ from vtk import(
 from PyQt5.QtWidgets import(
     QFrame, QVBoxLayout, QHBoxLayout, 
     QPushButton, QDialog, QSpacerItem,
-    QSizePolicy
+    QSizePolicy, QMessageBox, QFileDialog
 )
 from util import(
     PointDialog, LineDialog, SurfaceDialog, 
     SphereDialog, BoxDialog, CylinderDialog,
 )
 from util.util import align_view_by_axis, save_scene, load_scene
+from .mesh_dialog import MeshDialog, CaptureGmshLog
 
 
 class GraphicalEditor(QFrame):
@@ -96,6 +98,12 @@ class GraphicalEditor(QFrame):
         self.createCylinderButton.setFixedSize(QSize(32, 32))
         self.createCylinderButton.setToolTip('Cylinder')
         
+        self.uploadCustomButton = QPushButton()
+        self.uploadCustomButton.setIcon(QIcon("icons/custom.png"))
+        self.uploadCustomButton.setIconSize(QSize(32, 32))
+        self.uploadCustomButton.setFixedSize(QSize(32, 32))
+        self.uploadCustomButton.setToolTip('Custom')
+        
         # Add buttons to the toolbar layout
         self.toolbarLayout.addWidget(self.createPointButton)
         self.toolbarLayout.addWidget(self.createLineButton)
@@ -103,6 +111,7 @@ class GraphicalEditor(QFrame):
         self.toolbarLayout.addWidget(self.createSphereButton)
         self.toolbarLayout.addWidget(self.createBoxButton)
         self.toolbarLayout.addWidget(self.createCylinderButton)
+        self.toolbarLayout.addWidget(self.uploadCustomButton)
         
         self.spacer = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
         self.toolbarLayout.addSpacerItem(self.spacer)
@@ -114,6 +123,7 @@ class GraphicalEditor(QFrame):
         self.createSphereButton.clicked.connect(self.create_sphere)
         self.createBoxButton.clicked.connect(self.create_box)
         self.createCylinderButton.clicked.connect(self.create_cylinder)
+        self.uploadCustomButton.clicked.connect(self.upload_custom)
         
 
     def setup_ui(self):
@@ -349,6 +359,83 @@ class GraphicalEditor(QFrame):
             
             cylinder_str = 'Cylinder'
             self.updateTreeSignal.emit(cylinder_str, '\n'.join(cylinder_data_str))
+            
+    
+    def upload_custom(self):
+        options = QFileDialog.Options()
+        options |= QFileDialog.DontUseNativeDialog
+        file_name, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select Mesh or Geometry File",
+            "",
+            "Mesh Files (*.msh);;Step Files (*.stp);;VTK Files (*.vtk);;All Files (*)",
+            options=options,
+        )
+
+        if not file_name:
+            return
+
+        # If the selected file is a STEP file, prompt for conversion parameters.
+        if file_name.endswith('.stp'):
+            dialog = MeshDialog(self)  # Assuming MeshDialog is implemented to get mesh_size and mesh_dim
+            if dialog.exec() == QDialog.Accepted:
+                mesh_size, mesh_dim = dialog.get_values()
+                try:
+                    mesh_size = float(mesh_size)
+                    mesh_dim = int(mesh_dim)
+                    if mesh_dim not in [2, 3]:
+                        raise ValueError("Mesh dimensions must be 2 or 3.")
+                    converted_file_name = self.convert_stp_to_msh(file_name, mesh_size, mesh_dim)
+                    if converted_file_name:
+                        actor = self.add_custom(converted_file_name)
+                except ValueError as e:
+                    QMessageBox.warning(self, "Invalid Input", str(e))
+            else:
+                QMessageBox.critical(self, "Error", "Dialog was closed by user. Invalid mesh size or mesh dimensions.")
+        elif file_name.endswith('.msh') or file_name.endswith('.vtk'):
+            actor = self.add_custom(file_name)
+            
+        self.action_history.append(actor)
+        self.redo_history.clear()
+            
+    
+    def convert_stp_to_msh(self, file_path, mesh_size, mesh_dim):        
+        original_stdout = stdout  # Save a reference to the original standard output
+        redirected_output = CaptureGmshLog()
+        stdout = redirected_output  # Redirect stdout to capture Gmsh logs
+
+        try:
+            gmsh.initialize()
+            gmsh.model.add("model")
+            gmsh.model.occ.importShapes(file_path)
+            gmsh.model.occ.synchronize()
+            gmsh.option.setNumber("Mesh.MeshSizeMin", mesh_size)
+            gmsh.option.setNumber("Mesh.MeshSizeMax", mesh_size)
+
+            if mesh_dim == 2:
+                gmsh.model.mesh.generate(2)
+            elif mesh_dim == 3:
+                gmsh.model.mesh.generate(3)
+
+            output_file = file_path.replace(".stp", ".msh")
+            gmsh.write(output_file)
+        except Exception as e:
+            QMessageBox.critical(
+                self, "Error", f"An error occurred during conversion: {str(e)}")
+            return None
+        finally:
+            gmsh.finalize()
+            stdout = original_stdout  # Restore stdout to its original state
+
+        log_output = redirected_output.output
+        if "Error" in log_output:
+            QMessageBox.critical(
+                self, "Conversion Error", "An error occurred during mesh generation. Please check the file and parameters.")
+            return None
+        else:
+            QMessageBox.information(
+                self, "Conversion Completed", f"Mesh generated: {output_file}")
+            return output_file
 
 
     def setup_axes(self):
@@ -398,15 +485,43 @@ class GraphicalEditor(QFrame):
             print("Unsupported dataset type", file=stdout)
             return
 
-        # Remove all previous actors
-        self.remove_all_actors()
-
         # Add new actor
         actor = vtkActor()
         actor.SetMapper(mapper)
         self.renderer.AddActor(actor)
         self.renderer.ResetCamera()
         self.vtkWidget.GetRenderWindow().Render()
+        
+        return actor
+    
+
+    def add_custom(self, mesh_file_path: str):
+        vtk_file_path = mesh_file_path.replace('.msh', '.vtk')
+        
+        reader = vtkGenericDataObjectReader()
+        reader.SetFileName(vtk_file_path)
+        reader.Update()
+        
+        if reader.IsFilePolyData():
+            mapper = vtkPolyDataMapper()
+            mapper.SetInputConnection(reader.GetOutputPort())
+            geometry_type = "PolyData"
+        elif reader.IsFileUnstructuredGrid():
+            mapper = vtkDataSetMapper()
+            mapper.SetInputConnection(reader.GetOutputPort())
+            geometry_type = "UnstructuredGrid"
+        else:
+            print("Unsupported dataset type", file=stdout)
+            return None
+
+        actor = vtkActor()
+        actor.SetMapper(mapper)
+        self.renderer.AddActor(actor)
+        self.renderer.ResetCamera()
+        self.vtkWidget.GetRenderWindow().Render()
+        
+        geometry_info = f"{geometry_type} from {vtk_file_path}"
+        self.updateTreeSignal.emit(geometry_type, geometry_info)
         
         return actor
         
