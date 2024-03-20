@@ -8,3 +8,6 @@ APPSTYLE_DEFAULT = "QWidget { background-color: #333; color: white; }"
 DEFAULT_QLINEEDIT_STYLE = "QLineEdit { background-color: light gray; color: black; }"
 
 DEFAULT_FONT_COLOR = 'white'
+
+DEFAULT_ACTOR_COLOR = [1, 1, 0]
+SELECTED_ACTOR_COLOR = [1.0, 0.5, 0.0]

@@ -27,6 +27,99 @@ def is_path_accessable(path):
         return True
     except IOError as e:
         return False
+    
+class AngleDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        
+        self.setWindowTitle("Change Actor Angle")
+        
+        layout = QVBoxLayout(self)
+        
+        formLayout = QFormLayout()
+        
+        # Input fields for the angles
+        self.xAngleInput = QLineEdit("0.0")
+        self.yAngleInput = QLineEdit("0.0")
+        self.zAngleInput = QLineEdit("0.0")
+        
+        self.xAngleInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
+        self.yAngleInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
+        self.zAngleInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
+        
+        # Add rows for X, Y, and Z angles
+        formLayout.addRow("Angle X (degrees):", self.xAngleInput)
+        formLayout.addRow("Angle Y (degrees):", self.yAngleInput)
+        formLayout.addRow("Angle Z (degrees):", self.zAngleInput)
+        
+        layout.addLayout(formLayout)
+        
+        # Dialog buttons
+        self.buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self)
+        self.buttons.accepted.connect(self.accept)
+        self.buttons.rejected.connect(self.reject)
+        
+        layout.addWidget(self.buttons)
+    
+    def getValues(self):
+        # Validate inputs and return angles
+        x = self.validate_angle(self.xAngleInput.text())
+        y = self.validate_angle(self.yAngleInput.text())
+        z = self.validate_angle(self.zAngleInput.text())
+        
+        if x is not None and y is not None and z is not None:
+            return x, y, z
+        return None
+
+    @staticmethod
+    def validate_angle(value):
+        try:
+            angle = float(value)
+            if 0.0 <= angle <= 360.0:
+                return angle
+            raise ValueError
+        except ValueError:
+            QMessageBox.warning(None, "Invalid Input", f"Angle value must be between 0.0 and 360.0: {value}")
+            return None
+
+class MoveActorDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        self.setWindowTitle("Move Actor")
+
+        layout = QVBoxLayout(self)
+        formLayout = QFormLayout()
+
+        self.xOffsetInput = QLineEdit("0.0")
+        self.yOffsetInput = QLineEdit("0.0")
+        self.zOffsetInput = QLineEdit("0.0")
+        
+        self.xOffsetInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
+        self.yOffsetInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
+        self.zOffsetInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
+
+        formLayout.addRow("X Offset:", self.xOffsetInput)
+        formLayout.addRow("Y Offset:", self.yOffsetInput)
+        formLayout.addRow("Z Offset:", self.zOffsetInput)
+
+        layout.addLayout(formLayout)
+
+        self.buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self)
+        self.buttons.accepted.connect(self.accept)
+        self.buttons.rejected.connect(self.reject)
+
+        layout.addWidget(self.buttons)
+
+    def getValues(self):
+        try:
+            x_offset = float(self.xOffsetInput.text())
+            y_offset = float(self.yOffsetInput.text())
+            z_offset = float(self.zOffsetInput.text())
+            return x_offset, y_offset, z_offset
+        except ValueError:
+            QMessageBox.warning(self, "Invalid Input", "Offsets must be valid numbers.")
+            return None
 
 class PointDialog(QDialog):
     def __init__(self, parent=None):

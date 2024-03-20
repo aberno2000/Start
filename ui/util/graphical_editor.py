@@ -14,14 +14,18 @@ from vtk import(
 from PyQt5.QtWidgets import(
     QFrame, QVBoxLayout, QHBoxLayout, 
     QPushButton, QDialog, QSpacerItem,
-    QSizePolicy, QMessageBox, QFileDialog
+    QSizePolicy, QMessageBox, QFileDialog,
+    QMenu, QAction, QInputDialog
 )
-from util import(
+from PyQt5.QtGui import QCursor
+from .util import(
     PointDialog, LineDialog, SurfaceDialog, 
     SphereDialog, BoxDialog, CylinderDialog,
+    AngleDialog, MoveActorDialog
 )
 from util.util import align_view_by_axis, save_scene, load_scene
 from .mesh_dialog import MeshDialog, CaptureGmshLog
+from .styles import DEFAULT_ACTOR_COLOR, SELECTED_ACTOR_COLOR
 
 
 class GraphicalEditor(QFrame):
@@ -33,9 +37,6 @@ class GraphicalEditor(QFrame):
         self.setup_ui()
         self.setup_interaction()
         self.setup_axes()
-        
-        # Yellow is the default color for all new created actors
-        self.createdActorDefaultColor = [1, 1, 0]
         
         self.action_history = [] # Track added actors
         self.redo_history = []   # Track undone actors for redo
@@ -166,7 +167,7 @@ class GraphicalEditor(QFrame):
             actor = vtkActor()
             actor.SetMapper(mapper)
             actor.GetProperty().SetPointSize(5)    # Set the size of the point
-            actor.GetProperty().SetColor(self.createdActorDefaultColor)  # Set the color of the point (red)
+            actor.GetProperty().SetColor(DEFAULT_ACTOR_COLOR)  # Set the color of the point (red)
             
             self.renderer.AddActor(actor)
             self.vtkWidget.GetRenderWindow().Render()
@@ -207,7 +208,7 @@ class GraphicalEditor(QFrame):
             
             actor = vtkActor()
             actor.SetMapper(mapper)
-            actor.GetProperty().SetColor(self.createdActorDefaultColor)
+            actor.GetProperty().SetColor(DEFAULT_ACTOR_COLOR)
             
             self.renderer.AddActor(actor)
             self.vtkWidget.GetRenderWindow().Render()
@@ -250,7 +251,7 @@ class GraphicalEditor(QFrame):
                 
                 actor = vtkActor()
                 actor.SetMapper(mapper)
-                actor.GetProperty().SetColor(self.createdActorDefaultColor)
+                actor.GetProperty().SetColor(DEFAULT_ACTOR_COLOR)
                 
                 self.renderer.AddActor(actor)
                 self.vtkWidget.GetRenderWindow().Render()
@@ -281,7 +282,7 @@ class GraphicalEditor(QFrame):
             
             actor = vtkActor()
             actor.SetMapper(mapper)
-            actor.GetProperty().SetColor(self.createdActorDefaultColor)
+            actor.GetProperty().SetColor(DEFAULT_ACTOR_COLOR)
             
             # Change history vars
             self.action_history.append(actor)
@@ -315,7 +316,7 @@ class GraphicalEditor(QFrame):
             
             actor = vtkActor()
             actor.SetMapper(mapper)
-            actor.GetProperty().SetColor(self.createdActorDefaultColor)
+            actor.GetProperty().SetColor(DEFAULT_ACTOR_COLOR)
             
             # Change history vars
             self.action_history.append(actor)
@@ -348,7 +349,7 @@ class GraphicalEditor(QFrame):
             
             actor = vtkActor()
             actor.SetMapper(mapper)
-            actor.GetProperty().SetColor(self.createdActorDefaultColor)
+            actor.GetProperty().SetColor(DEFAULT_ACTOR_COLOR)
             
             # Change history vars
             self.action_history.append(actor)
@@ -526,13 +527,121 @@ class GraphicalEditor(QFrame):
         return actor
         
         
-    def setup_interaction(self):        
+    def setup_interaction(self):
         self.picker = vtkCellPicker()
         self.picker.SetTolerance(0.005)
 
-        self.vtkWidget.GetRenderWindow().GetInteractor().SetPicker(self.picker)
-        self.vtkWidget.installEventFilter(self) # Capturing mouse events
-    
+        self.selected_actor = None
+        self.original_color = None
+
+        self.interactor.SetInteractorStyle(self.interactorStyle)
+
+        def pick_actor(obj, event):
+            click_pos = self.interactor.GetEventPosition()
+            self.picker.Pick(click_pos[0], click_pos[1], 0, self.renderer)
+
+            # If there is already a selected actor, reset its color
+            if self.selected_actor:
+                self.selected_actor.GetProperty().SetColor(self.original_color)
+
+            actor = self.picker.GetActor()
+            if actor:
+                # Store the original color and the selected actor
+                self.original_color = actor.GetProperty().GetColor()
+                self.selected_actor = actor
+
+                # Change the actor's color to orange
+                actor.GetProperty().SetColor(SELECTED_ACTOR_COLOR)
+                self.vtkWidget.GetRenderWindow().Render()
+            # Call the original OnLeftButtonDown event handler to maintain default interaction behavior
+            self.interactorStyle.OnLeftButtonDown()
+        
+        def on_right_button_press(obj, event):
+            click_pos = self.interactor.GetEventPosition()
+            self.picker.Pick(click_pos[0], click_pos[1], 0, self.renderer)
+
+            actor = self.picker.GetActor()
+            if actor:
+                self.selected_actor = actor
+                self.original_color = actor.GetProperty().GetColor()
+                self.context_menu()
+            self.interactorStyle.OnRightButtonDown()
+
+        self.interactorStyle.AddObserver("LeftButtonPressEvent", pick_actor)
+        self.interactorStyle.AddObserver("RightButtonPressEvent", on_right_button_press)
+        self.interactor.AddObserver("KeyPressEvent", self.on_key_press)
+        self.interactor.Initialize()
+        
+    def context_menu(self):
+        if self.selected_actor:
+            menu = QMenu(self)
+
+            move_action = QAction('Move', self)
+            move_action.triggered.connect(self.move_actor)
+            menu.addAction(move_action)
+
+            change_angle_action = QAction('Rotate', self)
+            change_angle_action.triggered.connect(self.change_actor_angle)
+            menu.addAction(change_angle_action)
+
+            adjust_size_action = QAction('Adjust size', self)
+            adjust_size_action.triggered.connect(self.adjust_actor_size)
+            menu.addAction(adjust_size_action)
+
+            menu.exec_(QCursor.pos())
+            
+    def deselect(self):
+        self.selected_actor.GetProperty().SetColor(DEFAULT_ACTOR_COLOR)
+        self.vtkWidget.GetRenderWindow().Render()
+        self.selected_actor = None
+
+    def move_actor(self):
+        if self.selected_actor:
+            dialog = MoveActorDialog(self)
+            if dialog.exec_() == QDialog.Accepted:
+                offsets = dialog.getValues()
+                if offsets:
+                    x_offset, y_offset, z_offset = offsets
+                    position = self.selected_actor.GetPosition()
+                    new_position = (position[0] + x_offset, position[1] + y_offset, position[2] + z_offset)
+                    self.selected_actor.SetPosition(new_position)
+                    self.vtkWidget.GetRenderWindow().Render()
+                    
+                    self.deselect()
+
+    def adjust_actor_size(self):
+        if self.selected_actor:
+            scale_factor, ok = QInputDialog.getDouble(self, "Adjust size", "Scale:", 1.0, 0.01, 100.0, 2)
+            if ok:
+                self.selected_actor.SetScale(scale_factor, scale_factor, scale_factor)
+                self.vtkWidget.GetRenderWindow().Render()
+                
+                self.deselect()
+
+    def change_actor_angle(self):
+        if self.selected_actor:
+            dialog = AngleDialog(self)
+            if dialog.exec_() == QDialog.Accepted:
+                angles = dialog.getValues()
+                if angles:
+                    angle_x, angle_y, angle_z = angles
+                    self.selected_actor.RotateX(angle_x)
+                    self.selected_actor.RotateY(angle_y)
+                    self.selected_actor.RotateZ(angle_z)
+                    self.vtkWidget.GetRenderWindow().Render()
+                    
+                    self.deselect()
+
+    def on_key_press(self, obj, event):
+        key = self.interactor.GetKeySym()
+        if key == 'Escape' and self.selected_actor:
+            # Reset the selected actor's color
+            self.selected_actor.GetProperty().SetColor(DEFAULT_ACTOR_COLOR)
+            self.vtkWidget.GetRenderWindow().Render()
+            self.selected_actor = None
+        elif key == 'Return' and self.selected_actor:
+            self.interactorStyle.OnRotate()
+        self.interactorStyle.OnKeyPress()
     
     def align_view_by_axis(self, axis: str):
         align_view_by_axis(axis, self.renderer, self.vtkWidget)
