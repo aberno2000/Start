@@ -19,8 +19,8 @@ from util.styles import DEFAULT_QLINEEDIT_STYLE
 class ResultsTab(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.layout = QVBoxLayout(self)
-        self.toolbarLayout = QHBoxLayout(self)
+        self.layout = QVBoxLayout()
+        self.toolbarLayout = QHBoxLayout()
         
         self.setup_ui()
         self.setup_axes()
