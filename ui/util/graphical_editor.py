@@ -1,5 +1,4 @@
 import gmsh, meshio
-from sys import stdout
 from os import remove
 from os.path import isfile, exists, basename
 from vtkmodules.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
@@ -53,11 +52,11 @@ def get_action(id: int, data, actor: vtkActor, isDifficultObj: bool = False, fig
 
 class GraphicalEditor(QFrame):    
     def __init__(self, parent=None):
+        super().__init__(parent)
         self.treeView = QTreeView()
         self.model = QStandardItemModel()
         self.model.setHorizontalHeaderLabels(['Mesh Tree'])
         
-        super().__init__(parent)
         self.setup_toolbar()
         self.setup_ui()
         self.setup_interaction()
@@ -65,7 +64,7 @@ class GraphicalEditor(QFrame):
         
         self.object_idx = 0
         self.undo_stack = []
-        self.redo_stack = []
+        self.redo_stack = []        
         
     
     def initialize_tree(self):
@@ -90,8 +89,8 @@ class GraphicalEditor(QFrame):
         else:
             QMessageBox.warning(self, "Warning", f"Unable to open file {file_path}")
             return None
-
-        
+    
+    
     def erase_all_from_tree_view(self):
         self.model.clear()
         
