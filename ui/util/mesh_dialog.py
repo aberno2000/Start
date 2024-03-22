@@ -2,15 +2,6 @@ import io
 from PyQt5.QtWidgets import QDialog, QLineEdit, QPushButton, QVBoxLayout, QLabel
 from .util import DEFAULT_QLINEEDIT_STYLE
 
-class CaptureGmshLog(io.StringIO):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.output = ""
-
-    def write(self, string):
-        self.output += string
-        super().write(string)
-
 
 class MeshDialog(QDialog):
     def __init__(self, parent=None):

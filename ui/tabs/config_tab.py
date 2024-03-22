@@ -12,7 +12,7 @@ from json import load, dump, JSONDecodeError
 from multiprocessing import cpu_count
 from platform import platform
 from util.converter import Converter, is_positive_real_number
-from util.mesh_dialog import MeshDialog, CaptureGmshLog
+from util.mesh_dialog import MeshDialog
 from util import is_file_valid
 from util.util import is_path_accessable
 from util.util import DEFAULT_QLINEEDIT_STYLE
@@ -764,17 +764,14 @@ class ConfigTab(QWidget):
                                         QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
             if reply == QMessageBox.Yes:
                 self.upload_mesh_file()
+                self.log_console.logSignal.emit(f'Uploaded mesh: {self.mesh_file}\n')
             else:
                 pass
         else:
             self.upload_mesh_file()
-        self.log_console.logSignal.emit(f'Uploaded mesh: {self.mesh_file}\n')
+            self.log_console.logSignal.emit(f'Uploaded mesh: {self.mesh_file}\n')
 
-    def convert_stp_to_msh(self, file_path, mesh_size, mesh_dim):        
-        original_stdout = sys.stdout  # Save a reference to the original standard output
-        redirected_output = CaptureGmshLog()
-        sys.stdout = redirected_output  # Redirect stdout to capture Gmsh logs
-
+    def convert_stp_to_msh(self, file_path, mesh_size, mesh_dim):
         try:
             gmsh.initialize()
             gmsh.model.add("model")
@@ -796,16 +793,5 @@ class ConfigTab(QWidget):
             return None
         finally:
             gmsh.finalize()
-            sys.stdout = original_stdout  # Restore stdout to its original state
-
-        log_output = redirected_output.output
-        if "Error" in log_output:
-            QMessageBox.critical(
-                self, "Conversion Error", "An error occurred during mesh generation. Please check the file and parameters.")
-            self.log_console.logSignal.emit(f'Error: Can\'t convert {file_path} to {output_file}\n')
-            return None
-        else:
             self.mesh_file = output_file
-            QMessageBox.information(
-                self, "Conversion Completed", f"Mesh generated: {self.mesh_file}")
             self.log_console.logSignal.emit(f'Successfully converted {file_path} to {output_file}. Mesh size is {mesh_size}. Mesh dimension: {mesh_dim}\n')

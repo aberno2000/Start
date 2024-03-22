@@ -26,7 +26,7 @@ from .util import(
     AngleDialog, MoveActorDialog
 )
 from util.util import align_view_by_axis, save_scene, load_scene, convert_msh_to_vtk
-from .mesh_dialog import MeshDialog, CaptureGmshLog
+from .mesh_dialog import MeshDialog
 from .styles import DEFAULT_ACTOR_COLOR, SELECTED_ACTOR_COLOR
 
 
@@ -385,7 +385,7 @@ class GraphicalEditor(QFrame):
         gmsh.model.geo.synchronize()
         gmsh.model.mesh.generate(2)
 
-        # Specify a filename to write the mesh to
+        # Specify a filename to write the mesh
         msh_filename = "temp.msh"
         gmsh.write(msh_filename)
 
@@ -623,11 +623,7 @@ class GraphicalEditor(QFrame):
             self.add_custom(file_name)
             
     
-    def convert_stp_to_msh(self, filename, mesh_size, mesh_dim):        
-        original_stdout = stdout  # Save a reference to the original standard output
-        redirected_output = CaptureGmshLog()
-        stdout = redirected_output  # Redirect stdout to capture Gmsh logs
-
+    def convert_stp_to_msh(self, filename, mesh_size, mesh_dim):
         try:
             gmsh.initialize()
             gmsh.model.add("model")
@@ -649,16 +645,6 @@ class GraphicalEditor(QFrame):
             return None
         finally:
             gmsh.finalize()
-            stdout = original_stdout  # Restore stdout to its original state
-
-        log_output = redirected_output.output
-        if "Error" in log_output:
-            QMessageBox.critical(
-                self, "Conversion Error", "An error occurred during mesh generation. Please check the file and parameters.")
-            return None
-        else:
-            QMessageBox.information(
-                self, "Conversion Completed", f"Mesh generated: {output_file}")
             return output_file
 
 
