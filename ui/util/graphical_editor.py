@@ -1,118 +1,222 @@
-import gmsh
+import gmsh, meshio
 from sys import stdout
+from os import remove
+from os.path import isfile, exists, basename
 from vtkmodules.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 from vtkmodules.vtkInteractionStyle import vtkInteractorStyleTrackballCamera
 from PyQt5.QtGui import QStandardItem, QIcon
-from PyQt5.QtCore import QSize, pyqtSignal
+from PyQt5.QtCore import QSize
 from vtk import(
     vtkRenderer, vtkPoints, vtkPolyData, vtkVertexGlyphFilter, vtkPolyLine,
-    vtkCellArray, vtkPolyDataMapper, vtkActor, vtkDelaunay2D, vtkSphereSource,
-    vtkCubeSource, vtkCylinderSource, vtkAxesActor, vtkOrientationMarkerWidget,
-    vtkGenericDataObjectReader, vtkDataSetMapper, vtkCellPicker, vtkUnstructuredGrid,
-    vtkCellTypes
+    vtkCellArray, vtkPolyDataMapper, vtkActor, vtkSphereSource, vtkUnstructuredGrid,
+    vtkCylinderSource, vtkAxesActor, vtkOrientationMarkerWidget, vtkCellTypes,
+    vtkGenericDataObjectReader, vtkDataSetMapper, vtkCellPicker, vtkDelaunay2D,
+    vtkCubeSource,
+    VTK_TRIANGLE, VTK_QUAD
 )
 from PyQt5.QtWidgets import(
-    QFrame, QVBoxLayout, QHBoxLayout, 
+    QFrame, QVBoxLayout, QHBoxLayout, QTreeView,
     QPushButton, QDialog, QSpacerItem,
     QSizePolicy, QMessageBox, QFileDialog,
     QMenu, QAction, QInputDialog
 )
-from PyQt5.QtGui import QCursor
+from PyQt5.QtGui import QCursor, QStandardItemModel
 from .util import(
     PointDialog, LineDialog, SurfaceDialog, 
     SphereDialog, BoxDialog, CylinderDialog,
     AngleDialog, MoveActorDialog
 )
-from util.util import align_view_by_axis, save_scene, load_scene
+from util.util import align_view_by_axis, save_scene, load_scene, convert_msh_to_vtk
 from .mesh_dialog import MeshDialog, CaptureGmshLog
 from .styles import DEFAULT_ACTOR_COLOR, SELECTED_ACTOR_COLOR
 
 
-class GraphicalEditor(QFrame):
-    updateTreeSignal = pyqtSignal(str, str)
-    
+def get_action(id: int, data, actor: vtkActor, isDifficultObj: bool = False, figure_type: str = '', mesh_file: str = ''):
+    if isDifficultObj:
+        action = {
+            'action': 'add_difficult_object',
+            'mesh_file': mesh_file,
+            'row': id,
+            'data': data,
+            'actor': actor
+        }
+    else:
+        action = {
+            'action': 'add',
+            'row': id,
+            'data': data,
+            'actor': actor,
+            'figure_type': figure_type,
+        }
+    return action
+
+
+class GraphicalEditor(QFrame):    
     def __init__(self, parent=None):
+        self.treeView = QTreeView()
+        self.model = QStandardItemModel()
+        self.model.setHorizontalHeaderLabels(['Mesh Tree'])
+        
         super().__init__(parent)
         self.setup_toolbar()
         self.setup_ui()
         self.setup_interaction()
         self.setup_axes()
         
-        self.action_history = [] # Track added actors
-        self.redo_history = []   # Track undone actors for redo
+        self.object_idx = 0
+        self.undo_stack = []
+        self.redo_stack = []
         
     
-    def undo_action_actor(self):
-        if self.action_history:
-            actor = self.action_history.pop()
-            self.renderer.RemoveActor(actor)
-            self.redo_history.append(actor)
-            self.vtkWidget.GetRenderWindow().Render()
+    def initialize_tree(self):
+        self.model = QStandardItemModel()
+        self.model.setHorizontalHeaderLabels(['Mesh Tree'])
+        rootItem = QStandardItem(basename(self.mesh_file))
 
-
-    def redo_action_actor(self):
-        if self.redo_history:
-            actor = self.redo_history.pop()
-            self.action_history.append(actor)
-            self.renderer.AddActor(actor)
-            self.vtkWidget.GetRenderWindow().Render()
+        self.vtk_file = convert_msh_to_vtk(self.mesh_file)
+        data = self.parse_vtk_polydata_and_populate_tree(self.vtk_file, self.model, rootItem)
+        self.treeView.setModel(self.model)
         
+        action = get_action(self.object_idx, data, self.actor_from_mesh, isDifficultObj=True, mesh_file=self.mesh_file)
+        self.undo_stack.append(action)
+        self.object_idx += 1
+    
+    
+    def set_mesh_file(self, file_path):        
+        if exists(file_path) and isfile(file_path):
+            self.mesh_file = file_path
+            self.actor_from_mesh = self.get_actor_from_mesh(self.mesh_file)
+            self.initialize_tree()
+        else:
+            QMessageBox.warning(self, "Warning", f"Unable to open file {file_path}")
+            return None
+
+        
+    def erase_all_from_tree_view(self):
+        self.model.clear()
+        
+    
+    def undo_action_tree_view(self):
+        if self.undo_stack:
+            action = self.undo_stack.pop()
+            
+            # Getting values from action
+            row = action.get('row')
+            actor = action.get('actor')
+            data = action.get('data')
+            
+            # Perform some actions with values
+            self.model.removeRow(row)
+            self.remove_actor(actor)
+                    
+            if action.get('action') == 'add':
+                redo_action = get_action(row, data, actor, isDifficultObj=False, figure_type=action.get('figure_type'))
+            elif action.get('action') == 'add_difficult_object':
+                redo_action = get_action(row, data, actor, isDifficultObj=True, mesh_file=action.get('mesh_file'))
+            
+            self.redo_stack.append(redo_action)
+            self.object_idx -= 1
+            
+
+    def redo_action_tree_view(self):
+        if self.redo_stack:
+            # Getting values from the redo stack
+            action = self.redo_stack.pop()
+            actor = action.get('actor')
+            data = action.get('data')
+            mesh_file = action.get('mesh_file')
+            
+            self.add_actor(action.get('actor'))
+            
+            if action.get('action') == 'add':
+                # Filling tree view
+                items = QStandardItem(f'Created objects[{self.object_idx}]: ' + action.get('figure_type'))
+                item = QStandardItem(data)
+                items.appendRow(item)
+                self.model.appendRow(items)
+                self.treeView.setModel(self.model)
+
+                # Creating undo action
+                undo_action = get_action(self.object_idx, data, actor, isDifficultObj=False, figure_type=action.get('figure_type'))
+            elif action.get('action') == 'add_difficult_object':
+                if not data.IsA("vtkUnstructuredGrid"):
+                    return
+                unstructuredGrid = vtkUnstructuredGrid.SafeDownCast(data)
+
+                # Filling tree view
+                rootItem = QStandardItem(basename(mesh_file))
+                pointsItem = QStandardItem("Points")
+                for i in range(unstructuredGrid.GetNumberOfPoints()):
+                    point = unstructuredGrid.GetPoint(i)
+                    pointItem = QStandardItem(f"Point {i}: ({point[0]:.3f}, {point[1]:.3f}, {point[2]:.3f})")
+                    pointsItem.appendRow(pointItem)
+                
+                cellsItem = QStandardItem("Cells")
+                for i in range(unstructuredGrid.GetNumberOfCells()):
+                    cell = unstructuredGrid.GetCell(i)
+                    cellType = vtkCellTypes.GetClassNameFromTypeId(cell.GetCellType())
+                    cellPoints = cell.GetPointIds()
+                    cellPointsStr = ', '.join([str(cellPoints.GetId(j)) for j in range(cellPoints.GetNumberOfIds())])
+                    cellItem = QStandardItem(f"Cell {i} ({cellType}): Points [{cellPointsStr}]")
+                    cellsItem.appendRow(cellItem)
+                    
+                rootItem.appendRow(pointsItem)
+                rootItem.appendRow(cellsItem)
+                self.model.appendRow(rootItem)
+                undo_action = get_action(self.object_idx, data, actor, isDifficultObj=True, mesh_file=action.get('mesh_file'))
+            
+            self.treeView.setModel(self.model)
+            self.undo_stack.append(undo_action)
+            self.object_idx += 1
+                
+    def get_actor_from_mesh(self, mesh_file_path: str):
+        vtk_file_path = mesh_file_path.replace('.msh', '.vtk')
+        
+        reader = vtkGenericDataObjectReader()
+        reader.SetFileName(vtk_file_path)
+        reader.Update()
+        
+        if reader.IsFilePolyData():
+            mapper = vtkPolyDataMapper()
+            mapper.SetInputConnection(reader.GetOutputPort())
+        elif reader.IsFileUnstructuredGrid():
+            mapper = vtkDataSetMapper()
+            mapper.SetInputConnection(reader.GetOutputPort())
+        else:
+            return
+
+        actor = vtkActor()
+        actor.SetMapper(mapper)
+        self.add_actor(actor)
+        
+        return actor
+        
+    def create_button(self, icon_path, tooltip, size=(32, 32)):
+        button = QPushButton()
+        button.setIcon(QIcon(icon_path))
+        button.setIconSize(QSize(*size))
+        button.setFixedSize(QSize(*size))
+        button.setToolTip(tooltip)
+        self.toolbarLayout.addWidget(button)
+        return button
     
     def setup_toolbar(self):
         self.layout = QVBoxLayout()  # Main layout
         self.toolbarLayout = QHBoxLayout()  # Layout for the toolbar
         
-        # Create buttons for the toolbar       
-        self.createPointButton = QPushButton()
-        self.createPointButton.setIcon(QIcon("icons/point.png"))
-        self.createPointButton.setIconSize(QSize(32, 32))
-        self.createPointButton.setFixedSize(QSize(32, 32))
-        self.createPointButton.setToolTip('Dot')
-        
-        self.createLineButton = QPushButton()
-        self.createLineButton.setIcon(QIcon("icons/line.png"))
-        self.createLineButton.setIconSize(QSize(32, 32))
-        self.createLineButton.setFixedSize(QSize(32, 32))
-        self.createLineButton.setToolTip('Line')
-        
-        self.createSurfaceButton = QPushButton()
-        self.createSurfaceButton.setIcon(QIcon("icons/surface.png"))
-        self.createSurfaceButton.setIconSize(QSize(32, 32))
-        self.createSurfaceButton.setFixedSize(QSize(32, 32))
-        self.createSurfaceButton.setToolTip('Surface')
-        
-        self.createSphereButton = QPushButton()
-        self.createSphereButton.setIcon(QIcon("icons/sphere.png"))
-        self.createSphereButton.setIconSize(QSize(32, 32))
-        self.createSphereButton.setFixedSize(QSize(32, 32))
-        self.createSphereButton.setToolTip('Sphere')
-        
-        self.createBoxButton = QPushButton()
-        self.createBoxButton.setIcon(QIcon("icons/box.png"))
-        self.createBoxButton.setIconSize(QSize(32, 32))
-        self.createBoxButton.setFixedSize(QSize(32, 32))
-        self.createBoxButton.setToolTip('Box')
-        
-        self.createCylinderButton = QPushButton()
-        self.createCylinderButton.setIcon(QIcon("icons/cylinder.png"))
-        self.createCylinderButton.setIconSize(QSize(32, 32))
-        self.createCylinderButton.setFixedSize(QSize(32, 32))
-        self.createCylinderButton.setToolTip('Cylinder')
-        
-        self.uploadCustomButton = QPushButton()
-        self.uploadCustomButton.setIcon(QIcon("icons/custom.png"))
-        self.uploadCustomButton.setIconSize(QSize(32, 32))
-        self.uploadCustomButton.setFixedSize(QSize(32, 32))
-        self.uploadCustomButton.setToolTip('Custom')
-        
-        # Add buttons to the toolbar layout
-        self.toolbarLayout.addWidget(self.createPointButton)
-        self.toolbarLayout.addWidget(self.createLineButton)
-        self.toolbarLayout.addWidget(self.createSurfaceButton)
-        self.toolbarLayout.addWidget(self.createSphereButton)
-        self.toolbarLayout.addWidget(self.createBoxButton)
-        self.toolbarLayout.addWidget(self.createCylinderButton)
-        self.toolbarLayout.addWidget(self.uploadCustomButton)
+        # Create buttons for the toolbar
+        self.createPointButton = self.create_button('icons/point.png', 'Dot')
+        self.createLineButton = self.create_button('icons/line.png', 'Line')
+        self.createSurfaceButton = self.create_button('icons/surface.png', 'Surface')
+        self.createSphereButton = self.create_button('icons/sphere.png', 'Sphere')
+        self.createBoxButton = self.create_button('icons/box.png', 'Box')
+        self.createCylinderButton = self.create_button('icons/cylinder.png', 'Cylinder')
+        self.uploadCustomButton = self.create_button('icons/custom.png', 'Upload mesh object')
+        self.eraseAllObjectsButton = self.create_button('icons/eraser.png', 'Erase all')
+        self.xAxisButton = self.create_button('icons/x-axis.png', 'Set camera view to X-axis')
+        self.yAxisButton = self.create_button('icons/y-axis.png', 'Set camera view to Y-axis')
+        self.zAxisButton = self.create_button('icons/z-axis.png', 'Set camera view to Z-axis')
+        self.centerAxisButton = self.create_button('icons/center-axis.png', 'Set camera view to center of axes')
         
         self.spacer = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
         self.toolbarLayout.addSpacerItem(self.spacer)
@@ -125,7 +229,11 @@ class GraphicalEditor(QFrame):
         self.createBoxButton.clicked.connect(self.create_box)
         self.createCylinderButton.clicked.connect(self.create_cylinder)
         self.uploadCustomButton.clicked.connect(self.upload_custom)
-        
+        self.eraseAllObjectsButton.clicked.connect(self.clear_scene_and_tree_view)
+        self.xAxisButton.clicked.connect(lambda: self.align_view_by_axis('x'))
+        self.yAxisButton.clicked.connect(lambda: self.align_view_by_axis('y'))
+        self.zAxisButton.clicked.connect(lambda: self.align_view_by_axis('z'))
+        self.centerAxisButton.clicked.connect(lambda: self.align_view_by_axis('center'))
 
     def setup_ui(self):
         self.vtkWidget = QVTKRenderWindowInteractor(self)
@@ -169,13 +277,8 @@ class GraphicalEditor(QFrame):
             actor.GetProperty().SetPointSize(5)    # Set the size of the point
             actor.GetProperty().SetColor(DEFAULT_ACTOR_COLOR)  # Set the color of the point (red)
             
-            self.renderer.AddActor(actor)
-            self.vtkWidget.GetRenderWindow().Render()
-            
-            self.action_history.append(actor)
-            self.redo_history.clear()
-            
-            self.updateTreeSignal.emit('Point', f'Point: ({x}, {y}, {z})')
+            self.add_actor(actor)
+            self.update_tree_model('Point', f'Point: ({x}, {y}, {z})', actor)
             
     def create_line(self):
         dialog = LineDialog(self)
@@ -210,25 +313,21 @@ class GraphicalEditor(QFrame):
             actor.SetMapper(mapper)
             actor.GetProperty().SetColor(DEFAULT_ACTOR_COLOR)
             
-            self.renderer.AddActor(actor)
-            self.vtkWidget.GetRenderWindow().Render()
-            
-            self.action_history.append(actor)
-            self.redo_history.clear()
+            self.add_actor(actor)
             
             line_str = 'Line'
-            self.updateTreeSignal.emit(line_str, '\n'.join(points_str_list))
+            self.update_tree_model(line_str, '\n'.join(points_str_list), actor)
 
     
     def create_surface(self):
         dialog = SurfaceDialog(self)
         if dialog.exec_() == QDialog.Accepted:
-            values = dialog.getValues()
+            values, mesh_size, checked = dialog.getValues()
             
-            # Assuming values are flat [x1, y1, z1, x2, y2, z2, ...]
-            if values is not None and len(values) >= 9:  # At least 3 points
-                points = vtkPoints()
+            # Check if the meshing option is provided and valid
+            if values is not None and len(values) >= 9 and mesh_size:
                 polyData = vtkPolyData()
+                points = vtkPoints()
                 points_str_list = []
                 
                 # Insert points into vtkPoints
@@ -238,128 +337,256 @@ class GraphicalEditor(QFrame):
                     points_str_list.append(f'Point{pid}: ({values[i]}, {values[i+1]}, {values[i+2]})')
                     pid += 1
                 
-                polyData.SetPoints(points)
+                # Prepare point data for Gmsh
+                point_data = []
+                for i in range(0, len(values), 3):
+                    point_data.append((values[i], values[i+1], values[i+2]))
                 
-                # Use Delaunay2D to create the surface
-                delaunay = vtkDelaunay2D()
-                delaunay.SetInputData(polyData)
-                delaunay.Update()
+                if checked:
+                    try:
+                        actor = self.create_surface_with_gmsh(point_data, mesh_size)
+                    except Exception as e:
+                        QMessageBox.warning(self, 'Meshing error', 'Can\'t mesh the surface with specified points')
+                        return
+                else:
+                    polyData.SetPoints(points)
                 
-                # Create mapper and actor for the surface
+                    # Use Delaunay2D to create the surface
+                    delaunay = vtkDelaunay2D()
+                    delaunay.SetInputData(polyData)
+                    delaunay.Update()
+                    
+                    # Create mapper and actor for the surface
+                    mapper = vtkPolyDataMapper()
+                    mapper.SetInputConnection(delaunay.GetOutputPort())
+                    
+                    actor = vtkActor()
+                    actor.SetMapper(mapper)
+                    actor.GetProperty().SetColor(DEFAULT_ACTOR_COLOR)
+                    
+                self.add_actor(actor)
+                
+                surface_str = 'Surface'
+                self.update_tree_model(surface_str, '\n'.join(points_str_list), actor)
+
+    def create_surface_with_gmsh(self, points, mesh_size):
+        gmsh.initialize()
+        gmsh.model.add("surface")
+
+        # Define the points and lines in Gmsh
+        for idx, (x, y, z) in enumerate(points, start=1):
+            gmsh.model.geo.addPoint(x, y, z, meshSize=mesh_size, tag=idx)
+        
+        for i in range(len(points)):
+            gmsh.model.geo.addLine(i + 1, ((i + 1) % len(points)) + 1)
+
+        loop = gmsh.model.geo.addCurveLoop(list(range(1, len(points) + 1)))
+        gmsh.model.geo.addPlaneSurface([loop])
+
+        gmsh.model.geo.synchronize()
+        gmsh.model.mesh.generate(2)
+
+        # Specify a filename to write the mesh to
+        msh_filename = "temp.msh"
+        gmsh.write(msh_filename)
+
+        # Now, read the mesh file using meshio
+        mesh = meshio.read(msh_filename)
+
+        # Display the mesh in VTK
+        actor = self.display_meshio_mesh(mesh)
+
+        gmsh.finalize()
+        remove(msh_filename)
+        return actor
+        
+    def display_meshio_mesh(self, mesh):
+        vtk_points = vtkPoints()
+        vtk_cells = vtkCellArray()
+
+        for point in mesh.points:
+            vtk_points.InsertNextPoint(*point)
+
+        # Check cell types present in the mesh and create cells accordingly
+        if 'triangle' in mesh.cells_dict:
+            for cell in mesh.cells_dict['triangle']:
+                vtk_cells.InsertNextCell(3, cell)
+            cell_type = VTK_TRIANGLE
+        elif 'quad' in mesh.cells_dict:
+            for cell in mesh.cells_dict['quad']:
+                vtk_cells.InsertNextCell(4, cell)
+            cell_type = VTK_QUAD
+        else:
+            raise ValueError("Unsupported cell type in the mesh")
+
+        poly_data = vtkPolyData()
+        poly_data.SetPoints(vtk_points)
+
+        if cell_type == VTK_TRIANGLE:
+            poly_data.SetPolys(vtk_cells)
+        elif cell_type == VTK_QUAD:
+            poly_data.SetPolys(vtk_cells)
+
+        mapper = vtkPolyDataMapper()
+        mapper.SetInputData(poly_data)
+
+        actor = vtkActor()
+        actor.SetMapper(mapper)
+        actor.GetProperty().SetColor(DEFAULT_ACTOR_COLOR)
+                
+        return actor
+
+    
+    def create_sphere(self):
+        def create_sphere_with_gmsh(mesh_size: float):
+            gmsh.initialize()
+            gmsh.model.add('custom_box')
+            gmsh.model.occ.add_sphere(x, y, z, radius)
+            gmsh.option.setNumber("Mesh.MeshSizeMax", mesh_size)
+            gmsh.option.setNumber("Mesh.MeshSizeMin", mesh_size)
+            gmsh.model.occ.synchronize()
+            gmsh.model.mesh.generate(2)
+            msh_filename = 'temp.msh'
+            gmsh.write(msh_filename)
+            gmsh.finalize()
+            return msh_filename
+        
+        dialog = SphereDialog(self)
+        if dialog.exec_() == QDialog.Accepted and dialog.getValues() is not None:
+            values, mesh_size, checked = dialog.getValues()
+            if mesh_size == 0.0:
+                mesh_size = 1.0
+            x, y, z, radius = values
+            
+            sphere_data_str = []
+            sphere_data_str.append(f'Center: ({x}, {y}, {z})')
+            sphere_data_str.append(f'Radius: {radius}')
+            
+            if checked:
+                msh_filename = create_sphere_with_gmsh(mesh_size)
+                mesh = meshio.read(msh_filename)
+                actor = self.display_meshio_mesh(mesh)
+            else:
+                sphereSource = vtkSphereSource()
+                sphereSource.SetCenter(x, y, z)
+                sphereSource.SetRadius(radius)
+                sphereSource.Update()
+                
                 mapper = vtkPolyDataMapper()
-                mapper.SetInputConnection(delaunay.GetOutputPort())
+                mapper.SetInputConnection(sphereSource.GetOutputPort())
                 
                 actor = vtkActor()
                 actor.SetMapper(mapper)
                 actor.GetProperty().SetColor(DEFAULT_ACTOR_COLOR)
                 
-                self.renderer.AddActor(actor)
-                self.vtkWidget.GetRenderWindow().Render()
-                
-                # Add to history for undo/redo functionality
-                self.action_history.append(actor)
-                self.redo_history.clear()
-                
-                surface_str = 'Surface'
-                self.updateTreeSignal.emit(surface_str, '\n'.join(points_str_list))
-    
-    
-    def create_sphere(self):
-        dialog = SphereDialog(self)
-        if dialog.exec_() == QDialog.Accepted and dialog.getValues() is not None:
-            x, y, z, radius = dialog.getValues()
-            sphere_data_str = []
-            sphere_data_str.append(f'Center: ({x}, {y}, {z})')
-            sphere_data_str.append(f'Radius: {radius}')
-            
-            sphereSource = vtkSphereSource()
-            sphereSource.SetCenter(x, y, z)
-            sphereSource.SetRadius(radius)
-            sphereSource.Update()
-            
-            mapper = vtkPolyDataMapper()
-            mapper.SetInputConnection(sphereSource.GetOutputPort())
-            
-            actor = vtkActor()
-            actor.SetMapper(mapper)
-            actor.GetProperty().SetColor(DEFAULT_ACTOR_COLOR)
-            
-            # Change history vars
-            self.action_history.append(actor)
-            self.redo_history.clear()
-            
-            self.renderer.AddActor(actor)
-            self.vtkWidget.GetRenderWindow().Render()
+            self.add_actor(actor)
             
             center_str = 'Sphere'
-            self.updateTreeSignal.emit(center_str, '\n'.join(sphere_data_str))
+            self.update_tree_model(center_str, '\n'.join(sphere_data_str), actor)
+            if checked:
+                remove(msh_filename)
 
 
     def create_box(self):
+        def create_box_with_gmsh(mesh_size: float):
+            gmsh.initialize()
+            gmsh.model.add('custom_box')
+            gmsh.model.occ.add_box(x, y, z, length, width, height)
+            gmsh.option.setNumber("Mesh.MeshSizeMax", mesh_size)
+            gmsh.option.setNumber("Mesh.MeshSizeMin", mesh_size)
+            gmsh.model.occ.synchronize()
+            gmsh.model.mesh.generate(2)
+            msh_filename = 'temp.msh'
+            gmsh.write(msh_filename)
+            gmsh.finalize()
+            return msh_filename
+        
         dialog = BoxDialog(self)
         if dialog.exec_() == QDialog.Accepted and dialog.getValues() is not None:
-            x, y, z, length, width, height = dialog.getValues()
+            values, mesh_size, checked = dialog.getValues()
+            x, y, z, length, width, height = values
+            
             box_data_str = []
             box_data_str.append(f'Primary Point: ({x}, {y}, {z})')
             box_data_str.append(f'Length: {length}')
             box_data_str.append(f'Width: {width}')
             box_data_str.append(f'Height: {height}')
             
-            boxSource = vtkCubeSource()
-            boxSource.SetBounds(x - length / 2., x + length / 2., 
-                                y - width / 2., y + width / 2., 
-                                z - height / 2., z + height / 2.)
-            boxSource.Update()
-            
-            mapper = vtkPolyDataMapper()
-            mapper.SetInputConnection(boxSource.GetOutputPort())
-            
-            actor = vtkActor()
-            actor.SetMapper(mapper)
-            actor.GetProperty().SetColor(DEFAULT_ACTOR_COLOR)
-            
-            # Change history vars
-            self.action_history.append(actor)
-            self.redo_history.clear()
-            
-            self.renderer.AddActor(actor)
-            self.vtkWidget.GetRenderWindow().Render()
+            if checked:
+                msh_filename = create_box_with_gmsh(mesh_size)
+                mesh = meshio.read(msh_filename)
+                actor = self.display_meshio_mesh(mesh)
+            else:
+                boxSource = vtkCubeSource()
+                boxSource.SetBounds(x - length / 2., x + length / 2., 
+                                    y - width / 2., y + width / 2., 
+                                    z - height / 2., z + height / 2.)
+                boxSource.Update()
+                
+                mapper = vtkPolyDataMapper()
+                mapper.SetInputConnection(boxSource.GetOutputPort())
+                
+                actor = vtkActor()
+                actor.SetMapper(mapper)
+                actor.GetProperty().SetColor(DEFAULT_ACTOR_COLOR)
+                
+            self.add_actor(actor)
             
             box_str = 'Box'
-            self.updateTreeSignal.emit(box_str, '\n'.join(box_data_str))
+            self.update_tree_model(box_str, '\n'.join(box_data_str), actor)
+            if checked:
+                remove(msh_filename)
 
 
     def create_cylinder(self):
+        def create_cylinder_with_gmsh(mesh_size: float):
+            gmsh.initialize()
+            gmsh.model.add('custom_box')
+            gmsh.model.occ.add_cylinder(x, y, z, dx, dy, dz, radius)
+            gmsh.option.setNumber("Mesh.MeshSizeMax", mesh_size)
+            gmsh.option.setNumber("Mesh.MeshSizeMin", mesh_size)
+            gmsh.model.occ.synchronize()
+            gmsh.model.mesh.generate(2)
+            msh_filename = 'temp.msh'
+            gmsh.write(msh_filename)
+            gmsh.finalize()
+            return msh_filename
+        
         dialog = CylinderDialog(self)
         if dialog.exec_() == QDialog.Accepted and dialog.getValues() is not None:
-            x, y, z, radius, height = dialog.getValues()
+            values, mesh_size, checked = dialog.getValues()
+            x, y, z, radius, dx, dy, dz = values
             cylinder_data_str = []
             cylinder_data_str.append(f'Primary Point: ({x}, {y}, {z})')
             cylinder_data_str.append(f'Radius: {radius}')
-            cylinder_data_str.append(f'Height: {height}')
-        
-            cylinderSource = vtkCylinderSource()
-            cylinderSource.SetRadius(radius)
-            cylinderSource.SetHeight(height)
-            cylinderSource.SetCenter(x, y, z)
-            cylinderSource.Update()
-            
-            mapper = vtkPolyDataMapper()
-            mapper.SetInputConnection(cylinderSource.GetOutputPort())
-            
-            actor = vtkActor()
-            actor.SetMapper(mapper)
-            actor.GetProperty().SetColor(DEFAULT_ACTOR_COLOR)
-            
-            # Change history vars
-            self.action_history.append(actor)
-            self.redo_history.clear()
-            
-            self.renderer.AddActor(actor)
-            self.vtkWidget.GetRenderWindow().Render()
+            cylinder_data_str.append(f'Length: {dx}')
+            cylinder_data_str.append(f'Width: {dy}')
+            cylinder_data_str.append(f'Height: {dz}')
+
+            if checked:
+                msh_filename = create_cylinder_with_gmsh(mesh_size)
+                mesh = meshio.read(msh_filename)
+                actor = self.display_meshio_mesh(mesh)
+            else:
+                cylinderSource = vtkCylinderSource()
+                cylinderSource.SetRadius(radius)
+                cylinderSource.SetHeight(dz)
+                cylinderSource.SetCenter(x, y, z)
+                cylinderSource.Update()
+                
+                mapper = vtkPolyDataMapper()
+                mapper.SetInputConnection(cylinderSource.GetOutputPort())
+                
+                actor = vtkActor()
+                actor.SetMapper(mapper)
+                actor.GetProperty().SetColor(DEFAULT_ACTOR_COLOR)
+                
+            self.add_actor(actor)
             
             cylinder_str = 'Cylinder'
-            self.updateTreeSignal.emit(cylinder_str, '\n'.join(cylinder_data_str))
+            self.update_tree_model(cylinder_str, '\n'.join(cylinder_data_str), actor)
+            if checked:
+                remove(msh_filename)
             
     
     def upload_custom(self):
@@ -378,7 +605,7 @@ class GraphicalEditor(QFrame):
 
         # If the selected file is a STEP file, prompt for conversion parameters.
         if file_name.endswith('.stp'):
-            dialog = MeshDialog(self)  # Assuming MeshDialog is implemented to get mesh_size and mesh_dim
+            dialog = MeshDialog(self)
             if dialog.exec() == QDialog.Accepted:
                 mesh_size, mesh_dim = dialog.get_values()
                 try:
@@ -388,19 +615,16 @@ class GraphicalEditor(QFrame):
                         raise ValueError("Mesh dimensions must be 2 or 3.")
                     converted_file_name = self.convert_stp_to_msh(file_name, mesh_size, mesh_dim)
                     if converted_file_name:
-                        actor = self.add_custom(converted_file_name)
+                        self.add_custom(converted_file_name)
                 except ValueError as e:
                     QMessageBox.warning(self, "Invalid Input", str(e))
             else:
                 QMessageBox.critical(self, "Error", "Dialog was closed by user. Invalid mesh size or mesh dimensions.")
         elif file_name.endswith('.msh') or file_name.endswith('.vtk'):
-            actor = self.add_custom(file_name)
-            
-        self.action_history.append(actor)
-        self.redo_history.clear()
+            self.add_custom(file_name)
             
     
-    def convert_stp_to_msh(self, file_path, mesh_size, mesh_dim):        
+    def convert_stp_to_msh(self, filename, mesh_size, mesh_dim):        
         original_stdout = stdout  # Save a reference to the original standard output
         redirected_output = CaptureGmshLog()
         stdout = redirected_output  # Redirect stdout to capture Gmsh logs
@@ -408,7 +632,7 @@ class GraphicalEditor(QFrame):
         try:
             gmsh.initialize()
             gmsh.model.add("model")
-            gmsh.model.occ.importShapes(file_path)
+            gmsh.model.occ.importShapes(filename)
             gmsh.model.occ.synchronize()
             gmsh.option.setNumber("Mesh.MeshSizeMin", mesh_size)
             gmsh.option.setNumber("Mesh.MeshSizeMax", mesh_size)
@@ -418,7 +642,7 @@ class GraphicalEditor(QFrame):
             elif mesh_dim == 3:
                 gmsh.model.mesh.generate(3)
 
-            output_file = file_path.replace(".stp", ".msh")
+            output_file = filename.replace(".stp", ".msh")
             gmsh.write(output_file)
         except Exception as e:
             QMessageBox.critical(
@@ -449,15 +673,16 @@ class GraphicalEditor(QFrame):
         self.axes_widget.InteractiveOff()
         
     
-    def add_actor(self, actor):
+    def add_actor(self, actor: vtkActor):
         self.renderer.AddActor(actor)
+        self.renderer.ResetCamera()
         self.vtkWidget.GetRenderWindow().Render()
         
-    
-    def remove_actor(self, actor):
-        self.renderer.RemoveActor(actor)
-        self.vtkWidget.GetRenderWindow().Render()
         
+    def remove_actor(self, actor: vtkActor):
+        if actor in self.renderer.GetActors():
+            self.renderer.RemoveActor(actor)
+            self.vtkWidget.GetRenderWindow().Render()
 
     def remove_all_actors(self):
         actors = self.renderer.GetActors()
@@ -467,64 +692,47 @@ class GraphicalEditor(QFrame):
             self.renderer.RemoveActor(actor)
         
         self.vtkWidget.GetRenderWindow().Render()
+        
 
-
-    def display_mesh(self, mesh_file_path: str):
-        vtk_file_path = mesh_file_path.replace('.msh', '.vtk')
+    def add_custom(self, msh_filename: str):
+        vtk_filename = msh_filename.replace('.msh', '.vtk')
         
         reader = vtkGenericDataObjectReader()
-        reader.SetFileName(vtk_file_path)
-        reader.Update()  # Make sure to update the reader to actually read the file
-        
-        if reader.IsFilePolyData():
-            mapper = vtkPolyDataMapper()
-            mapper.SetInputConnection(reader.GetOutputPort())
-        elif reader.IsFileUnstructuredGrid():
-            mapper = vtkDataSetMapper()
-            mapper.SetInputConnection(reader.GetOutputPort())
-        else:
-            print("Unsupported dataset type", file=stdout)
-            return
-
-        # Add new actor
-        actor = vtkActor()
-        actor.SetMapper(mapper)
-        self.renderer.AddActor(actor)
-        self.renderer.ResetCamera()
-        self.vtkWidget.GetRenderWindow().Render()
-        
-        return actor
-    
-
-    def add_custom(self, mesh_file_path: str):
-        vtk_file_path = mesh_file_path.replace('.msh', '.vtk')
-        
-        reader = vtkGenericDataObjectReader()
-        reader.SetFileName(vtk_file_path)
+        reader.SetFileName(vtk_filename)
         reader.Update()
         
         if reader.IsFilePolyData():
             mapper = vtkPolyDataMapper()
             mapper.SetInputConnection(reader.GetOutputPort())
-            geometry_type = "PolyData"
         elif reader.IsFileUnstructuredGrid():
             mapper = vtkDataSetMapper()
             mapper.SetInputConnection(reader.GetOutputPort())
-            geometry_type = "UnstructuredGrid"
         else:
-            print("Unsupported dataset type", file=stdout)
             return None
 
         actor = vtkActor()
         actor.SetMapper(mapper)
-        self.renderer.AddActor(actor)
-        self.renderer.ResetCamera()
-        self.vtkWidget.GetRenderWindow().Render()
+        self.add_actor(actor)
         
-        geometry_info = f"{geometry_type} from {vtk_file_path}"
-        self.updateTreeSignal.emit(geometry_type, geometry_info)
+        rootItem = QStandardItem(basename(msh_filename))
+        data = self.parse_vtk_polydata_and_populate_tree(vtk_filename, self.model, rootItem)
         
-        return actor
+        action = get_action(self.object_idx, data, actor, isDifficultObj=True, mesh_file=msh_filename)
+        self.undo_stack.append(action)
+        self.object_idx += 1
+    
+    
+    def update_tree_model(self, figure_type: str, data: str, actor: vtkActor):
+        items = QStandardItem(f'Created objects[{self.object_idx}]: ' + figure_type)
+        self.model.appendRow(items)
+        item = QStandardItem(data)
+        items.appendRow(item)
+        self.treeView.setModel(self.model)
+        
+        # Record the action in undo stack
+        action = get_action(self.object_idx, data, actor, isDifficultObj=False, figure_type=figure_type)
+        self.undo_stack.append(action)
+        self.object_idx += 1
         
         
     def setup_interaction(self):
@@ -565,7 +773,6 @@ class GraphicalEditor(QFrame):
                 self.selected_actor = actor
                 self.original_color = actor.GetProperty().GetColor()
                 self.context_menu()
-            self.interactorStyle.OnRightButtonDown()
 
         self.interactorStyle.AddObserver("LeftButtonPressEvent", pick_actor)
         self.interactorStyle.AddObserver("RightButtonPressEvent", on_right_button_press)
@@ -587,6 +794,10 @@ class GraphicalEditor(QFrame):
             adjust_size_action = QAction('Adjust size', self)
             adjust_size_action.triggered.connect(self.adjust_actor_size)
             menu.addAction(adjust_size_action)
+            
+            remove_object_action = QAction('Remove', self)
+            remove_object_action.triggered.connect(lambda: self.remove_actor(self.selected_actor))
+            menu.addAction(remove_object_action)
 
             menu.exec_(QCursor.pos())
             
@@ -647,29 +858,24 @@ class GraphicalEditor(QFrame):
         align_view_by_axis(axis, self.renderer, self.vtkWidget)
 
             
-    def parse_vtk_polydata_and_populate_tree(self, vtk_file_path, tree_model):
+    def parse_vtk_polydata_and_populate_tree(self, vtk_filename, tree_model, rootItem):
         reader = vtkGenericDataObjectReader()
-        reader.SetFileName(vtk_file_path)
+        reader.SetFileName(vtk_filename)
         reader.Update()
         
         data = reader.GetOutput()
         if not data.IsA("vtkUnstructuredGrid"):
-            print("Data is not an unstructured grid.", file=stdout)
             return
                 
         unstructuredGrid = vtkUnstructuredGrid.SafeDownCast(data)
 
         pointsItem = QStandardItem("Points")
-        tree_model.appendRow(pointsItem)
-        
         for i in range(unstructuredGrid.GetNumberOfPoints()):
             point = unstructuredGrid.GetPoint(i)
             pointItem = QStandardItem(f"Point {i}: ({point[0]:.3f}, {point[1]:.3f}, {point[2]:.3f})")
             pointsItem.appendRow(pointItem)
         
         cellsItem = QStandardItem("Cells")
-        tree_model.appendRow(cellsItem)
-        
         for i in range(unstructuredGrid.GetNumberOfCells()):
             cell = unstructuredGrid.GetCell(i)
             cellType = vtkCellTypes.GetClassNameFromTypeId(cell.GetCellType())
@@ -677,6 +883,10 @@ class GraphicalEditor(QFrame):
             cellPointsStr = ', '.join([str(cellPoints.GetId(j)) for j in range(cellPoints.GetNumberOfIds())])
             cellItem = QStandardItem(f"Cell {i} ({cellType}): Points [{cellPointsStr}]")
             cellsItem.appendRow(cellItem)
+            
+        rootItem.appendRow(pointsItem)
+        rootItem.appendRow(cellsItem)
+        tree_model.appendRow(rootItem)
         
         return data
         
@@ -687,4 +897,12 @@ class GraphicalEditor(QFrame):
             
     def load_scene(self, logConsole, fontColor, actors_file='scene_actors_meshTab.vtk', camera_file='scene_camera_meshTab.json'):
         load_scene(self.vtkWidget, self.renderer, logConsole, fontColor, actors_file, camera_file)
+        
+    
+    def clear_scene_and_tree_view(self):
+        self.erase_all_from_tree_view()
+        self.remove_all_actors()
 
+        self.undo_stack.clear()
+        self.redo_stack.clear()
+        self.object_idx = 0

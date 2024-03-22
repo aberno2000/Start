@@ -1,12 +1,9 @@
-import gmsh, vtk
 from PyQt5.QtWidgets import (
-    QVBoxLayout, QWidget, QSplitter, QTreeView, QMessageBox
+    QVBoxLayout, QWidget, QSplitter
 )
 from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QStandardItemModel, QStandardItem
 from .config_tab import ConfigTab
 from util.graphical_editor import GraphicalEditor
-from os.path import isfile, exists, basename
 
 
 class GraphicalEditorTab(QWidget):
@@ -16,20 +13,19 @@ class GraphicalEditorTab(QWidget):
         self.config_tab = config_tab
         self.setup_ui()
         
-        self.geditor.updateTreeSignal.connect(self.updateTreeModel)
-        self.object_idx = 0
-        self.undo_stack = []
-        self.redo_stack = []
+        self.object_idx = self.geditor.object_idx
+        self.undo_stack = self.geditor.undo_stack
+        self.redo_stack = self.geditor.redo_stack
 
 
-    def setup_ui(self):        
-        # Initialize an empty QTreeView
-        self.treeView = QTreeView()
-        self.model = QStandardItemModel()
-        self.treeView.setModel(self.model)
-
+    def setup_ui(self):
         # Initialize a placeholder for the graphical editor
         self.geditor = GraphicalEditor()
+        
+        # Initialize an empty QTreeView
+        self.treeView = self.geditor.treeView
+        self.model = self.geditor.model
+        self.treeView.setModel(self.model)
 
         # Create a QSplitter and add both widgets
         self.splitter = QSplitter(Qt.Horizontal)
@@ -42,173 +38,7 @@ class GraphicalEditorTab(QWidget):
         # Add the QSplitter to the main layout
         self.layout.addWidget(self.splitter)
         self.setLayout(self.layout)
-        
+
     
-    def undo_action_tree_view(self):
-        if self.undo_stack:
-            action = self.undo_stack.pop()
-            if 'actor' in action and action['actor']:
-                self.geditor.remove_actor(action['actor'])
-                self.geditor.vtkWidget.GetRenderWindow().Render()
-            
-            if action['action'] == 'add':
-                row = action['row']
-                self.model.removeRow(row)
-
-                # Prepare an action for the redo stack with descriptive data.
-                redo_action = {
-                    'action': 'add',
-                    'row': row,
-                    'figure_type': action['figure_type'],
-                    'data': action['data']
-                }
-                self.redo_stack.append(redo_action)
-                self.object_idx -= 1
-                
-            elif action['action'] == 'add_unstructured_grid':
-                if 'cellsRow' in action:
-                    self.model.removeRow(action['cellsRow'])
-                if 'pointsRow' in action:
-                    self.model.removeRow(action['pointsRow'])
-                
-                redo_action = {
-                    'action': 'add_unstructured_grid',
-                    'pointsRow': action['pointsRow'],
-                    'cellsRow': action['cellsRow'],
-                    'data': action['data'],
-                    'actor': action['actor']
-                }
-                self.redo_stack.append(redo_action)
-                self.object_idx -= 2
-
-
-    def redo_action_tree_view(self):
-        if self.redo_stack:
-            action = self.redo_stack.pop()
-            if 'actor' in action and action['actor']:
-                self.geditor.add_actor(action['actor'])
-                self.geditor.vtkWidget.GetRenderWindow().Render()
-
-            if action['action'] == 'add':
-                figure_type = action.get('figure_type')
-                data = action.get('data')
-                row = action.get('row')
-
-                if figure_type and data is not None:                    
-                    items = QStandardItem(f'Created objects[{self.object_idx}]: ' + figure_type)
-                    item = QStandardItem(data)
-
-                    self.model.appendRow(items)
-                    items.appendRow(item)
-                    self.treeView.setModel(self.model)
-
-                    # Update undo stack accordingly without resetting the model
-                    action = {
-                        'action': 'add',
-                        'row': row,
-                        'figure_type': figure_type,
-                        'data': data
-                    }
-                    self.undo_stack.append(action)
-                    self.object_idx += 1
-            
-            elif action['action'] == 'add_unstructured_grid':
-                data = action.get('data')
-                
-                if not data.IsA("vtkUnstructuredGrid"):
-                    print("Data is not an unstructured grid.")
-                    return
-                        
-                unstructuredGrid = vtk.vtkUnstructuredGrid.SafeDownCast(data)
-                
-                mapper = vtk.vtkDataSetMapper()
-                mapper.SetInputData(unstructuredGrid)
-                
-                actor = vtk.vtkActor()
-                actor.SetMapper(mapper)
-
-                pointsItem = QStandardItem("Points")
-                self.model.appendRow(pointsItem)
-                
-                for i in range(unstructuredGrid.GetNumberOfPoints()):
-                    point = unstructuredGrid.GetPoint(i)
-                    pointItem = QStandardItem(f"Point {i}: ({point[0]:.3f}, {point[1]:.3f}, {point[2]:.3f})")
-                    pointsItem.appendRow(pointItem)
-                
-                cellsItem = QStandardItem("Cells")
-                self.model.appendRow(cellsItem)
-                
-                for i in range(unstructuredGrid.GetNumberOfCells()):
-                    cell = unstructuredGrid.GetCell(i)
-                    cellType = vtk.vtkCellTypes.GetClassNameFromTypeId(cell.GetCellType())
-                    cellPoints = cell.GetPointIds()
-                    cellPointsStr = ', '.join([str(cellPoints.GetId(j)) for j in range(cellPoints.GetNumberOfIds())])
-                    cellItem = QStandardItem(f"Cell {i} ({cellType}): Points [{cellPointsStr}]")
-                    cellsItem.appendRow(cellItem)
-                    
-                self.treeView.setModel(self.model)
-                action = {
-                    'action': 'add_unstructured_grid',
-                    'pointsRow': self.object_idx,
-                    'cellsRow': self.object_idx + 1,
-                    'data': data,
-                    'actor': actor
-                }
-                
-                self.undo_stack.append(action)
-                self.object_idx += 2
-
-
-    def set_mesh_file(self, file_path):        
-        if exists(file_path) and isfile(file_path):
-            self.mesh_file = file_path
-            self.vtk_file = self.mesh_file.replace('.msh', '.vtk')
-            self.actorFromMesh = self.geditor.display_mesh(self.mesh_file)
-            self.initialize_tree()
-        else:
-            QMessageBox.warning(self, "Warning", f"Unable to open file {file_path}")
-            return None
-
-
-    def initialize_tree(self):
-        self.model = QStandardItemModel()
-        self.model.setHorizontalHeaderLabels([basename(self.mesh_file)])
-        self.rootItem = self.model.invisibleRootItem()
-
-        gmsh.initialize()
-        gmsh.open(self.mesh_file)
-        
-        # Converting from .msh to .vtk
-        gmsh.write(self.vtk_file)
-        data = self.geditor.parse_vtk_polydata_and_populate_tree(self.vtk_file, self.model)
-        
-        gmsh.finalize()
-        self.treeView.setModel(self.model)
-        
-        action = {
-            'action': 'add_unstructured_grid',
-            'pointsRow': self.object_idx,
-            'cellsRow': self.object_idx + 1,
-            'data': data,
-            'actor': self.actorFromMesh
-        }
-        self.undo_stack.append(action)
-        self.object_idx += 2
-        
-        
-    def updateTreeModel(self, figure_type: str, data: str):
-        items = QStandardItem(f'Created objects[{self.object_idx}]: ' + figure_type)
-        self.model.appendRow(items)
-        item = QStandardItem(data)
-        items.appendRow(item)
-        self.treeView.setModel(self.model)
-        
-        # Record the action in undo stack
-        action = {
-            'action': 'add',
-            'row': self.object_idx,
-            'figure_type': figure_type,
-            'data': data
-        }
-        self.undo_stack.append(action)
-        self.object_idx += 1
+    def clear_scene_and_tree_view(self):
+        self.geditor.clear_scene_and_tree_view()

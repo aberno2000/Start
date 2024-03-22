@@ -1,12 +1,14 @@
+import gmsh
 from vtk import (
     vtkRenderer, vtkPolyData, vtkPolyDataWriter, vtkAppendPolyData,
     vtkPolyDataReader, vtkPolyDataMapper, vtkActor
 )
+from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import (
     QDialog, QFormLayout, QLineEdit, QDialogButtonBox, 
     QVBoxLayout, QMessageBox, QPushButton, QTableWidget,
     QTableWidgetItem, QSizePolicy, QLabel, QHBoxLayout,
-    QWidget, QScrollArea
+    QWidget, QScrollArea, QCheckBox
 )
 from PyQt5.QtCore import QSize
 from .converter import is_positive_real_number, is_real_number
@@ -15,6 +17,8 @@ from vtkmodules.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 from json import dump, load
 from .styles import DEFAULT_QLINEEDIT_STYLE
 
+figure_types = ['Point', 'Line', 'Surface', 'Sphere', 'Box', 'Cylinder', 'Custom']
+
 def is_file_valid(path: str):
     if not exists(path) or not isfile(path) or not path:
         return False
@@ -22,11 +26,21 @@ def is_file_valid(path: str):
 
 def is_path_accessable(path):
     try:
-        with open(path, 'r') as file:
+        with open(path) as _:
             pass
         return True
-    except IOError as e:
+    except IOError as _:
         return False
+    
+def convert_msh_to_vtk(msh_filename: str):
+    gmsh.initialize()
+    
+    vtk_filename = msh_filename.replace('.msh', '.vtk')
+    gmsh.open(msh_filename)
+    gmsh.write(vtk_filename)
+    
+    gmsh.finalize()
+    return vtk_filename
     
 class AngleDialog(QDialog):
     def __init__(self, parent=None):
@@ -72,14 +86,11 @@ class AngleDialog(QDialog):
         return None
 
     @staticmethod
-    def validate_angle(value):
-        try:
-            angle = float(value)
-            if 0.0 <= angle <= 360.0:
-                return angle
-            raise ValueError
-        except ValueError:
-            QMessageBox.warning(None, "Invalid Input", f"Angle value must be between 0.0 and 360.0: {value}")
+    def validate_angle(value: str):
+        if is_real_number(value):
+            return float(value)
+        else:
+            QMessageBox.warning(None, "Invalid Input", f"Angle value must be floating point number")
             return None
 
 class MoveActorDialog(QDialog):
@@ -272,6 +283,19 @@ class SurfaceDialog(QDialog):
         # Add the scroll area and the add button to the main layout
         self.mainLayout.addWidget(self.scrollArea)
         self.mainLayout.addWidget(self.addButton)
+        
+        self.meshCheckBox = QCheckBox("Mesh object")
+        self.meshCheckBox.stateChanged.connect(self.toggleMeshSizeInput)
+        self.meshSizeInput = QLineEdit("1.0")
+        self.meshSizeInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
+        self.meshSizeInput.setHidden(True)
+        self.meshSizeLabel = QLabel("Mesh size:")
+        self.meshSizeLabel.setHidden(True)
+        meshLayout = QHBoxLayout()
+        meshLayout.addWidget(self.meshCheckBox)
+        meshLayout.addWidget(self.meshSizeLabel)
+        meshLayout.addWidget(self.meshSizeInput)
+        self.mainLayout.addLayout(meshLayout)
 
         self.buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self)
         self.buttons.accepted.connect(self.accept)
@@ -279,6 +303,12 @@ class SurfaceDialog(QDialog):
 
         # Add dialog buttons to the main layout
         self.mainLayout.addWidget(self.buttons)
+    
+    def toggleMeshSizeInput(self, state):
+        isVisible = state == Qt.Checked
+        self.meshSizeInput.setHidden(not isVisible)
+        self.meshSizeLabel.setHidden(not isVisible)
+        self.meshSizeInput.setEnabled(state == Qt.Checked)
 
     def add_point_fields(self):
         point_number = len(self.inputs) // 3 + 1
@@ -313,7 +343,16 @@ class SurfaceDialog(QDialog):
         if not all(is_real_number(input_field.text()) for input_field in self.inputs):
             QMessageBox.warning(self, "Invalid input", "All coordinates must be real numbers.")
             return None
-        return [float(field.text()) for field in self.inputs]
+        values = [float(field.text()) for field in self.inputs]
+        
+        mesh_size = 1.0
+        if self.meshCheckBox.isChecked():
+            if not is_real_number(self.meshSizeInput.text()):
+                QMessageBox.warning(self, "Invalid input", "Mesh size must be floating point number.")
+                return None
+            mesh_size = float(self.meshSizeInput.text())
+            
+        return values, mesh_size, self.meshCheckBox.isChecked()
 
 
 class SphereDialog(QDialog):
@@ -346,12 +385,31 @@ class SphereDialog(QDialog):
         
         layout.addLayout(formLayout)
         
+        self.meshCheckBox = QCheckBox("Mesh object")
+        self.meshCheckBox.stateChanged.connect(self.toggleMeshSizeInput)
+        self.meshSizeInput = QLineEdit("1.0")
+        self.meshSizeInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
+        self.meshSizeInput.setHidden(True)
+        self.meshSizeLabel = QLabel("Mesh size:")
+        self.meshSizeLabel.setHidden(True)
+        meshLayout = QHBoxLayout()
+        meshLayout.addWidget(self.meshCheckBox)
+        meshLayout.addWidget(self.meshSizeLabel)
+        meshLayout.addWidget(self.meshSizeInput)
+        layout.addLayout(meshLayout)
+        
         # Dialog buttons
         self.buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self)
         self.buttons.accepted.connect(self.accept)
         self.buttons.rejected.connect(self.reject)
         
         layout.addWidget(self.buttons)
+        
+    def toggleMeshSizeInput(self, state):
+        isVisible = state == Qt.Checked
+        self.meshSizeInput.setEnabled(state == Qt.Checked)
+        self.meshSizeLabel.setHidden(not isVisible)
+        self.meshSizeInput.setHidden(not isVisible)
         
     def getValues(self):        
         if not is_real_number(self.xInput.text()):
@@ -366,7 +424,16 @@ class SphereDialog(QDialog):
         if not is_positive_real_number(self.radiusInput.text()):
             QMessageBox.warning(self, "Invalid input", f"{self.radiusInput.text()} isn't a real positive number")
             return None
-        return float(self.xInput.text()), float(self.yInput.text()), float(self.zInput.text()), float(self.radiusInput.text())
+        values = float(self.xInput.text()), float(self.yInput.text()), float(self.zInput.text()), float(self.radiusInput.text())
+        
+        mesh_size = 0.0
+        if self.meshCheckBox.isChecked():
+            if not is_real_number(self.meshSizeInput.text()):
+                QMessageBox.warning(self, "Invalid input", "Mesh size must be floating point number.")
+                return None
+            mesh_size = float(self.meshSizeInput.text())
+        
+        return values, mesh_size, self.meshCheckBox.isChecked()
 
 
 class BoxDialog(QDialog):
@@ -400,11 +467,30 @@ class BoxDialog(QDialog):
         
         layout.addLayout(formLayout)
         
+        self.meshCheckBox = QCheckBox("Mesh object")
+        self.meshCheckBox.stateChanged.connect(self.toggleMeshSizeInput)
+        self.meshSizeInput = QLineEdit("1.0")
+        self.meshSizeInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
+        self.meshSizeInput.setHidden(True)
+        self.meshSizeLabel = QLabel("Mesh size:")
+        self.meshSizeLabel.setHidden(True)
+        meshLayout = QHBoxLayout()
+        meshLayout.addWidget(self.meshCheckBox)
+        meshLayout.addWidget(self.meshSizeLabel)
+        meshLayout.addWidget(self.meshSizeInput)
+        layout.addLayout(meshLayout)
+        
         self.buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self)
         self.buttons.accepted.connect(self.accept)
         self.buttons.rejected.connect(self.reject)
         
         layout.addWidget(self.buttons)
+        
+    def toggleMeshSizeInput(self, state):
+        isVisible = state == Qt.Checked
+        self.meshSizeInput.setEnabled(state == Qt.Checked)
+        self.meshSizeLabel.setHidden(not isVisible)
+        self.meshSizeInput.setHidden(not isVisible)
     
     def getValues(self):
         if not is_real_number(self.xInput.text()):
@@ -425,8 +511,17 @@ class BoxDialog(QDialog):
         if not is_positive_real_number(self.heightInput.text()):
             QMessageBox.warning(self, "Invalid input", f"{self.heightInput.text()} isn't a real positive number")
             return None
-        return (float(self.xInput.text()), float(self.yInput.text()), float(self.zInput.text()),
+        values = (float(self.xInput.text()), float(self.yInput.text()), float(self.zInput.text()),
                 float(self.lengthInput.text()), float(self.widthInput.text()), float(self.heightInput.text()))
+        
+        mesh_size = 1.0
+        if self.meshCheckBox.isChecked():
+            if not is_real_number(self.meshSizeInput.text()):
+                QMessageBox.warning(self, "Invalid input", "Mesh size must be floating point number.")
+                return None
+            mesh_size = float(self.meshSizeInput.text())
+
+        return values, mesh_size, self.meshCheckBox.isChecked()
 
 
 class CylinderDialog(QDialog):
@@ -441,27 +536,53 @@ class CylinderDialog(QDialog):
         self.yInput = QLineEdit("0.0")
         self.zInput = QLineEdit("0.0")
         self.radiusInput = QLineEdit("2.5")
-        self.heightInput = QLineEdit("5.0")
+        self.dxInput = QLineEdit("5.0")
+        self.dyInput = QLineEdit("5.0")
+        self.dzInput = QLineEdit("5.0")
         
         self.xInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
         self.yInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
         self.zInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
         self.radiusInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
-        self.heightInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
+        self.dxInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
+        self.dyInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
+        self.dzInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
         
         formLayout.addRow("Center X:", self.xInput)
         formLayout.addRow("Center Y:", self.yInput)
         formLayout.addRow("Center Z:", self.zInput)
         formLayout.addRow("Radius:", self.radiusInput)
-        formLayout.addRow("Height:", self.heightInput)
+        formLayout.addRow("Length (X-direction):", self.dxInput)
+        formLayout.addRow("Width (Y-direction):", self.dyInput)
+        formLayout.addRow("Height (Z-direction):", self.dzInput)        
         
         layout.addLayout(formLayout)
+        
+        self.meshCheckBox = QCheckBox("Mesh object")
+        self.meshCheckBox.stateChanged.connect(self.toggleMeshParamsInput)
+        self.meshSizeInput = QLineEdit("1.0")
+        self.meshSizeInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
+        self.meshSizeInput.setDisabled(True)
+        meshLayout = QHBoxLayout()
+        meshLayout.addWidget(self.meshCheckBox)
+        self.meshSizeLabel = QLabel("Mesh size:")
+        meshLayout.addWidget(self.meshSizeLabel)
+        meshLayout.addWidget(self.meshSizeInput)
+        self.meshSizeLabel.setHidden(True)
+        self.meshSizeInput.setHidden(True)
+        layout.addLayout(meshLayout)
         
         self.buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self)
         self.buttons.accepted.connect(self.accept)
         self.buttons.rejected.connect(self.reject)
         
         layout.addWidget(self.buttons)
+        
+    def toggleMeshParamsInput(self, state):
+        isVisible = state == Qt.Checked
+        self.meshSizeInput.setEnabled(state == Qt.Checked)
+        self.meshSizeLabel.setHidden(not isVisible)
+        self.meshSizeInput.setHidden(not isVisible)
     
     def getValues(self):
         if not is_real_number(self.xInput.text()):
@@ -476,11 +597,26 @@ class CylinderDialog(QDialog):
         if not is_positive_real_number(self.radiusInput.text()):
             QMessageBox.warning(self, "Invalid input", f"{self.radiusInput.text()} isn't a real positive number")
             return None
-        if not is_positive_real_number(self.heightInput.text()):
-            QMessageBox.warning(self, "Invalid input", f"{self.heightInput.text()} isn't a real positive number")
+        if not is_positive_real_number(self.dxInput.text()):
+            QMessageBox.warning(self, "Invalid input", f"{self.dxInput.text()} isn't a real positive number")
             return None
-        return (float(self.xInput.text()), float(self.yInput.text()), float(self.zInput.text()),
-                float(self.radiusInput.text()), float(self.heightInput.text()))
+        if not is_positive_real_number(self.dyInput.text()):
+            QMessageBox.warning(self, "Invalid input", f"{self.dyInput.text()} isn't a real positive number")
+            return None
+        if not is_positive_real_number(self.dzInput.text()):
+            QMessageBox.warning(self, "Invalid input", f"{self.dzInput.text()} isn't a real positive number")
+            return None
+        values = (float(self.xInput.text()), float(self.yInput.text()), float(self.zInput.text()),
+                float(self.radiusInput.text()), float(self.dxInput.text()), float(self.dyInput.text()), float(self.dzInput.text()))
+        
+        mesh_size = 1.0
+        if self.meshCheckBox.isChecked():
+            if not is_real_number(self.meshSizeInput.text()):
+                QMessageBox.warning(self, "Invalid input", "Mesh size must be floating point number.")
+                return None
+            mesh_size = float(self.meshSizeInput.text())
+            
+        return values, mesh_size, self.meshCheckBox.isChecked()
 
 class ShortcutsInfoDialog(QDialog):
     def __init__(self, shortcuts, parent=None):

@@ -45,9 +45,10 @@ class WindowApp(QMainWindow):
         self.config_tab.requestToMoveToTheNextTab.connect(self.switch_tab)
         self.config_tab.requestToStartSimulation.connect(self.start_simulation)
         self.mesh_tab = GraphicalEditorTab(self.config_tab)
+        self.geditor = self.mesh_tab.geditor
 
         # Connecting signal to detect the selection of mesh file
-        self.config_tab.meshFileSelected.connect(self.mesh_tab.set_mesh_file)
+        self.config_tab.meshFileSelected.connect(self.geditor.set_mesh_file)
         
         # Connecting signal to tun the simulation from the CLI
         self.log_console.runSimulationSignal.connect(self.start_simulation_from_CLI)
@@ -87,7 +88,7 @@ class WindowApp(QMainWindow):
         self.change_background_color('white')
         
         # Setting by default axes alignment by center
-        self.mesh_tab.geditor.align_view_by_axis('center')
+        self.geditor.align_view_by_axis('center')
         self.results_tab.align_view_by_axis('center')
 
     
@@ -196,7 +197,7 @@ class WindowApp(QMainWindow):
                                     shortcut='Ctrl+Shift+S')   #  Save config
         configurations_menu.addSeparator()
         configurations_menu.addAction('Upload Mesh',
-                                      self.config_tab.upload_mesh_file,
+                                      self.upload_mesh_file,
                                       shortcut='Ctrl+Shift+M') #  Upload mesh file
 
         # Solution Menu
@@ -208,6 +209,11 @@ class WindowApp(QMainWindow):
         help_menu = menu_bar.addMenu('&Help')
         help_menu.addAction('About', self.show_help, shortcut='F1')
 
+
+    def upload_mesh_file(self):
+        self.mesh_tab.clear_scene_and_tree_view()
+        self.config_tab.upload_mesh_file()
+            
 
     def change_style(self, style):
         if style == 'dark':
@@ -280,9 +286,9 @@ class WindowApp(QMainWindow):
                 return
 
         # Set the background color and refresh the render window
-        self.mesh_tab.geditor.renderer.SetBackground(*bgColor)
+        self.geditor.renderer.SetBackground(*bgColor)
         self.results_tab.renderer.SetBackground(*bgColor)
-        self.mesh_tab.geditor.vtkWidget.GetRenderWindow().Render()
+        self.geditor.vtkWidget.GetRenderWindow().Render()
         self.results_tab.vtkWidget.GetRenderWindow().Render()
 
 
@@ -319,7 +325,7 @@ class WindowApp(QMainWindow):
                 QMessageBox.critical(self, 'Open Project', f'Can\'t open the project, check contegrity of all the files in directory {project_dir}. There must be 5 files')
                 return
         
-        self.mesh_tab.geditor.load_scene(self.log_console, self.setupFontColor, paths[0], paths[1])
+        self.geditor.load_scene(self.log_console, self.setupFontColor, paths[0], paths[1])
         self.config_tab.upload_config_with_filename(paths[2])
     
     
@@ -331,7 +337,7 @@ class WindowApp(QMainWindow):
             return
         
         # Generating all project files
-        self.mesh_tab.geditor.save_scene(self.log_console, self.setupFontColor)
+        self.geditor.save_scene(self.log_console, self.setupFontColor)
         
         if not self.config_tab.config_file_path:
             self.config_tab.save_config_to_file()
@@ -460,25 +466,23 @@ class WindowApp(QMainWindow):
             
         # Aligning by axes
         elif event.modifiers() == Qt.ControlModifier | Qt.ShiftModifier and event.key() == Qt.Key_X:
-            self.mesh_tab.geditor.align_view_by_axis('x')
+            self.geditor.align_view_by_axis('x')
             self.results_tab.align_view_by_axis('x')
         elif event.modifiers() == Qt.ControlModifier | Qt.ShiftModifier and event.key() == Qt.Key_Y:
-            self.mesh_tab.geditor.align_view_by_axis('y')
+            self.geditor.align_view_by_axis('y')
             self.results_tab.align_view_by_axis('y')
         elif event.modifiers() == Qt.ControlModifier | Qt.ShiftModifier and event.key() == Qt.Key_Z:
-            self.mesh_tab.geditor.align_view_by_axis('z')
+            self.geditor.align_view_by_axis('z')
             self.results_tab.align_view_by_axis('z')
         elif event.modifiers() == Qt.ControlModifier | Qt.ShiftModifier and event.key() == Qt.Key_C:
-            self.mesh_tab.geditor.align_view_by_axis('center')
+            self.geditor.align_view_by_axis('center')
             self.results_tab.align_view_by_axis('center')
             
         # History bindings
         elif event.modifiers() & Qt.ControlModifier and event.key() == Qt.Key_Z:
-            self.mesh_tab.geditor.undo_action_actor()
-            self.mesh_tab.undo_action_tree_view()
+            self.geditor.undo_action_tree_view()
         elif event.modifiers() & Qt.ControlModifier and event.key() == Qt.Key_Y:
-            self.mesh_tab.geditor.redo_action_actor()
-            self.mesh_tab.redo_action_tree_view()
+            self.geditor.redo_action_tree_view()
         else:
             super().keyPressEvent(event)
         

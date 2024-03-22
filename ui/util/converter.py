@@ -31,7 +31,21 @@ def is_positive_real_number(value: str):
         return True
     except ValueError:
         return False
+    
 
+def is_positive_natural_number(value: str):
+    try:
+        num = int(value)
+        return num > 0
+    except ValueError:
+        return False
+
+def is_mesh_dims(value: str):
+    try:
+        num = int(value)
+        return num > 0 and num < 4 
+    except ValueError:
+        return False
 
 def ansi_to_segments(text: str):
     segments = []

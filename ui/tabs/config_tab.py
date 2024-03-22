@@ -710,7 +710,7 @@ class ConfigTab(QWidget):
         self.log_console.logSignal.emit(f'Uploaded mesh: {self.mesh_file}\n')
                 
     
-    def upload_mesh_file(self):
+    def upload_mesh_file(self):       
         # Open a file dialog when the button is clicked and filter for .msh files
         options = QFileDialog.Options()
         options |= QFileDialog.DontUseNativeDialog
@@ -744,7 +744,7 @@ class ConfigTab(QWidget):
                     return None
             else:
                 QMessageBox.critical(self, "Error", "Dialog was closed by user. Invalid mesh size or mesh dimensions")
-                return
+                return None
         else:
             self.mesh_file = fileName
         
@@ -754,6 +754,8 @@ class ConfigTab(QWidget):
             self.mesh_file.replace('.vtk', '.msh')
         self.meshFileSelected.emit(self.mesh_file)
         self.log_console.logSignal.emit(f'Uploaded mesh: {self.mesh_file}\n')
+        
+        return 1
 
     def ask_to_upload_mesh_file(self):
         if self.mesh_file:
