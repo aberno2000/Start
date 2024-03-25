@@ -1,25 +1,43 @@
 #ifndef UTILITIES_HPP
 #define UTILITIES_HPP
 
-#include <CGAL/Exact_predicates_exact_constructions_kernel.h>
-#include <CGAL/intersections.h>
-
+/* Standard headers */
 #include <concepts>
 #include <filesystem>
+#include <format>
+#include <iostream>
 #include <source_location>
 #include <sstream>
 #include <string_view>
 
-#include "Constants.hpp"
-
-using namespace constants;
-using namespace particle_types;
-
+/* CGAL headers */
+#include <CGAL/Exact_predicates_exact_constructions_kernel.h>
+#include <CGAL/intersections.h>
 using Kernel = CGAL::Exact_predicates_inexact_constructions_kernel;
 using Point3 = Kernel::Point_3;
 using Ray3 = Kernel::Ray_3;
 using Triangle3 = Kernel::Triangle_3;
 using Tetrahedron3 = Kernel::Tetrahedron_3;
+using MeshTetrahedronParam = std::tuple<size_t, Tetrahedron3, double>;
+using MeshTetrahedronParamVector = std::vector<MeshTetrahedronParam>;
+
+/* Trilinos headers */
+#include <Intrepid2_CellTools.hpp>
+#include <Intrepid2_DefaultCubatureFactory.hpp>
+#include <Intrepid2_FunctionSpaceTools.hpp>
+#include <Intrepid2_HGRAD_TET_C1_FEM.hpp>
+#include <Kokkos_Core.hpp>
+#include <Panzer_DOFManager.hpp>
+#include <Panzer_IntrepidFieldPattern.hpp>
+#include <Teuchos_RCP.hpp>
+#include <eigen3/Eigen/Sparse>
+using ExecutionSpace = Kokkos::DefaultExecutionSpace;
+using DeviceType = Kokkos::Device<ExecutionSpace, Kokkos::HostSpace>;
+using SpMat = Eigen::SparseMatrix<double>;
+
+#include "Constants.hpp"
+using namespace constants;
+using namespace particle_types;
 
 #define JSON_BAD_PARSE -14.0
 #define JSON_BAD_PARAM -13.0
@@ -169,6 +187,24 @@ namespace util
      * @return The volume of the tetrahedron.
      */
     double calculateVolumeOfTetrahedron3(Tetrahedron3 const &tetrahedron);
+
+    void printMatrix(const Kokkos::DynRankView<double, DeviceType> &matrix);
+
+    std::pair<std::vector<Kokkos::DynRankView<double, DeviceType>>, Kokkos::DynRankView<double, DeviceType>>
+    computeTetrahedronBasisFunctions(MeshTetrahedronParam const &meshParam);
+
+    Kokkos::DynRankView<double, DeviceType> computeLocalStiffnessMatrix(
+        std::vector<Kokkos::DynRankView<double, DeviceType>> const &basisGradients,
+        Kokkos::DynRankView<double, DeviceType> const &cubWeights);
+
+    SpMat assembleGlobalStiffnessMatrix(
+        MeshTetrahedronParamVector const &meshParams,
+        std::vector<std::vector<Kokkos::DynRankView<double, DeviceType>>> const &allBasisGradients,
+        std::vector<Kokkos::DynRankView<double, DeviceType>> const &allCubWeights,
+        int totalNodes,
+        std::vector<std::array<int, 4>> const &globalNodeIndicesPerElement);
+
+    void fillVectorWithRandomNumbers(Eigen::VectorXd &b, int size, double lower = -100.0, double upper = 100.0);
 }
 
 #endif // !UTILITIES_HPP
