@@ -4,8 +4,6 @@
 #include <concepts>
 #include <numbers>
 #include <span>
-#include <tuple>
-#include <vector>
 
 #include "../Geometry/MathVector.hpp"
 #include "../Geometry/Mesh.hpp"
@@ -273,6 +271,13 @@ public:
      * @return Triangle mesh containing mesh parameters.
      */
     MeshTetrahedronParamVector getTetrahedronMeshParams(std::string_view msh_filename);
+
+    /**
+     * @brief Gets ID of tetrahedrons and corresponding IDs of elements within. Useful for FEM.
+     * @param msh_filename Mesh file.
+     * @return Map with key = tetrahedron's ID, value = list of nodes inside.
+    */
+    std::map<size_t, std::vector<size_t>> getTetrahedronNodesMap(std::string_view msh_filename);
 
     /**
      * @brief Executes the Gmsh application unless the `-nopopup` argument is provided.

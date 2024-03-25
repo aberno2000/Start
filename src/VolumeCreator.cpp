@@ -157,6 +157,8 @@ MeshTriangleParamVector GMSHVolumeCreator::getMeshParams(std::string_view msh_fi
 
 MeshTetrahedronParamVector GMSHVolumeCreator::getTetrahedronMeshParams(std::string_view msh_filename) { return Mesh::getTetrahedronMeshParams(msh_filename); }
 
+std::map<size_t, std::vector<size_t>> GMSHVolumeCreator::getTetrahedronNodesMap(std::string_view msh_filename) { return Mesh::getTetrahedronNodesMap(msh_filename); }
+
 void GMSHVolumeCreator::runGmsh(int argc, char *argv[])
 {
     // If there is no `-nopopup` argument - run the gmsh app

@@ -206,3 +206,35 @@ double Mesh::getVolumeFromTetrahedronMesh(std::string_view msh_filename)
         totalVolume += util::calculateVolumeOfTetrahedron3(std::get<1>(tetrahedron));
     return totalVolume;
 }
+
+std::map<size_t, std::vector<size_t>> Mesh::getTetrahedronNodesMap(std::string_view msh_filename)
+{
+    std::map<size_t, std::vector<size_t>> tetrahedronNodesMap;
+    try
+    {
+        gmsh::open(msh_filename.data());
+
+        std::vector<size_t> elTags, nodeTagsByEl;
+        gmsh::model::mesh::getElementsByType(4, elTags, nodeTagsByEl, -1);
+
+        for (size_t i{}; i < elTags.size(); ++i)
+        {
+            size_t tetrahedronID = elTags[i];
+            std::vector<size_t> nodes = {
+                nodeTagsByEl[i * 4 + 0],
+                nodeTagsByEl[i * 4 + 1],
+                nodeTagsByEl[i * 4 + 2],
+                nodeTagsByEl[i * 4 + 3]};
+            tetrahedronNodesMap[tetrahedronID] = nodes;
+        }
+    }
+    catch (const std::exception &e)
+    {
+        std::cerr << "Error: " << e.what() << std::endl;
+    }
+    catch (...)
+    {
+        std::cerr << "An unknown error occurred." << std::endl;
+    }
+    return tetrahedronNodesMap;
+}

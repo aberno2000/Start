@@ -3,6 +3,7 @@
 
 #include <format>
 #include <iostream>
+#include <map>
 #include <optional>
 #include <string_view>
 #include <tuple>
@@ -146,6 +147,13 @@ public:
      * @return Volume value.
      */
     static double getVolumeFromTetrahedronMesh(std::string_view msh_filename);
+
+    /**
+     * @brief Gets ID of tetrahedrons and corresponding IDs of elements within. Useful for FEM.
+     * @param msh_filename Mesh file.
+     * @return Map with key = tetrahedron's ID, value = list of nodes inside.
+    */
+    static std::map<size_t, std::vector<size_t>> getTetrahedronNodesMap(std::string_view msh_filename);
 };
 
 #endif // !MESH_HPP
