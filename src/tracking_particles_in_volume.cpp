@@ -1,3 +1,6 @@
+#include <array>
+#include <set>
+
 #include <Intrepid2_CellTools.hpp>
 #include <Intrepid2_DefaultCubatureFactory.hpp>
 #include <Intrepid2_FunctionSpaceTools.hpp>
@@ -10,6 +13,7 @@
 #include "../include/Generators/VolumeCreator.hpp"
 #include "../include/Geometry/Grid3D.hpp"
 #include "../include/Particles/Particles.hpp"
+#include "../include/Utilities/Utilities.hpp"
 
 using namespace Intrepid2;
 using ExecutionSpace = Kokkos::DefaultExecutionSpace;
@@ -39,19 +43,36 @@ bool isParticleInsideTetrahedron(Particle const &particle, MeshTetrahedronParam 
 
 int main([[maybe_unused]] int argc, [[maybe_unused]] char *argv[])
 {
+#pragma region VolumeParticleTracking
     // 1. Creating particles.
     auto particles{createParticlesWithVelocities(k_particles_count, particle_types::Al)};
 
     // 2. Creating box in the GMSH application.
     GMSHVolumeCreator vc;
-    double boxMeshSize{};
+    double meshSize{};
     std::cout << "Enter box mesh size: ";
-    std::cin >> boxMeshSize;
-    vc.createBoxAndMesh(boxMeshSize, 3, k_mesh_filename);
+    std::cin >> meshSize;
+    vc.createBoxAndMesh(meshSize, 3, k_mesh_filename);
 
     // 3. Filling the tetrahedron mesh
     auto tetrahedronMesh{vc.getTetrahedronMeshParams(k_mesh_filename)};
     auto endIt{tetrahedronMesh.cend()};
+
+    for (auto const &meshParam : tetrahedronMesh)
+        std::cout << meshParam << '\n';
+
+    auto tetrahedronNodes{vc.getTetrahedronNodesMap(k_mesh_filename)};
+    for (auto const &[tetrahedronID, nodeIDs] : tetrahedronNodes)
+    {
+        std::cout << std::format("Tetrahedron[{}]: ", tetrahedronID);
+        for (size_t nodeID : nodeIDs)
+            std::cout << nodeID << ' ';
+        std::endl(std::cout);
+    }
+    std::set<size_t> allNodeIDs;
+    for (auto const &[tetrahedronID, nodeIDs] : tetrahedronNodes)
+        allNodeIDs.insert(nodeIDs.begin(), nodeIDs.end());
+    size_t totalNodes{allNodeIDs.size()};
 
     // 4. Getting edge size from user.
     double edgeSize{};
@@ -91,143 +112,66 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char *argv[])
         std::cout << "Count of particles: " << count << '\n';
         particleTracker.clear();
     }
+#pragma endregion
 
     Kokkos::initialize();
     {
-        // 1. Defining cell topology as tetrahedron.
-        shards::CellTopology const cellType{shards::getCellTopologyData<shards::Tetrahedron<4u>>()};
-        unsigned int const spaceDim{cellType.getDimension()};
+        std::vector<std::array<int, 4>> globalNodeIndicesPerElement;
+        std::vector<std::vector<Kokkos::DynRankView<double, DeviceType>>> allBasisGradients;
+        std::vector<Kokkos::DynRankView<double, DeviceType>> allCubWeights;
 
-        size_t const numCells{tetrahedronMesh.size()};        // Count of tetrahedrons.
-        unsigned int const numNodes{cellType.getNodeCount()}, // 4 verteces.
-            dims{3u};                                         // x, y, z.
+        // Mapping from node ID to it's index in the global stiffness matrix.
+        std::unordered_map<size_t, size_t> nodeID_to_globMatrixID;
+        size_t index{};
+        for (size_t nodeId : allNodeIDs)
+            nodeID_to_globMatrixID[nodeId] = index++;
 
-        // 2. Filling cell nodes with coords of all tetrahedrons verteces.
-        Kokkos::DynRankView<double, DeviceType> cell_nodes("cell_nodes", numCells, numNodes, dims);
-        for (size_t cell{}; cell < numCells; ++cell)
+        for (auto const &[tetrahedronID, nodeIDs] : tetrahedronNodes)
         {
-            auto const &tetrahedron{std::get<1>(tetrahedronMesh.at(cell))};
-            for (auto node{0u}; node < numNodes; ++node)
+            std::array<int, 4> globalNodeIndices;
+            for (int i{}; i < 4; ++i)
+                globalNodeIndices[i] = nodeID_to_globMatrixID[nodeIDs[i]];
+            globalNodeIndicesPerElement.emplace_back(globalNodeIndices);
+
+            auto meshParam{std::ranges::find_if(tetrahedronMesh, [tetrahedronID](auto const &param)
+                                                { return std::get<0>(param) == tetrahedronID; })};
+            if (meshParam != endIt)
             {
-                cell_nodes(cell, node, 0) = CGAL_TO_DOUBLE(tetrahedron.vertex(node).x());
-                cell_nodes(cell, node, 1) = CGAL_TO_DOUBLE(tetrahedron.vertex(node).y());
-                cell_nodes(cell, node, 2) = CGAL_TO_DOUBLE(tetrahedron.vertex(node).z());
+                auto const &[basisFuncs, cubWeights]{util::computeTetrahedronBasisFunctions(*meshParam)};
+                allBasisGradients.emplace_back(basisFuncs);
+                allCubWeights.emplace_back(cubWeights);
             }
         }
 
-        // 3. Create a basis for linear functions on a tetrahedron.
-        Basis_HGRAD_TET_C1_FEM<DeviceType> basis;
-        ordinal_type numFields{basis.getCardinality()};
-        Intrepid2::DefaultCubatureFactory cubFactory;
-        auto cubature{cubFactory.create<DeviceType>(cellType, basis.getDegree())};
-        ordinal_type const numCubPoints{cubature->getNumPoints()};
+        // Assemblying global stiffness matrix.
+        auto globalStiffnessMatrix{util::assembleGlobalStiffnessMatrix(tetrahedronMesh, allBasisGradients, allCubWeights, totalNodes, globalNodeIndicesPerElement)};
+        std::cout << globalStiffnessMatrix;
+        size_t rows_cols{static_cast<size_t>(std::sqrt(globalStiffnessMatrix.size()))};
+        std::cout << std::format("Size of matrix: {}x{}\n", rows_cols, rows_cols);
 
-        // 4. Allocate arrays for basis values and their gradients at cubature points.
-        Kokkos::DynRankView<double, DeviceType> cub_points("cub_points", numCubPoints, spaceDim);
-        Kokkos::DynRankView<double, DeviceType> cub_weights("cub_weights", numCubPoints);
-        Kokkos::DynRankView<double, DeviceType> basis_values("basis_values", numFields, numCubPoints);
-        Kokkos::DynRankView<double, DeviceType> basis_grads("basis_grads", numFields, numCubPoints, spaceDim);
+        // Initializing vector `b` as a resulting vector.
+        Eigen::VectorXd b /* {Eigen::VectorXd::Zero(globalStiffnessMatrix.rows())} */;
+        util::fillVectorWithRandomNumbers(b, globalStiffnessMatrix.rows());
+        std::cout << "Vector `b` for which a solution is being sought:\n"
+                  << b << '\n';
 
-        // 5. Get cubature points and weights.
-        cubature->getCubature(cub_points, cub_weights);
-
-        // 6. Evaluate basis values and gradients at cubature points.
-        basis.getValues(basis_values, cub_points, OPERATOR_VALUE);
-        basis.getValues(basis_grads, cub_points, OPERATOR_GRAD);
-
-        // 6.1_opt. Printing intermediate results
-        std::cout << "Cubature points and weights:\n";
-        for (ordinal_type i{}; i < numCubPoints; ++i)
-        {
-            std::cout << std::format("Cubature point {}: [", i);
-            for (unsigned int d{}; d < spaceDim; ++d)
-            {
-                std::cout << cub_points(i, d);
-                if (d < spaceDim - 1)
-                    std::cout << ", ";
-            }
-            std::cout << std::format("], weight: {}\n", cub_weights(i));
-        }
-        for (ordinal_type i{}; i < numFields; ++i)
-        {
-            for (ordinal_type j{}; j < numCubPoints; ++j)
-            {
-                std::cout << std::format("Basis value at field {}, cubature point: {}\n", i, basis_values(i, j));
-                std::cout << std::format("Gradient of basis function {} at cubature point {}: [", i, j);
-                for (unsigned int k{}; k < spaceDim; ++k)
-                {
-                    std::cout << basis_grads(i, j, k);
-                    if (k < spaceDim - 1)
-                        std::cout << ", ";
-                }
-                std::cout << "]\n";
-            }
-        }
-
-        // 7. Assemble global stiffness matrix.
-        size_t globalMatrixSize{numCells * numNodes}; // Assume one degree of freedom per node for simplicity.
-        Eigen::SparseMatrix<double> globalStiffnessMatrix(globalMatrixSize, globalMatrixSize);
-
-        // Helper structure to build the sparse matrix efficiently.
-        std::vector<Eigen::Triplet<double>> tripletList;
-        tripletList.reserve(numCells * numNodes * numNodes);
-
-        // 7.1. Calculating local stiffness matrices
-        for (size_t cellIdx{}; cellIdx < numCells; ++cellIdx)
-        {
-            // For each cell evaluated own local stiffness matrix based on ∇(basis funcs) and cubature point.
-            Kokkos::DynRankView<double, DeviceType> localStiffness("localStiffness", numFields, numFields);
-            for (ordinal_type i{}; i < numFields; ++i)
-                for (ordinal_type j{}; j < numFields; ++j)
-                    for (ordinal_type qp{}; qp < numCubPoints; ++qp)
-                        for (unsigned int d{}; d < spaceDim; ++d)
-                            localStiffness(i, j) += basis_grads(i, qp, d) * basis_grads(j, qp, d) * cub_weights(qp);
-
-            // Assemble local stiffness matrix into global matrix using triplets.
-            for (ordinal_type i{}; i < numFields; ++i)
-            {
-                for (ordinal_type j{}; j < numFields; ++j)
-                {
-                    // Convert local node indices to global indices and add to triplet list.
-                    size_t globalI{cellIdx * numNodes + i},
-                        globalJ{cellIdx * numNodes + j};
-                    tripletList.push_back(Eigen::Triplet<double>(globalI, globalJ, localStiffness(i, j)));
-                }
-            }
-        }
-
-        // 7.2. Build sparse matrix from triplets.
-        globalStiffnessMatrix.setFromTriplets(tripletList.cbegin(), tripletList.cend());
-
-        // 7_opt. Printing stiffness matrix
-        std::cout << "Global stiffness matrix (non-zero entries):\n";
-        for (int k = 0; k < globalStiffnessMatrix.outerSize(); ++k)
-            for (Eigen::SparseMatrix<double>::InnerIterator it(globalStiffnessMatrix, k); it; ++it)
-                std::cout << std::format("({}, {}) = {}\n", it.row(), it.col(), it.value());
-
-        // 8. Calculating equation Ax=b, where b = 0.
-        Eigen::SparseMatrix<double> A{globalStiffnessMatrix};
-        Eigen::VectorXd b(globalMatrixSize), x(globalMatrixSize);
-        b.setZero();
-
-        std::cout << "A matrix:\n"
-                  << A << '\n';
-
+        // Calculating equation `Ax=b`:
         Eigen::BiCGSTAB<Eigen::SparseMatrix<double>> solver;
-        solver.compute(A);   // Initializing iterative solver with matrix A.
-        x = solver.solve(x); // Utilizing iterative computation of equation Ax=b.
+        solver.compute(globalStiffnessMatrix); // Initializing iterative solver with matrix A.
+        if (solver.info() != Eigen::Success)
+        {
+            ERRMSG("Decomposition failed\n");
+            return EXIT_FAILURE;
+        }
 
-        std::cout << "Solution x:\n";
-        if (x.isZero())
-            std::cout << std::format("x is a vector with all nulls. |x| = {}\n", x.size());
-        else
-            std::cout << x;
-        std::endl(std::cout);
-
-        Eigen::VectorXd r{A * x};       // Since b is already zero -> A*x.
-        double residual_norm{r.norm()}; // Compute the Euclidean norm of the residual.
-        std::cout << std::format("Residual norm: {}\n", residual_norm);
-        std::cout << "Solver information after computation: " << solver.info() << '\n';
+        auto x{solver.solve(b)}; // Utilizing iterative computation of equation Ax=b.
+        if (solver.info() != Eigen::Success)
+        {
+            ERRMSG("Decomposition failed\n");
+            return EXIT_FAILURE;
+        }
+        std::cout << "Solution x-vector:\n"
+                  << x << '\n';
     }
     Kokkos::finalize();
 
