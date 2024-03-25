@@ -668,6 +668,28 @@ class GraphicalEditor(QFrame):
         if actor in self.renderer.GetActors():
             self.renderer.RemoveActor(actor)
             self.vtkWidget.GetRenderWindow().Render()
+    
+            
+    def permanently_remove_actor(self, actor: vtkActor):
+        msgBox = QMessageBox()
+        msgBox.setIcon(QMessageBox.Warning)
+        msgBox.setText("Are you sure you want to delete the object? It will be permanently deleted.")
+        msgBox.setWindowTitle("Permanently Object Deletion")
+        msgBox.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        
+        choice = msgBox.exec()
+        if choice == QMessageBox.No:
+            return
+        else: 
+            if actor in self.renderer.GetActors():
+                action = self.undo_stack.pop()
+                row = action.get('row')
+                
+                self.model.removeRow(row)            
+                self.renderer.RemoveActor(actor)
+                self.vtkWidget.GetRenderWindow().Render()
+                self.object_idx -= 1
+
 
     def remove_all_actors(self):
         actors = self.renderer.GetActors()
@@ -781,7 +803,7 @@ class GraphicalEditor(QFrame):
             menu.addAction(adjust_size_action)
             
             remove_object_action = QAction('Remove', self)
-            remove_object_action.triggered.connect(lambda: self.remove_actor(self.selected_actor))
+            remove_object_action.triggered.connect(lambda: self.permanently_remove_actor(self.selected_actor))
             menu.addAction(remove_object_action)
 
             menu.exec_(QCursor.pos())
