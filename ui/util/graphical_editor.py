@@ -3,6 +3,7 @@ from os import remove
 from os.path import isfile, exists, basename
 from vtkmodules.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 from vtkmodules.vtkInteractionStyle import vtkInteractorStyleTrackballCamera
+from vtkmodules.vtkFiltersGeneral import vtkBooleanOperationPolyDataFilter
 from PyQt5.QtGui import QStandardItem, QIcon
 from PyQt5.QtCore import QSize
 from vtk import(
@@ -10,14 +11,14 @@ from vtk import(
     vtkCellArray, vtkPolyDataMapper, vtkActor, vtkSphereSource, vtkUnstructuredGrid,
     vtkCylinderSource, vtkAxesActor, vtkOrientationMarkerWidget, vtkCellTypes,
     vtkGenericDataObjectReader, vtkDataSetMapper, vtkCellPicker, vtkDelaunay2D,
-    vtkCubeSource,
+    vtkCubeSource, vtkCleanPolyData,
     VTK_TRIANGLE, VTK_QUAD
 )
 from PyQt5.QtWidgets import(
     QFrame, QVBoxLayout, QHBoxLayout, QTreeView,
     QPushButton, QDialog, QSpacerItem,
     QSizePolicy, QMessageBox, QFileDialog,
-    QMenu, QAction, QInputDialog
+    QMenu, QAction, QInputDialog, QStatusBar
 )
 from PyQt5.QtGui import QCursor, QStandardItemModel
 from .util import(
@@ -25,7 +26,10 @@ from .util import(
     SphereDialog, BoxDialog, CylinderDialog,
     AngleDialog, MoveActorDialog
 )
-from util.util import align_view_by_axis, save_scene, load_scene, convert_msh_to_vtk
+from util.util import(
+    align_view_by_axis, save_scene, load_scene, convert_msh_to_vtk, 
+    get_polydata_from_actor, write_vtk_polydata_to_file
+)
 from .mesh_dialog import MeshDialog
 from .styles import DEFAULT_ACTOR_COLOR, SELECTED_ACTOR_COLOR
 
@@ -64,7 +68,12 @@ class GraphicalEditor(QFrame):
         
         self.object_idx = 0
         self.undo_stack = []
-        self.redo_stack = []        
+        self.redo_stack = []
+        
+        self.isSubtractMode = False
+        self.firstObjectForSubtraction = None
+        self.statusBar = QStatusBar()
+        self.layout.addWidget(self.statusBar)
         
     
     def initialize_tree(self):
@@ -73,7 +82,7 @@ class GraphicalEditor(QFrame):
         rootItem = QStandardItem(basename(self.mesh_file))
 
         self.vtk_file = convert_msh_to_vtk(self.mesh_file)
-        data = self.parse_vtk_polydata_and_populate_tree(self.vtk_file, self.model, rootItem)
+        data = self.parse_vtk_data_and_populate_tree(self.vtk_file, self.model, rootItem)
         self.treeView.setModel(self.model)
         
         action = get_action(self.object_idx, data, self.actor_from_mesh, isDifficultObj=True, mesh_file=self.mesh_file)
@@ -93,7 +102,7 @@ class GraphicalEditor(QFrame):
     
     def erase_all_from_tree_view(self):
         self.model.clear()
-        
+        self.model.setHorizontalHeaderLabels(['Mesh Tree'])
     
     def undo_action_tree_view(self):
         if self.undo_stack:
@@ -107,7 +116,7 @@ class GraphicalEditor(QFrame):
             # Perform some actions with values
             self.model.removeRow(row)
             self.remove_actor(actor)
-                    
+            
             if action.get('action') == 'add':
                 redo_action = get_action(row, data, actor, isDifficultObj=False, figure_type=action.get('figure_type'))
             elif action.get('action') == 'add_difficult_object':
@@ -138,31 +147,12 @@ class GraphicalEditor(QFrame):
                 # Creating undo action
                 undo_action = get_action(self.object_idx, data, actor, isDifficultObj=False, figure_type=action.get('figure_type'))
             elif action.get('action') == 'add_difficult_object':
-                if not data.IsA("vtkUnstructuredGrid"):
-                    return
                 unstructuredGrid = vtkUnstructuredGrid.SafeDownCast(data)
 
                 # Filling tree view
                 rootItem = QStandardItem(basename(mesh_file))
-                pointsItem = QStandardItem("Points")
-                for i in range(unstructuredGrid.GetNumberOfPoints()):
-                    point = unstructuredGrid.GetPoint(i)
-                    pointItem = QStandardItem(f"Point {i}: ({point[0]:.3f}, {point[1]:.3f}, {point[2]:.3f})")
-                    pointsItem.appendRow(pointItem)
-                
-                cellsItem = QStandardItem("Cells")
-                for i in range(unstructuredGrid.GetNumberOfCells()):
-                    cell = unstructuredGrid.GetCell(i)
-                    cellType = vtkCellTypes.GetClassNameFromTypeId(cell.GetCellType())
-                    cellPoints = cell.GetPointIds()
-                    cellPointsStr = ', '.join([str(cellPoints.GetId(j)) for j in range(cellPoints.GetNumberOfIds())])
-                    cellItem = QStandardItem(f"Cell {i} ({cellType}): Points [{cellPointsStr}]")
-                    cellsItem.appendRow(cellItem)
-                    
-                rootItem.appendRow(pointsItem)
-                rootItem.appendRow(cellsItem)
-                self.model.appendRow(rootItem)
-                undo_action = get_action(self.object_idx, data, actor, isDifficultObj=True, mesh_file=action.get('mesh_file'))
+                self.parse_vtk_data_and_populate_tree(mesh_file, self.model, rootItem)
+                undo_action = get_action(self.object_idx, unstructuredGrid, actor, isDifficultObj=True, mesh_file=action.get('mesh_file'))
             
             self.treeView.setModel(self.model)
             self.undo_stack.append(undo_action)
@@ -216,6 +206,7 @@ class GraphicalEditor(QFrame):
         self.yAxisButton = self.create_button('icons/y-axis.png', 'Set camera view to Y-axis')
         self.zAxisButton = self.create_button('icons/z-axis.png', 'Set camera view to Z-axis')
         self.centerAxisButton = self.create_button('icons/center-axis.png', 'Set camera view to center of axes')
+        self.subtractObjectsButton = self.create_button('icons/subtract.png', 'Subtract objects')
         
         self.spacer = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
         self.toolbarLayout.addSpacerItem(self.spacer)
@@ -233,6 +224,7 @@ class GraphicalEditor(QFrame):
         self.yAxisButton.clicked.connect(lambda: self.align_view_by_axis('y'))
         self.zAxisButton.clicked.connect(lambda: self.align_view_by_axis('z'))
         self.centerAxisButton.clicked.connect(lambda: self.align_view_by_axis('center'))
+        self.subtractObjectsButton.clicked.connect(self.subtract_button_clicked)
 
     def setup_ui(self):
         self.vtkWidget = QVTKRenderWindowInteractor(self)
@@ -668,8 +660,14 @@ class GraphicalEditor(QFrame):
         if actor in self.renderer.GetActors():
             self.renderer.RemoveActor(actor)
             self.vtkWidget.GetRenderWindow().Render()
-    
             
+    
+    def remove_row_from_tree_view(self, actor: vtkActor):
+        action = self.undo_stack.pop()
+        row = action.get('row')
+        self.model.removeRow(row)
+    
+    
     def permanently_remove_actor(self, actor: vtkActor):
         msgBox = QMessageBox()
         msgBox.setIcon(QMessageBox.Warning)
@@ -722,7 +720,7 @@ class GraphicalEditor(QFrame):
         self.add_actor(actor)
         
         rootItem = QStandardItem(basename(msh_filename))
-        data = self.parse_vtk_polydata_and_populate_tree(vtk_filename, self.model, rootItem)
+        data = self.parse_vtk_data_and_populate_tree(vtk_filename, self.model, rootItem)
         
         action = get_action(self.object_idx, data, actor, isDifficultObj=True, mesh_file=msh_filename)
         self.undo_stack.append(action)
@@ -740,7 +738,42 @@ class GraphicalEditor(QFrame):
         action = get_action(self.object_idx, data, actor, isDifficultObj=False, figure_type=figure_type)
         self.undo_stack.append(action)
         self.object_idx += 1
+    
+    def pick_actor(self, obj, event):
+        click_pos = self.interactor.GetEventPosition()
+        self.picker.Pick(click_pos[0], click_pos[1], 0, self.renderer)
+
+        # If there is already a selected actor, reset its color
+        if self.selected_actor:
+            self.selected_actor.GetProperty().SetColor(self.original_color)
+
+        actor = self.picker.GetActor()
+        if actor:
+            # Store the original color and the selected actor
+            self.original_color = actor.GetProperty().GetColor()
+            self.selected_actor = actor
+
+            # Change the actor's color to orange
+            actor.GetProperty().SetColor(SELECTED_ACTOR_COLOR)
+            self.vtkWidget.GetRenderWindow().Render()
+        # Call the original OnLeftButtonDown event handler to maintain default interaction behavior
+        self.interactorStyle.OnLeftButtonDown()
         
+        if self.isSubtractMode:
+            if not self.firstObjectForSubtraction:
+                self.firstObjectForSubtraction = self.selected_actor
+                self.statusBar.showMessage("Which object to subtract?")
+            else:
+                secondObjectForSubtraction = self.selected_actor
+                if self.firstObjectForSubtraction and secondObjectForSubtraction:
+                    self.subtract_objects(self.firstObjectForSubtraction, secondObjectForSubtraction) # Applying subtraction
+                else:
+                    QMessageBox.warning(self, "Warning", "No objects have been selected for the subtraction operation.")
+                
+                self.firstObjectForSubtraction = None
+                self.isSubtractMode = False
+                self.statusBar.clearMessage()
+                
         
     def setup_interaction(self):
         self.picker = vtkCellPicker()
@@ -750,26 +783,6 @@ class GraphicalEditor(QFrame):
         self.original_color = None
 
         self.interactor.SetInteractorStyle(self.interactorStyle)
-
-        def pick_actor(obj, event):
-            click_pos = self.interactor.GetEventPosition()
-            self.picker.Pick(click_pos[0], click_pos[1], 0, self.renderer)
-
-            # If there is already a selected actor, reset its color
-            if self.selected_actor:
-                self.selected_actor.GetProperty().SetColor(self.original_color)
-
-            actor = self.picker.GetActor()
-            if actor:
-                # Store the original color and the selected actor
-                self.original_color = actor.GetProperty().GetColor()
-                self.selected_actor = actor
-
-                # Change the actor's color to orange
-                actor.GetProperty().SetColor(SELECTED_ACTOR_COLOR)
-                self.vtkWidget.GetRenderWindow().Render()
-            # Call the original OnLeftButtonDown event handler to maintain default interaction behavior
-            self.interactorStyle.OnLeftButtonDown()
         
         def on_right_button_press(obj, event):
             click_pos = self.interactor.GetEventPosition()
@@ -781,7 +794,7 @@ class GraphicalEditor(QFrame):
                 self.original_color = actor.GetProperty().GetColor()
                 self.context_menu()
 
-        self.interactorStyle.AddObserver("LeftButtonPressEvent", pick_actor)
+        self.interactorStyle.AddObserver("LeftButtonPressEvent", self.pick_actor)
         self.interactorStyle.AddObserver("RightButtonPressEvent", on_right_button_press)
         self.interactor.AddObserver("KeyPressEvent", self.on_key_press)
         self.interactor.Initialize()
@@ -809,9 +822,12 @@ class GraphicalEditor(QFrame):
             menu.exec_(QCursor.pos())
             
     def deselect(self):
-        self.selected_actor.GetProperty().SetColor(DEFAULT_ACTOR_COLOR)
-        self.vtkWidget.GetRenderWindow().Render()
-        self.selected_actor = None
+        try:
+            self.selected_actor.GetProperty().SetColor(DEFAULT_ACTOR_COLOR)
+            self.vtkWidget.GetRenderWindow().Render()
+            self.selected_actor = None
+        except Exception as _:
+            return
 
     def move_actor(self):
         if self.selected_actor:
@@ -864,38 +880,39 @@ class GraphicalEditor(QFrame):
     def align_view_by_axis(self, axis: str):
         align_view_by_axis(axis, self.renderer, self.vtkWidget)
 
-            
-    def parse_vtk_polydata_and_populate_tree(self, vtk_filename, tree_model, rootItem):
+    def parse_vtk_data_and_populate_tree(self, vtk_filename, tree_model, rootItem):
         reader = vtkGenericDataObjectReader()
         reader.SetFileName(vtk_filename)
         reader.Update()
-        
-        data = reader.GetOutput()
-        if not data.IsA("vtkUnstructuredGrid"):
-            return
-                
-        unstructuredGrid = vtkUnstructuredGrid.SafeDownCast(data)
 
+        data = reader.GetOutput()
+        if data.IsA("vtkUnstructuredGrid") or data.IsA("vtkPolyData"):
+            self.populate_tree(data, rootItem)
+        else:
+            print("Unsupported data type")
+            return
+
+        tree_model.appendRow(rootItem)
+        return data
+
+    def populate_tree(self, data, rootItem):
         pointsItem = QStandardItem("Points")
-        for i in range(unstructuredGrid.GetNumberOfPoints()):
-            point = unstructuredGrid.GetPoint(i)
+        for i in range(data.GetNumberOfPoints()):
+            point = data.GetPoint(i)
             pointItem = QStandardItem(f"Point {i}: ({point[0]:.3f}, {point[1]:.3f}, {point[2]:.3f})")
             pointsItem.appendRow(pointItem)
-        
+
         cellsItem = QStandardItem("Cells")
-        for i in range(unstructuredGrid.GetNumberOfCells()):
-            cell = unstructuredGrid.GetCell(i)
+        for i in range(data.GetNumberOfCells()):
+            cell = data.GetCell(i)
             cellType = vtkCellTypes.GetClassNameFromTypeId(cell.GetCellType())
             cellPoints = cell.GetPointIds()
             cellPointsStr = ', '.join([str(cellPoints.GetId(j)) for j in range(cellPoints.GetNumberOfIds())])
             cellItem = QStandardItem(f"Cell {i} ({cellType}): Points [{cellPointsStr}]")
             cellsItem.appendRow(cellItem)
-            
+
         rootItem.appendRow(pointsItem)
         rootItem.appendRow(cellsItem)
-        tree_model.appendRow(rootItem)
-        
-        return data
         
     
     def save_scene(self, logConsole, fontColor, actors_file='scene_actors_meshTab.vtk', camera_file='scene_camera_meshTab.json'):
@@ -907,9 +924,71 @@ class GraphicalEditor(QFrame):
         
     
     def clear_scene_and_tree_view(self):
-        self.erase_all_from_tree_view()
-        self.remove_all_actors()
+        msgBox = QMessageBox()
+        msgBox.setIcon(QMessageBox.Warning)
+        msgBox.setWindowTitle("Deleting All The Data")
+        msgBox.setText("Are you sure you want to delete all the objects? They will be permanently deleted.")
+        msgBox.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        
+        choice = msgBox.exec()
+        if (choice == QMessageBox.Yes):        
+            self.erase_all_from_tree_view()
+            self.remove_all_actors()
 
-        self.undo_stack.clear()
-        self.redo_stack.clear()
-        self.object_idx = 0
+            self.undo_stack.clear()
+            self.redo_stack.clear()
+            self.object_idx = 0
+        
+    
+    def subtract_button_clicked(self):
+        self.deselect()
+        self.isSubtractMode = True
+        self.statusBar.showMessage("From which obejct subtract?")
+
+    
+    def subtract_objects(self, obj_from_subtract: vtkActor, obj_to_subtract: vtkActor):
+        obj_from_subtract_polydata = get_polydata_from_actor(obj_from_subtract)
+        obj_to_subtract_polydata = get_polydata_from_actor(obj_to_subtract)
+        
+        cleaner1 = vtkCleanPolyData()
+        cleaner1.SetInputData(obj_from_subtract_polydata)
+        cleaner1.Update()
+        cleaner2 = vtkCleanPolyData()
+        cleaner2.SetInputData(obj_to_subtract_polydata)
+        cleaner2.Update()
+        
+        # Create a boolean operation filter
+        booleanOperation = vtkBooleanOperationPolyDataFilter()
+        booleanOperation.SetOperationToDifference()
+        
+        # Set the input objects for the operation
+        booleanOperation.SetInputData(0, cleaner1.GetOutput())
+        booleanOperation.SetInputData(1, cleaner2.GetOutput())
+        
+        # Update the filter to perform the subtraction
+        booleanOperation.Update()
+
+        # Retrieve the result of the subtraction
+        resultPolyData = booleanOperation.GetOutput()
+        mapper = vtkPolyDataMapper()
+        mapper.SetInputData(resultPolyData)
+
+        actor = vtkActor()
+        actor.SetMapper(mapper)
+        self.add_actor(actor)
+        
+        # Removing subtracting objects only after adding resulting object
+        self.remove_actor(obj_from_subtract)
+        self.remove_actor(obj_to_subtract)
+        self.remove_row_from_tree_view(obj_from_subtract)
+        self.remove_row_from_tree_view(obj_to_subtract)        
+        self.object_idx -= 2
+        
+        vtk_filename = write_vtk_polydata_to_file(resultPolyData)
+        rootItem = QStandardItem(basename(vtk_filename))
+        data = self.parse_vtk_data_and_populate_tree(vtk_filename, self.model, rootItem)
+        action = get_action(self.object_idx, data, actor, isDifficultObj=True, mesh_file=vtk_filename)
+        self.undo_stack.append(action)
+        self.object_idx += 1
+
+        return actor

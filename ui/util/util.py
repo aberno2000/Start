@@ -1,7 +1,7 @@
-import gmsh
+import gmsh, tempfile
 from vtk import (
     vtkRenderer, vtkPolyData, vtkPolyDataWriter, vtkAppendPolyData,
-    vtkPolyDataReader, vtkPolyDataMapper, vtkActor
+    vtkPolyDataReader, vtkPolyDataMapper, vtkActor, vtkPolyDataWriter
 )
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import (
@@ -285,12 +285,11 @@ class SurfaceDialog(QDialog):
         self.mainLayout.addWidget(self.addButton)
         
         self.meshCheckBox = QCheckBox("Mesh object")
+        self.meshCheckBox.setChecked(True)
         self.meshCheckBox.stateChanged.connect(self.toggleMeshSizeInput)
         self.meshSizeInput = QLineEdit("1.0")
         self.meshSizeInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
-        self.meshSizeInput.setHidden(True)
         self.meshSizeLabel = QLabel("Mesh size:")
-        self.meshSizeLabel.setHidden(True)
         meshLayout = QHBoxLayout()
         meshLayout.addWidget(self.meshCheckBox)
         meshLayout.addWidget(self.meshSizeLabel)
@@ -386,12 +385,11 @@ class SphereDialog(QDialog):
         layout.addLayout(formLayout)
         
         self.meshCheckBox = QCheckBox("Mesh object")
+        self.meshCheckBox.setChecked(True)
         self.meshCheckBox.stateChanged.connect(self.toggleMeshSizeInput)
         self.meshSizeInput = QLineEdit("1.0")
         self.meshSizeInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
-        self.meshSizeInput.setHidden(True)
         self.meshSizeLabel = QLabel("Mesh size:")
-        self.meshSizeLabel.setHidden(True)
         meshLayout = QHBoxLayout()
         meshLayout.addWidget(self.meshCheckBox)
         meshLayout.addWidget(self.meshSizeLabel)
@@ -468,12 +466,11 @@ class BoxDialog(QDialog):
         layout.addLayout(formLayout)
         
         self.meshCheckBox = QCheckBox("Mesh object")
+        self.meshCheckBox.setChecked(True)
         self.meshCheckBox.stateChanged.connect(self.toggleMeshSizeInput)
         self.meshSizeInput = QLineEdit("1.0")
         self.meshSizeInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
-        self.meshSizeInput.setHidden(True)
         self.meshSizeLabel = QLabel("Mesh size:")
-        self.meshSizeLabel.setHidden(True)
         meshLayout = QHBoxLayout()
         meshLayout.addWidget(self.meshCheckBox)
         meshLayout.addWidget(self.meshSizeLabel)
@@ -559,17 +556,15 @@ class CylinderDialog(QDialog):
         layout.addLayout(formLayout)
         
         self.meshCheckBox = QCheckBox("Mesh object")
+        self.meshCheckBox.setChecked(True)
         self.meshCheckBox.stateChanged.connect(self.toggleMeshParamsInput)
         self.meshSizeInput = QLineEdit("1.0")
         self.meshSizeInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
-        self.meshSizeInput.setDisabled(True)
         meshLayout = QHBoxLayout()
         meshLayout.addWidget(self.meshCheckBox)
         self.meshSizeLabel = QLabel("Mesh size:")
         meshLayout.addWidget(self.meshSizeLabel)
         meshLayout.addWidget(self.meshSizeInput)
-        self.meshSizeLabel.setHidden(True)
-        self.meshSizeInput.setHidden(True)
         layout.addLayout(meshLayout)
         
         self.buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self)
@@ -643,7 +638,6 @@ class ShortcutsInfoDialog(QDialog):
         
         table.resizeColumnsToContents()
         layout.addWidget(table)
-        
 
 
 def align_view_by_axis(axis: str, renderer: vtkRenderer, vtkWidget: QVTKRenderWindowInteractor):
@@ -777,3 +771,27 @@ def load_camera_settings(renderer: vtkRenderer, logConsole, fontColor, camera_fi
         logConsole.insert_colored_text('Error: ', 'red')
         logConsole.insert_colored_text(f'Failed to load camera settings: {e}\n', fontColor)
         return None
+
+def get_polydata_from_actor(actor: vtkActor):
+    mapper = actor.GetMapper()
+    if hasattr(mapper, "GetInput"):
+        return mapper.GetInput()
+    else:
+        return None
+
+
+def write_vtk_polydata_to_file(polyData):
+    writer = vtkPolyDataWriter()
+    writer.SetInputData(polyData)
+
+    # Create a temporary file
+    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.vtk')
+    temp_file_name = temp_file.name
+    temp_file.close()
+
+    # Set the filename in the writer and write
+    writer.SetFileName(temp_file_name)
+    writer.Write()
+
+    # Return the path to the temporary file
+    return temp_file_name
