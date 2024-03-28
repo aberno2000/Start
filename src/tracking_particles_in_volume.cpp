@@ -137,7 +137,24 @@ int main(int argc, char *argv[])
 
         // Assemblying global stiffness matrix.
         auto globalStiffnessMatrix{util::assembleGlobalStiffnessMatrix(tetrahedronMesh, allBasisGradients, allCubWeights, totalNodes, globalNodeIndicesPerElement)};
+
+        // Setting boundary conditions:
+        std::map<int, double> boundaryValues = {{0, 1.0}, {1, 1.0}, {12, 1.0}, {13, 1.0}};
+
+        // Setting boundary conditions to global stiffness matrix:
+        for (const auto &boundary : boundaryValues)
+        {
+            int nodeID{boundary.first};    // Node index.
+            double value{boundary.second}; // Boundary condition value.
+
+            // Reset the row and column to zero.
+            for (int k = 0; k < globalStiffnessMatrix.outerSize(); ++k)
+                for (Eigen::SparseMatrix<double>::InnerIterator it(globalStiffnessMatrix, k); it; ++it)
+                    if (it.row() == nodeID || it.col() == nodeID)
+                        it.valueRef() = (it.row() == it.col()) ? value : 0.0; // Set diagonal element to 1 and off-diagonal elements to 0.
+        }
         std::cout << globalStiffnessMatrix;
+
         auto tpetraMatrix{util::convertEigenToTpetra(globalStiffnessMatrix)};
         auto A{Teuchos::rcpFromRef(tpetraMatrix)};
         util::printLocalMatrixEntries(tpetraMatrix);
@@ -150,6 +167,16 @@ int main(int argc, char *argv[])
         Teuchos::RCP<MapType> map(new MapType(rows_cols, 0, comm));
         auto b{Teuchos::rcp(new TpetraVectorType(map))};
         b->randomize();
+
+        // Setting boundary conditions to vector `b`:
+        for (const auto &boundary : boundaryValues)
+        {
+            GlobalOrdinal nodeID{boundary.first}; // Node index (zero-based).
+            Scalar value{boundary.second};        // Boundary condition value.
+
+            b->replaceGlobalValue(nodeID, value);
+        }
+
         std::cout << "Vector `b` for which a solution is being sought:\n";
         util::printTpetraVector(*b);
 
@@ -185,12 +212,12 @@ int main(int argc, char *argv[])
         Belos::ReturnType result{solver->solve()};
         if (result == Belos::Converged)
         {
-            std::cout << "Solution converged\n";
+            std::cout << "\033[1;32mSolution converged\n\033[0m\033[1m";
             util::printTpetraVector(*x);
         }
         else
         {
-            std::cerr << "Solution did not converge\n";
+            std::cerr << "\033[1;32mSolution did not converge\n\033[0m\033[1m";
             return EXIT_FAILURE;
         }
     }
