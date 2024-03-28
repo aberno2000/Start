@@ -659,13 +659,32 @@ class GraphicalEditor(QFrame):
     def remove_actor(self, actor: vtkActor):
         if actor in self.renderer.GetActors():
             self.renderer.RemoveActor(actor)
-            self.vtkWidget.GetRenderWindow().Render()
+            self.vtkWidget.GetRenderWindow().Render()        
             
     
     def remove_row_from_tree_view(self, actor: vtkActor):
         action = self.undo_stack.pop()
         row = action.get('row')
         self.model.removeRow(row)
+    
+    
+    def remove_object_with_restore(self, actor: vtkActor):
+        if actor in self.renderer.GetActors():
+            # Getting current added object
+            action = self.undo_stack.pop()
+            row = action.get('row')
+            self.redo_stack.append(action)
+            
+            # Decrementing ID of objects
+            self.object_idx -= 1
+            
+            # Removing actor from the scene, row from the tree view and decrementing the ID of objects
+            self.remove_actor(actor)
+            self.model.removeRow(row)
+            
+            # Resetting camera view and rendering scene after performing deletion of actor
+            self.renderer.ResetCamera()
+            self.vtkWidget.GetRenderWindow().Render()
     
     
     def permanently_remove_actor(self, actor: vtkActor):
@@ -875,6 +894,10 @@ class GraphicalEditor(QFrame):
             self.selected_actor = None
         elif key == 'Return' and self.selected_actor:
             self.interactorStyle.OnRotate()
+        elif key == 'Delete' or key == 'BackSpace':
+            if self.selected_actor:
+                self.remove_object_with_restore(self.selected_actor)
+                self.selected_actor = None
         self.interactorStyle.OnKeyPress()
     
     def align_view_by_axis(self, axis: str):
