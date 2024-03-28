@@ -22,18 +22,40 @@ using MeshTetrahedronParam = std::tuple<size_t, Tetrahedron3, double>;
 using MeshTetrahedronParamVector = std::vector<MeshTetrahedronParam>;
 
 /* Trilinos headers */
+#include <BelosSolverFactory.hpp>
+#include <BelosTpetraAdapter.hpp>
 #include <Intrepid2_CellTools.hpp>
 #include <Intrepid2_DefaultCubatureFactory.hpp>
 #include <Intrepid2_FunctionSpaceTools.hpp>
 #include <Intrepid2_HGRAD_TET_C1_FEM.hpp>
+#include <Intrepid_FunctionSpaceTools.hpp>
 #include <Kokkos_Core.hpp>
 #include <Panzer_DOFManager.hpp>
 #include <Panzer_IntrepidFieldPattern.hpp>
+#include <Shards_CellTopology.hpp>
+#include <Teuchos_GlobalMPISession.hpp>
+#include <Teuchos_ParameterList.hpp>
 #include <Teuchos_RCP.hpp>
+#include <Tpetra_BlockCrsMatrix_Helpers_def.hpp>
+#include <Tpetra_BlockCrsMatrix_decl.hpp>
+#include <Tpetra_Core.hpp>
+#include <Tpetra_CrsMatrix.hpp>
+#include <Tpetra_CrsMatrix_decl.hpp>
+#include <Tpetra_Map.hpp>
+#include <Tpetra_Vector.hpp>
 #include <eigen3/Eigen/Sparse>
-using ExecutionSpace = Kokkos::DefaultExecutionSpace;
-using DeviceType = Kokkos::Device<ExecutionSpace, Kokkos::HostSpace>;
-using SpMat = Eigen::SparseMatrix<double>;
+using ExecutionSpace = Kokkos::DefaultExecutionSpace;                 // Using host space to interoperate with data.
+using DeviceType = Kokkos::Device<ExecutionSpace, Kokkos::HostSpace>; // Using CPU.
+using SpMat = Eigen::SparseMatrix<double>;                            // Eigen sparse matrix type.
+using Scalar = double;                                                // ST - Scalar Type (type of the data inside the matrix node).
+using LocalOrdinal = int;                                             // LO (indeces in local matrix).
+using GlobalOrdinal = long long;                                      // GO - Global Ordinal Type (indeces in global matrices).
+using Node = Tpetra::Map<>::node_type;                                // Node type based on Kokkos execution space.
+using MapType = Tpetra::Map<LocalOrdinal, GlobalOrdinal, Node>;
+using TpetraVectorType = Tpetra::Vector<Scalar, LocalOrdinal, GlobalOrdinal, Node>;
+using TpetraMultiVector = Tpetra::MultiVector<Scalar, LocalOrdinal, GlobalOrdinal, Node>;
+using TpetraOperator = Tpetra::Operator<Scalar, LocalOrdinal, GlobalOrdinal, Node>;
+using TpetraMatrixType = Tpetra::CrsMatrix<Scalar, LocalOrdinal, GlobalOrdinal, Node>;
 
 #include "Constants.hpp"
 using namespace constants;
@@ -188,15 +210,39 @@ namespace util
      */
     double calculateVolumeOfTetrahedron3(Tetrahedron3 const &tetrahedron);
 
+    /**
+     * @brief Prints the contents of a Kokkos matrix.
+     * @param matrix The matrix to print.
+     */
     void printMatrix(const Kokkos::DynRankView<double, DeviceType> &matrix);
 
+    /**
+     * @brief Computes the tetrahedron basis functions for a given mesh parameter.
+     * @param meshParam The mesh parameter containing the geometry of a tetrahedron.
+     * @return A pair containing a vector of basis functions values and a DynRankView of cubature weights.
+     */
     std::pair<std::vector<Kokkos::DynRankView<double, DeviceType>>, Kokkos::DynRankView<double, DeviceType>>
     computeTetrahedronBasisFunctions(MeshTetrahedronParam const &meshParam);
 
+    /**
+     * @brief Computes the local stiffness matrix for a given set of basis gradients and cubature weights.
+     * @param basisGradients The gradients of the basis functions.
+     * @param cubWeights The cubature weights.
+     * @return The local stiffness matrix.
+     */
     Kokkos::DynRankView<double, DeviceType> computeLocalStiffnessMatrix(
         std::vector<Kokkos::DynRankView<double, DeviceType>> const &basisGradients,
         Kokkos::DynRankView<double, DeviceType> const &cubWeights);
 
+    /**
+     * @brief Assembles the global stiffness matrix from local stiffness matrices.
+     * @param meshParams The mesh parameters for the entire domain.
+     * @param allBasisGradients The gradients of the basis functions for each element.
+     * @param allCubWeights The cubature weights for each element.
+     * @param totalNodes The total number of nodes in the mesh.
+     * @param globalNodeIndicesPerElement The global node indices for each element.
+     * @return The global stiffness matrix in Eigen's sparse matrix format.
+     */
     SpMat assembleGlobalStiffnessMatrix(
         MeshTetrahedronParamVector const &meshParams,
         std::vector<std::vector<Kokkos::DynRankView<double, DeviceType>>> const &allBasisGradients,
@@ -204,7 +250,33 @@ namespace util
         int totalNodes,
         std::vector<std::array<int, 4>> const &globalNodeIndicesPerElement);
 
+    /**
+     * @brief Fills a vector with random numbers within a specified range.
+     * @param b The vector to fill.
+     * @param size The size of the vector.
+     * @param lower The lower bound of the random numbers (default=-100.0).
+     * @param upper The upper bound of the random numbers (default=100.0).
+     */
     void fillVectorWithRandomNumbers(Eigen::VectorXd &b, int size, double lower = -100.0, double upper = 100.0);
+
+    /**
+     * @brief Converts an Eigen sparse matrix to a Tpetra CRS matrix.
+     * @param eigenMatrix The Eigen sparse matrix to convert.
+     * @return The converted Tpetra CRS matrix.
+     */
+    TpetraMatrixType convertEigenToTpetra(SpMat const &eigenMatrix);
+
+    /**
+     * @brief Prints the entries of a Tpetra CRS matrix.
+     * @param matrix The matrix whose entries are to be printed.
+     */
+    void printLocalMatrixEntries(TpetraMatrixType const &matrix);
+
+    /**
+     * @brief Prints the contents of a Tpetra vector.
+     * @param vec The vector to print.
+     */
+    void printTpetraVector(TpetraVectorType const &vec);
 }
 
 #endif // !UTILITIES_HPP

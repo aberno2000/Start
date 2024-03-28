@@ -1,15 +1,6 @@
 #include <array>
 #include <set>
 
-#include <Intrepid2_CellTools.hpp>
-#include <Intrepid2_DefaultCubatureFactory.hpp>
-#include <Intrepid2_FunctionSpaceTools.hpp>
-#include <Intrepid2_HGRAD_TET_C1_FEM.hpp>
-#include <Intrepid_FunctionSpaceTools.hpp>
-#include <Kokkos_Core.hpp>
-#include <Shards_CellTopology.hpp>
-#include <eigen3/Eigen/Sparse>
-
 #include "../include/Generators/VolumeCreator.hpp"
 #include "../include/Geometry/Grid3D.hpp"
 #include "../include/Particles/Particles.hpp"
@@ -41,7 +32,7 @@ bool isParticleInsideTetrahedron(Particle const &particle, MeshTetrahedronParam 
         return true;
 }
 
-int main([[maybe_unused]] int argc, [[maybe_unused]] char *argv[])
+int main(int argc, char *argv[])
 {
 #pragma region VolumeParticleTracking
     // 1. Creating particles.
@@ -114,6 +105,7 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char *argv[])
     }
 #pragma endregion
 
+    Teuchos::GlobalMPISession mpiSession(std::addressof(argc), std::addressof(argv));
     Kokkos::initialize();
     {
         std::vector<std::array<int, 4>> globalNodeIndicesPerElement;
@@ -146,32 +138,61 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char *argv[])
         // Assemblying global stiffness matrix.
         auto globalStiffnessMatrix{util::assembleGlobalStiffnessMatrix(tetrahedronMesh, allBasisGradients, allCubWeights, totalNodes, globalNodeIndicesPerElement)};
         std::cout << globalStiffnessMatrix;
+        auto tpetraMatrix{util::convertEigenToTpetra(globalStiffnessMatrix)};
+        auto A{Teuchos::rcpFromRef(tpetraMatrix)};
+        util::printLocalMatrixEntries(tpetraMatrix);
+
         size_t rows_cols{static_cast<size_t>(std::sqrt(globalStiffnessMatrix.size()))};
         std::cout << std::format("Size of matrix: {}x{}\n", rows_cols, rows_cols);
 
         // Initializing vector `b` as a resulting vector.
-        Eigen::VectorXd b /* {Eigen::VectorXd::Zero(globalStiffnessMatrix.rows())} */;
-        util::fillVectorWithRandomNumbers(b, globalStiffnessMatrix.rows());
-        std::cout << "Vector `b` for which a solution is being sought:\n"
-                  << b << '\n';
+        auto comm{Tpetra::getDefaultComm()};
+        Teuchos::RCP<MapType> map(new MapType(rows_cols, 0, comm));
+        auto b{Teuchos::rcp(new TpetraVectorType(map))};
+        b->randomize();
+        std::cout << "Vector `b` for which a solution is being sought:\n";
+        util::printTpetraVector(*b);
+
+        // Initialize solution vector x.
+        auto x{Teuchos::rcp(new TpetraVectorType(map))};
+        x->putScalar(0.0);
+
+        // Define the linear problem
+        auto problem{Teuchos::rcp(new Belos::LinearProblem<Scalar, TpetraMultiVector, TpetraOperator>())};
+        problem->setOperator(A); // Set the matrix A.
+        problem->setLHS(x);      // Set the solution vector x.
+        problem->setRHS(b);      // Set the right-hand side vector b.
+
+        // Finalize problem setup.
+        bool set{problem->setProblem()};
+        if (!set)
+        {
+            std::cerr << "Belos::LinearProblem::setProblem() returned an error\n";
+            return EXIT_FAILURE;
+        }
+
+        // Set up the solver.
+        Teuchos::RCP<Belos::SolverManager<Scalar, TpetraMultiVector, TpetraOperator>> solver;
+        Belos::SolverFactory<Scalar, TpetraMultiVector, TpetraOperator> factory;
+        Teuchos::RCP<Teuchos::ParameterList> params{Teuchos::parameterList()};
+        params->set("Maximum Iterations", 200);
+        params->set("Convergence Tolerance", 1e-10);
+        solver = factory.create("GMRES", params);
+
+        solver->setProblem(problem);
 
         // Calculating equation `Ax=b`:
-        Eigen::BiCGSTAB<Eigen::SparseMatrix<double>> solver;
-        solver.compute(globalStiffnessMatrix); // Initializing iterative solver with matrix A.
-        if (solver.info() != Eigen::Success)
+        Belos::ReturnType result{solver->solve()};
+        if (result == Belos::Converged)
         {
-            ERRMSG("Decomposition failed\n");
+            std::cout << "Solution converged\n";
+            util::printTpetraVector(*x);
+        }
+        else
+        {
+            std::cerr << "Solution did not converge\n";
             return EXIT_FAILURE;
         }
-
-        auto x{solver.solve(b)}; // Utilizing iterative computation of equation Ax=b.
-        if (solver.info() != Eigen::Success)
-        {
-            ERRMSG("Decomposition failed\n");
-            return EXIT_FAILURE;
-        }
-        std::cout << "Solution x-vector:\n"
-                  << x << '\n';
     }
     Kokkos::finalize();
 

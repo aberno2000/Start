@@ -278,3 +278,96 @@ void util::fillVectorWithRandomNumbers(Eigen::VectorXd &b, int size, double lowe
     for (int i{}; i < size; ++i)
         b(i) = rng(lower, upper);
 }
+
+TpetraMatrixType util::convertEigenToTpetra(SpMat const &eigenMatrix)
+{
+    auto comm{Tpetra::getDefaultComm()};
+    auto const numGlobalEntries{eigenMatrix.rows()};
+    Teuchos::RCP<MapType> map(new MapType(numGlobalEntries, 0, comm));
+    TpetraMatrixType tpetraMatrix(map, numGlobalEntries);
+
+    // Insert values from Eigen matrix into Tpetra matrix
+    for (int k{}; k < eigenMatrix.outerSize(); ++k)
+        for (Eigen::SparseMatrix<double>::InnerIterator it(eigenMatrix, k); it; ++it)
+            tpetraMatrix.insertGlobalValues(it.row(), Teuchos::tuple<GlobalOrdinal>(it.col()), Teuchos::tuple<Scalar>(it.value()));
+
+    // Finilize matrix assembly.
+    tpetraMatrix.fillComplete();
+
+    // Printing matrix.
+    Teuchos::RCP<Teuchos::FancyOStream> out = Teuchos::fancyOStream(Teuchos::rcpFromRef(std::cout));
+    tpetraMatrix.describe(*out, Teuchos::VERB_HIGH);
+
+    return tpetraMatrix;
+}
+
+void util::printLocalMatrixEntries(TpetraMatrixType const &matrix)
+{
+    auto comm{matrix.getMap()->getComm()};
+    auto myRank{comm->getRank()};
+    auto numProcs{comm->getSize()};
+
+    // Loop over all processes in sequential order.
+    for (int proc{}; proc < numProcs; ++proc)
+    {
+        if (myRank == proc)
+        {
+            // Print the matrix entries for the current process.
+            auto rowMap{matrix.getRowMap()};
+            size_t localNumRows{rowMap->getLocalNumElements()};
+
+            for (size_t i{}; i < localNumRows; ++i)
+            {
+                GlobalOrdinal globalRow{rowMap->getGlobalElement(i)};
+                size_t numEntries{matrix.getNumEntriesInGlobalRow(globalRow)};
+
+                typename TpetraMatrixType::nonconst_global_inds_host_view_type indices("ind", numEntries);
+                typename TpetraMatrixType::nonconst_values_host_view_type values("val", numEntries);
+                size_t checkNumEntries{};
+
+                matrix.getGlobalRowCopy(globalRow, indices, values, checkNumEntries);
+
+                // Now print the row's entries
+                std::cout << "Row " << globalRow << ": ";
+                for (size_t k{}; k < checkNumEntries; ++k)
+                    std::cout << "(" << indices[k] << ", " << values[k] << ") ";
+                std::endl(std::cout);
+            }
+        }
+        // Synchronize all processes.
+        comm->barrier();
+    }
+}
+
+void util::printTpetraVector(TpetraVectorType const &vec)
+{
+    auto comm{vec.getMap()->getComm()};
+    int myRank{comm->getRank()};
+    int numProcs{comm->getSize()};
+
+    // Synchronize all processes before printing.
+    comm->barrier();
+    for (int proc{}; proc < numProcs; ++proc)
+    {
+        if (myRank == proc)
+        {
+            // Only the current process prints its portion of the vector.
+            std::cout << std::format("Process {}\n", myRank);
+
+            // Printing using describe() for detailed information.
+            Teuchos::RCP<Teuchos::FancyOStream> out = Teuchos::fancyOStream(Teuchos::rcpFromRef(std::cout));
+            vec.describe(*out, Teuchos::VERB_EXTREME);
+
+            // Printing individual elements
+            auto vecView{vec.getLocalViewHost(Tpetra::Access::ReadOnly)};
+            auto vecData{vecView.data()};
+            size_t localLength{vec.getLocalLength()};
+            for (size_t i{}; i < localLength; ++i)
+                std::cout << "Element " << i << ": " << vecData[i] << std::endl;
+        }
+        // Synchronize before the next process starts printing.
+        comm->barrier();
+    }
+    // Final barrier to ensure printing is finished before proceeding.
+    comm->barrier();
+}
