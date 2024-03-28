@@ -1,7 +1,8 @@
 import gmsh, tempfile
 from vtk import (
     vtkRenderer, vtkPolyData, vtkPolyDataWriter, vtkAppendPolyData,
-    vtkPolyDataReader, vtkPolyDataMapper, vtkActor, vtkPolyDataWriter
+    vtkPolyDataReader, vtkPolyDataMapper, vtkActor, vtkPolyDataWriter,
+    vtkUnstructuredGrid, vtkGeometryFilter
 )
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import (
@@ -795,3 +796,39 @@ def write_vtk_polydata_to_file(polyData):
 
     # Return the path to the temporary file
     return temp_file_name
+
+def is_conversion_success(polyData):
+    # Check if the polyData is not None
+    if polyData is None:
+        return False
+
+    # Check if there are any points and cells in the polyData
+    numberOfPoints = polyData.GetNumberOfPoints()
+    numberOfCells = polyData.GetNumberOfCells()
+
+    if numberOfPoints > 0 and numberOfCells > 0:
+        return True # Conversion was successful and resulted in a non-empty polyData
+    else:
+        return False # Conversion failed to produce meaningful polyData
+
+
+def convert_vtkUnstructuredGrid_to_vtkPolyData_helper(ugrid: vtkUnstructuredGrid):
+    geometryFilter = vtkGeometryFilter()
+    geometryFilter.SetInputData(ugrid)
+    
+    geometryFilter.Update()
+    
+    polyData = geometryFilter.GetOutput()
+    if not is_conversion_success(polyData):
+        return None
+    
+    return polyData
+
+def convert_vtkUnstructuredGrid_to_vtkPolyData(data):
+    if data.IsA("vtkUnstructuredGrid"):
+        return convert_vtkUnstructuredGrid_to_vtkPolyData_helper(data)
+    elif data.IsA("vtkPolyData"):
+        return data
+    else:
+        return None
+    

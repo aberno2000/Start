@@ -28,7 +28,8 @@ from .util import(
 )
 from util.util import(
     align_view_by_axis, save_scene, load_scene, convert_msh_to_vtk, 
-    get_polydata_from_actor, write_vtk_polydata_to_file
+    get_polydata_from_actor, write_vtk_polydata_to_file,
+    convert_vtkUnstructuredGrid_to_vtkPolyData
 )
 from .mesh_dialog import MeshDialog
 from .styles import DEFAULT_ACTOR_COLOR, SELECTED_ACTOR_COLOR
@@ -55,7 +56,7 @@ def get_action(id: int, data, actor: vtkActor, isDifficultObj: bool = False, fig
 
 
 class GraphicalEditor(QFrame):    
-    def __init__(self, parent=None):
+    def __init__(self, log_console, parent=None):
         super().__init__(parent)
         self.treeView = QTreeView()
         self.model = QStandardItemModel()
@@ -167,12 +168,11 @@ class GraphicalEditor(QFrame):
         
         if reader.IsFilePolyData():
             mapper = vtkPolyDataMapper()
-            mapper.SetInputConnection(reader.GetOutputPort())
         elif reader.IsFileUnstructuredGrid():
             mapper = vtkDataSetMapper()
-            mapper.SetInputConnection(reader.GetOutputPort())
         else:
             return
+        mapper.SetInputConnection(reader.GetOutputPort())
 
         actor = vtkActor()
         actor.SetMapper(mapper)
@@ -652,6 +652,7 @@ class GraphicalEditor(QFrame):
     
     def add_actor(self, actor: vtkActor):
         self.renderer.AddActor(actor)
+        actor.GetProperty().SetColor(DEFAULT_ACTOR_COLOR)
         self.renderer.ResetCamera()
         self.vtkWidget.GetRenderWindow().Render()
         
@@ -727,12 +728,11 @@ class GraphicalEditor(QFrame):
         
         if reader.IsFilePolyData():
             mapper = vtkPolyDataMapper()
-            mapper.SetInputConnection(reader.GetOutputPort())
         elif reader.IsFileUnstructuredGrid():
             mapper = vtkDataSetMapper()
-            mapper.SetInputConnection(reader.GetOutputPort())
         else:
             return None
+        mapper.SetInputConnection(reader.GetOutputPort())
 
         actor = vtkActor()
         actor.SetMapper(mapper)
@@ -973,6 +973,9 @@ class GraphicalEditor(QFrame):
         obj_from_subtract_polydata = get_polydata_from_actor(obj_from_subtract)
         obj_to_subtract_polydata = get_polydata_from_actor(obj_to_subtract)
         
+        obj_from_subtract_polydata = convert_vtkUnstructuredGrid_to_vtkPolyData(obj_from_subtract_polydata)
+        obj_to_subtract_polydata = convert_vtkUnstructuredGrid_to_vtkPolyData(obj_to_subtract_polydata)
+        
         cleaner1 = vtkCleanPolyData()
         cleaner1.SetInputData(obj_from_subtract_polydata)
         cleaner1.Update()
@@ -990,9 +993,15 @@ class GraphicalEditor(QFrame):
         
         # Update the filter to perform the subtraction
         booleanOperation.Update()
-
+        
         # Retrieve the result of the subtraction
         resultPolyData = booleanOperation.GetOutput()
+        
+        # Check if subtraction was successful
+        if resultPolyData is None or resultPolyData.GetNumberOfPoints() == 0:
+            QMessageBox.warning(self, "Subtraction Failed", "No result from the subtraction operation.")
+            return
+        
         mapper = vtkPolyDataMapper()
         mapper.SetInputData(resultPolyData)
 

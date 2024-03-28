@@ -7,10 +7,11 @@ from util.graphical_editor import GraphicalEditor
 
 
 class GraphicalEditorTab(QWidget):
-    def __init__(self, config_tab: ConfigTab, parent=None):
+    def __init__(self, config_tab: ConfigTab, log_console, parent=None):
         super().__init__(parent)
         self.layout = QVBoxLayout(self)
         self.config_tab = config_tab
+        self.log_console = log_console
         self.setup_ui()
         
         self.object_idx = self.geditor.object_idx
@@ -20,7 +21,7 @@ class GraphicalEditorTab(QWidget):
 
     def setup_ui(self):
         # Initialize a placeholder for the graphical editor
-        self.geditor = GraphicalEditor()
+        self.geditor = GraphicalEditor(self.log_console)
         
         # Initialize an empty QTreeView
         self.treeView = self.geditor.treeView

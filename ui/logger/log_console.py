@@ -1,13 +1,15 @@
+import tempfile
 from PyQt5.QtWidgets import (
     QVBoxLayout, QPlainTextEdit,
     QWidget, QDockWidget,
     QApplication
 )
-from PyQt5.QtCore import Qt, pyqtSignal
+from PyQt5.QtCore import Qt, pyqtSignal, QTimer
 from PyQt5.QtGui import QTextCharFormat, QTextCursor, QColor
 from util import is_file_valid
 from logger.cli_history import CommandLineHistory
-    
+from vtk import vtkLogger
+from os import remove
 
 class LogConsole(QWidget):
     logSignal = pyqtSignal(str)
@@ -20,9 +22,15 @@ class LogConsole(QWidget):
         super().__init__(parent)
         self.layout = QVBoxLayout(self)
         self.setup_ui()
-                
+        self.setup_vtk_logger()
+    
+    def __del__(self):
+        try:
+            self.cleanup()
+        except Exception as e:
+            print(f'Error closing up LogConsole resources: {e}')
 
-    def setup_ui(self):
+    def setup_ui(self):        
         self.log_console = QPlainTextEdit()
         self.log_console.setReadOnly(True)  # Make the console read-only
         
@@ -42,7 +50,33 @@ class LogConsole(QWidget):
         self.log_dock_widget.setAllowedAreas(Qt.BottomDockWidgetArea)
         self.log_dock_widget.setVisible(True)
         
-        
+    
+    def setup_vtk_logger(self):
+        self.log_file_path = tempfile.mktemp()  # Create a temporary file
+        vtkLogger.LogToFile(self.log_file_path, vtkLogger.APPEND, vtkLogger.VERBOSITY_INFO)
+        self.start_monitoring_log_file()
+    
+    def start_monitoring_log_file(self):
+        # Use QTimer for periodic checks in a GUI-friendly way
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.read_log_file)
+        self.timer.start(1000)  # Check every second
+    
+    def read_log_file(self):
+        # Read the log file and append its contents to the log console
+        with open(self.log_file_path, 'r') as file:
+            logs = file.read().strip()
+            if logs:
+                self.appendLog(logs)
+                # Clear the log file
+                open(self.log_file_path, 'w').close()
+                
+    
+    def cleanup(self):
+        self.timer.stop()
+        remove(self.log_file_path)
+                    
+    
     def setDefaultTextColor(self, color):
         textFormat = QTextCharFormat()
         textFormat.setForeground(color)
@@ -157,4 +191,3 @@ class LogConsole(QWidget):
         else:
             self.appendLog(f"Unknown command: {command}")
         self.command_input.clear()
-

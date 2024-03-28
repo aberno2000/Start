@@ -44,7 +44,7 @@ class WindowApp(QMainWindow):
         self.config_tab = ConfigTab(self.log_console)
         self.config_tab.requestToMoveToTheNextTab.connect(self.switch_tab)
         self.config_tab.requestToStartSimulation.connect(self.start_simulation)
-        self.mesh_tab = GraphicalEditorTab(self.config_tab)
+        self.mesh_tab = GraphicalEditorTab(self.config_tab, self.log_console)
         self.geditor = self.mesh_tab.geditor
 
         # Connecting signal to detect the selection of mesh file
