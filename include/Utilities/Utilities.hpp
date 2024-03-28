@@ -36,11 +36,8 @@ using MeshTetrahedronParamVector = std::vector<MeshTetrahedronParam>;
 #include <Teuchos_GlobalMPISession.hpp>
 #include <Teuchos_ParameterList.hpp>
 #include <Teuchos_RCP.hpp>
-#include <Tpetra_BlockCrsMatrix_Helpers_def.hpp>
-#include <Tpetra_BlockCrsMatrix_decl.hpp>
 #include <Tpetra_Core.hpp>
 #include <Tpetra_CrsMatrix.hpp>
-#include <Tpetra_CrsMatrix_decl.hpp>
 #include <Tpetra_Map.hpp>
 #include <Tpetra_Vector.hpp>
 #include <eigen3/Eigen/Sparse>
