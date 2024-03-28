@@ -76,6 +76,8 @@ class GraphicalEditor(QFrame):
         self.statusBar = QStatusBar()
         self.layout.addWidget(self.statusBar)
         
+        self.log_console = log_console
+        
     
     def initialize_tree(self):
         self.model = QStandardItemModel()
@@ -970,57 +972,62 @@ class GraphicalEditor(QFrame):
 
     
     def subtract_objects(self, obj_from_subtract: vtkActor, obj_to_subtract: vtkActor):
-        obj_from_subtract_polydata = get_polydata_from_actor(obj_from_subtract)
-        obj_to_subtract_polydata = get_polydata_from_actor(obj_to_subtract)
-        
-        obj_from_subtract_polydata = convert_vtkUnstructuredGrid_to_vtkPolyData(obj_from_subtract_polydata)
-        obj_to_subtract_polydata = convert_vtkUnstructuredGrid_to_vtkPolyData(obj_to_subtract_polydata)
-        
-        cleaner1 = vtkCleanPolyData()
-        cleaner1.SetInputData(obj_from_subtract_polydata)
-        cleaner1.Update()
-        cleaner2 = vtkCleanPolyData()
-        cleaner2.SetInputData(obj_to_subtract_polydata)
-        cleaner2.Update()
-        
-        # Create a boolean operation filter
-        booleanOperation = vtkBooleanOperationPolyDataFilter()
-        booleanOperation.SetOperationToDifference()
-        
-        # Set the input objects for the operation
-        booleanOperation.SetInputData(0, cleaner1.GetOutput())
-        booleanOperation.SetInputData(1, cleaner2.GetOutput())
-        
-        # Update the filter to perform the subtraction
-        booleanOperation.Update()
-        
-        # Retrieve the result of the subtraction
-        resultPolyData = booleanOperation.GetOutput()
-        
-        # Check if subtraction was successful
-        if resultPolyData is None or resultPolyData.GetNumberOfPoints() == 0:
-            QMessageBox.warning(self, "Subtraction Failed", "No result from the subtraction operation.")
-            return
-        
-        mapper = vtkPolyDataMapper()
-        mapper.SetInputData(resultPolyData)
+        try:
+            obj_from_subtract_polydata = get_polydata_from_actor(obj_from_subtract)
+            obj_to_subtract_polydata = get_polydata_from_actor(obj_to_subtract)
+            
+            obj_from_subtract_polydata = convert_vtkUnstructuredGrid_to_vtkPolyData(obj_from_subtract_polydata)
+            obj_to_subtract_polydata = convert_vtkUnstructuredGrid_to_vtkPolyData(obj_to_subtract_polydata)
+            
+            cleaner1 = vtkCleanPolyData()
+            cleaner1.SetInputData(obj_from_subtract_polydata)
+            cleaner1.Update()
+            cleaner2 = vtkCleanPolyData()
+            cleaner2.SetInputData(obj_to_subtract_polydata)
+            cleaner2.Update()
+            
+            # Create a boolean operation filter
+            booleanOperation = vtkBooleanOperationPolyDataFilter()
+            booleanOperation.SetOperationToDifference()
+            
+            # Set the input objects for the operation
+            booleanOperation.SetInputData(0, cleaner1.GetOutput())
+            booleanOperation.SetInputData(1, cleaner2.GetOutput())
+            
+            # Update the filter to perform the subtraction
+            booleanOperation.Update()
+            
+            # Retrieve the result of the subtraction
+            resultPolyData = booleanOperation.GetOutput()
+            
+            # Check if subtraction was successful
+            if resultPolyData is None or resultPolyData.GetNumberOfPoints() == 0:
+                QMessageBox.warning(self, "Subtraction Failed", "No result from the subtraction operation.")
+                return
+            
+            mapper = vtkPolyDataMapper()
+            mapper.SetInputData(resultPolyData)
 
-        actor = vtkActor()
-        actor.SetMapper(mapper)
-        self.add_actor(actor)
-        
-        # Removing subtracting objects only after adding resulting object
-        self.remove_actor(obj_from_subtract)
-        self.remove_actor(obj_to_subtract)
-        self.remove_row_from_tree_view(obj_from_subtract)
-        self.remove_row_from_tree_view(obj_to_subtract)        
-        self.object_idx -= 2
-        
-        vtk_filename = write_vtk_polydata_to_file(resultPolyData)
-        rootItem = QStandardItem(basename(vtk_filename))
-        data = self.parse_vtk_data_and_populate_tree(vtk_filename, self.model, rootItem)
-        action = get_action(self.object_idx, data, actor, isDifficultObj=True, mesh_file=vtk_filename)
-        self.undo_stack.append(action)
-        self.object_idx += 1
+            actor = vtkActor()
+            actor.SetMapper(mapper)
+            self.add_actor(actor)
+            
+            # Removing subtracting objects only after adding resulting object
+            self.remove_actor(obj_from_subtract)
+            self.remove_actor(obj_to_subtract)
+            self.remove_row_from_tree_view(obj_from_subtract)
+            self.remove_row_from_tree_view(obj_to_subtract)        
+            self.object_idx -= 2
+            
+            vtk_filename = write_vtk_polydata_to_file(resultPolyData)
+            rootItem = QStandardItem(basename(vtk_filename))
+            data = self.parse_vtk_data_and_populate_tree(vtk_filename, self.model, rootItem)
+            action = get_action(self.object_idx, data, actor, isDifficultObj=True, mesh_file=vtk_filename)
+            self.undo_stack.append(action)
+            self.object_idx += 1
 
-        return actor
+            return actor
+        except Exception as e:
+            self.log_console.insert_colored_text("Error: ", "red")
+            self.log_console.appendLog(str(e))
+            return None

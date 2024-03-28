@@ -63,19 +63,20 @@ class LogConsole(QWidget):
         self.timer.start(1000)  # Check every second
     
     def read_log_file(self):
-        # Read the log file and append its contents to the log console
+        # Read the log file line by line and append its contents to the log console with appropriate color
         with open(self.log_file_path, 'r') as file:
-            logs = file.read().strip()
-            if logs:
-                self.appendLog(logs)
-                # Clear the log file
-                open(self.log_file_path, 'w').close()
-                
+            for line in file:
+                if 'WARN|' in line:
+                    self.insert_colored_text(line, 'yellow')
+                elif 'ERR|' in line:
+                    self.insert_colored_text(line, 'red')
+                else:
+                    self.appendLog(line.strip())
+        open(self.log_file_path, 'w').close()
     
     def cleanup(self):
         self.timer.stop()
-        remove(self.log_file_path)
-                    
+        remove(self.log_file_path)     
     
     def setDefaultTextColor(self, color):
         textFormat = QTextCharFormat()
