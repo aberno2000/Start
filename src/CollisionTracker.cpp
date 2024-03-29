@@ -26,12 +26,12 @@ void CollisionTracker::processSegment(size_t start_index, size_t end_index,
                           if (m_counter.load() >= m_particles.size())
                               return;
 
-                          Point3 prev(p.getCentre());
+                          Point prev(p.getCentre());
                           if (p.colide(gasParticle, m_gasConcentration,
                                        m_configObj.getScatteringModel(),
                                        m_configObj.getTimeStep()))
                               p.updatePosition(m_configObj.getTimeStep());
-                          Ray3 ray(prev, p.getCentre());
+                          Ray ray(prev, p.getCentre());
 
                           // Check ray on degeneracy
                           if (not ray.is_degenerate())
@@ -41,7 +41,7 @@ void CollisionTracker::processSegment(size_t start_index, size_t end_index,
                               if (intersection)
                               {
                                   // Getting triangle object
-                                  auto triangle{boost::get<Triangle3>(*intersection->second)};
+                                  auto triangle{boost::get<Triangle>(*intersection->second)};
 
                                   // Check if some of sides of angles in the triangle <= 0 (check on degeneracy)
                                   if (not triangle.is_degenerate())
