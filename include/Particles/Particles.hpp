@@ -21,7 +21,7 @@ private:
     static std::atomic<size_t> m_nextId; ///< Static member for generating unique IDs.
     size_t m_id;                         ///< Id of the particle.
     ParticleType m_type{};               ///< Type of the particle.
-    Point3 m_centre;                     ///< Position in Cartesian coordinates (x, y, z).
+    Point m_centre;                     ///< Position in Cartesian coordinates (x, y, z).
     VelocityVector m_velocity;           ///< Velocity vector (Vx, Vy, Vz).
     double m_energy{};                   ///< Particle energy [J].
     CGAL::Bbox_3 m_bbox;                 ///< Bounding box for particle.
@@ -174,14 +174,14 @@ public:
     Particle(ParticleType type_);
     Particle(ParticleType type_, double x_, double y_, double z_, double energy_);
     Particle(ParticleType type_, double x_, double y_, double z_, double vx_, double vy_, double vz_);
-    Particle(ParticleType type_, Point3 const &centre, double vx_, double vy_, double vz_);
-    Particle(ParticleType type_, Point3 &&centre, double vx_, double vy_, double vz_);
-    Particle(ParticleType type_, Point3 const &centre, double energy_);
-    Particle(ParticleType type_, Point3 &&centre, double energy_);
+    Particle(ParticleType type_, Point const &centre, double vx_, double vy_, double vz_);
+    Particle(ParticleType type_, Point &&centre, double vx_, double vy_, double vz_);
+    Particle(ParticleType type_, Point const &centre, double energy_);
+    Particle(ParticleType type_, Point &&centre, double energy_);
     Particle(ParticleType type_, double x_, double y_, double z_, VelocityVector const &velvec);
     Particle(ParticleType type_, double x_, double y_, double z_, VelocityVector &&velvec);
-    Particle(ParticleType type_, Point3 const &centre, VelocityVector const &velvec);
-    Particle(ParticleType type_, Point3 &&centre, VelocityVector &&velvec);
+    Particle(ParticleType type_, Point const &centre, VelocityVector const &velvec);
+    Particle(ParticleType type_, Point &&centre, VelocityVector &&velvec);
     ~Particle() {}
 
     /**
@@ -210,7 +210,7 @@ public:
     constexpr double getVy() const { return m_velocity.getY(); }
     constexpr double getVz() const { return m_velocity.getZ(); }
     double getVelocityModule() const;
-    constexpr Point3 const &getCentre() const { return m_centre; }
+    constexpr Point const &getCentre() const { return m_centre; }
     constexpr VelocityVector const &getVelocityVector() const { return m_velocity; }
     constexpr CGAL::Bbox_3 const &getBoundingBox() const { return m_bbox; }
     constexpr double getMass() const { return getMassFromType(m_type); }

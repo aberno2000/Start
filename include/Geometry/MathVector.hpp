@@ -6,8 +6,6 @@
 #include <random>
 #include <stdexcept>
 
-#include "../Utilities/Utilities.hpp"
-
 /**
  * Description of the mathematical vector. In the simplest case, a
  * mathematical object characterized by magnitude and direction.

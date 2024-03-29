@@ -2,6 +2,7 @@
 
 #include "../include/Geometry/MathVector.hpp"
 #include "../include/Geometry/Mesh.hpp"
+#include "../include/Utilities/Utilities.hpp"
 
 std::ostream &operator<<(std::ostream &os, MeshTriangleParam const &meshParam)
 {
@@ -66,15 +67,32 @@ std::optional<AABB_Tree_Triangle> constructAABBTreeFromMeshParams(MeshTrianglePa
     return AABB_Tree_Triangle(std::cbegin(triangles), std::cend(triangles));
 }
 
-size_t Mesh::isRayIntersectTriangleImpl(Ray3 const &ray, MeshTriangleParam const &triangle)
+double calculateVolumeOfTetrahedron(Tetrahedron const &tetrahedron)
+{
+    Point const &A{tetrahedron[0]},
+        &B{tetrahedron[1]},
+        &C{tetrahedron[2]},
+        &D{tetrahedron[3]};
+
+    // Construct vectors AB, AC, and AD
+    Kernel::Vector_3 AB{B - A}, AC{C - A}, AD{D - A};
+
+    // Compute the scalar triple product (AB . (AC x AD))
+    double scalarTripleProduct{CGAL::scalar_product(AB, CGAL::cross_product(AC, AD))};
+
+    // The volume of the tetrahedron is the absolute value of the scalar triple product divided by 6
+    return std::abs(scalarTripleProduct) / 6.0;
+}
+
+size_t Mesh::isRayIntersectTriangleImpl(Ray const &ray, MeshTriangleParam const &triangle)
 {
     return (RayTriangleIntersection::isIntersectTriangle(ray, std::get<1>(triangle)))
                ? std::get<0>(triangle)
                : -1ul;
 }
 
-std::optional<std::tuple<size_t, Point3>>
-Mesh::getIntersectionPointImpl(Ray3 const &ray, MeshTriangleParam const &triangle)
+std::optional<std::tuple<size_t, Point>>
+Mesh::getIntersectionPointImpl(Ray const &ray, MeshTriangleParam const &triangle)
 {
     auto ip(RayTriangleIntersection::getIntersectionPoint(ray, std::get<1>(triangle)));
     if (!ip)
@@ -126,9 +144,9 @@ MeshTriangleParamVector Mesh::getMeshParams(std::string_view msh_filename)
                                                         MathVector(xyz3[0], xyz3[1], xyz3[2]))};
 
             result.emplace_back(std::make_tuple(triangleId,
-                                                Triangle3(Point3(xyz1[0], xyz1[1], xyz1[2]),
-                                                          Point3(xyz2[0], xyz2[1], xyz2[2]),
-                                                          Point3(xyz3[0], xyz3[1], xyz3[2])),
+                                                Triangle(Point(xyz1[0], xyz1[1], xyz1[2]),
+                                                         Point(xyz2[0], xyz2[1], xyz2[2]),
+                                                         Point(xyz3[0], xyz3[1], xyz3[2])),
                                                 dS, 0));
         }
     }
@@ -179,12 +197,12 @@ MeshTetrahedronParamVector Mesh::getTetrahedronMeshParams(std::string_view msh_f
             for (int j{}; j < 4; ++j)
                 vertices[j] = {xyz[(nodes[j] - 1) * 3], xyz[(nodes[j] - 1) * 3 + 1], xyz[(nodes[j] - 1) * 3 + 2]};
 
-            Tetrahedron3 tetrahedron(Point3(vertices[0][0], vertices[0][1], vertices[0][2]),
-                                     Point3(vertices[1][0], vertices[1][1], vertices[1][2]),
-                                     Point3(vertices[2][0], vertices[2][1], vertices[2][2]),
-                                     Point3(vertices[3][0], vertices[3][1], vertices[3][2]));
+            Tetrahedron tetrahedron(Point(vertices[0][0], vertices[0][1], vertices[0][2]),
+                                    Point(vertices[1][0], vertices[1][1], vertices[1][2]),
+                                    Point(vertices[2][0], vertices[2][1], vertices[2][2]),
+                                    Point(vertices[3][0], vertices[3][1], vertices[3][2]));
 
-            result.emplace_back(tetrahedronID, tetrahedron, util::calculateVolumeOfTetrahedron3(tetrahedron));
+            result.emplace_back(tetrahedronID, tetrahedron, calculateVolumeOfTetrahedron(tetrahedron));
         }
     }
     catch (std::exception const &e)
@@ -203,7 +221,7 @@ double Mesh::getVolumeFromTetrahedronMesh(std::string_view msh_filename)
     double totalVolume{};
     auto tetrahedronMesh{getTetrahedronMeshParams(msh_filename)};
     for (auto const &tetrahedron : tetrahedronMesh)
-        totalVolume += util::calculateVolumeOfTetrahedron3(std::get<1>(tetrahedron));
+        totalVolume += calculateVolumeOfTetrahedron(std::get<1>(tetrahedron));
     return totalVolume;
 }
 

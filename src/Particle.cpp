@@ -1,6 +1,7 @@
 #include <numbers>
 
 #include "../include/Generators/RealNumberGenerator.hpp"
+#include "../include/Geometry/CGALTypes.hpp"
 #include "../include/Particles/Particles.hpp"
 
 std::atomic<size_t> Particle::m_nextId{0ul};
@@ -35,7 +36,7 @@ void Particle::calculateBoundingBox()
 Particle::Particle(ParticleType type_)
 	: m_id(m_nextId++),
 	  m_type(type_),
-	  m_centre(Point3(0, 0, 0)),
+	  m_centre(Point(0, 0, 0)),
 	  m_velocity(0, 0, 0),
 	  m_bbox(0, 0, 0, 0, 0, 0) {}
 
@@ -43,7 +44,7 @@ Particle::Particle(ParticleType type_, double x_, double y_, double z_,
 				   double energy_)
 	: m_id(m_nextId++),
 	  m_type(type_),
-	  m_centre(Point3(x_, y_, z_)),
+	  m_centre(Point(x_, y_, z_)),
 	  m_energy(energy_)
 {
 	calculateVelocityFromEnergy_J();
@@ -54,14 +55,14 @@ Particle::Particle(ParticleType type_, double x_, double y_, double z_,
 				   double vx_, double vy_, double vz_)
 	: m_id(m_nextId++),
 	  m_type(type_),
-	  m_centre(Point3(x_, y_, z_)),
+	  m_centre(Point(x_, y_, z_)),
 	  m_velocity(MathVector(vx_, vy_, vz_))
 {
 	calculateEnergyJFromVelocity(m_velocity);
 	calculateBoundingBox();
 }
 
-Particle::Particle(ParticleType type_, Point3 const &centre,
+Particle::Particle(ParticleType type_, Point const &centre,
 				   double vx_, double vy_, double vz_)
 	: m_id(m_nextId++),
 	  m_type(type_),
@@ -72,7 +73,7 @@ Particle::Particle(ParticleType type_, Point3 const &centre,
 	calculateBoundingBox();
 }
 
-Particle::Particle(ParticleType type_, Point3 &&centre,
+Particle::Particle(ParticleType type_, Point &&centre,
 				   double vx_, double vy_, double vz_)
 	: m_id(m_nextId++),
 	  m_type(type_),
@@ -83,7 +84,7 @@ Particle::Particle(ParticleType type_, Point3 &&centre,
 	calculateBoundingBox();
 }
 
-Particle::Particle(ParticleType type_, Point3 const &centre, double energy_)
+Particle::Particle(ParticleType type_, Point const &centre, double energy_)
 	: m_id(m_nextId++),
 	  m_type(type_),
 	  m_centre(centre),
@@ -93,7 +94,7 @@ Particle::Particle(ParticleType type_, Point3 const &centre, double energy_)
 	calculateBoundingBox();
 }
 
-Particle::Particle(ParticleType type_, Point3 &&centre, double energy_)
+Particle::Particle(ParticleType type_, Point &&centre, double energy_)
 	: m_id(m_nextId++),
 	  m_type(type_),
 	  m_centre(std::move(centre)),
@@ -107,7 +108,7 @@ Particle::Particle(ParticleType type_, double x_, double y_, double z_,
 				   VelocityVector const &velvec)
 	: m_id(m_nextId++),
 	  m_type(type_),
-	  m_centre(Point3(x_, y_, z_)),
+	  m_centre(Point(x_, y_, z_)),
 	  m_velocity(velvec)
 {
 	calculateEnergyJFromVelocity(m_velocity);
@@ -118,14 +119,14 @@ Particle::Particle(ParticleType type_, double x_, double y_, double z_,
 				   VelocityVector &&velvec)
 	: m_id(m_nextId++),
 	  m_type(type_),
-	  m_centre(Point3(x_, y_, z_)),
+	  m_centre(Point(x_, y_, z_)),
 	  m_velocity(std::move(velvec))
 {
 	calculateEnergyJFromVelocity(m_velocity);
 	calculateBoundingBox();
 }
 
-Particle::Particle(ParticleType type_, Point3 const &centre,
+Particle::Particle(ParticleType type_, Point const &centre,
 				   VelocityVector const &velvec)
 	: m_id(m_nextId++),
 	  m_type(type_),
@@ -136,7 +137,7 @@ Particle::Particle(ParticleType type_, Point3 const &centre,
 	calculateBoundingBox();
 }
 
-Particle::Particle(ParticleType type_, Point3 &&centre,
+Particle::Particle(ParticleType type_, Point &&centre,
 				   VelocityVector &&velvec)
 	: m_id(m_nextId++),
 	  m_type(type_),
@@ -154,7 +155,7 @@ void Particle::updatePosition(double dt)
 		upd_y{CGAL_TO_DOUBLE(m_centre.y()) + getVy() * dt},
 		upd_z{CGAL_TO_DOUBLE(m_centre.z()) + getVz() * dt};
 
-	m_centre = Point3(upd_x, upd_y, upd_z);
+	m_centre = Point(upd_x, upd_y, upd_z);
 }
 
 bool Particle::overlaps(Particle const &other) const
@@ -399,8 +400,8 @@ ParticleVector createParticlesWithEnergy(size_t count, ParticleType type,
 
 std::ostream &operator<<(std::ostream &os, Particle const &particle)
 {
-    std::cout << std::format("Particle[{}]:\nCenter: {} {} {}\nRadius: {}\nVelocity components: {} {} {}\nEnergy: {} eV\n\n",
-                             particle.getId(), particle.getX(), particle.getY(), particle.getZ(), particle.getRadius(),
-                             particle.getVx(), particle.getVy(), particle.getVz(), particle.getEnergy_eV());
-    return os;
+	std::cout << std::format("Particle[{}]:\nCenter: {} {} {}\nRadius: {}\nVelocity components: {} {} {}\nEnergy: {} eV\n\n",
+							 particle.getId(), particle.getX(), particle.getY(), particle.getZ(), particle.getRadius(),
+							 particle.getVx(), particle.getVy(), particle.getVz(), particle.getEnergy_eV());
+	return os;
 }
