@@ -2,9 +2,10 @@
 #define MATHVECTOR_HPP
 
 #include <compare>
-#include <format>
 #include <random>
 #include <stdexcept>
+
+#include "../Utilities/Utilities.hpp"
 
 /**
  * Description of the mathematical vector. In the simplest case, a

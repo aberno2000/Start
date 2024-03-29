@@ -54,7 +54,7 @@ GridIndex Grid3D::getGridIndexByPosition(double x, double y, double z) const
         std::clamp(short((z - m_commonBbox.zmin()) / m_cubeEdgeSize), short(0), static_cast<short>(m_divisionsZ - 1))};
 }
 
-GridIndex Grid3D::getGridIndexByPosition(Point3 const &point) const
+GridIndex Grid3D::getGridIndexByPosition(Point const &point) const
 {
     double x{CGAL_TO_DOUBLE(point.x())},
         y{CGAL_TO_DOUBLE(point.y())},

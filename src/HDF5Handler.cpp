@@ -138,9 +138,9 @@ MeshTriangleParamVector HDF5Handler::readMeshFromHDF5()
         readDataset(groupName, "Counter", H5T_NATIVE_INT, std::addressof(counter));
 
         // Construct the tuple and add to the mesh vector
-        Triangle3 tmp(Point3(coordinates[0], coordinates[1], coordinates[2]),
-                      Point3(coordinates[3], coordinates[4], coordinates[5]),
-                      Point3(coordinates[6], coordinates[7], coordinates[8]));
+        Triangle tmp(Point(coordinates[0], coordinates[1], coordinates[2]),
+                      Point(coordinates[3], coordinates[4], coordinates[5]),
+                      Point(coordinates[6], coordinates[7], coordinates[8]));
         mesh.emplace_back(std::make_tuple(id, tmp, area, counter));
     }
 

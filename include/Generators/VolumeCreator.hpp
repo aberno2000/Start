@@ -37,8 +37,8 @@ public:
     virtual ~IVolume() {}
 };
 
-using Sphere = std::tuple<Point, double>;
-using SphereVector = std::vector<Sphere>;
+using SphereD = std::tuple<Point, double>;
+using SphereVector = std::vector<SphereD>;
 
 /// @brief Represents Box volume.
 class Box final : public IVolume

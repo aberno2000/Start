@@ -51,7 +51,7 @@ public:
      * @param point `CGAL::Point_3` point.
      * @return Grid index.
      */
-    GridIndex getGridIndexByPosition(Point3 const &point) const;
+    GridIndex getGridIndexByPosition(Point const &point) const;
 
     /// @return The total number of cells.
     constexpr size_t size() const { return static_cast<size_t>(m_divisionsX * m_divisionsY * m_divisionsZ); }
