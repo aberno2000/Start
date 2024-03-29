@@ -71,7 +71,7 @@ std::vector<int> VolumeCreator::createSpheres(SphereVector spheres)
     std::vector<int> dimTags;
     for (auto const &sphere : spheres)
     {
-        Point3 centre{std::get<0>(sphere)};
+        Point centre{std::get<0>(sphere)};
         dimTags.emplace_back(VolumeCreator::createSphere(CGAL_TO_DOUBLE(centre.x()),
                                                          CGAL_TO_DOUBLE(centre.y()),
                                                          CGAL_TO_DOUBLE(centre.z()),
