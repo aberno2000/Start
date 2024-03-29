@@ -94,6 +94,7 @@ set(SOURCES
     src/CollisionTracker.cpp
     src/ConfigParser.cpp
     src/Grid3D.cpp
+    src/GSMatrixAssemblier.cpp
     src/HDF5Handler.cpp
     src/MathVector.cpp
     src/Mesh.cpp
