@@ -138,7 +138,7 @@ void GSMatrixAssemblier::printDynRankView(DynRankView const &view) const
     {
         for (size_t j{}; j < numCols; ++j)
             std::cout << view(i, j) << ' ';
-        std::cout << std::endl;
+        std::endl(std::cout);
     }
 }
 
@@ -187,27 +187,29 @@ Teuchos::RCP<TpetraMatrixType> GSMatrixAssemblier::assembleGlobalStiffnessMatrix
     DynRankViewMatrix allBasisGradients;
     DynRankViewVector allCubWeights;
 
+    // 1. Getting all necessary tetrahedron parameters.
     auto tetrahedronMesh{Mesh::getTetrahedronMeshParams(mesh_filename)};
     auto endIt{tetrahedronMesh.cend()};
     auto tetrahedronNodes{Mesh::getTetrahedronNodesMap(mesh_filename)};
+
+    // 2. Counting only unique nodes. 
     std::set<size_t> allNodeIDs;
     for (auto const &[tetrahedronID, nodeIDs] : tetrahedronNodes)
         allNodeIDs.insert(nodeIDs.begin(), nodeIDs.end());
     size_t totalNodes{allNodeIDs.size()};
 
-    // Mapping from node ID to it's index in the global stiffness matrix.
-    std::unordered_map<size_t, size_t> nodeID_to_globMatrixID;
-    size_t index{};
-    for (size_t nodeId : allNodeIDs)
-        nodeID_to_globMatrixID[nodeId] = index++;
-
+    // 3. Filling global indeces.
     for (auto const &[tetrahedronID, nodeIDs] : tetrahedronNodes)
     {
-        TetrahedronIndeces globalNodeIndices;
-        for (int i{}; i < 4; ++i)
-            globalNodeIndices[i] = nodeID_to_globMatrixID[nodeIDs[i]];
-        globalNodeIndicesPerElement.emplace_back(globalNodeIndices);
+        std::array<LocalOrdinal, 4ul> nodes;
+        for (short i{}; i < 4; ++i)
+            nodes[i] = nodeIDs[i] - 1;
+        globalNodeIndicesPerElement.emplace_back(nodes);
+    }
 
+    // 4. Computing all basis gradients and cubature weights.
+    for (auto const &[tetrahedronID, nodeIDs] : tetrahedronNodes)
+    {
         auto meshParam{std::ranges::find_if(tetrahedronMesh, [tetrahedronID](auto const &param)
                                             { return std::get<0>(param) == tetrahedronID; })};
         if (meshParam != endIt)
@@ -218,24 +220,25 @@ Teuchos::RCP<TpetraMatrixType> GSMatrixAssemblier::assembleGlobalStiffnessMatrix
         }
     }
 
-    // Assemblying global stiffness matrix.
+    // 5. Assemblying global stiffness matrix.
     auto globalStiffnessMatrix{assembleGlobalStiffnessMatrixHelper(tetrahedronMesh, allBasisGradients, allCubWeights, totalNodes, globalNodeIndicesPerElement)};
 
-    /* Filling the map. */
+    // 6*. Filling the Trilinos map.
     auto const numGlobalEntries{globalStiffnessMatrix.rows()};
     int indexBase{0};
     m_map = Teuchos::rcp(new MapType(numGlobalEntries, indexBase, m_comm));
 
+    // 7. Converting Eigen sparse matrix to Tpetra sparse matrix.
     auto tpetraMatrix{convertEigenToTpetra(globalStiffnessMatrix)};
     return tpetraMatrix;
 }
 
 void GSMatrixAssemblier::setBoundaryConditions(std::map<LocalOrdinal, Scalar> const &boundaryConditions)
 {
-    // Ensure the matrix is in a state that allows adding or replacing entries.
+    // 1. Ensure the matrix is in a state that allows adding or replacing entries.
     m_gsmatrix->resumeFill();
 
-    // Setting boundary conditions to global stiffness matrix:
+    // 2. Setting boundary conditions to global stiffness matrix:
     for (auto const &[nodeID, value] : boundaryConditions)
     {
         size_t numEntries{m_gsmatrix->getNumEntriesInGlobalRow(nodeID)};
@@ -243,17 +246,17 @@ void GSMatrixAssemblier::setBoundaryConditions(std::map<LocalOrdinal, Scalar> co
         TpetraMatrixType::nonconst_values_host_view_type values("val", numEntries);
         size_t checkNumEntries{};
 
-        // Fetch the current row's structure.
+        // 2_1. Fetch the current row's structure.
         m_gsmatrix->getGlobalRowCopy(nodeID, indices, values, checkNumEntries);
 
-        // Modify the values array to set the diagonal to 'value' and others to 0
+        // 2_2. Modify the values array to set the diagonal to 'value' and others to 0
         for (size_t i{}; i < numEntries; i++)
             values[i] = (indices[i] == nodeID) ? value : 0.0; // Set diagonal value to specified value, other - to 0.
 
-        // Replace the modified row back into the matrix.
+        // 2_3. Replace the modified row back into the matrix.
         m_gsmatrix->replaceGlobalValues(nodeID, indices, values);
     }
 
-    // Finilizing filling of the global stiffness matrix.
+    // 3. Finilizing filling of the global stiffness matrix.
     m_gsmatrix->fillComplete();
 }
