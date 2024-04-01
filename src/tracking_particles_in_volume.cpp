@@ -1,15 +1,7 @@
-#include <array>
-#include <set>
-
 #include "../include/Generators/VolumeCreator.hpp"
 #include "../include/Geometry/Grid3D.hpp"
 #include "../include/Particles/Particles.hpp"
-#include "../include/Utilities/Utilities.hpp"
-
-using namespace Intrepid2;
-using ExecutionSpace = Kokkos::DefaultExecutionSpace;
-using DeviceType = Kokkos::Device<ExecutionSpace, Kokkos::HostSpace>; // CPU.
-using MemorySpace = Kokkos::HostSpace;
+#include "../include/Utilities/MatrixEquationSolver.hpp"
 
 static constexpr std::string_view k_mesh_filename{"test.msh"};
 static constexpr size_t k_particles_count{100};
@@ -47,23 +39,6 @@ int main(int argc, char *argv[])
 
     // 3. Filling the tetrahedron mesh
     auto tetrahedronMesh{vc.getTetrahedronMeshParams(k_mesh_filename)};
-    auto endIt{tetrahedronMesh.cend()};
-
-    for (auto const &meshParam : tetrahedronMesh)
-        std::cout << meshParam << '\n';
-
-    auto tetrahedronNodes{vc.getTetrahedronNodesMap(k_mesh_filename)};
-    for (auto const &[tetrahedronID, nodeIDs] : tetrahedronNodes)
-    {
-        std::cout << std::format("Tetrahedron[{}]: ", tetrahedronID);
-        for (size_t nodeID : nodeIDs)
-            std::cout << nodeID << ' ';
-        std::endl(std::cout);
-    }
-    std::set<size_t> allNodeIDs;
-    for (auto const &[tetrahedronID, nodeIDs] : tetrahedronNodes)
-        allNodeIDs.insert(nodeIDs.begin(), nodeIDs.end());
-    size_t totalNodes{allNodeIDs.size()};
 
     // 4. Getting edge size from user.
     double edgeSize{};
@@ -106,122 +81,32 @@ int main(int argc, char *argv[])
 #pragma endregion
 
     Teuchos::GlobalMPISession mpiSession(std::addressof(argc), std::addressof(argv));
-    Kokkos::initialize();
+    Kokkos::initialize(argc, argv);
     {
-        std::vector<std::array<int, 4>> globalNodeIndicesPerElement;
-        std::vector<std::vector<Kokkos::DynRankView<double, DeviceType>>> allBasisGradients;
-        std::vector<Kokkos::DynRankView<double, DeviceType>> allCubWeights;
+        // 1. Assemblying global stiffness matrix from the mesh file.
+        GSMatrixAssemblier assemblier(k_mesh_filename);
 
-        // Mapping from node ID to it's index in the global stiffness matrix.
-        std::unordered_map<size_t, size_t> nodeID_to_globMatrixID;
-        size_t index{};
-        for (size_t nodeId : allNodeIDs)
-            nodeID_to_globMatrixID[nodeId] = index++;
+        // 2. Setting boundary conditions.
+        std::map<int, double> boundaryConditions = {{0, 1.0}, {1, 1.0}, {12, 1.0}, {13, 1.0}};
+        assemblier.setBoundaryConditions(boundaryConditions);
+        assemblier.print(); // 2_opt. Printing the matrix.
 
-        for (auto const &[tetrahedronID, nodeIDs] : tetrahedronNodes)
-        {
-            std::array<int, 4> globalNodeIndices;
-            for (int i{}; i < 4; ++i)
-                globalNodeIndices[i] = nodeID_to_globMatrixID[nodeIDs[i]];
-            globalNodeIndicesPerElement.emplace_back(globalNodeIndices);
+        // 3. Getting the global stiffness matrix and its size to the variable.
+        // Matrix is square, hence we can get only count of rows or cols.
+        auto A{assemblier.getGlobalStiffnessMatrix()};
+        auto size{assemblier.rows()};
 
-            auto meshParam{std::ranges::find_if(tetrahedronMesh, [tetrahedronID](auto const &param)
-                                                { return std::get<0>(param) == tetrahedronID; })};
-            if (meshParam != endIt)
-            {
-                auto const &[basisFuncs, cubWeights]{util::computeTetrahedronBasisFunctions(*meshParam)};
-                allBasisGradients.emplace_back(basisFuncs);
-                allCubWeights.emplace_back(cubWeights);
-            }
-        }
+        // 4. Creating solution vector, filling it with the random values, and applying boundary conditions.
+        SolutionVector b(size);
+        b.randomize();
+        b.setBoundaryConditions(boundaryConditions);
+        b.print(); // 4_opt. Printing the solution vector.
 
-        // Assemblying global stiffness matrix.
-        auto globalStiffnessMatrix{util::assembleGlobalStiffnessMatrix(tetrahedronMesh, allBasisGradients, allCubWeights, totalNodes, globalNodeIndicesPerElement)};
-
-        // Setting boundary conditions:
-        std::map<int, double> boundaryValues = {{0, 1.0}, {1, 1.0}, {12, 1.0}, {13, 1.0}};
-
-        // Setting boundary conditions to global stiffness matrix:
-        for (const auto &boundary : boundaryValues)
-        {
-            int nodeID{boundary.first};    // Node index.
-            double value{boundary.second}; // Boundary condition value.
-
-            // Reset the row and column to zero.
-            for (int k = 0; k < globalStiffnessMatrix.outerSize(); ++k)
-                for (Eigen::SparseMatrix<double>::InnerIterator it(globalStiffnessMatrix, k); it; ++it)
-                    if (it.row() == nodeID || it.col() == nodeID)
-                        it.valueRef() = (it.row() == it.col()) ? value : 0.0; // Set diagonal element to 1 and off-diagonal elements to 0.
-        }
-        std::cout << globalStiffnessMatrix;
-
-        auto tpetraMatrix{util::convertEigenToTpetra(globalStiffnessMatrix)};
-        auto A{Teuchos::rcpFromRef(tpetraMatrix)};
-        util::printLocalMatrixEntries(tpetraMatrix);
-
-        size_t rows_cols{static_cast<size_t>(std::sqrt(globalStiffnessMatrix.size()))};
-        std::cout << std::format("Size of matrix: {}x{}\n", rows_cols, rows_cols);
-
-        // Initializing vector `b` as a resulting vector.
-        auto comm{Tpetra::getDefaultComm()};
-        Teuchos::RCP<MapType> map(new MapType(rows_cols, 0, comm));
-        auto b{Teuchos::rcp(new TpetraVectorType(map))};
-        b->randomize();
-
-        // Setting boundary conditions to vector `b`:
-        for (const auto &boundary : boundaryValues)
-        {
-            GlobalOrdinal nodeID{boundary.first}; // Node index (zero-based).
-            Scalar value{boundary.second};        // Boundary condition value.
-
-            b->replaceGlobalValue(nodeID, value);
-        }
-
-        std::cout << "Vector `b` for which a solution is being sought:\n";
-        util::printTpetraVector(*b);
-
-        // Initialize solution vector x.
-        auto x{Teuchos::rcp(new TpetraVectorType(map))};
-        x->putScalar(0.0);
-
-        // Define the linear problem
-        auto problem{Teuchos::rcp(new Belos::LinearProblem<Scalar, TpetraMultiVector, TpetraOperator>())};
-        problem->setOperator(A); // Set the matrix A.
-        problem->setLHS(x);      // Set the solution vector x.
-        problem->setRHS(b);      // Set the right-hand side vector b.
-
-        // Finalize problem setup.
-        bool set{problem->setProblem()};
-        if (!set)
-        {
-            std::cerr << "Belos::LinearProblem::setProblem() returned an error\n";
-            return EXIT_FAILURE;
-        }
-
-        // Set up the solver.
-        Teuchos::RCP<Belos::SolverManager<Scalar, TpetraMultiVector, TpetraOperator>> solver;
-        Belos::SolverFactory<Scalar, TpetraMultiVector, TpetraOperator> factory;
-        Teuchos::RCP<Teuchos::ParameterList> params{Teuchos::parameterList()};
-        params->set("Maximum Iterations", 200);
-        params->set("Convergence Tolerance", 1e-10);
-        solver = factory.create("GMRES", params);
-
-        solver->setProblem(problem);
-
-        // Calculating equation `Ax=b`:
-        Belos::ReturnType result{solver->solve()};
-        if (result == Belos::Converged)
-        {
-            std::cout << "\033[1;32mSolution converged\n\033[0m\033[1m";
-            util::printTpetraVector(*x);
-        }
-        else
-        {
-            std::cerr << "\033[1;32mSolution did not converge\n\033[0m\033[1m";
-            return EXIT_FAILURE;
-        }
+        // 5. Solve the equation Ax=b.
+        MatrixEquationSolver solver(assemblier, b);
+        solver.solveAndPrint();
     }
-    Kokkos::finalize();
 
+    Kokkos::finalize();
     return EXIT_SUCCESS;
 }

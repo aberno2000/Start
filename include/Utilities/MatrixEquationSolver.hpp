@@ -1,0 +1,40 @@
+#ifndef MATRIX_EQUATION_SOLVER_HPP
+#define MATRIX_EQUATION_SOLVER_HPP
+
+#include "GSMatrixAssemblier.hpp"
+#include "SolutionVector.hpp"
+#include "TrilinosTypes.hpp"
+
+class MatrixEquationSolver
+{
+private:
+    GSMatrixAssemblier m_assemblier;      ///< Instance of the matrix assemblier.
+    SolutionVector m_solutionVector;      ///< Instance of the solution vector.
+    Teuchos::RCP<TpetraVectorType> m_rhs; ///< Right-hand side vector 'b'.
+    Teuchos::RCP<TpetraVectorType> m_x;   ///< Solution vector 'x'.
+    Teuchos::RCP<TpetraMatrixType> m_A;   ///< Matrix 'A'.
+
+public:
+    /// @brief Ctor with params.
+    MatrixEquationSolver(GSMatrixAssemblier const &assemblier, SolutionVector const &solutionVector);
+    
+    /// @brief Dtor.
+    ~MatrixEquationSolver() {}
+
+    /// @brief Initializes the matrix, solution, and RHS vectors
+    void initialize();
+
+    /// @brief Sets the RHS vector 'b'.
+    void setRHS(Teuchos::RCP<TpetraVectorType> const &rhs);
+
+    /// @brief Solves the equation Ax=b.
+    bool solve();
+
+    /// @brief Solves the equation Ax=b and prints results to the terminal.
+    void solveAndPrint();
+
+    /// @brief Prints the solution vector to the terminal.
+    void printSolutionVector() const;
+};
+
+#endif // !MATRIX_EQUATION_SOLVER_HPP
