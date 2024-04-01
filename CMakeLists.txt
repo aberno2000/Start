@@ -97,10 +97,12 @@ set(SOURCES
     src/GSMatrixAssemblier.cpp
     src/HDF5Handler.cpp
     src/MathVector.cpp
+    src/MatrixEquationSolver.cpp
     src/Mesh.cpp
     src/Particle.cpp
     src/RayTriangleIntersection.cpp
     src/RealNumberGenerator.cpp
+    src/SolutionVector.cpp
     src/Utilities.cpp
     src/VolumeCreator.cpp
 )
