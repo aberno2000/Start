@@ -42,7 +42,10 @@ int main(int argc, char *argv[])
         GSMatrixAssemblier assemblier(k_mesh_filename);
 
         // 2. Setting boundary conditions.
-        std::map<int, double> boundaryConditions = {{0, 1.0}, {1, 1.0}, {12, 1.0}, {13, 1.0}};
+        std::map<int, double> boundaryConditions = {
+            {0, 1.0}, {2, 1.0}, {4, 1.0}, {6, 1.0}, {12, 1.0}, // Upper part of the cube.
+            {1, 0.0}, {3, 0.0}, {5, 0.0}, {7, 0.0}, {13, 0.0}  // Lower part of the cube.
+        };
         assemblier.setBoundaryConditions(boundaryConditions);
         assemblier.print(); // 2_opt. Printing the matrix.
 
@@ -60,6 +63,7 @@ int main(int argc, char *argv[])
         // 5. Solve the equation Ax=b.
         MatrixEquationSolver solver(assemblier, b);
         solver.solveAndPrint();
+        solver.printLHS();
     }
 
     Kokkos::finalize();
