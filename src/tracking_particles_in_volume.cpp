@@ -56,7 +56,7 @@ int main(int argc, char *argv[])
 
         // 4. Creating solution vector, filling it with the random values, and applying boundary conditions.
         SolutionVector b(size);
-        b.randomize();
+        b.clear();
         b.setBoundaryConditions(boundaryConditions);
         b.print(); // 4_opt. Printing the solution vector.
 
