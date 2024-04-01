@@ -9,7 +9,7 @@ BasisFuncValues_CubatureWeights GSMatrixAssemblier::computeTetrahedronBasisFunct
 
     // 2. Using cubature factory to create cubature function.
     Intrepid2::DefaultCubatureFactory cubFactory;
-    auto cubature{cubFactory.create<DeviceType>(cellTopology.getBaseKey(), basis.getDegree())};
+    auto cubature{cubFactory.create<DeviceType>(cellTopology, basis.getDegree())};
 
     auto numCubPoints{cubature->getNumPoints()}; // Getting number of cubature points.
     auto spaceDim{cubature->getDimension()};     // Getting dimension (for tetrahedron, obviously - 3D).
