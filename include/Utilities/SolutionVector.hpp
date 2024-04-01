@@ -35,8 +35,11 @@ public:
     /// @brief Prints the contents of a Tpetra vector.
     void print() const;
 
-    /// @brief Getter for solution vector.
+    /// @brief Getter for the solution vector.
     constexpr Teuchos::RCP<TpetraVectorType> const &getSolutionVector() const { return m_solution_vector; }
+
+    /// @brief Setter for the solution vector.
+    void setSolutionVector(Teuchos::RCP<TpetraVectorType> const &vec) { m_solution_vector = vec; }
 };
 
 #endif // !SOLUTION_VECTOR_HPP

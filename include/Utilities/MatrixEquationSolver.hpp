@@ -33,8 +33,9 @@ public:
     /// @brief Solves the equation Ax=b and prints results to the terminal.
     void solveAndPrint();
 
-    /// @brief Prints the solution vector to the terminal.
-    void printSolutionVector() const;
+    /// @brief Prints the vectors to the terminal.
+    void printLHS() const;
+    void printRHS() const;
 };
 
 #endif // !MATRIX_EQUATION_SOLVER_HPP

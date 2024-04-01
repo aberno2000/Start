@@ -59,4 +59,11 @@ void MatrixEquationSolver::solveAndPrint()
     }
 }
 
-void MatrixEquationSolver::printSolutionVector() const { m_solutionVector.print(); }
+void MatrixEquationSolver::printRHS() const { m_solutionVector.print(); }
+
+void MatrixEquationSolver::printLHS() const
+{
+    auto x{SolutionVector(m_solutionVector.size())};
+    x.setSolutionVector(m_x);
+    x.print();
+}

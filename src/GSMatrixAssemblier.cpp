@@ -1,34 +1,32 @@
-#include <set>
-
-#include "../include/Generators/RealNumberGenerator.hpp"
 #include "../include/Utilities/GSMatrixAssemblier.hpp"
+#include "../include/Generators/RealNumberGenerator.hpp"
 
 BasisFuncValues_CubatureWeights GSMatrixAssemblier::computeTetrahedronBasisFunctions(MeshTetrahedronParam const &meshParam) const
 {
-    // Defining cell topology as tetrahedron.
+    // 1. Defining cell topology as tetrahedron.
     shards::CellTopology cellTopology{shards::getCellTopologyData<shards::Tetrahedron<>>()};
     Intrepid2::Basis_HGRAD_TET_C1_FEM<DeviceType> basis;
 
-    // Using cubature factory to create cubature function.
+    // 2. Using cubature factory to create cubature function.
     Intrepid2::DefaultCubatureFactory cubFactory;
     auto cubature{cubFactory.create<DeviceType>(cellTopology.getBaseKey(), basis.getDegree())};
 
     auto numCubPoints{cubature->getNumPoints()}; // Getting number of cubature points.
     auto spaceDim{cubature->getDimension()};     // Getting dimension (for tetrahedron, obviously - 3D).
 
-    // Allocating memory for cubature poinst and weights.
+    // 3. Allocating memory for cubature poinst and weights.
     DynRankView cubPoints("cubPoints", numCubPoints, spaceDim);
     DynRankView cubWeights("cubWeights", numCubPoints);
 
-    // Allocating memory for values of basis functions.
+    // 4. Allocating memory for values of basis functions.
     auto numFields{basis.getCardinality()};
     DynRankView basisValues("basisValues", numFields, numCubPoints);
     DynRankView transformedBasisValues("transformedBasisValues", 1, numFields, numCubPoints);
 
-    // Getting cubature points and weights.
+    // 5. Getting cubature points and weights.
     cubature->getCubature(cubPoints, cubWeights);
 
-    // Getting tetrahedron coordinates of each vertex.
+    // 6. Getting tetrahedron coordinates of each vertex.
     DynRankView vertices("vertices", 1, 4, 3);
     auto tetrahedron{std::get<1>(meshParam)};
     for (short node{}; node < 4; ++node)
@@ -38,7 +36,7 @@ BasisFuncValues_CubatureWeights GSMatrixAssemblier::computeTetrahedronBasisFunct
         vertices(0, node, 2) = CGAL_TO_DOUBLE(tetrahedron.vertex(node).z());
     }
 
-    // Calculating basis functions on cubature points.
+    // 7. Calculating basis functions on cubature points.
     basis.getValues(basisValues, cubPoints, Intrepid2::OPERATOR_VALUE);
     DynRankViewVector basisFunctionsValues;
     for (LocalOrdinal i{}; i < numFields; ++i)
@@ -49,32 +47,41 @@ BasisFuncValues_CubatureWeights GSMatrixAssemblier::computeTetrahedronBasisFunct
         basisFunctionsValues.emplace_back(fieldValues);
     }
 
-    // Transforming basis functions from relative values to physical space.
+    // 8. Transforming basis functions from relative values to physical space.
     Intrepid2::CellTools<DeviceType>::mapToPhysicalFrame(transformedBasisValues, cubPoints, vertices, cellTopology);
 
-    // Opt: printing transformed basis values in all cubature points.
+#ifdef PRINT_ALL
+    // 8_opt: printing transformed basis values in all cubature points.
     for (LocalOrdinal i{}; i < numFields; ++i)
         for (LocalOrdinal j{}; j < numCubPoints; ++j)
             std::cout << std::format("Tetrahedron[{}]: Transformed basis function {} at cubature point {} = {}\n",
                                      std::get<0>(meshParam), i, j, transformedBasisValues(0, i, j));
+#endif
+
     return std::make_pair(basisFunctionsValues, cubWeights);
 }
 
 DynRankView GSMatrixAssemblier::computeLocalStiffnessMatrix(DynRankViewVector const &basisGradients, DynRankView const &cubWeights) const
 {
-    // Getting count of basis functions and count of cubature points.
+    // 1. Getting count of basis functions and count of cubature points.
     auto const numFields{basisGradients.size()};
     auto const numCubPoints{cubWeights.extent(0)};
 
     DynRankView localStiffnessMatrix("localStiffnessMatrix", numFields, numFields); // Creating local stiffness matrix.
     Kokkos::deep_copy(localStiffnessMatrix, 0.0);                                   // Initialization of local stiffness matrix with nulls.
 
-    // Calculating local stiffness matrix.
+    // 2. Calculating local stiffness matrix.
     for (size_t i{}; i < numFields; ++i)
         for (size_t j{}; j < numFields; ++j)
             for (size_t qp{}; qp < numCubPoints; ++qp)
                 for (short d{}; d < 3; ++d)
                     localStiffnessMatrix(i, j) += basisGradients[i](qp, d) * basisGradients[j](qp, d) * cubWeights(qp);
+
+#ifdef PRINT_ALL
+    // 2_opt. Printing local stiffness matrix.
+    printDynRankView(localStiffnessMatrix);
+#endif
+
     return localStiffnessMatrix;
 }
 
@@ -85,20 +92,20 @@ EigenSparseMatrix GSMatrixAssemblier::assembleGlobalStiffnessMatrixHelper(
     GlobalOrdinal totalNodes,
     TetrahedronIndecesVector const &globalNodeIndicesPerElement) const
 {
-    // Initialization of the global stiffness matrix.
+    // 1. Initialization of the global stiffness matrix.
     EigenSparseMatrix globalStiffnessMatrix(totalNodes, totalNodes);
 
-    // List for store non-null elements.
+    // 2. List for store non-null elements.
     EigenTripletVector tripletList;
     for (size_t elemIndex{}; elemIndex < meshParams.size(); ++elemIndex)
     {
-        // Calculating local stiffness matrix.
+        // 2_1. Calculating local stiffness matrix.
         auto localStiffnessMatrix{computeLocalStiffnessMatrix(allBasisGradients[elemIndex], allCubWeights[elemIndex])};
 
-        // Indeces of global nodes for the current tetrahedron.
+        // 2_2. Indeces of global nodes for the current tetrahedron.
         auto const &globalNodeIndices{globalNodeIndicesPerElement[elemIndex]};
 
-        // Adding local stiffness matrix to the global.
+        // 2_3. Adding local stiffness matrix to the global.
         for (short i{}; i < 4; ++i)
             for (short j{}; j < 4; ++j)
                 tripletList.emplace_back(
@@ -107,7 +114,7 @@ EigenSparseMatrix GSMatrixAssemblier::assembleGlobalStiffnessMatrixHelper(
                     localStiffnessMatrix(i, j));
     }
 
-    // Assemblying global matrix from the triplets.
+    // 3. Assemblying global matrix from the triplets.
     globalStiffnessMatrix.setFromTriplets(tripletList.begin(), tripletList.end());
     return globalStiffnessMatrix;
 }
@@ -168,7 +175,6 @@ void GSMatrixAssemblier::print() const
 
                 m_gsmatrix->getGlobalRowCopy(globalRow, indices, values, checkNumEntries);
 
-                // Now print the row's entries.
                 std::cout << std::format("Row {}: ", globalRow);
                 for (size_t k{}; k < checkNumEntries; ++k)
                     std::cout << std::format("({}, {}) ", indices[k], values[k]);
@@ -192,7 +198,7 @@ Teuchos::RCP<TpetraMatrixType> GSMatrixAssemblier::assembleGlobalStiffnessMatrix
     auto endIt{tetrahedronMesh.cend()};
     auto tetrahedronNodes{Mesh::getTetrahedronNodesMap(mesh_filename)};
 
-    // 2. Counting only unique nodes. 
+    // 2. Counting only unique nodes.
     std::set<size_t> allNodeIDs;
     for (auto const &[tetrahedronID, nodeIDs] : tetrahedronNodes)
         allNodeIDs.insert(nodeIDs.begin(), nodeIDs.end());
