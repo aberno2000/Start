@@ -100,6 +100,7 @@ set(SOURCES
     src/MatrixEquationSolver.cpp
     src/Mesh.cpp
     src/Particle.cpp
+    src/ParticleTracker.cpp
     src/RayTriangleIntersection.cpp
     src/RealNumberGenerator.cpp
     src/SolutionVector.cpp
