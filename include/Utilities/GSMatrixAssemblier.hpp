@@ -74,6 +74,7 @@ public:
     constexpr Teuchos::RCP<TpetraMatrixType> const &getGlobalStiffnessMatrix() const { return m_gsmatrix; }
     size_t rows() const { return m_gsmatrix->getGlobalNumRows(); }
     size_t cols() const { return m_gsmatrix->getGlobalNumCols(); }
+    Scalar getScalarFieldValue(GlobalOrdinal nodeID) const;
 
     /**
      * @brief Sets the boundary conditions to the global stiffness matrix. Changes specified values from map.

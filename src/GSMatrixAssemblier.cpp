@@ -239,6 +239,26 @@ Teuchos::RCP<TpetraMatrixType> GSMatrixAssemblier::assembleGlobalStiffnessMatrix
     return tpetraMatrix;
 }
 
+Scalar GSMatrixAssemblier::getScalarFieldValue(GlobalOrdinal nodeID) const
+{
+    size_t numEntries{m_gsmatrix->getNumEntriesInGlobalRow(nodeID)};
+    if (numEntries > 0)
+    {
+        TpetraMatrixType::nonconst_global_inds_host_view_type indices("ind", numEntries);
+        TpetraMatrixType::nonconst_values_host_view_type values("val", numEntries);
+
+        m_gsmatrix->getGlobalRowCopy(nodeID, indices, values, numEntries);
+
+        // Search for the column index in the retrieved row.
+        for (size_t i = 0; i < numEntries; ++i)
+            if (indices[i] == nodeID)
+                return values[i];
+    }
+
+    // If the column index was not found in the row, the element is assumed to be zero (sparse matrix property).
+    return Scalar(0.0);
+}
+
 void GSMatrixAssemblier::setBoundaryConditions(std::map<LocalOrdinal, Scalar> const &boundaryConditions)
 {
     // 1. Ensure the matrix is in a state that allows adding or replacing entries.
