@@ -27,6 +27,11 @@ public:
     /// @brief Sets the RHS vector 'b'.
     void setRHS(Teuchos::RCP<TpetraVectorType> const &rhs);
 
+    /* Getters for the all components of the equation. */
+    Teuchos::RCP<TpetraVectorType> getRHS() { return m_rhs; }
+    Teuchos::RCP<TpetraVectorType> getLHS() { return m_x; }
+    Teuchos::RCP<TpetraMatrixType> getGlobalStiffnessMatrix() { return m_A; }
+
     /// @brief Solves the equation Ax=b.
     bool solve();
 
