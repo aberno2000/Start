@@ -9,7 +9,7 @@ from PyQt5.QtWidgets import (
     QDialog, QFormLayout, QLineEdit, QDialogButtonBox, 
     QVBoxLayout, QMessageBox, QPushButton, QTableWidget,
     QTableWidgetItem, QSizePolicy, QLabel, QHBoxLayout,
-    QWidget, QScrollArea, QCheckBox
+    QWidget, QScrollArea, QCheckBox, QComboBox
 )
 from PyQt5.QtCore import QSize
 from .converter import is_positive_real_number, is_real_number
@@ -639,6 +639,27 @@ class ShortcutsInfoDialog(QDialog):
         
         table.resizeColumnsToContents()
         layout.addWidget(table)
+        
+
+class AxisSelectionDialog(QDialog):
+    def __init__(self, parent=None):
+        super(AxisSelectionDialog, self).__init__(parent)
+        self.setWindowTitle("Select Axis for Cross-Section")
+        self.setFixedSize(250, 150)
+        layout = QVBoxLayout(self)
+        
+        # Combo box for axis selection
+        self.axisComboBox = QComboBox()
+        self.axisComboBox.addItems(["X-axis", "Y-axis", "Z-axis"])
+        layout.addWidget(self.axisComboBox)
+        
+        # OK button
+        okButton = QPushButton("OK")
+        okButton.clicked.connect(self.accept)
+        layout.addWidget(okButton)
+        
+    def getSelectedAxis(self):
+        return self.axisComboBox.currentText()
 
 
 def align_view_by_axis(axis: str, renderer: vtkRenderer, vtkWidget: QVTKRenderWindowInteractor):

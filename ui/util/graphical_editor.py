@@ -1,4 +1,5 @@
 import gmsh, meshio
+from numpy import cross
 from os import remove, rename
 from os.path import isfile, exists, basename, split
 from vtkmodules.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
@@ -11,12 +12,12 @@ from vtk import(
     vtkCellArray, vtkPolyDataMapper, vtkActor, vtkSphereSource, vtkUnstructuredGrid,
     vtkCylinderSource, vtkAxesActor, vtkOrientationMarkerWidget, vtkCellTypes,
     vtkGenericDataObjectReader, vtkDataSetMapper, vtkCellPicker, vtkDelaunay2D,
-    vtkCubeSource, vtkCleanPolyData,
+    vtkCubeSource, vtkCleanPolyData, vtkPlane, vtkClipPolyData,
     VTK_TRIANGLE, VTK_QUAD
 )
 from PyQt5.QtWidgets import(
     QFrame, QVBoxLayout, QHBoxLayout, QTreeView,
-    QPushButton, QDialog, QSpacerItem,
+    QPushButton, QDialog, QSpacerItem, QColorDialog,
     QSizePolicy, QMessageBox, QFileDialog,
     QMenu, QAction, QInputDialog, QStatusBar
 )
@@ -24,7 +25,7 @@ from PyQt5.QtGui import QCursor, QStandardItemModel
 from .util import(
     PointDialog, LineDialog, SurfaceDialog, 
     SphereDialog, BoxDialog, CylinderDialog,
-    AngleDialog, MoveActorDialog
+    AngleDialog, MoveActorDialog, AxisSelectionDialog
 )
 from util.util import(
     align_view_by_axis, save_scene, load_scene, convert_msh_to_vtk, 
@@ -33,6 +34,7 @@ from util.util import(
 )
 from .mesh_dialog import MeshDialog
 from .styles import DEFAULT_ACTOR_COLOR, SELECTED_ACTOR_COLOR
+from logger.log_console import LogConsole
 
 
 def get_action(id: int, data, actor: vtkActor, isDifficultObj: bool = False, figure_type: str = '', mesh_file: str = ''):
@@ -56,7 +58,7 @@ def get_action(id: int, data, actor: vtkActor, isDifficultObj: bool = False, fig
 
 
 class GraphicalEditor(QFrame):    
-    def __init__(self, log_console, parent=None):
+    def __init__(self, log_console: LogConsole, parent=None):
         super().__init__(parent)
         self.treeView = QTreeView()
         self.model = QStandardItemModel()
@@ -77,6 +79,10 @@ class GraphicalEditor(QFrame):
         self.layout.addWidget(self.statusBar)
         
         self.log_console = log_console
+        
+        self.crossSectionLinePoints = []  # To store points for the cross-section line
+        self.isDrawingLine = False        # To check if currently drawing the line
+        self.tempLineActor = None         # Temporary actor for the line visualization
         
     
     def initialize_tree(self):
@@ -211,6 +217,7 @@ class GraphicalEditor(QFrame):
         self.subtractObjectsButton = self.create_button('icons/subtract.png', 'Subtract objects')
         self.unionObjectsButton = self.create_button('icons/union.png', 'Combine (union) objects')
         self.intersectObjectsButton = self.create_button('icons/intersection.png', 'Intersection of two objects')
+        self.crossSectionButton = self.create_button('icons/cross-section.png', 'Cross section of the object')
         
         self.spacer = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
         self.toolbarLayout.addSpacerItem(self.spacer)
@@ -231,6 +238,7 @@ class GraphicalEditor(QFrame):
         self.subtractObjectsButton.clicked.connect(self.subtract_button_clicked)
         self.unionObjectsButton.clicked.connect(self.combine_button_clicked)
         self.intersectObjectsButton.clicked.connect(self.intersection_button_clicked)
+        self.crossSectionButton.clicked.connect(self.cross_section_button_clicked)
 
     def setup_ui(self):
         self.vtkWidget = QVTKRenderWindowInteractor(self)
@@ -662,6 +670,23 @@ class GraphicalEditor(QFrame):
         self.renderer.ResetCamera()
         self.vtkWidget.GetRenderWindow().Render()
         
+    def add_actor_and_row(self, actor: vtkActor):
+        # 1. Adding actor to the scene
+        self.add_actor(actor)
+        
+        # 2. All the process of adding new row with creation of temporary file
+        vtk_filename = write_vtk_polydata_to_file(convert_vtkUnstructuredGrid_to_vtkPolyData(get_polydata_from_actor(actor)))
+        tmp_dir, tmp_filename = split(vtk_filename)
+        new_filename = f"{tmp_dir}/Object[{self.object_idx}]_cross-section_{tmp_filename}"
+        rename(vtk_filename, new_filename)
+        vtk_filename = new_filename
+        
+        rootItem = QStandardItem(basename(vtk_filename))
+        data = self.parse_vtk_data_and_populate_tree(vtk_filename, self.model, rootItem)
+        action = get_action(self.object_idx, data, actor, isDifficultObj=True, mesh_file=vtk_filename)
+        self.undo_stack.append(action)
+        self.object_idx += 1
+        
         
     def remove_actor(self, actor: vtkActor):
         if actor in self.renderer.GetActors():
@@ -669,7 +694,9 @@ class GraphicalEditor(QFrame):
             self.vtkWidget.GetRenderWindow().Render()        
             
     
-    def remove_row_from_tree_view(self, actor: vtkActor):
+    def remove_row_from_tree_view(self):
+        """ Removes last object from the stack """
+        
         action = self.undo_stack.pop()
         row = action.get('row')
         self.model.removeRow(row)
@@ -713,7 +740,15 @@ class GraphicalEditor(QFrame):
                 self.renderer.RemoveActor(actor)
                 self.vtkWidget.GetRenderWindow().Render()
                 self.object_idx -= 1
-
+                
+    def colorize_actor(self, actor: vtkActor):
+        actorColor = QColorDialog.getColor()
+        if actorColor.isValid():
+            actor.GetProperty().SetColor(actorColor.redF(), actorColor.greenF(), actorColor.blueF())
+            self.renderer.ResetCamera()
+            self.vtkWidget.GetRenderWindow().Render()
+        else:
+            return
 
     def remove_all_actors(self):
         actors = self.renderer.GetActors()
@@ -753,7 +788,7 @@ class GraphicalEditor(QFrame):
     
     
     def update_tree_model(self, figure_type: str, data: str, actor: vtkActor):
-        items = QStandardItem(f'Created objects[{self.object_idx}]: ' + figure_type)
+        items = QStandardItem(f'Object[{self.object_idx}]_' + figure_type)
         self.model.appendRow(items)
         item = QStandardItem(data)
         items.appendRow(item)
@@ -763,6 +798,66 @@ class GraphicalEditor(QFrame):
         action = get_action(self.object_idx, data, actor, isDifficultObj=False, figure_type=figure_type)
         self.undo_stack.append(action)
         self.object_idx += 1
+    
+    def handle_drawing_line(self):        
+        click_pos = self.interactor.GetEventPosition()
+        picker = vtkCellPicker()
+        picker.Pick(click_pos[0], click_pos[1], 0, self.renderer)
+        
+        pickedPosition = picker.GetPickPosition()
+        self.crossSectionLinePoints.append(pickedPosition)
+        
+        if len(self.crossSectionLinePoints) == 1:
+            # First point, just update the scene to show the point
+            self.updateTempLine()
+        elif len(self.crossSectionLinePoints) == 2:
+            # Second point, complete the line and proceed to create cross-section
+            self.updateTempLine()
+            self.create_cross_section()
+            self.endLineDrawing()  # Reset drawing state
+    
+    def updateTempLine(self):
+        if self.tempLineActor:
+            self.renderer.RemoveActor(self.tempLineActor)
+        
+        if len(self.crossSectionLinePoints) < 1:
+            return
+        
+        # Create a line between the two points
+        points = vtkPoints()
+        line = vtkPolyLine()
+        line.GetPointIds().SetNumberOfIds(len(self.crossSectionLinePoints))
+        for i, pos in enumerate(self.crossSectionLinePoints):
+            pid = points.InsertNextPoint(*pos)
+            line.GetPointIds().SetId(i, pid)
+        
+        lines = vtkCellArray()
+        lines.InsertNextCell(line)
+        
+        polyData = vtkPolyData()
+        polyData.SetPoints(points)
+        polyData.SetLines(lines)
+        
+        mapper = vtkPolyDataMapper()
+        mapper.SetInputData(polyData)
+        
+        self.tempLineActor = vtkActor()
+        self.tempLineActor.SetMapper(mapper)
+        self.tempLineActor.GetProperty().SetColor(1, 0, 0)  # red color
+        
+        self.renderer.AddActor(self.tempLineActor)
+        self.vtkWidget.GetRenderWindow().Render()
+
+    def start_line_drawing(self):
+        self.crossSectionLinePoints.clear()
+        self.isDrawingLine = True
+
+    def endLineDrawing(self):
+        self.isDrawingLine = False
+        if self.tempLineActor:
+            self.renderer.RemoveActor(self.tempLineActor)
+            self.tempLineActor = None
+        self.vtkWidget.GetRenderWindow().Render()
     
     def pick_actor(self, obj, event):
         click_pos = self.interactor.GetEventPosition()
@@ -829,10 +924,16 @@ class GraphicalEditor(QFrame):
                 self.original_color = actor.GetProperty().GetColor()
                 self.context_menu()
 
-        self.interactorStyle.AddObserver("LeftButtonPressEvent", self.pick_actor)
+        self.interactorStyle.AddObserver("LeftButtonPressEvent", self.on_left_button_press)
         self.interactorStyle.AddObserver("RightButtonPressEvent", on_right_button_press)
         self.interactor.AddObserver("KeyPressEvent", self.on_key_press)
         self.interactor.Initialize()
+        
+    def on_left_button_press(self, obj, event):
+        if self.isDrawingLine:
+            self.handle_drawing_line()
+        else:
+            self.pick_actor(obj, event)
         
     def context_menu(self):
         if self.selected_actor:
@@ -853,6 +954,10 @@ class GraphicalEditor(QFrame):
             remove_object_action = QAction('Remove', self)
             remove_object_action.triggered.connect(lambda: self.permanently_remove_actor(self.selected_actor))
             menu.addAction(remove_object_action)
+            
+            colorize_object_action = QAction('Colorize', self)
+            colorize_object_action.triggered.connect(lambda: self.colorize_actor(self.selected_actor))
+            menu.addAction(colorize_object_action)
 
             menu.exec_(QCursor.pos())
             
@@ -919,11 +1024,8 @@ class GraphicalEditor(QFrame):
     def on_key_press(self, obj, event):
         key = self.interactor.GetKeySym()
         if key == 'Escape' and self.selected_actor:
-            # Reset the selected actor's color
-            self.selected_actor.GetProperty().SetColor(DEFAULT_ACTOR_COLOR)
-            self.vtkWidget.GetRenderWindow().Render()
-            self.selected_actor = None
-        elif key == 'Return' and self.selected_actor:
+            self.deselect()            
+        elif key == 'Enter' and self.selected_actor:
             self.interactorStyle.OnRotate()
         elif key == 'Delete' or key == 'BackSpace':
             if self.selected_actor:
@@ -1008,7 +1110,14 @@ class GraphicalEditor(QFrame):
         self.deselect()
         self.isPerformOperation = (True, 'intersection')
         self.statusBar.showMessage("What object to intersect?")
-
+        
+    def cross_section_button_clicked(self):
+        if not self.selected_actor:
+            QMessageBox.warning(self, "Warning", "You need to select object first")
+            return
+        
+        self.start_line_drawing()
+        self.statusBar.showMessage("Click two points to define the cross-section plane.")
     
     def object_operation_executor_helper(self, obj_from: vtkActor, obj_to: vtkActor, operation: vtkBooleanOperationPolyDataFilter):
         try:
@@ -1050,8 +1159,8 @@ class GraphicalEditor(QFrame):
             # Removing subtracting objects only after adding resulting object
             self.remove_actor(obj_from)
             self.remove_actor(obj_to)
-            self.remove_row_from_tree_view(obj_from)
-            self.remove_row_from_tree_view(obj_to)        
+            self.remove_row_from_tree_view()
+            self.remove_row_from_tree_view()        
             self.object_idx -= 2
             
             vtk_filename = write_vtk_polydata_to_file(resultPolyData)
@@ -1099,3 +1208,74 @@ class GraphicalEditor(QFrame):
         booleanOperation = vtkBooleanOperationPolyDataFilter()
         booleanOperation.SetOperationToIntersection()
         self.object_operation_executor_helper(obj_from, obj_to, booleanOperation)
+    
+    def create_cross_section(self):       
+        if len(self.crossSectionLinePoints) != 2:
+            QMessageBox.warning(self, "Warning", "Please define two points for the cross-section.")
+            return
+        
+        point1, point2 = self.crossSectionLinePoints
+        direction = [point2[i] - point1[i] for i in range(3)]  # Direction vector of the line
+        
+        dialog = AxisSelectionDialog(self)
+        if dialog.exec_() == QDialog.Accepted:
+            selectedAxis = dialog.getSelectedAxis()
+            plane = vtkPlane()
+            plane.SetOrigin(0, 0, 0)
+            viewDirection = [0, 0, 0]
+
+            # Adjust the normal of the plane based on the selected axis
+            if selectedAxis == "X-axis":
+                viewDirection = [1, 0, 0]
+            elif selectedAxis == "Y-axis":
+                viewDirection = [0, 1, 0]
+            elif selectedAxis == "Z-axis":
+                viewDirection = [0, 0, 1]
+        
+        normal = cross(direction, viewDirection)
+        plane.SetOrigin(point1)
+        plane.SetNormal(normal)
+
+        self.perform_cut(plane)
+        
+    def perform_cut(self, plane):
+        polydata = get_polydata_from_actor(self.selected_actor)
+        polydata = convert_vtkUnstructuredGrid_to_vtkPolyData(polydata)
+        if not polydata:
+            QMessageBox.warning(self, "Error", "Selected object is not suitable for cross-section.")
+            return
+
+        clipper1 = vtkClipPolyData()
+        clipper1.SetInputData(polydata)
+        clipper1.SetClipFunction(plane)
+        clipper1.InsideOutOn()
+        clipper1.Update()
+        
+        clipper2 = vtkClipPolyData()
+        clipper2.SetInputData(polydata)
+        clipper2.SetClipFunction(plane)
+        clipper2.InsideOutOff()
+        clipper2.Update()
+        
+        mapper1 = vtkPolyDataMapper()
+        mapper1.SetInputData(clipper1.GetOutput())
+        actor1 = vtkActor()
+        actor1.SetMapper(mapper1)
+        actor1.GetProperty().SetColor(0.8, 0.3, 0.3)
+        
+        mapper2 = vtkPolyDataMapper()
+        mapper2.SetInputData(clipper2.GetOutput())
+        actor2 = vtkActor()
+        actor2.SetMapper(mapper2)
+        actor2.GetProperty().SetColor(0.8, 0.3, 0.3)
+
+        # Removing actor and corresponding row in a tree view
+        self.remove_actor(self.selected_actor)
+        self.remove_row_from_tree_view()
+        self.object_idx -= 1
+        
+        # Adding 2 new objects
+        self.add_actor_and_row(actor1)
+        self.add_actor_and_row(actor2)
+        
+        self.log_console.appendLog("Created a cross-section.")
