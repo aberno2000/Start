@@ -1,6 +1,6 @@
 import gmsh, meshio
-from os import remove
-from os.path import isfile, exists, basename
+from os import remove, rename
+from os.path import isfile, exists, basename, split
 from vtkmodules.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 from vtkmodules.vtkInteractionStyle import vtkInteractorStyleTrackballCamera
 from vtkmodules.vtkFiltersGeneral import vtkBooleanOperationPolyDataFilter
@@ -71,8 +71,8 @@ class GraphicalEditor(QFrame):
         self.undo_stack = []
         self.redo_stack = []
         
-        self.isSubtractMode = False
-        self.firstObjectForSubtraction = None
+        self.isPerformOperation = (False, None)
+        self.firstObjectToPerformOperation = None
         self.statusBar = QStatusBar()
         self.layout.addWidget(self.statusBar)
         
@@ -141,7 +141,7 @@ class GraphicalEditor(QFrame):
             
             if action.get('action') == 'add':
                 # Filling tree view
-                items = QStandardItem(f'Created objects[{self.object_idx}]: ' + action.get('figure_type'))
+                items = QStandardItem(f'Object[{self.object_idx}]_' + action.get('figure_type'))
                 item = QStandardItem(data)
                 items.appendRow(item)
                 self.model.appendRow(items)
@@ -209,6 +209,8 @@ class GraphicalEditor(QFrame):
         self.zAxisButton = self.create_button('icons/z-axis.png', 'Set camera view to Z-axis')
         self.centerAxisButton = self.create_button('icons/center-axis.png', 'Set camera view to center of axes')
         self.subtractObjectsButton = self.create_button('icons/subtract.png', 'Subtract objects')
+        self.unionObjectsButton = self.create_button('icons/union.png', 'Combine (union) objects')
+        self.intersectObjectsButton = self.create_button('icons/intersection.png', 'Intersection of two objects')
         
         self.spacer = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
         self.toolbarLayout.addSpacerItem(self.spacer)
@@ -227,6 +229,8 @@ class GraphicalEditor(QFrame):
         self.zAxisButton.clicked.connect(lambda: self.align_view_by_axis('z'))
         self.centerAxisButton.clicked.connect(lambda: self.align_view_by_axis('center'))
         self.subtractObjectsButton.clicked.connect(self.subtract_button_clicked)
+        self.unionObjectsButton.clicked.connect(self.combine_button_clicked)
+        self.intersectObjectsButton.clicked.connect(self.intersection_button_clicked)
 
     def setup_ui(self):
         self.vtkWidget = QVTKRenderWindowInteractor(self)
@@ -780,19 +784,29 @@ class GraphicalEditor(QFrame):
         # Call the original OnLeftButtonDown event handler to maintain default interaction behavior
         self.interactorStyle.OnLeftButtonDown()
         
-        if self.isSubtractMode:
-            if not self.firstObjectForSubtraction:
-                self.firstObjectForSubtraction = self.selected_actor
-                self.statusBar.showMessage("Which object to subtract?")
+        if self.isPerformOperation[0]:
+            operationDescription = self.isPerformOperation[1]
+            
+            if not self.firstObjectToPerformOperation:
+                self.firstObjectToPerformOperation = self.selected_actor
+                self.statusBar.showMessage(f"With which object to perform {operationDescription}?")
             else:
-                secondObjectForSubtraction = self.selected_actor
-                if self.firstObjectForSubtraction and secondObjectForSubtraction:
-                    self.subtract_objects(self.firstObjectForSubtraction, secondObjectForSubtraction) # Applying subtraction
+                secondObjectToPerformOperation = self.selected_actor
+                if self.firstObjectToPerformOperation and secondObjectToPerformOperation:
+                    operationType = self.isPerformOperation[1]
+                    
+                    if operationType == 'subtract':
+                        self.subtract_objects(self.firstObjectToPerformOperation, secondObjectToPerformOperation)
+                    elif operationType == 'union':
+                        self.combine_objects(self.firstObjectToPerformOperation, secondObjectToPerformOperation)
+                    elif operationType == 'intersection':
+                        self.intersect_objects(self.firstObjectToPerformOperation, secondObjectToPerformOperation)
+                        
                 else:
-                    QMessageBox.warning(self, "Warning", "No objects have been selected for the subtraction operation.")
+                    QMessageBox.warning(self, "Warning", "No objects have been selected for the operation.")
                 
-                self.firstObjectForSubtraction = None
-                self.isSubtractMode = False
+                self.firstObjectToPerformOperation = None
+                self.isPerformOperation = (False, None)
                 self.statusBar.clearMessage()
                 
         
@@ -859,6 +873,21 @@ class GraphicalEditor(QFrame):
                     x_offset, y_offset, z_offset = offsets
                     position = self.selected_actor.GetPosition()
                     new_position = (position[0] + x_offset, position[1] + y_offset, position[2] + z_offset)
+                    
+                    polydata = get_polydata_from_actor(self.selected_actor)
+                    polydata = convert_vtkUnstructuredGrid_to_vtkPolyData(polydata)
+                    if not polydata:
+                        return
+                    
+                    # Moving points
+                    points = polydata.GetPoints()
+                    for i in range(points.GetNumberOfPoints()):
+                        x, y, z = points.GetPoint(i)
+                        points.SetPoint(i, x + x_offset, y + y_offset, z + z_offset)
+                    polydata.SetPoints(points)
+                    polydata.Modified()
+                    
+                    # Moving actor on the scene
                     self.selected_actor.SetPosition(new_position)
                     self.vtkWidget.GetRenderWindow().Render()
                     
@@ -967,14 +996,24 @@ class GraphicalEditor(QFrame):
     
     def subtract_button_clicked(self):
         self.deselect()
-        self.isSubtractMode = True
+        self.isPerformOperation = (True, 'subtract')
         self.statusBar.showMessage("From which obejct subtract?")
+        
+    def combine_button_clicked(self):
+        self.deselect()
+        self.isPerformOperation = (True, 'union')
+        self.statusBar.showMessage("What object to combine?")
+        
+    def intersection_button_clicked(self):
+        self.deselect()
+        self.isPerformOperation = (True, 'intersection')
+        self.statusBar.showMessage("What object to intersect?")
 
     
-    def subtract_objects(self, obj_from_subtract: vtkActor, obj_to_subtract: vtkActor):
+    def object_operation_executor_helper(self, obj_from: vtkActor, obj_to: vtkActor, operation: vtkBooleanOperationPolyDataFilter):
         try:
-            obj_from_subtract_polydata = get_polydata_from_actor(obj_from_subtract)
-            obj_to_subtract_polydata = get_polydata_from_actor(obj_to_subtract)
+            obj_from_subtract_polydata = get_polydata_from_actor(obj_from)
+            obj_to_subtract_polydata = get_polydata_from_actor(obj_to)
             
             obj_from_subtract_polydata = convert_vtkUnstructuredGrid_to_vtkPolyData(obj_from_subtract_polydata)
             obj_to_subtract_polydata = convert_vtkUnstructuredGrid_to_vtkPolyData(obj_to_subtract_polydata)
@@ -986,23 +1025,19 @@ class GraphicalEditor(QFrame):
             cleaner2.SetInputData(obj_to_subtract_polydata)
             cleaner2.Update()
             
-            # Create a boolean operation filter
-            booleanOperation = vtkBooleanOperationPolyDataFilter()
-            booleanOperation.SetOperationToDifference()
-            
             # Set the input objects for the operation
-            booleanOperation.SetInputData(0, cleaner1.GetOutput())
-            booleanOperation.SetInputData(1, cleaner2.GetOutput())
+            operation.SetInputData(0, cleaner1.GetOutput())
+            operation.SetInputData(1, cleaner2.GetOutput())
             
             # Update the filter to perform the subtraction
-            booleanOperation.Update()
+            operation.Update()
             
             # Retrieve the result of the subtraction
-            resultPolyData = booleanOperation.GetOutput()
+            resultPolyData = operation.GetOutput()
             
             # Check if subtraction was successful
             if resultPolyData is None or resultPolyData.GetNumberOfPoints() == 0:
-                QMessageBox.warning(self, "Subtraction Failed", "No result from the subtraction operation.")
+                QMessageBox.warning(self, "Operation Failed", "No result from the operation operation.")
                 return
             
             mapper = vtkPolyDataMapper()
@@ -1013,13 +1048,31 @@ class GraphicalEditor(QFrame):
             self.add_actor(actor)
             
             # Removing subtracting objects only after adding resulting object
-            self.remove_actor(obj_from_subtract)
-            self.remove_actor(obj_to_subtract)
-            self.remove_row_from_tree_view(obj_from_subtract)
-            self.remove_row_from_tree_view(obj_to_subtract)        
+            self.remove_actor(obj_from)
+            self.remove_actor(obj_to)
+            self.remove_row_from_tree_view(obj_from)
+            self.remove_row_from_tree_view(obj_to)        
             self.object_idx -= 2
             
             vtk_filename = write_vtk_polydata_to_file(resultPolyData)
+            operationType = operation.GetOperation()
+            if operationType == 0:
+                operationType = 'subtraction'
+            elif operationType == 1:
+                operationType = 'union'
+            elif operationType == 2:
+                operationType = 'intersection'            
+            else:
+                self.log_console.insert_colored_text("Error: ", "red")
+                self.log_console.appendLog('There is no such operation')
+                return
+            
+            # Construct the new filename
+            tmp_dir, tmp_filename = split(vtk_filename)
+            new_filename = f"{tmp_dir}/Object[{self.object_idx}]_{operationType}_{tmp_filename}"
+            rename(vtk_filename, new_filename)
+            vtk_filename = new_filename
+            
             rootItem = QStandardItem(basename(vtk_filename))
             data = self.parse_vtk_data_and_populate_tree(vtk_filename, self.model, rootItem)
             action = get_action(self.object_idx, data, actor, isDifficultObj=True, mesh_file=vtk_filename)
@@ -1030,4 +1083,19 @@ class GraphicalEditor(QFrame):
         except Exception as e:
             self.log_console.insert_colored_text("Error: ", "red")
             self.log_console.appendLog(str(e))
-            return None
+            return None        
+    
+    def subtract_objects(self, obj_from: vtkActor, obj_to: vtkActor):
+        booleanOperation = vtkBooleanOperationPolyDataFilter()
+        booleanOperation.SetOperationToDifference()
+        self.object_operation_executor_helper(obj_from, obj_to, booleanOperation)
+        
+    def combine_objects(self, obj_from: vtkActor, obj_to: vtkActor):
+        booleanOperation = vtkBooleanOperationPolyDataFilter()
+        booleanOperation.SetOperationToUnion()
+        self.object_operation_executor_helper(obj_from, obj_to, booleanOperation)
+        
+    def intersect_objects(self, obj_from: vtkActor, obj_to: vtkActor):
+        booleanOperation = vtkBooleanOperationPolyDataFilter()
+        booleanOperation.SetOperationToIntersection()
+        self.object_operation_executor_helper(obj_from, obj_to, booleanOperation)
