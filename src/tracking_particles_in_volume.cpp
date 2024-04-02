@@ -16,12 +16,12 @@ int main(int argc, char *argv[])
     double meshSize{};
     std::cout << "Enter box mesh size: ";
     std::cin >> meshSize;
-    vc.createBoxAndMesh(meshSize, 3, k_mesh_filename);
+    vc.createBoxAndMesh(meshSize, 3, k_mesh_filename, 0, 0, 0, 100, 100, 300);
 
-    // 3. Filling the tetrahedron mesh
+    // 3. Filling the tetrahedron mesh.
     auto tetrahedronMesh{vc.getTetrahedronMeshParams(k_mesh_filename)};
 
-    // 4. Getting edge size from user.
+    // 4. Getting edge size from user's input.
     double edgeSize{};
     std::cout << "Enter 2nd mesh size (size of the cube edge): ";
     std::cin >> edgeSize;
@@ -42,10 +42,12 @@ int main(int argc, char *argv[])
         GSMatrixAssemblier assemblier(k_mesh_filename);
 
         // 2. Setting boundary conditions.
-        std::map<int, double> boundaryConditions = {
-            {0, 1.0}, {2, 1.0}, {4, 1.0}, {6, 1.0}, {12, 1.0}, // Upper part of the cube.
-            {1, 0.0}, {3, 0.0}, {5, 0.0}, {7, 0.0}, {13, 0.0}  // Lower part of the cube.
-        };
+        std::map<int, double> boundaryConditions;
+        for (int nodeId : {1, 3, 5, 7, 36})
+            boundaryConditions[nodeId] = 1.0;
+        for (int nodeId : {0, 2, 4, 6, 37})
+            boundaryConditions[nodeId] = 0.0;
+
         assemblier.setBoundaryConditions(boundaryConditions);
         assemblier.print(); // 2_opt. Printing the matrix.
 
@@ -64,6 +66,49 @@ int main(int argc, char *argv[])
         MatrixEquationSolver solver(assemblier, b);
         solver.solveAndPrint();
         solver.printLHS();
+
+        /* Colorizing results from the global stiffness matrix. */
+        std::ofstream posFile("scalarField.pos");
+        posFile << "View \"Scalar Field\" {\n";
+        auto tetrahedronMap{Mesh::getTetrahedronNodesMap(k_mesh_filename)};
+        auto nodes{Mesh::getTetrahedronNodeCoordinates(k_mesh_filename)};
+        for (auto const &[tetrahedronID, nodeIDs] : tetrahedronMap)
+        {
+            Tetrahedron tetrahedron;
+            for (auto const &[tetraID, tetra, volume] : tetrahedronMesh)
+                if (tetrahedronID == tetraID)
+                {
+                    tetrahedron = tetra;
+                    break;
+                }
+
+            posFile << "ST(";
+            for (size_t i{}; i < nodeIDs.size(); ++i)
+            {
+                // Fetch coordinates for each node in the tetrahedron.
+                auto nodeID{nodeIDs[i] - 1};
+                if (nodes.find(nodeID) != nodes.end())
+                {
+                    auto const &coords{nodes[nodeID]};
+                    posFile << coords[0] << ", " << coords[1] << ", " << coords[2];
+                    if (i < nodeIDs.size() - 1)
+                        posFile << ", ";
+                }
+            }
+            posFile << "){";
+            for (size_t i{}; i < nodeIDs.size(); ++i)
+            {
+                auto nodeID{nodeIDs[i] - 1};
+                auto value{assemblier.getScalarFieldValue(nodeID)};
+                posFile << value;
+                if (i < nodeIDs.size() - 1)
+                    posFile << ", ";
+            }
+            posFile << "};\n";
+        }
+        posFile << "};\n";
+        posFile.close();
+        LOGMSG("File 'scalarField.pos' was successfully created");
     }
 
     Kokkos::finalize();
