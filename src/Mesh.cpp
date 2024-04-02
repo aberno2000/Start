@@ -248,11 +248,40 @@ std::map<size_t, std::vector<size_t>> Mesh::getTetrahedronNodesMap(std::string_v
     }
     catch (const std::exception &e)
     {
-        std::cerr << "Error: " << e.what() << std::endl;
+        ERRMSG(e.what());
     }
     catch (...)
     {
-        std::cerr << "An unknown error occurred." << std::endl;
+        ERRMSG("An unknown error occurred.");
     }
     return tetrahedronNodesMap;
+}
+
+std::map<size_t, std::array<double, 3>> Mesh::getTetrahedronNodeCoordinates(std::string_view msh_filename)
+{
+    std::map<size_t, std::array<double, 3>> nodeCoordinatesMap;
+    try
+    {
+        gmsh::open(msh_filename.data());
+
+        std::vector<std::size_t> nodeTags;
+        std::vector<double> coord, parametricCoord;
+        gmsh::model::mesh::getNodes(nodeTags, coord, parametricCoord, -1, -1, false, false);
+
+        for (size_t i = 0; i < nodeTags.size(); ++i)
+        {
+            size_t nodeID = nodeTags[i];
+            std::array<double, 3> coords = {coord[i * 3 + 0], coord[i * 3 + 1], coord[i * 3 + 2]};
+            nodeCoordinatesMap[nodeID] = coords;
+        }
+    }
+    catch (const std::exception &e)
+    {
+        ERRMSG(e.what());
+    }
+    catch (...)
+    {
+        ERRMSG("An unknown error occurred.");
+    }
+    return nodeCoordinatesMap;
 }

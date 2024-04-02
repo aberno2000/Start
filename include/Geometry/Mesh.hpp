@@ -136,6 +136,13 @@ public:
      * @return Map with key = tetrahedron's ID, value = list of nodes inside.
      */
     static std::map<size_t, std::vector<size_t>> getTetrahedronNodesMap(std::string_view msh_filename);
+
+    /**
+ * @brief Retrieves node coordinates from a mesh file. Useful for visualization and FEM calculations.
+ * @param msh_filename The name of the mesh file (.msh) from which node coordinates are extracted.
+ * @return A map where the key is the node ID and the value is an array of three elements (x, y, z) representing the coordinates of the node.
+ */
+    static std::map<size_t, std::array<double, 3>> getTetrahedronNodeCoordinates(std::string_view msh_filename);
 };
 
 #endif // !MESH_HPP
