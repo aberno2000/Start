@@ -90,7 +90,7 @@ EigenSparseMatrix GSMatrixAssemblier::assembleGlobalStiffnessMatrixHelper(
     DynRankViewMatrix const &allBasisGradients,
     DynRankViewVector const &allCubWeights,
     GlobalOrdinal totalNodes,
-    TetrahedronIndecesVector const &globalNodeIndicesPerElement) const
+    TetrahedronIndicesVector const &globalNodeIndicesPerElement) const
 {
     // 1. Initialization of the global stiffness matrix.
     EigenSparseMatrix globalStiffnessMatrix(totalNodes, totalNodes);
@@ -102,7 +102,7 @@ EigenSparseMatrix GSMatrixAssemblier::assembleGlobalStiffnessMatrixHelper(
         // 2_1. Calculating local stiffness matrix.
         auto localStiffnessMatrix{computeLocalStiffnessMatrix(allBasisGradients[elemIndex], allCubWeights[elemIndex])};
 
-        // 2_2. Indeces of global nodes for the current tetrahedron.
+        // 2_2. Indices of global nodes for the current tetrahedron.
         auto const &globalNodeIndices{globalNodeIndicesPerElement[elemIndex]};
 
         // 2_3. Adding local stiffness matrix to the global.
@@ -189,7 +189,7 @@ void GSMatrixAssemblier::print() const
 
 Teuchos::RCP<TpetraMatrixType> GSMatrixAssemblier::assembleGlobalStiffnessMatrix(std::string_view mesh_filename)
 {
-    TetrahedronIndecesVector globalNodeIndicesPerElement;
+    TetrahedronIndicesVector globalNodeIndicesPerElement;
     DynRankViewMatrix allBasisGradients;
     DynRankViewVector allCubWeights;
 
@@ -204,7 +204,7 @@ Teuchos::RCP<TpetraMatrixType> GSMatrixAssemblier::assembleGlobalStiffnessMatrix
         allNodeIDs.insert(nodeIDs.begin(), nodeIDs.end());
     size_t totalNodes{allNodeIDs.size()};
 
-    // 3. Filling global indeces.
+    // 3. Filling global indices.
     for (auto const &[tetrahedronID, nodeIDs] : tetrahedronNodes)
     {
         std::array<LocalOrdinal, 4ul> nodes;

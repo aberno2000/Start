@@ -41,7 +41,7 @@ private:
         DynRankViewMatrix const &allBasisGradients,
         DynRankViewVector const &allCubWeights,
         GlobalOrdinal totalNodes,
-        TetrahedronIndecesVector const &globalNodeIndicesPerElement) const;
+        TetrahedronIndicesVector const &globalNodeIndicesPerElement) const;
 
     /**
      * @brief Converts an Eigen sparse matrix to a Tpetra CRS matrix.

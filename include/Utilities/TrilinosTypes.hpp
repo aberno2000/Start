@@ -24,8 +24,8 @@
 #include <vector>
 
 using Scalar = double;                                                // ST - Scalar Type (type of the data inside the matrix node).
-using LocalOrdinal = int;                                             // LO - indeces in local matrix.
-using GlobalOrdinal = long long;                                      // GO - Global Ordinal Type (indeces in global matrices).
+using LocalOrdinal = int;                                             // LO - indices in local matrix.
+using GlobalOrdinal = long long;                                      // GO - Global Ordinal Type (indices in global matrices).
 using ExecutionSpace = Kokkos::DefaultExecutionSpace;                 // Using host space to interoperate with data.
 using DeviceType = Kokkos::Device<ExecutionSpace, Kokkos::HostSpace>; // Using CPU.
 using DynRankView = Kokkos::DynRankView<Scalar, DeviceType>;          // Multi-dimensional array template.
@@ -40,8 +40,8 @@ using TpetraVectorType = Tpetra::Vector<Scalar, LocalOrdinal, GlobalOrdinal, Nod
 using TpetraMultiVector = Tpetra::MultiVector<Scalar, LocalOrdinal, GlobalOrdinal, Node>;
 using TpetraOperator = Tpetra::Operator<Scalar, LocalOrdinal, GlobalOrdinal, Node>;
 using TpetraMatrixType = Tpetra::CrsMatrix<Scalar, LocalOrdinal, GlobalOrdinal, Node>;
-using TetrahedronIndeces = std::array<LocalOrdinal, 4ul>;
-using TetrahedronIndecesVector = std::vector<TetrahedronIndeces>;
+using TetrahedronIndices = std::array<LocalOrdinal, 4ul>;
+using TetrahedronIndicesVector = std::vector<TetrahedronIndices>;
 using BasisFuncValues_CubatureWeights = std::pair<DynRankViewVector, DynRankView>;
 using Commutator = Teuchos::RCP<Teuchos::Comm<int> const>;
 
