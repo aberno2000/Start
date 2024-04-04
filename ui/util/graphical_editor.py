@@ -1100,16 +1100,19 @@ class GraphicalEditor(QFrame):
         self.deselect()
         self.isPerformOperation = (True, 'subtract')
         self.statusBar.showMessage("From which obejct subtract?")
+        self.operationType = 'subtraction'
         
     def combine_button_clicked(self):
         self.deselect()
         self.isPerformOperation = (True, 'union')
         self.statusBar.showMessage("What object to combine?")
+        self.operationType = 'union'
         
     def intersection_button_clicked(self):
         self.deselect()
         self.isPerformOperation = (True, 'intersection')
         self.statusBar.showMessage("What object to intersect?")
+        self.operationType = 'intersection'
         
     def cross_section_button_clicked(self):
         if not self.selected_actor:
@@ -1163,22 +1166,11 @@ class GraphicalEditor(QFrame):
             self.remove_row_from_tree_view()        
             self.object_idx -= 2
             
-            vtk_filename = write_vtk_polydata_to_file(resultPolyData)
-            operationType = operation.GetOperation()
-            if operationType == 0:
-                operationType = 'subtraction'
-            elif operationType == 1:
-                operationType = 'union'
-            elif operationType == 2:
-                operationType = 'intersection'            
-            else:
-                self.log_console.insert_colored_text("Error: ", "red")
-                self.log_console.appendLog('There is no such operation')
-                return
+            vtk_filename = write_vtk_polydata_to_file(resultPolyData) 
             
             # Construct the new filename
             tmp_dir, tmp_filename = split(vtk_filename)
-            new_filename = f"{tmp_dir}/Object[{self.object_idx}]_{operationType}_{tmp_filename}"
+            new_filename = f"{tmp_dir}/Object[{self.object_idx}]_{self.operationType}_{tmp_filename}"
             rename(vtk_filename, new_filename)
             vtk_filename = new_filename
             
