@@ -16,46 +16,68 @@ void MatrixEquationSolver::setRHS(const Teuchos::RCP<TpetraVectorType> &rhs) { m
 
 bool MatrixEquationSolver::solve()
 {
-    auto problem{Teuchos::rcp(new Belos::LinearProblem<Scalar, TpetraMultiVector, TpetraOperator>())};
-    problem->setOperator(m_A);
-    problem->setLHS(m_x);
-    problem->setRHS(m_rhs);
+    try
+    {
+        auto problem{Teuchos::rcp(new Belos::LinearProblem<Scalar, TpetraMultiVector, TpetraOperator>())};
+        problem->setOperator(m_A);
+        problem->setLHS(m_x);
+        problem->setRHS(m_rhs);
 
-    if (!problem->setProblem())
-        return false;
+        if (!problem->setProblem())
+            return false;
 
-    Belos::SolverFactory<Scalar, TpetraMultiVector, TpetraOperator> factory;
-    auto solver{factory.create("GMRES", Teuchos::parameterList())};
-    solver->setProblem(problem);
+        Belos::SolverFactory<Scalar, TpetraMultiVector, TpetraOperator> factory;
+        auto solver{factory.create("GMRES", Teuchos::parameterList())};
+        solver->setProblem(problem);
 
-    Belos::ReturnType result{solver->solve()};
-
-    return (result == Belos::Converged);
+        Belos::ReturnType result{solver->solve()};
+        return (result == Belos::Converged);
+    }
+    catch (std::exception const &ex)
+    {
+        ERRMSG(ex.what());
+    }
+    catch (...)
+    {
+        ERRMSG("Solver: Unknown error occured");
+    }
+    return false;
 }
 
 void MatrixEquationSolver::solveAndPrint()
 {
-    auto problem{Teuchos::rcp(new Belos::LinearProblem<Scalar, TpetraMultiVector, TpetraOperator>())};
-    problem->setOperator(m_A);
-    problem->setLHS(m_x);
-    problem->setRHS(m_rhs);
-
-    if (!problem->setProblem())
-        ERRMSG("Can't set the problem. Belos::LinearProblem::setProblem() returned an error");
-
-    Belos::SolverFactory<Scalar, TpetraMultiVector, TpetraOperator> factory;
-    auto solver{factory.create("GMRES", Teuchos::parameterList())};
-    solver->setProblem(problem);
-
-    Belos::ReturnType result{solver->solve()};
-
-    if (result == Belos::Converged)
+    try
     {
-        LOGMSG("\033[1;32mSolution converged\033[0m\033[1m");
+        auto problem{Teuchos::rcp(new Belos::LinearProblem<Scalar, TpetraMultiVector, TpetraOperator>())};
+        problem->setOperator(m_A);
+        problem->setLHS(m_x);
+        problem->setRHS(m_rhs);
+
+        if (!problem->setProblem())
+            ERRMSG("Can't set the problem. Belos::LinearProblem::setProblem() returned an error");
+
+        Belos::SolverFactory<Scalar, TpetraMultiVector, TpetraOperator> factory;
+        auto solver{factory.create("GMRES", Teuchos::parameterList())};
+        solver->setProblem(problem);
+
+        Belos::ReturnType result{solver->solve()};
+
+        if (result == Belos::Converged)
+        {
+            LOGMSG("\033[1;32mSolution converged\033[0m\033[1m");
+        }
+        else
+        {
+            ERRMSG("Solution did not converge");
+        }
     }
-    else
+    catch (std::exception const &ex)
     {
-        ERRMSG("Solution did not converge");
+        ERRMSG(ex.what());
+    }
+    catch (...)
+    {
+        ERRMSG("Solver: Unknown error occured");
     }
 }
 
