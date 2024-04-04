@@ -28,9 +28,10 @@ public:
     void setRHS(Teuchos::RCP<TpetraVectorType> const &rhs);
 
     /* Getters for the all components of the equation. */
-    Teuchos::RCP<TpetraVectorType> getRHS() { return m_rhs; }
-    Teuchos::RCP<TpetraVectorType> getLHS() { return m_x; }
-    Teuchos::RCP<TpetraMatrixType> getGlobalStiffnessMatrix() { return m_A; }
+    Teuchos::RCP<TpetraVectorType> getRHS() const { return m_rhs; }
+    Teuchos::RCP<TpetraVectorType> getLHS() const { return m_x; }
+    Teuchos::RCP<TpetraMatrixType> getGlobalStiffnessMatrix() const { return m_A; }
+    Scalar getScalarFieldValueFromX(size_t nodeID) const;
 
     /// @brief Solves the equation Ax=b.
     bool solve();

@@ -40,7 +40,7 @@ int main(int argc, char *argv[])
     {
         // 1. Assemblying global stiffness matrix from the mesh file.
         GSMatrixAssemblier assemblier(k_mesh_filename);
-
+        
         // 2. Setting boundary conditions.
         std::map<int, double> boundaryConditions;
         for (int nodeId : {1, 3, 5, 7, 36})
@@ -70,42 +70,14 @@ int main(int argc, char *argv[])
         /* Colorizing results from the global stiffness matrix. */
         std::ofstream posFile("scalarField.pos");
         posFile << "View \"Scalar Field\" {\n";
-        auto tetrahedronMap{Mesh::getTetrahedronNodesMap(k_mesh_filename)};
         auto nodes{Mesh::getTetrahedronNodeCoordinates(k_mesh_filename)};
-        for (auto const &[tetrahedronID, nodeIDs] : tetrahedronMap)
+        for (auto const &[nodeID, coords] : nodes)
         {
-            Tetrahedron tetrahedron;
-            for (auto const &[tetraID, tetra, volume] : tetrahedronMesh)
-                if (tetrahedronID == tetraID)
-                {
-                    tetrahedron = tetra;
-                    break;
-                }
-
-            posFile << "ST(";
-            for (size_t i{}; i < nodeIDs.size(); ++i)
-            {
-                // Fetch coordinates for each node in the tetrahedron.
-                auto nodeID{nodeIDs[i] - 1};
-                if (nodes.find(nodeID) != nodes.end())
-                {
-                    auto const &coords{nodes[nodeID]};
-                    posFile << coords[0] << ", " << coords[1] << ", " << coords[2];
-                    if (i < nodeIDs.size() - 1)
-                        posFile << ", ";
-                }
-            }
-            posFile << "){";
-            for (size_t i{}; i < nodeIDs.size(); ++i)
-            {
-                auto nodeID{nodeIDs[i] - 1};
-                auto value{assemblier.getScalarFieldValue(nodeID)};
-                posFile << value;
-                if (i < nodeIDs.size() - 1)
-                    posFile << ", ";
-            }
-            posFile << "};\n";
+            double value{solver.getScalarFieldValueFromX(nodeID - 1)};
+            posFile << std::format("SP({}, {}, {})", coords[0], coords[1], coords[2]);
+            posFile << '{' << value << "};\n";
         }
+
         posFile << "};\n";
         posFile.close();
         LOGMSG("File 'scalarField.pos' was successfully created");

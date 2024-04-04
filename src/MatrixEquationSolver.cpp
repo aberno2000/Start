@@ -14,6 +14,24 @@ void MatrixEquationSolver::initialize()
 
 void MatrixEquationSolver::setRHS(const Teuchos::RCP<TpetraVectorType> &rhs) { m_rhs = rhs; }
 
+Scalar MatrixEquationSolver::getScalarFieldValueFromX(size_t nodeID) const
+{
+    if (!m_x.is_null())
+    {
+        if (nodeID < static_cast<size_t>(m_x->getLocalLength()))
+        {
+            Scalar value{};
+            Teuchos::ArrayRCP<Scalar const> data{m_x->getData(0)};
+            value = data[nodeID];
+            return value;
+        }
+        else
+            throw std::out_of_range("Node index is out of range in the solution vector.");
+    }
+    else
+        throw std::runtime_error("Solution vector is not initialized.");
+}
+
 bool MatrixEquationSolver::solve()
 {
     try
@@ -27,7 +45,7 @@ bool MatrixEquationSolver::solve()
             return false;
 
         Belos::SolverFactory<Scalar, TpetraMultiVector, TpetraOperator> factory;
-        auto solver{factory.create("GMRES", Teuchos::parameterList())};
+        auto solver{factory.create("CG", Teuchos::parameterList())};
         solver->setProblem(problem);
 
         Belos::ReturnType result{solver->solve()};
