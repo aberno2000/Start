@@ -317,16 +317,18 @@ class WindowApp(QMainWindow):
         files = os.listdir(project_dir)
         paths = [os.path.join(project_dir, file) for file in files]
         
+        print(paths)
+        
         if len(paths) != 3 or \
-            not paths[0].endswith('.vtk') or not paths[1].endswith('.json') or \
-            not paths[2].endswith('.json'):
+            not paths[0].endswith('.json') or not paths[1].endswith('scene_camera_meshTab.json') or \
+            not paths[2].endswith('scene_actors_meshTab.vtk'):
                 self.log_console.insert_colored_text('Error: ', 'red')
-                self.log_console.insert_colored_text(f'Can\'t open the project, check contegrity of all the files in directory {project_dir}. There must be 5 files\n', self.setupFontColor)
-                QMessageBox.critical(self, 'Open Project', f'Can\'t open the project, check contegrity of all the files in directory {project_dir}. There must be 5 files')
+                self.log_console.insert_colored_text(f'Can\'t open the project, check contegrity of all the files in directory {project_dir}. There must be 3 files\n', self.setupFontColor)
+                QMessageBox.critical(self, 'Open Project', f'Can\'t open the project, check contegrity of all the files in directory {project_dir}. There must be 3 files')
                 return
         
-        self.geditor.load_scene(self.log_console, self.setupFontColor, paths[0], paths[1])
-        self.config_tab.upload_config_with_filename(paths[2])
+        self.geditor.load_scene(self.log_console, self.setupFontColor, paths[2], paths[1])
+        self.config_tab.upload_config_with_filename(paths[0])
     
     
     def save_project(self):
