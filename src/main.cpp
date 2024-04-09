@@ -20,13 +20,13 @@ void simulateMovement(ConfigParser const &configObj,
             std::exit(EXIT_FAILURE);
         }
     }
-    auto pgs(createParticlesWithVelocities(configObj.getParticlesCount(),
-                                           configObj.getProjective(),
-                                           -100, -100, -100, // Min: xyz
-                                           100, 100, 100,    // Max: xyz
-                                           -100, -100, -100, // Min: Vxyz
-                                           100, 100, 100     // Max: Vxyz
-                                           ));
+    // Directed ray of particles.
+    auto pgs(createParticlesWithEnergy(configObj.getParticlesCount(),
+                                       configObj.getProjective(),
+                                       0, 0, 0,                                     // Min: xyz.
+                                       0, 0, 0,                                     // Max: xyz.
+                                       configObj.getEnergy(), configObj.getEnergy() // Min and max energy.
+                                       ));
 
     CollisionTracker ct(pgs, mesh, configObj, gasConcentration);
     auto counterMap{ct.trackCollisions(configObj.getNumThreads())};
