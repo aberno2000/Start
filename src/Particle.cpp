@@ -8,16 +8,13 @@ std::atomic<size_t> Particle::m_nextId{0ul};
 
 void Particle::calculateVelocityFromEnergy_J()
 {
-	// TODO: Here we need to calculate the velocity vector not only for sphere distribution
-	// Example below:
-
 	RealNumberGenerator rng;
 	[[maybe_unused]] double v{std::sqrt(2 * m_energy / getMass())},
-		theta{rng(0 - std::numeric_limits<long double>::min(), std::numbers::pi + std::numeric_limits<long double>::min())},
-		phi{rng(0 - std::numeric_limits<long double>::min(), 2 * std::numbers::pi + std::numeric_limits<long double>::min())},
-		vx{getRadius() * sin(theta) * cos(phi)},
-		vy{getRadius() * sin(theta) * sin(phi)},
-		vz{getRadius() * cos(theta)};
+		theta{rng(0, std::numbers::pi)},
+		phi{rng(0, 2 * std::numbers::pi)},
+		vx{v * sin(theta) * cos(phi)},
+		vy{v * sin(theta) * sin(phi)},
+		vz{v * cos(theta)};
 
 	m_velocity = VelocityVector(vx, vy, vz);
 }
