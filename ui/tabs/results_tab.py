@@ -71,12 +71,15 @@ class ResultsTab(QWidget):
         self.clear_plot()
 
         # Load the mesh data from the HDF5 file
-        self.handler = HDF5Handler(hdf5_filename)
-        self.mesh = self.handler.read_mesh_from_hdf5()
-        self.mesh_renderer = MeshRenderer(self.mesh)
-        self.mesh_renderer.renderer = self.renderer
-        self.mesh_renderer.render_mesh()
-        self.mesh_renderer.add_colorbar('Particle Count')
+        try:
+            self.handler = HDF5Handler(hdf5_filename)
+            self.mesh = self.handler.read_mesh_from_hdf5()
+            self.mesh_renderer = MeshRenderer(self.mesh)
+            self.mesh_renderer.renderer = self.renderer
+            self.mesh_renderer.render_mesh()
+            self.mesh_renderer.add_colorbar('Particle Count')
+        except Exception as e:
+            QMessageBox.warning(self, "HDF5 Error", f"Something went wrong while hdf5 processing. Error: {e}")
         
         self.renderer.ResetCamera()
         self.vtkWidget.GetRenderWindow().Render()

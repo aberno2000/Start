@@ -30,7 +30,8 @@ from .util import(
 from util.util import(
     align_view_by_axis, save_scene, load_scene, convert_msh_to_vtk, 
     get_polydata_from_actor, write_vtk_polydata_to_file,
-    convert_vtkUnstructuredGrid_to_vtkPolyData
+    convert_vtkUnstructuredGrid_to_vtkPolyData,
+    DEFAULT_TEMP_FILE
 )
 from .mesh_dialog import MeshDialog
 from .styles import DEFAULT_ACTOR_COLOR, SELECTED_ACTOR_COLOR
@@ -392,7 +393,7 @@ class GraphicalEditor(QFrame):
         gmsh.model.mesh.generate(2)
 
         # Specify a filename to write the mesh
-        msh_filename = "temp.msh"
+        msh_filename = DEFAULT_TEMP_FILE
         gmsh.write(msh_filename)
 
         # Now, read the mesh file using meshio
@@ -402,7 +403,6 @@ class GraphicalEditor(QFrame):
         actor = self.display_meshio_mesh(mesh)
 
         gmsh.finalize()
-        remove(msh_filename)
         return actor
         
     def display_meshio_mesh(self, mesh):
@@ -445,13 +445,13 @@ class GraphicalEditor(QFrame):
     def create_sphere(self):
         def create_sphere_with_gmsh(mesh_size: float):
             gmsh.initialize()
-            gmsh.model.add('custom_box')
+            gmsh.model.add('custom_sphere')
             gmsh.model.occ.add_sphere(x, y, z, radius)
             gmsh.option.setNumber("Mesh.MeshSizeMax", mesh_size)
             gmsh.option.setNumber("Mesh.MeshSizeMin", mesh_size)
             gmsh.model.occ.synchronize()
             gmsh.model.mesh.generate(2)
-            msh_filename = 'temp.msh'
+            msh_filename = DEFAULT_TEMP_FILE
             gmsh.write(msh_filename)
             gmsh.finalize()
             return msh_filename
@@ -488,8 +488,6 @@ class GraphicalEditor(QFrame):
             
             center_str = 'Sphere'
             self.update_tree_model(center_str, '\n'.join(sphere_data_str), actor)
-            if checked:
-                remove(msh_filename)
 
 
     def create_box(self):
@@ -501,7 +499,7 @@ class GraphicalEditor(QFrame):
             gmsh.option.setNumber("Mesh.MeshSizeMin", mesh_size)
             gmsh.model.occ.synchronize()
             gmsh.model.mesh.generate(2)
-            msh_filename = 'temp.msh'
+            msh_filename = DEFAULT_TEMP_FILE
             gmsh.write(msh_filename)
             gmsh.finalize()
             return msh_filename
@@ -539,20 +537,18 @@ class GraphicalEditor(QFrame):
             
             box_str = 'Box'
             self.update_tree_model(box_str, '\n'.join(box_data_str), actor)
-            if checked:
-                remove(msh_filename)
 
 
     def create_cylinder(self):
         def create_cylinder_with_gmsh(mesh_size: float):
             gmsh.initialize()
-            gmsh.model.add('custom_box')
+            gmsh.model.add('custom_cylinder')
             gmsh.model.occ.add_cylinder(x, y, z, dx, dy, dz, radius)
             gmsh.option.setNumber("Mesh.MeshSizeMax", mesh_size)
             gmsh.option.setNumber("Mesh.MeshSizeMin", mesh_size)
             gmsh.model.occ.synchronize()
             gmsh.model.mesh.generate(2)
-            msh_filename = 'temp.msh'
+            msh_filename = DEFAULT_TEMP_FILE
             gmsh.write(msh_filename)
             gmsh.finalize()
             return msh_filename
@@ -590,8 +586,6 @@ class GraphicalEditor(QFrame):
             
             cylinder_str = 'Cylinder'
             self.update_tree_model(cylinder_str, '\n'.join(cylinder_data_str), actor)
-            if checked:
-                remove(msh_filename)
             
     
     def upload_custom(self):

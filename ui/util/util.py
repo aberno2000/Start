@@ -18,6 +18,8 @@ from vtkmodules.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 from json import dump, load
 from .styles import DEFAULT_QLINEEDIT_STYLE
 
+DEFAULT_TEMP_FILE = 'temp.msh'
+
 figure_types = ['Point', 'Line', 'Surface', 'Sphere', 'Box', 'Cylinder', 'Custom']
 
 def is_file_valid(path: str):

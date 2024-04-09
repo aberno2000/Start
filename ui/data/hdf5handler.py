@@ -15,7 +15,7 @@ class HDF5Handler:
         # Check if the file exists and is not empty
         if not h5py.is_hdf5(filename):
             raise ValueError(
-                f"The file {filename} doesn't exist or is empty.")
+                f"The file {filename} doesn't exist or is empty or isn't a hdf5 file.")
 
         self.filename = filename
         self.file = h5py.File(filename, "r")

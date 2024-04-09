@@ -221,7 +221,7 @@ class ConfigTab(QWidget):
         self.energy_input.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
         self.energy_units = QComboBox()
         self.energy_units.addItems(["eV", "keV", "J", "kJ", "cal"])
-        self.energy_units.setCurrentText("J")
+        self.energy_units.setCurrentText("eV")
         self.energy_converted = QLabel("0.0 J")
         energy_layout = QHBoxLayout()
         energy_layout.addWidget(self.energy_input)

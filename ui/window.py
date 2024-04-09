@@ -19,6 +19,9 @@ from logger.log_console import LogConsole
 from util import ShortcutsInfoDialog, is_file_valid
 from shutil import rmtree, copy
 from util.styles import *
+from util.util import DEFAULT_TEMP_FILE
+from os import remove
+from os.path import exists
 
 class WindowApp(QMainWindow):    
     def __init__(self):
@@ -151,6 +154,8 @@ class WindowApp(QMainWindow):
             QMessageBox.information(self, 
                                     "Simulation Stopped", 
                                     f"The simulation has been forcibly stopped with a code {exitCode} <{signal_name}>")
+        if exists(DEFAULT_TEMP_FILE):
+            remove(DEFAULT_TEMP_FILE) # Removing temporary file when process ends
     
     
     def setup_menu_bar(self):
@@ -381,7 +386,10 @@ class WindowApp(QMainWindow):
 
     def start_simulation_from_CLI(self, configFile):
         self.config_tab.upload_config_with_filename(configFile)
-        self.hdf5_filename = self.config_tab.mesh_file.replace('.msh', '.hdf5')
+        if self.config_tab.mesh_file.endswith('.msh'):
+            self.hdf5_filename = self.config_tab.mesh_file.replace('.msh', '.hdf5')
+        elif self.config_tab.mesh_file.endswith('.vtk'):
+            self.hdf5_filename = self.config_tab.mesh_file.replace('.vtk', '.hdf5')
         args = f'{self.config_tab.config_file_path}'
         self.run_cpp(args)
         self.progress_bar.setRange(0, 100)
@@ -420,7 +428,10 @@ class WindowApp(QMainWindow):
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to save configuration: Exception: {e}")
             return
-        self.hdf5_filename = self.config_tab.mesh_file.replace(".msh", ".hdf5")
+        if self.config_tab.mesh_file.endswith('.msh'):
+            self.hdf5_filename = self.config_tab.mesh_file.replace('.msh', '.hdf5')
+        elif self.config_tab.mesh_file.endswith('.vtk'):
+            self.hdf5_filename = self.config_tab.mesh_file.replace('.vtk', '.hdf5')
         args = f"{self.config_tab.config_file_path}"
 
         # Measure execution time
