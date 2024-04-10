@@ -9,8 +9,8 @@ std::atomic<size_t> Particle::m_nextId{0ul};
 void Particle::calculateVelocityFromEnergy_J()
 {
 	RealNumberGenerator rng;
-	[[maybe_unused]] double v{std::sqrt(2 * m_energy / getMass())},
-		theta{rng(0, std::numbers::pi)},
+	double v{std::sqrt(2 * m_energy / getMass())},
+		theta{rng(0, std::numbers::pi / 4)},
 		phi{rng(0, 2 * std::numbers::pi)},
 		vx{v * sin(theta) * cos(phi)},
 		vy{v * sin(theta) * sin(phi)},
@@ -19,7 +19,7 @@ void Particle::calculateVelocityFromEnergy_J()
 	m_velocity = VelocityVector(vx, vy, vz);
 }
 
-void Particle::calculateEnergyJFromVelocity(double vx, double vy, double vz) { m_energy = getMass() * (VelocityVector(vx, vy, vz).module()) / 2; }
+void Particle::calculateEnergyJFromVelocity(double vx, double vy, double vz) { m_energy = getMass() * std::pow((VelocityVector(vx, vy, vz).module()), 2) / 2; }
 void Particle::calculateEnergyJFromVelocity(VelocityVector const &v) { calculateEnergyJFromVelocity(VelocityVector(v.getX(), v.getZ(), v.getZ())); }
 void Particle::calculateEnergyJFromVelocity(VelocityVector &&v) noexcept { calculateEnergyJFromVelocity(v.getX(), v.getZ(), v.getZ()); }
 
@@ -29,7 +29,6 @@ void Particle::calculateBoundingBox()
 						  getX() + getRadius(), getY() + getRadius(), getZ() + getRadius());
 }
 
-// Creates dummy particle object with all nils value
 Particle::Particle(ParticleType type_)
 	: m_id(m_nextId++),
 	  m_type(type_),
@@ -191,9 +190,9 @@ bool Particle::colide(Particle target, double n_concentration, std::string_view 
 	if (std::string(model) == "HS")
 		return colideHS(target, n_concentration, time_step);
 	else if (std::string(model) == "VHS")
-		return colideVHS(target, n_concentration, getViscosityTemperatureIndex(), time_step);
+		return colideVHS(target, n_concentration, target.getViscosityTemperatureIndex(), time_step);
 	else if (std::string(model) == "VSS")
-		return colideVSS(target, n_concentration, getViscosityTemperatureIndex(), getVSSDeflectionParameter(), time_step);
+		return colideVSS(target, n_concentration, target.getViscosityTemperatureIndex(), target.getVSSDeflectionParameter(), time_step);
 	else
 		ERRMSG("No such kind of scattering model. Available only: HS/VHS/VSS");
 	return false;
@@ -354,7 +353,25 @@ ParticleVector createParticlesWithVelocities(size_t count, ParticleType type,
 			vx{rng(minvx, maxvx)},
 			vy{rng(minvy, maxvy)},
 			vz{rng(minvz, maxvz)};
+		particles.emplace_back(type, x, y, z, vx, vy, vz);
+	}
 
+	return particles;
+}
+
+ParticleVector createParticlesWithVelocityModule(size_t count, ParticleType type,
+												 double x, double y, double z,
+												 double v)
+{
+	RealNumberGenerator rng;
+	ParticleVector particles;
+
+	for (size_t i{}; i < count; ++i)
+	{
+		double theta{rng(0, std::numbers::pi)}, phi{rng(0, 2 * std::numbers::pi)},
+			vx{v * sin(theta) * cos(phi)},
+			vy{v * sin(theta) * sin(phi)},
+			vz{v * cos(theta)};
 		particles.emplace_back(type, x, y, z, vx, vy, vz);
 	}
 
