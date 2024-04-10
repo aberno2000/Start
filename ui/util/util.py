@@ -548,13 +548,13 @@ class CylinderDialog(QDialog):
         self.dyInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
         self.dzInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
         
-        formLayout.addRow("Center X:", self.xInput)
-        formLayout.addRow("Center Y:", self.yInput)
-        formLayout.addRow("Center Z:", self.zInput)
+        formLayout.addRow("Base center X:", self.xInput)
+        formLayout.addRow("Base center Y:", self.yInput)
+        formLayout.addRow("Base center Z:", self.zInput)
         formLayout.addRow("Radius:", self.radiusInput)
-        formLayout.addRow("Another center X:", self.dxInput)
-        formLayout.addRow("Another center Y:", self.dyInput)
-        formLayout.addRow("Another center Z:", self.dzInput)        
+        formLayout.addRow("Top center X:", self.dxInput)
+        formLayout.addRow("Top center Y:", self.dyInput)
+        formLayout.addRow("Top center Z:", self.dzInput)        
         
         layout.addLayout(formLayout)
         
