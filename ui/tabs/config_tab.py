@@ -15,7 +15,7 @@ from util.converter import Converter, is_positive_real_number
 from util.mesh_dialog import MeshDialog
 from util import is_file_valid
 from util.util import is_path_accessable
-from util.util import DEFAULT_QLINEEDIT_STYLE, DEFAULT_TEMP_FILE
+from util.util import DEFAULT_QLINEEDIT_STYLE, DEFAULT_TEMP_CONFIG_FILE
 
 MIN_TIME = 1e-9
 MAX_PRESSURE = 300.0
@@ -660,8 +660,7 @@ class ConfigTab(QWidget):
         
         # If string is empty - making name with temporary constant 
         if not self.config_file_path:
-            self.config_file_path = DEFAULT_TEMP_FILE
-            self.config_file_path.replace('.msh', '_config.json')
+            self.config_file_path = DEFAULT_TEMP_CONFIG_FILE
         
         # Adding extension if needed
         if not self.config_file_path.endswith('.json'):

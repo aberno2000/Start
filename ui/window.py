@@ -154,8 +154,6 @@ class WindowApp(QMainWindow):
             QMessageBox.information(self, 
                                     "Simulation Stopped", 
                                     f"The simulation has been forcibly stopped with a code {exitCode} <{signal_name}>")
-        if exists(DEFAULT_TEMP_FILE):
-            remove(DEFAULT_TEMP_FILE) # Removing temporary file when process ends
     
     
     def setup_menu_bar(self):
