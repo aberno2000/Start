@@ -4,7 +4,7 @@ from PyQt5.QtWidgets import (
     QGroupBox, QFileDialog, QPushButton,
     QSizePolicy, QSpacerItem, QDialog
 )
-import sys, gmsh
+import gmsh
 from os.path import dirname
 from PyQt5 import QtCore
 from PyQt5.QtCore import QSize, pyqtSignal
@@ -15,7 +15,7 @@ from util.converter import Converter, is_positive_real_number
 from util.mesh_dialog import MeshDialog
 from util import is_file_valid
 from util.util import is_path_accessable
-from util.util import DEFAULT_QLINEEDIT_STYLE
+from util.util import DEFAULT_QLINEEDIT_STYLE, DEFAULT_TEMP_FILE
 
 MIN_TIME = 1e-9
 MAX_PRESSURE = 300.0
@@ -657,6 +657,11 @@ class ConfigTab(QWidget):
             "JSON (*.json)",
             options=options,
         )
+        
+        # If string is empty - making name with temporary constant 
+        if not self.config_file_path:
+            self.config_file_path = DEFAULT_TEMP_FILE
+            self.config_file_path.replace('.msh', '_config.json')
         
         # Adding extension if needed
         if not self.config_file_path.endswith('.json'):
