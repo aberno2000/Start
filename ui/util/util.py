@@ -502,14 +502,14 @@ class BoxDialog(QDialog):
         if not is_real_number(self.zInput.text()):
             QMessageBox.warning(self, "Invalid input", f"{self.zInput.text()} isn't a real number")
             return None
-        if not is_positive_real_number(self.lengthInput.text()):
-            QMessageBox.warning(self, "Invalid input", f"{self.lengthInput.text()} isn't a real positive number")
+        if not is_real_number(self.lengthInput.text()):
+            QMessageBox.warning(self, "Invalid input", f"{self.lengthInput.text()} isn't a real number")
             return None
-        if not is_positive_real_number(self.widthInput.text()):
-            QMessageBox.warning(self, "Invalid input", f"{self.widthInput.text()} isn't a real positive number")
+        if not is_real_number(self.widthInput.text()):
+            QMessageBox.warning(self, "Invalid input", f"{self.widthInput.text()} isn't a real number")
             return None
-        if not is_positive_real_number(self.heightInput.text()):
-            QMessageBox.warning(self, "Invalid input", f"{self.heightInput.text()} isn't a real positive number")
+        if not is_real_number(self.heightInput.text()):
+            QMessageBox.warning(self, "Invalid input", f"{self.heightInput.text()} isn't a real number")
             return None
         values = (float(self.xInput.text()), float(self.yInput.text()), float(self.zInput.text()),
                 float(self.lengthInput.text()), float(self.widthInput.text()), float(self.heightInput.text()))
@@ -552,9 +552,9 @@ class CylinderDialog(QDialog):
         formLayout.addRow("Center Y:", self.yInput)
         formLayout.addRow("Center Z:", self.zInput)
         formLayout.addRow("Radius:", self.radiusInput)
-        formLayout.addRow("Length (X-direction):", self.dxInput)
-        formLayout.addRow("Width (Y-direction):", self.dyInput)
-        formLayout.addRow("Height (Z-direction):", self.dzInput)        
+        formLayout.addRow("Another center X:", self.dxInput)
+        formLayout.addRow("Another center Y:", self.dyInput)
+        formLayout.addRow("Another center Z:", self.dzInput)        
         
         layout.addLayout(formLayout)
         
@@ -595,14 +595,14 @@ class CylinderDialog(QDialog):
         if not is_positive_real_number(self.radiusInput.text()):
             QMessageBox.warning(self, "Invalid input", f"{self.radiusInput.text()} isn't a real positive number")
             return None
-        if not is_positive_real_number(self.dxInput.text()):
-            QMessageBox.warning(self, "Invalid input", f"{self.dxInput.text()} isn't a real positive number")
+        if not is_real_number(self.dxInput.text()):
+            QMessageBox.warning(self, "Invalid input", f"{self.dxInput.text()} isn't a real number")
             return None
-        if not is_positive_real_number(self.dyInput.text()):
-            QMessageBox.warning(self, "Invalid input", f"{self.dyInput.text()} isn't a real positive number")
+        if not is_real_number(self.dyInput.text()):
+            QMessageBox.warning(self, "Invalid input", f"{self.dyInput.text()} isn't a real number")
             return None
-        if not is_positive_real_number(self.dzInput.text()):
-            QMessageBox.warning(self, "Invalid input", f"{self.dzInput.text()} isn't a real positive number")
+        if not is_real_number(self.dzInput.text()):
+            QMessageBox.warning(self, "Invalid input", f"{self.dzInput.text()} isn't a real number")
             return None
         values = (float(self.xInput.text()), float(self.yInput.text()), float(self.zInput.text()),
                 float(self.radiusInput.text()), float(self.dxInput.text()), float(self.dyInput.text()), float(self.dzInput.text()))
