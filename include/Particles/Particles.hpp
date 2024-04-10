@@ -21,7 +21,7 @@ private:
     static std::atomic<size_t> m_nextId; ///< Static member for generating unique IDs.
     size_t m_id;                         ///< Id of the particle.
     ParticleType m_type{};               ///< Type of the particle.
-    Point m_centre;                     ///< Position in Cartesian coordinates (x, y, z).
+    Point m_centre;                      ///< Position in Cartesian coordinates (x, y, z).
     VelocityVector m_velocity;           ///< Velocity vector (Vx, Vy, Vz).
     double m_energy{};                   ///< Particle energy [J].
     CGAL::Bbox_3 m_bbox;                 ///< Bounding box for particle.
@@ -114,6 +114,7 @@ private:
         case ParticleType::He:
             return He_VTI;
         default:
+            WARNINGMSG("Viscosity temperature index is 0 - it means smth went wrong while simulation with VHS or VSS");
             return 0;
         }
     }
@@ -134,6 +135,7 @@ private:
         case ParticleType::He:
             return He_VSS_TI;
         default:
+            WARNINGMSG("VSS deflection parameter is 0 - it means smth went wrong while simulation with VHS or VSS");
             return 0;
         }
     }
@@ -215,8 +217,8 @@ public:
     constexpr CGAL::Bbox_3 const &getBoundingBox() const { return m_bbox; }
     constexpr double getMass() const { return getMassFromType(m_type); }
     constexpr double getRadius() const { return getRadiusFromType(m_type); }
-    constexpr float getViscosityTemperatureIndex() const { return getViscosityTemperatureIndexFromType(m_type); }
-    constexpr float getVSSDeflectionParameter() const { return getVSSDeflectionParameterFromType(m_type); }
+    constexpr double getViscosityTemperatureIndex() const { return getViscosityTemperatureIndexFromType(m_type); }
+    constexpr double getVSSDeflectionParameter() const { return getVSSDeflectionParameterFromType(m_type); }
 
     /**
      * @brief Chooses the specified scattering model.
@@ -250,6 +252,10 @@ ParticleVector createParticlesWithVelocities(size_t count, ParticleType type,
                                              double maxx = 100.0, double maxy = 100.0, double maxz = 100.0,
                                              double minvx = 10.0, double minvy = 10.0, double minvz = 10.0,
                                              double maxvx = 20.0, double maxvy = 20.0, double maxvz = 20.0);
+
+ParticleVector createParticlesWithVelocityModule(size_t count, ParticleType type,
+                                                 double x, double y, double z,
+                                                 double v);
 
 /// @brief Creates a vector of particles with specified properties.
 ParticleVector createParticlesWithEnergy(size_t count, ParticleType type,
