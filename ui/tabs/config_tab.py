@@ -539,7 +539,7 @@ class ConfigTab(QWidget):
             if not is_path_accessable(self.mesh_file):
                 QMessageBox.warning(self,
                                     "File Error",
-                                    f"Your file is unaccessable. Check the path or permissons to this path: {dirname(self.config_file_path)}")
+                                    f"Your file {self.mesh_file} is unaccessable. Check the path or permissons to this path: {dirname(self.config_file_path)}")
                 return
             
             self.meshFileSelected.emit(self.mesh_file)
