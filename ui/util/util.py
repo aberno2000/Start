@@ -1,4 +1,5 @@
 import gmsh, tempfile
+from os import remove
 from vtk import (
     vtkRenderer, vtkPolyData, vtkPolyDataWriter, vtkAppendPolyData,
     vtkPolyDataReader, vtkPolyDataMapper, vtkActor, vtkPolyDataWriter,
@@ -18,7 +19,10 @@ from vtkmodules.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 from json import dump, load
 from .styles import DEFAULT_QLINEEDIT_STYLE
 
-DEFAULT_TEMP_FILE = 'temp.msh'
+DEFAULT_TEMP_MESH_FILE = 'temp.msh'
+DEFAULT_TEMP_VTK_FILE = 'temp.vtk'
+DEFAULT_TEMP_HDF5_FILE = 'temp.hdf5'
+DEFAULT_TEMP_CONFIG_FILE = 'temp_config.json'
 
 figure_types = ['Point', 'Line', 'Surface', 'Sphere', 'Box', 'Cylinder', 'Custom']
 
@@ -854,4 +858,21 @@ def convert_vtkUnstructuredGrid_to_vtkPolyData(data):
         return data
     else:
         return None
+    
+def remove_temp_files_helper(filename: str):
+    try:
+        if exists(filename):
+            remove(filename)
+    except Exception as ex:
+        print(f"Some error occurs: Can't remove file {filename}. Error: {ex}")
+        return
+    
+    
+def remove_temp_files():
+    # High probability that user don't want to delete temporary config file
+    
+    # Removing all temporary files excluding temporary config file
+    remove_temp_files_helper(DEFAULT_TEMP_MESH_FILE)
+    remove_temp_files_helper(DEFAULT_TEMP_VTK_FILE)
+    remove_temp_files_helper(DEFAULT_TEMP_HDF5_FILE)
     

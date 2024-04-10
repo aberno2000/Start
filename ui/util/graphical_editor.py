@@ -1,6 +1,6 @@
 import gmsh, meshio
 from numpy import cross
-from os import remove, rename
+from os import rename
 from os.path import isfile, exists, basename, split
 from vtkmodules.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 from vtkmodules.vtkInteractionStyle import vtkInteractorStyleTrackballCamera
@@ -285,6 +285,7 @@ class GraphicalEditor(QFrame):
             
             self.add_actor(actor)
             self.update_tree_model('Point', f'Point: ({x}, {y}, {z})', actor)
+            self.log_console.appendLog(f'Successfully created point: ({x}, {y}, {z})')
             
     def create_line(self):
         dialog = LineDialog(self)
@@ -323,6 +324,7 @@ class GraphicalEditor(QFrame):
             
             line_str = 'Line'
             self.update_tree_model(line_str, '\n'.join(points_str_list), actor)
+            self.log_console.appendLog(f'Successfully created line:\n{'\n'.join(points_str_list)}')
 
     
     def create_surface(self):
@@ -374,6 +376,8 @@ class GraphicalEditor(QFrame):
                 
                 surface_str = 'Surface'
                 self.update_tree_model(surface_str, '\n'.join(points_str_list), actor)
+                self.log_console.appendLog(f'Successfully created surface:\n{'\n'.join(points_str_list)}')
+            
 
     def create_surface_with_gmsh(self, points, mesh_size):
         gmsh.initialize()
@@ -469,6 +473,7 @@ class GraphicalEditor(QFrame):
             
             if checked:
                 msh_filename = create_sphere_with_gmsh(mesh_size)
+                convert_msh_to_vtk(msh_filename)
                 mesh = meshio.read(msh_filename)
                 actor = self.display_meshio_mesh(mesh)
             else:
@@ -488,6 +493,7 @@ class GraphicalEditor(QFrame):
             
             center_str = 'Sphere'
             self.update_tree_model(center_str, '\n'.join(sphere_data_str), actor)
+            self.log_console.appendLog(f'Successfully created sphere:\n{'\n'.join(sphere_data_str)}')
 
 
     def create_box(self):
@@ -517,6 +523,7 @@ class GraphicalEditor(QFrame):
             
             if checked:
                 msh_filename = create_box_with_gmsh(mesh_size)
+                convert_msh_to_vtk(msh_filename)
                 mesh = meshio.read(msh_filename)
                 actor = self.display_meshio_mesh(mesh)
             else:
@@ -537,6 +544,7 @@ class GraphicalEditor(QFrame):
             
             box_str = 'Box'
             self.update_tree_model(box_str, '\n'.join(box_data_str), actor)
+            self.log_console.appendLog(f'Successfully created box:\n{'\n'.join(box_data_str)}')
 
 
     def create_cylinder(self):
@@ -566,6 +574,7 @@ class GraphicalEditor(QFrame):
 
             if checked:
                 msh_filename = create_cylinder_with_gmsh(mesh_size)
+                convert_msh_to_vtk(msh_filename)
                 mesh = meshio.read(msh_filename)
                 actor = self.display_meshio_mesh(mesh)
             else:
@@ -586,6 +595,7 @@ class GraphicalEditor(QFrame):
             
             cylinder_str = 'Cylinder'
             self.update_tree_model(cylinder_str, '\n'.join(cylinder_data_str), actor)
+            self.log_console.appendLog(f'Successfully created cylinder:\n{'\n'.join(cylinder_data_str)}')
             
     
     def upload_custom(self):
@@ -621,6 +631,8 @@ class GraphicalEditor(QFrame):
                 QMessageBox.critical(self, "Error", "Dialog was closed by user. Invalid mesh size or mesh dimensions.")
         elif file_name.endswith('.msh') or file_name.endswith('.vtk'):
             self.add_custom(file_name)
+            self.log_console.appendLog(f'Successfully uploaded custom object from {file_name}')
+            
             
     
     def convert_stp_to_msh(self, filename, mesh_size, mesh_dim):
@@ -647,7 +659,6 @@ class GraphicalEditor(QFrame):
             gmsh.finalize()
             return output_file
 
-
     def setup_axes(self):
         self.axes_actor = vtkAxesActor()
         self.axes_widget = vtkOrientationMarkerWidget()
@@ -657,7 +668,6 @@ class GraphicalEditor(QFrame):
         self.axes_widget.EnabledOn()
         self.axes_widget.InteractiveOff()
         
-    
     def add_actor(self, actor: vtkActor):
         self.renderer.AddActor(actor)
         actor.GetProperty().SetColor(DEFAULT_ACTOR_COLOR)
