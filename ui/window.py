@@ -19,9 +19,6 @@ from logger.log_console import LogConsole
 from util import ShortcutsInfoDialog, is_file_valid
 from shutil import rmtree, copy
 from util.styles import *
-from util.util import DEFAULT_TEMP_FILE
-from os import remove
-from os.path import exists
 
 class WindowApp(QMainWindow):    
     def __init__(self):
