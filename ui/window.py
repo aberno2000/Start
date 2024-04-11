@@ -318,8 +318,6 @@ class WindowApp(QMainWindow):
         files = os.listdir(project_dir)
         paths = [os.path.join(project_dir, file) for file in files]
         
-        print(paths)
-        
         if len(paths) != 3 or \
             not paths[0].endswith('.json') or not paths[1].endswith('scene_camera_meshTab.json') or \
             not paths[2].endswith('scene_actors_meshTab.vtk'):
