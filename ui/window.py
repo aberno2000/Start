@@ -19,7 +19,7 @@ from logger.log_console import LogConsole
 from util import ShortcutsInfoDialog, is_file_valid
 from shutil import rmtree, copy
 from util.styles import *
-from util.util import remove_temp_files
+from util.util import DEFAULT_COUNT_OF_PROJECT_FILES
 
 class WindowApp(QMainWindow):    
     def __init__(self):
@@ -318,12 +318,12 @@ class WindowApp(QMainWindow):
         files = os.listdir(project_dir)
         paths = [os.path.join(project_dir, file) for file in files]
         
-        if len(paths) != 3 or \
+        if len(paths) != DEFAULT_COUNT_OF_PROJECT_FILES or \
             not paths[0].endswith('.json') or not paths[1].endswith('scene_camera_meshTab.json') or \
             not paths[2].endswith('scene_actors_meshTab.vtk'):
                 self.log_console.insert_colored_text('Error: ', 'red')
-                self.log_console.insert_colored_text(f'Can\'t open the project, check contegrity of all the files in directory {project_dir}. There must be 3 files\n', self.setupFontColor)
-                QMessageBox.critical(self, 'Open Project', f'Can\'t open the project, check contegrity of all the files in directory {project_dir}. There must be 3 files')
+                self.log_console.insert_colored_text(f'Can\'t open the project, check contegrity of all the files in directory {project_dir}. There must be {DEFAULT_COUNT_OF_PROJECT_FILES} files\n', self.setupFontColor)
+                QMessageBox.critical(self, 'Open Project', f'Can\'t open the project, check contegrity of all the files in directory {project_dir}. There must be {DEFAULT_COUNT_OF_PROJECT_FILES} files')
                 return
         
         self.geditor.load_scene(self.log_console, self.setupFontColor, paths[2], paths[1])
@@ -331,6 +331,8 @@ class WindowApp(QMainWindow):
     
     
     def save_project(self):
+        QMessageBox.warning(self, "Saving project", "WARNING: Preferably you need to choose empty directory without any files (especially if there are your personal files or any other important ones there).")
+        
         options = QFileDialog.Options()
         project_dir = QFileDialog.getExistingDirectory(self, 'Choose Project Directory', options=options)
         
@@ -345,7 +347,11 @@ class WindowApp(QMainWindow):
 
         # Check if the directory exists. If yes, remove it and create a fresh one
         if os.path.exists(project_dir):
-            rmtree(project_dir)
+            choose = QMessageBox.warning(self, "Remove Directory", f"Are you sure that you want to remove all existing files in the directory {project_dir}? It needed for updating project configuration files.", QMessageBox.Yes | QMessageBox.No)
+            if choose == QMessageBox.Yes:
+                rmtree(project_dir)
+            else:
+                return
         os.makedirs(project_dir, exist_ok=True)
 
         try:

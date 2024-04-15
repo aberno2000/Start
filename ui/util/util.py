@@ -24,6 +24,8 @@ DEFAULT_TEMP_VTK_FILE = 'temp.vtk'
 DEFAULT_TEMP_HDF5_FILE = 'temp.hdf5'
 DEFAULT_TEMP_CONFIG_FILE = 'temp_config.json'
 
+DEFAULT_COUNT_OF_PROJECT_FILES = 3
+
 figure_types = ['Point', 'Line', 'Surface', 'Sphere', 'Box', 'Cylinder', 'Custom']
 
 def is_file_valid(path: str):
