@@ -104,6 +104,7 @@ set(SOURCES
     src/RayTriangleIntersection.cpp
     src/RealNumberGenerator.cpp
     src/SolutionVector.cpp
+    src/TrilinosPrinter.cpp
     src/Utilities.cpp
     src/VolumeCreator.cpp
 )
