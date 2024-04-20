@@ -85,6 +85,14 @@ else()
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wpedantic -Wextra -pthread -O3")
 endif()
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fp-model strict")
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -frounding-math")
+else()
+  message(WARNING "Unsupported compiler. You may need to manually set the appropriate flags for strict floating-point rounding.")
+endif()
+
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -104,7 +112,6 @@ set(SOURCES
     src/RayTriangleIntersection.cpp
     src/RealNumberGenerator.cpp
     src/SolutionVector.cpp
-    src/TrilinosPrinter.cpp
     src/Utilities.cpp
     src/VolumeCreator.cpp
 )
