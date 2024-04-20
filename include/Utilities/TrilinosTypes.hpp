@@ -7,6 +7,8 @@
 #include <Intrepid2_DefaultCubatureFactory.hpp>
 #include <Intrepid2_FunctionSpaceTools.hpp>
 #include <Intrepid2_HGRAD_TET_C1_FEM.hpp>
+#include <Intrepid2_HGRAD_TET_C2_FEM.hpp>
+#include <Intrepid2_HGRAD_TET_Cn_FEM.hpp>
 #include <Intrepid_FunctionSpaceTools.hpp>
 #include <Kokkos_Core.hpp>
 #include <Panzer_DOFManager.hpp>
@@ -20,7 +22,6 @@
 #include <Tpetra_Map.hpp>
 #include <Tpetra_Vector.hpp>
 #include <array>
-#include <eigen3/Eigen/Sparse>
 #include <vector>
 
 using Scalar = double;                                                // ST - Scalar Type (type of the data inside the matrix node).
@@ -31,9 +32,6 @@ using DeviceType = Kokkos::Device<ExecutionSpace, Kokkos::HostSpace>; // Using C
 using DynRankView = Kokkos::DynRankView<Scalar, DeviceType>;          // Multi-dimensional array template.
 using DynRankViewVector = std::vector<DynRankView>;                   // Vector of multi-dimensional arrays.
 using DynRankViewMatrix = std::vector<DynRankViewVector>;             // Matrix of multi-dimensional arrays.
-using EigenTriplet = Eigen::Triplet<Scalar>;                          // Triplet to be used in sparse matrix: [row|col|value].
-using EigenTripletVector = std::vector<EigenTriplet>;                 // Vector of triplets.
-using EigenSparseMatrix = Eigen::SparseMatrix<Scalar>;                // Eigen sparse matrix type.
 using Node = Tpetra::Map<>::node_type;                                // Node type based on Kokkos execution space.
 using MapType = Tpetra::Map<LocalOrdinal, GlobalOrdinal, Node>;
 using TpetraVectorType = Tpetra::Vector<Scalar, LocalOrdinal, GlobalOrdinal, Node>;
@@ -42,7 +40,6 @@ using TpetraOperator = Tpetra::Operator<Scalar, LocalOrdinal, GlobalOrdinal, Nod
 using TpetraMatrixType = Tpetra::CrsMatrix<Scalar, LocalOrdinal, GlobalOrdinal, Node>;
 using TetrahedronIndices = std::array<LocalOrdinal, 4ul>;
 using TetrahedronIndicesVector = std::vector<TetrahedronIndices>;
-using BasisFuncValues_CubatureWeights = std::pair<DynRankViewVector, DynRankView>;
 using Commutator = Teuchos::RCP<Teuchos::Comm<int> const>;
 
 #endif // !TRILINOS_TYPES_HPP
