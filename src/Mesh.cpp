@@ -299,11 +299,6 @@ std::vector<size_t> Mesh::getTetrahedronMeshBoundaryNodes(std::string_view msh_f
 
         std::set<size_t> uniqueNodes(nodeTags.cbegin(), nodeTags.cend());
         boundaryNodeTags.assign(uniqueNodes.cbegin(), uniqueNodes.cend());
-
-        std::cout << "Boundary nodes\n";
-        for (size_t nodeTag : boundaryNodeTags)
-            std::cout << nodeTag << ' ';
-        std::endl(std::cout);
     }
     catch (const std::exception &e)
     {
