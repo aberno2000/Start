@@ -1,13 +1,21 @@
 #include "../include/Utilities/SolutionVector.hpp"
 
-SolutionVector::SolutionVector(size_t size) // 0 here is the index base.
-    : m_comm(Tpetra::getDefaultComm()), m_map(new MapType(size, 0, m_comm)), m_solution_vector(Teuchos::rcp(new TpetraVectorType(m_map))) {}
+SolutionVector::SolutionVector(size_t size)
+    : m_comm(Tpetra::getDefaultComm()),
+      m_map(new MapType(size, 0, m_comm)), // 0 here is the index base.
+      m_solution_vector(Teuchos::rcp(new TpetraVectorType(m_map)))
+{
+}
 
 void SolutionVector::setBoundaryConditions(std::map<LocalOrdinal, Scalar> const &boundaryConditions)
 {
+    if (boundaryConditions.empty())
+        return;
+
     // Setting boundary conditions to solution vector:
     for (auto const &[nodeID, value] : boundaryConditions)
-        m_solution_vector->replaceGlobalValue(nodeID, value); // Modifying the RHS vector is necessary to solve the equation Ax=b.
+        // -1 because indexing in GMSH is on 1 bigger than in the program.
+        m_solution_vector->replaceGlobalValue(nodeID - 1, value); // Modifying the RHS vector is necessary to solve the equation Ax=b.
 }
 
 size_t SolutionVector::size() const { return m_solution_vector->getGlobalLength(); }
