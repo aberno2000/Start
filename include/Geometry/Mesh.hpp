@@ -35,14 +35,14 @@ std::ostream &operator<<(std::ostream &os, MeshTetrahedronParam const &meshParam
 std::optional<AABB_Tree_Triangle> constructAABBTreeFromMeshParams(MeshTriangleParamVector const &meshParams);
 
 /**
-     * @brief Calculates the volume of a tetrahedron.
-     * @details This function computes the volume of a tetrahedron by utilizing the CGAL library. The volume is calculated
-     *          based on the determinant of a matrix constructed from the coordinates of the tetrahedron's vertices. The formula
-     *          for the volume of a tetrahedron given its vertices A, B, C, and D is |dot(AB, cross(AC, AD))| / 6.
-     * @param tetrahedron The tetrahedron whose volume is to be calculated.
-     * @return The volume of the tetrahedron.
-     */
-    double calculateVolumeOfTetrahedron(Tetrahedron const &tetrahedron);
+ * @brief Calculates the volume of a tetrahedron.
+ * @details This function computes the volume of a tetrahedron by utilizing the CGAL library. The volume is calculated
+ *          based on the determinant of a matrix constructed from the coordinates of the tetrahedron's vertices. The formula
+ *          for the volume of a tetrahedron given its vertices A, B, C, and D is |dot(AB, cross(AC, AD))| / 6.
+ * @param tetrahedron The tetrahedron whose volume is to be calculated.
+ * @return The volume of the tetrahedron.
+ */
+double calculateVolumeOfTetrahedron(Tetrahedron const &tetrahedron);
 
 /// @brief Represents GMSH mesh.
 class Mesh
@@ -138,11 +138,27 @@ public:
     static std::map<size_t, std::vector<size_t>> getTetrahedronNodesMap(std::string_view msh_filename);
 
     /**
- * @brief Retrieves node coordinates from a mesh file. Useful for visualization and FEM calculations.
- * @param msh_filename The name of the mesh file (.msh) from which node coordinates are extracted.
- * @return A map where the key is the node ID and the value is an array of three elements (x, y, z) representing the coordinates of the node.
- */
+     * @brief Retrieves node coordinates from a mesh file. Useful for visualization and FEM calculations.
+     * @param msh_filename The name of the mesh file (.msh) from which node coordinates are extracted.
+     * @return A map where the key is the node ID and the value is an array of three elements (x, y, z) representing the coordinates of the node.
+     */
     static std::map<size_t, std::array<double, 3>> getTetrahedronNodeCoordinates(std::string_view msh_filename);
+
+    /**
+     * @brief Retrieves the boundary nodes of a tetrahedron mesh.
+     *
+     * @details This function opens a Gmsh file specified by `msh_filename` and retrieves
+     *          the nodes associated with the boundary elements (typically triangles in
+     *          3D meshes). It filters out unique nodes to identify the actual boundary nodes,
+     *          which are essential for various mesh-based calculations and visualizations.
+     *
+     * @param msh_filename The path to the mesh file in Gmsh format as a string view.
+     * @return std::vector<size_t> A vector containing the unique tags of boundary nodes.
+     *
+     * @throws std::exception Propagates any exceptions thrown by the Gmsh API, which are
+     *         caught and handled by printing the error message to the standard error output.
+     */
+    static std::vector<size_t> getTetrahedronMeshBoundaryNodes(std::string_view msh_filename);
 };
 
 #endif // !MESH_HPP

@@ -285,3 +285,33 @@ std::map<size_t, std::array<double, 3>> Mesh::getTetrahedronNodeCoordinates(std:
     }
     return nodeCoordinatesMap;
 }
+
+std::vector<size_t> Mesh::getTetrahedronMeshBoundaryNodes(std::string_view msh_filename)
+{
+    std::vector<size_t> boundaryNodeTags;
+    try
+    {
+        gmsh::open(msh_filename.data());
+
+        std::vector<size_t> nodeTags;
+        std::vector<double> coords, parametricCoords;
+        gmsh::model::mesh::getNodesByElementType(2, nodeTags, coords, parametricCoords);
+
+        std::set<size_t> uniqueNodes(nodeTags.cbegin(), nodeTags.cend());
+        boundaryNodeTags.assign(uniqueNodes.cbegin(), uniqueNodes.cend());
+
+        std::cout << "Boundary nodes\n";
+        for (size_t nodeTag : boundaryNodeTags)
+            std::cout << nodeTag << ' ';
+        std::endl(std::cout);
+    }
+    catch (const std::exception &e)
+    {
+        ERRMSG(e.what());
+    }
+    catch (...)
+    {
+        ERRMSG("An unknown error occurred.");
+    }
+    return boundaryNodeTags;
+}
