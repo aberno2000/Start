@@ -13,9 +13,9 @@
 using namespace constants;
 using namespace particle_types;
 
+#define BAD_MSHFILE -15.0
 #define JSON_BAD_PARSE -14.0
 #define JSON_BAD_PARAM -13.0
-#define BAD_MSHFILE -15.0
 #define BAD_PARTICLE_COUNT -12.0
 #define BAD_THREAD_COUNT -11.0
 #define BAD_TIME_STEP -10.0

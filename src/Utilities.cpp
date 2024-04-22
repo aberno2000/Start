@@ -20,6 +20,20 @@ std::string util::getStatusName(double status)
 {
     switch (static_cast<int>(status))
     {
+    case -15:
+        return "BAD_MSHFILE";
+    case -14:
+        return "JSON_BAD_PARSE";
+    case -13:
+        return "JSON_BAD_PARAM";
+    case -12:
+        return "BAD_PARTICLE_COUNT";
+    case -11:
+        return "BAD_THREAD_COUNT";
+    case -10:
+        return "BAD_TIME_STEP";
+    case -9:
+        return "BAD_SIMTIME";
     case -8:
         return "BAD_VOLUME";
     case -7:
@@ -41,7 +55,7 @@ std::string util::getStatusName(double status)
     case 1:
         return "STATUS_OK";
     default:
-        return std::string(COMMON_PRETTY_FUNC) + ": Status code is " + std::to_string(static_cast<int>(status));
+        return "UNKNOWN_ERROR";
     }
 }
 
