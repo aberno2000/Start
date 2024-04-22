@@ -4,9 +4,9 @@
 #include <CGAL/Bbox_3.h>
 #include <atomic>
 
+#include "../Geometry/CGALTypes.hpp"
 #include "../Geometry/MathVector.hpp"
 #include "../Utilities/Constants.hpp"
-#include "../Utilities/Utilities.hpp"
 
 using namespace constants;
 using namespace particle_types;
