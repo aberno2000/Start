@@ -1,17 +1,8 @@
-#include <cassert>
-#include <format>
-#include <fstream>
 #include <gmsh.h>
-#include <iostream>
-#include <string_view>
+#include <gtest/gtest.h>
 
 #include "../include/Generators/RealNumberGenerator.hpp"
 #include "../include/Generators/VolumeCreator.hpp"
-
-inline void testBoxCreating() { assert(VolumeCreator::createBox(10, 10, 10, 10, 20, 30) == 1); }
-inline void testSphereCreating() { assert(VolumeCreator::createSphere(5, 5, 5, 5) == 2); }
-inline void testCylinderCreating() { assert(VolumeCreator::createCylinder(0, 0, 0, 10, 20, 30, 5) == 3); }
-inline void testConeCreating() { assert(VolumeCreator::createCone(25, 25, 25, 10, 20, 30, 5, 10) == 4); }
 
 SphereVector generateRandomSpheres(int count)
 {
@@ -19,57 +10,50 @@ SphereVector generateRandomSpheres(int count)
     RealNumberGenerator rng;
 
     for (int i{}; i < count; ++i)
-        spheres.emplace_back(std::make_tuple(Point3(rng(-100.0, 100.0),
-                                                    rng(-100.0, 100.0),
-                                                    rng(-100.0, 100.0)),
+    {
+        spheres.emplace_back(std::make_tuple(Point(rng(-100.0, 100.0),
+                                                   rng(-100.0, 100.0),
+                                                   rng(-100.0, 100.0)),
                                              rng(0, 100.0)));
-
+    }
     return spheres;
 }
 
-void testSpheresCreating()
+class GeometryCreationTest : public ::testing::Test
 {
-    SphereVector svec{generateRandomSpheres(100)};
-    std::vector<int> sphereTags{VolumeCreator::createSpheres(SphereSpan(svec.begin(), svec.size()))};
-    int tag{5};
-    for (int tag_to_check : sphereTags)
-        assert(tag_to_check == tag++);
-}
-
-void testsRandom(int test_count)
-{
-    for (int i{}; i < test_count; ++i)
+protected:
+    static void SetUpTestSuite()
     {
-        SphereVector spheres{generateRandomSpheres(10)};
-        std::vector<int> tags{VolumeCreator::createSpheres(SphereSpan(spheres.data(), spheres.size()))};
-
-        for (int tag : tags)
-            assert(tag >= 0);
+        gmsh::initialize();
+        gmsh::model::add("GeometryCreation");
     }
+
+    static void TearDownTestSuite() { gmsh::finalize(); }
+};
+
+TEST_F(GeometryCreationTest, BoxCreating) { EXPECT_EQ(VolumeCreator::createBox(10, 10, 10, 10, 20, 30), 1); }
+
+TEST_F(GeometryCreationTest, SphereCreating) { EXPECT_EQ(VolumeCreator::createSphere(5, 5, 5, 5), 2); }
+
+TEST_F(GeometryCreationTest, CylinderCreating) { EXPECT_EQ(VolumeCreator::createCylinder(0, 0, 0, 10, 20, 30, 5), 3); }
+
+TEST_F(GeometryCreationTest, ConeCreating) { EXPECT_EQ(VolumeCreator::createCone(25, 25, 25, 10, 20, 30, 5, 10), 4); }
+
+TEST_F(GeometryCreationTest, SpheresCreating)
+{
+    auto sphereTags{VolumeCreator::createSpheres(generateRandomSpheres(100))};
+    int expectedTag{5};
+    for (int tag : sphereTags)
+        EXPECT_EQ(tag, expectedTag++);
 }
 
-int main()
+TEST_F(GeometryCreationTest, RandomSpheresCreating)
 {
-    gmsh::initialize();
-
-    testBoxCreating();
-    testSphereCreating();
-    testCylinderCreating();
-    testConeCreating();
-    testSpheresCreating();
-
-    std::cout << "1 stage: \033[32;1mAll static tests passed successfully!\033[0m\n";
-
-    int test_count{100};
-    testsRandom(test_count);
-    std::cout << std::format("2 stage: \033[32;1mAll {} random tests passed successfully!\033[0m\n",
-                             test_count);
-
-    gmsh::model::occ::synchronize();
-    gmsh::model::mesh::generate(2);
-
-    gmsh::fltk::run();
-    gmsh::finalize();
-
-    return EXIT_SUCCESS;
+    for (int i{}; i < 100; ++i)
+    {
+        auto spheres{generateRandomSpheres(10)};
+        auto tags{VolumeCreator::createSpheres(spheres)};
+        for (int tag : tags)
+            EXPECT_GE(tag, 0);
+    }
 }

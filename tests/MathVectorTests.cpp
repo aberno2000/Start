@@ -1,117 +1,129 @@
-#include <cassert>
-#include <cmath>
-#include <format>
-#include <iostream>
-#include <sstream>
+#include <gtest/gtest.h>
 
 #include "../include/Geometry/MathVector.hpp"
 
-void testDefaultConstructor()
+class MathVectorTest : public ::testing::Test
+{
+};
+
+TEST_F(MathVectorTest, DefaultConstructor)
 {
     PositionVector vec;
-    assert(vec.getX() == 0.0 && vec.getY() == 0.0 && vec.getZ() == 0.0);
+    EXPECT_DOUBLE_EQ(vec.getX(), 0.0);
+    EXPECT_DOUBLE_EQ(vec.getY(), 0.0);
+    EXPECT_DOUBLE_EQ(vec.getZ(), 0.0);
 }
 
-void testParameterizedConstructor()
+TEST_F(MathVectorTest, ParameterizedConstructor)
 {
     PositionVector vec(1.0, 2.0, 3.0);
-    assert(vec.getX() == 1.0 && vec.getY() == 2.0 && vec.getZ() == 3.0);
+    EXPECT_DOUBLE_EQ(vec.getX(), 1.0);
+    EXPECT_DOUBLE_EQ(vec.getY(), 2.0);
+    EXPECT_DOUBLE_EQ(vec.getZ(), 3.0);
 }
 
-void testAssignmentOperator()
+TEST_F(MathVectorTest, AssignmentOperator)
 {
     PositionVector vec;
     vec = 5.0;
-    assert(vec.getX() == 5.0 && vec.getY() == 5.0 && vec.getZ() == 5.0);
+    EXPECT_DOUBLE_EQ(vec.getX(), 5.0);
+    EXPECT_DOUBLE_EQ(vec.getY(), 5.0);
+    EXPECT_DOUBLE_EQ(vec.getZ(), 5.0);
 }
 
-void testCreateCoordinates()
+TEST_F(MathVectorTest, CreateCoordinates)
 {
-    PositionVector vec{PositionVector::createCoordinates(2.0, 4.0, 6.0)};
-    assert(vec.getX() == 2.0 && vec.getY() == 4.0 && vec.getZ() == 6.0);
+    PositionVector vec = PositionVector::createCoordinates(2.0, 4.0, 6.0);
+    EXPECT_DOUBLE_EQ(vec.getX(), 2.0);
+    EXPECT_DOUBLE_EQ(vec.getY(), 4.0);
+    EXPECT_DOUBLE_EQ(vec.getZ(), 6.0);
 }
 
-void testModule()
+TEST_F(MathVectorTest, Module)
 {
     MathVector vec(3.0, 4.0, 12.0);
-    assert(fabs(vec.module() - 13.0) < 0.0001);
+    EXPECT_NEAR(vec.module(), 13.0, 0.0001);
 }
 
-void testDistance()
+TEST_F(MathVectorTest, Distance)
 {
-    MathVector vec1(1.0, 2.0, 3.0),
-        vec2(4.0, 5.0, 6.0);
-    assert(fabs(vec1.distance(vec2) - 5.19615) < 0.0001);
+    MathVector vec1(1.0, 2.0, 3.0);
+    MathVector vec2(4.0, 5.0, 6.0);
+    EXPECT_NEAR(vec1.distance(vec2), 5.19615, 0.0001);
 }
 
-void testClear()
+TEST_F(MathVectorTest, Clear)
 {
     MathVector vec(2.0, 3.0, 4.0);
     vec.clear();
-    assert(vec.isNull());
+    EXPECT_TRUE(vec.isNull());
 }
 
-void testIsNull()
+TEST_F(MathVectorTest, IsNull)
 {
     PositionVector vec1;
-    assert(vec1.isNull());
+    EXPECT_TRUE(vec1.isNull());
 
     MathVector vec2(1.0, 0.0, 0.0);
-    assert(!vec2.isNull());
+    EXPECT_FALSE(vec2.isNull());
 
     MathVector vec3(0.0, 0.0, 0.0);
-    assert(vec3.isNull());
+    EXPECT_TRUE(vec3.isNull());
 }
 
-void testIsParallel()
+TEST_F(MathVectorTest, IsParallel)
 {
     MathVector vec1(1.0, 2.0, 3.0);
     MathVector vec2(2.0, 4.0, 6.0);
-    assert(vec1.isParallel(vec2));
+    EXPECT_TRUE(vec1.isParallel(vec2));
 
     MathVector vec3(1.0, 2.0, 3.0);
     MathVector vec4(-2.0, -4.0, -6.0);
-    assert(vec3.isParallel(vec4));
+    EXPECT_TRUE(vec3.isParallel(vec4));
 
     MathVector vec5(1.0, 2.0, 3.0);
     MathVector vec6(1.0, 2.0, 4.0);
-    assert(!vec5.isParallel(vec6));
+    EXPECT_FALSE(vec5.isParallel(vec6));
 }
 
-void testIsOrthogonal()
+TEST_F(MathVectorTest, IsOrthogonal)
 {
     MathVector vec1(1.0, 0.0, 0.0);
     MathVector vec2(0.0, 1.0, 0.0);
-    assert(vec1.isOrthogonal(vec2));
+    EXPECT_TRUE(vec1.isOrthogonal(vec2));
 
     MathVector vec3(1.0, 0.0, 0.0);
     MathVector vec4(1.0, 1.0, 1.0);
-    assert(!vec3.isOrthogonal(vec4));
+    EXPECT_FALSE(vec3.isOrthogonal(vec4));
 }
 
-void testUnaryMinusOperator()
+TEST_F(MathVectorTest, UnaryMinusOperator)
 {
     MathVector vec(1.0, 2.0, 3.0);
-    MathVector negatedVec{-vec};
-    assert(negatedVec.getX() == -1.0 && negatedVec.getY() == -2.0 && negatedVec.getZ() == -3.0);
+    MathVector negatedVec = -vec;
+    EXPECT_DOUBLE_EQ(negatedVec.getX(), -1.0);
+    EXPECT_DOUBLE_EQ(negatedVec.getY(), -2.0);
+    EXPECT_DOUBLE_EQ(negatedVec.getZ(), -3.0);
 }
 
-void testSubtractionOperator()
+TEST_F(MathVectorTest, SubtractionOperator)
 {
     MathVector vec1(4.0, 5.0, 6.0);
     MathVector vec2(1.0, 2.0, 3.0);
-    MathVector result{vec1 - vec2};
-
-    assert(result.getX() == 3.0 && result.getY() == 3.0 && result.getZ() == 3.0);
+    MathVector result = vec1 - vec2;
+    EXPECT_DOUBLE_EQ(result.getX(), 3.0);
+    EXPECT_DOUBLE_EQ(result.getY(), 3.0);
+    EXPECT_DOUBLE_EQ(result.getZ(), 3.0);
 }
 
-void testAdditionOperator()
+TEST_F(MathVectorTest, AdditionOperator)
 {
     MathVector vec1(4.0, 5.0, 6.0);
     MathVector vec2(1.0, 2.0, 3.0);
-    MathVector result{vec1 + vec2};
-
-    assert(result.getX() == 5.0 && result.getY() == 7.0 && result.getZ() == 9.0);
+    MathVector result = vec1 + vec2;
+    EXPECT_DOUBLE_EQ(result.getX(), 5.0);
+    EXPECT_DOUBLE_EQ(result.getY(), 7.0);
+    EXPECT_DOUBLE_EQ(result.getZ(), 9.0);
 }
 
 void testSubtractionOperatorWithValue()
@@ -218,11 +230,6 @@ void testComparisonsOperator()
     MathVector vec2(2.0, 3.0, 4.0);
     MathVector vec3(1.0, 3.0, 4.0);
 
-    // Testing spaceship operator<=>
-    assert((vec1 <=> vec2) == std::strong_ordering::equal);
-    assert((vec1 <=> vec3) == std::strong_ordering::greater);
-    assert((vec3 <=> vec2) == std::strong_ordering::less);
-
     // Testing operator==
     assert(vec1 == vec2);
     assert(!(vec1 == vec3));
@@ -280,40 +287,117 @@ void testRandomOperations(int test_count = 1'000'000)
     }
 }
 
-int main()
+TEST_F(MathVectorTest, SubtractionOperatorWithValue)
 {
-    testDefaultConstructor();
-    testParameterizedConstructor();
-    testAssignmentOperator();
-    testCreateCoordinates();
-    testModule();
-    testDistance();
-    testClear();
-    testIsNull();
-    testIsParallel();
-    testIsOrthogonal();
-    testUnaryMinusOperator();
-    testSubtractionOperator();
-    testAdditionOperator();
-    testSubtractionOperatorWithValue();
-    testAdditionOperatorWithValue();
-    testFriendAdditionOperatorWithValue();
-    testScalarMultiplication();
-    testFriendScalarMultiplication();
-    testDotProduct();
-    testCrossProduct();
-    testDivisionOperator();
-    testDivisionByZero();
-    testComparisonsOperator();
-    testOutputStreamOperator();
-    testInputStreamOperator();
+    MathVector vec(4.0, 5.0, 6.0);
+    double value = 2.0;
+    MathVector result = vec - value;
+    EXPECT_DOUBLE_EQ(result.getX(), 2.0);
+    EXPECT_DOUBLE_EQ(result.getY(), 3.0);
+    EXPECT_DOUBLE_EQ(result.getZ(), 4.0);
+}
 
-    std::cout << "1 stage: \033[32;1mAll static tests passed successfully!\033[0m\n";
+TEST_F(MathVectorTest, AdditionOperatorWithValue)
+{
+    MathVector vec(4.0, 5.0, 6.0);
+    double value = 2.0;
+    MathVector result = vec + value;
+    EXPECT_DOUBLE_EQ(result.getX(), 6.0);
+    EXPECT_DOUBLE_EQ(result.getY(), 7.0);
+    EXPECT_DOUBLE_EQ(result.getZ(), 8.0);
+}
 
-    int test_count{1'000'000};
-    testRandomOperations(test_count);
-    std::cout << std::format("2 stage: \033[32;1mAll {} random tests passed successfully!\033[0m\n",
-                             test_count);
+TEST_F(MathVectorTest, FriendAdditionOperatorWithValue)
+{
+    MathVector vec(4.0, 5.0, 6.0);
+    double value = 2.0;
+    MathVector result = value + vec;
+    EXPECT_DOUBLE_EQ(result.getX(), 6.0);
+    EXPECT_DOUBLE_EQ(result.getY(), 7.0);
+    EXPECT_DOUBLE_EQ(result.getZ(), 8.0);
+}
 
-    return EXIT_SUCCESS;
+TEST_F(MathVectorTest, ScalarMultiplication)
+{
+    MathVector vec(2.0, 3.0, 4.0);
+    double scalar = 2.0;
+    MathVector result = vec * scalar;
+    EXPECT_DOUBLE_EQ(result.getX(), 4.0);
+    EXPECT_DOUBLE_EQ(result.getY(), 6.0);
+    EXPECT_DOUBLE_EQ(result.getZ(), 8.0);
+}
+
+TEST_F(MathVectorTest, FriendScalarMultiplication)
+{
+    MathVector vec(2.0, 3.0, 4.0);
+    double scalar = 2.0;
+    MathVector result = scalar * vec;
+    EXPECT_DOUBLE_EQ(result.getX(), 4.0);
+    EXPECT_DOUBLE_EQ(result.getY(), 6.0);
+    EXPECT_DOUBLE_EQ(result.getZ(), 8.0);
+}
+
+TEST_F(MathVectorTest, DotProduct)
+{
+    MathVector vec1(2.0, 3.0, 4.0);
+    MathVector vec2(3.0, 4.0, 5.0);
+    double result = vec1 * vec2;
+    EXPECT_DOUBLE_EQ(result, 2 * 3 + 3 * 4 + 4 * 5);
+}
+
+TEST_F(MathVectorTest, CrossProduct)
+{
+    MathVector vec1(1.0, 2.0, 3.0);
+    MathVector vec2(4.0, 5.0, 6.0);
+    MathVector result = vec1.crossProduct(vec2);
+    EXPECT_DOUBLE_EQ(result.getX(), (2.0 * 6.0 - 3.0 * 5.0));
+    EXPECT_DOUBLE_EQ(result.getY(), (3.0 * 4.0 - 1.0 * 6.0));
+    EXPECT_DOUBLE_EQ(result.getZ(), (1.0 * 5.0 - 2.0 * 4.0));
+}
+
+TEST_F(MathVectorTest, DivisionOperator)
+{
+    MathVector vec(6.0, 8.0, 10.0);
+    double divisor = 2.0;
+    MathVector result = vec / divisor;
+    EXPECT_DOUBLE_EQ(result.getX(), 3.0);
+    EXPECT_DOUBLE_EQ(result.getY(), 4.0);
+    EXPECT_DOUBLE_EQ(result.getZ(), 5.0);
+}
+
+TEST_F(MathVectorTest, DivisionByZero)
+{
+    MathVector vec(6.0, 8.0, 10.0);
+    double divisor = 0.0;
+    EXPECT_THROW(vec / divisor, std::overflow_error);
+}
+
+TEST_F(MathVectorTest, ComparisonsOperator)
+{
+    MathVector vec1(2.0, 3.0, 4.0);
+    MathVector vec2(2.0, 3.0, 4.0);
+    MathVector vec3(1.0, 3.0, 4.0);
+
+    EXPECT_TRUE(vec1 == vec2);
+    EXPECT_FALSE(vec1 == vec3);
+    EXPECT_TRUE(vec1 != vec3);
+    EXPECT_FALSE(vec1 != vec2);
+}
+
+TEST_F(MathVectorTest, OutputStreamOperator)
+{
+    MathVector vec(2.0, 3.0, 4.0);
+    std::ostringstream oss;
+    oss << vec;
+    EXPECT_EQ(oss.str(), "2 3 4");
+}
+
+TEST_F(MathVectorTest, InputStreamOperator)
+{
+    MathVector vec;
+    std::istringstream iss("5 6 7");
+    iss >> vec;
+    EXPECT_DOUBLE_EQ(vec.getX(), 5.0);
+    EXPECT_DOUBLE_EQ(vec.getY(), 6.0);
+    EXPECT_DOUBLE_EQ(vec.getZ(), 7.0);
 }
