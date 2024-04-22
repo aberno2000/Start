@@ -3,7 +3,6 @@
 
 #include <concepts>
 #include <numbers>
-#include <span>
 
 #include "../Geometry/MathVector.hpp"
 #include "../Geometry/Mesh.hpp"
