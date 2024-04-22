@@ -26,11 +26,15 @@ add_executable(
     ../src/Utilities.cpp
     ../src/ConfigParser.cpp
     ParticleTests.cpp
+    RealNumberGeneratorTests.cpp
 )
 
 target_link_libraries(
     all_tests
+    gtest
     gtest_main
+    gmock
+    gmock_main
     Threads::Threads
 )
 
