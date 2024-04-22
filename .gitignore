@@ -28,6 +28,7 @@ main
 test
 argos_nia_start
 nia_start
+all_tests
 *.out
 *.o
 
