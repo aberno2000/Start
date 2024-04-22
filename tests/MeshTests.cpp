@@ -37,7 +37,7 @@ TEST_F(MeshTest, RayIntersectsTriangle)
     EXPECT_EQ(intersection, 1);
 }
 
-TEST_F(MeshTest, IntersectionPointImplementation)
+TEST_F(MeshTest, GetIntersectionPoint)
 {
     Ray ray(Point(0, 0, 1), Point(0, 0, -1));
     auto result{RayTriangleIntersection::getIntersectionPoint(ray, Triangle(Point(0, 0, 0), Point(1, 0, 0), Point(0, 1, 0)))};
