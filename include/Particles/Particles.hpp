@@ -174,12 +174,12 @@ private:
 public:
     Particle() : m_bbox(0, 0, 0, 0, 0, 0) {}
     Particle(ParticleType type_);
-    Particle(ParticleType type_, double x_, double y_, double z_, double energy_);
+    Particle(ParticleType type_, double x_, double y_, double z_, double energyJ_);
     Particle(ParticleType type_, double x_, double y_, double z_, double vx_, double vy_, double vz_);
     Particle(ParticleType type_, Point const &centre, double vx_, double vy_, double vz_);
     Particle(ParticleType type_, Point &&centre, double vx_, double vy_, double vz_);
-    Particle(ParticleType type_, Point const &centre, double energy_);
-    Particle(ParticleType type_, Point &&centre, double energy_);
+    Particle(ParticleType type_, Point const &centre, double energyJ_);
+    Particle(ParticleType type_, Point &&centre, double energyJ_);
     Particle(ParticleType type_, double x_, double y_, double z_, VelocityVector const &velvec);
     Particle(ParticleType type_, double x_, double y_, double z_, VelocityVector &&velvec);
     Particle(ParticleType type_, Point const &centre, VelocityVector const &velvec);
@@ -215,6 +215,7 @@ public:
     constexpr Point const &getCentre() const { return m_centre; }
     constexpr VelocityVector const &getVelocityVector() const { return m_velocity; }
     constexpr CGAL::Bbox_3 const &getBoundingBox() const { return m_bbox; }
+    constexpr ParticleType getType() const { return m_type; }
     constexpr double getMass() const { return getMassFromType(m_type); }
     constexpr double getRadius() const { return getRadiusFromType(m_type); }
     constexpr double getViscosityTemperatureIndex() const { return getViscosityTemperatureIndexFromType(m_type); }

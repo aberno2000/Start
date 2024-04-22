@@ -37,11 +37,11 @@ Particle::Particle(ParticleType type_)
 	  m_bbox(0, 0, 0, 0, 0, 0) {}
 
 Particle::Particle(ParticleType type_, double x_, double y_, double z_,
-				   double energy_)
+				   double energyJ_)
 	: m_id(m_nextId++),
 	  m_type(type_),
 	  m_centre(Point(x_, y_, z_)),
-	  m_energy(energy_)
+	  m_energy(energyJ_)
 {
 	calculateVelocityFromEnergy_J();
 	calculateBoundingBox();
@@ -80,21 +80,21 @@ Particle::Particle(ParticleType type_, Point &&centre,
 	calculateBoundingBox();
 }
 
-Particle::Particle(ParticleType type_, Point const &centre, double energy_)
+Particle::Particle(ParticleType type_, Point const &centre, double energyJ_)
 	: m_id(m_nextId++),
 	  m_type(type_),
 	  m_centre(centre),
-	  m_energy(energy_)
+	  m_energy(energyJ_)
 {
 	calculateVelocityFromEnergy_J();
 	calculateBoundingBox();
 }
 
-Particle::Particle(ParticleType type_, Point &&centre, double energy_)
+Particle::Particle(ParticleType type_, Point &&centre, double energyJ_)
 	: m_id(m_nextId++),
 	  m_type(type_),
 	  m_centre(std::move(centre)),
-	  m_energy(energy_)
+	  m_energy(energyJ_)
 {
 	calculateVelocityFromEnergy_J();
 	calculateBoundingBox();
