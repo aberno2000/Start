@@ -16,6 +16,7 @@ NUM_THREADS=$(nproc)       # Default to all available cores
 INTERMEDIATE=false         # Default behavior does not compile intermediate results
 INTERMEDIATE_FILE=""       # No intermediate file by default
 INTERMEDIATE_REBUILD=false # No need to recompile from scratch intermediate results
+COMPILE_TESTS=false        # No need to compile all the tests
 
 while [[ "$#" -gt 0 ]]; do
     case $1 in
@@ -55,6 +56,9 @@ while [[ "$#" -gt 0 ]]; do
     -h | --help)
         usage
         ;;
+    --tests)
+        COMPILE_TESTS=true
+        ;;
     *)
         usage
         ;;
@@ -69,6 +73,22 @@ if [ "$REBUILD" = true ]; then
 fi
 if [ "$INTERMEDIATE_REBUILD" = true ]; then
     rm -rfv intermediateResults/build
+fi
+
+if [ "$COMPILE_TESTS" = true ]; then
+    TESTS_DIR="tests"
+    
+    mkdir -pv "$TESTS_DIR/build" && cd "$TESTS_DIR/build"
+    echo "Compiling tests with $NUM_THREADS threads. Your PC provides $(nproc) threads."
+    cmake .. && make -j"$NUM_THREADS"
+
+    # Run the tests after building
+    if [ -f "all_tests" ]; then
+        echo "Running tests..."
+        ./all_tests
+    fi
+
+    exit 0
 fi
 
 if [ "$INTERMEDIATE" = true ] && [ -n "$INTERMEDIATE_FILE" ]; then
