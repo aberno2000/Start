@@ -1,0 +1,16 @@
+{
+    "Mesh File": "
+    "Count": 1675000000000000,
+    "Threads": 1,
+    "Time Step": 6e-05,
+    "Simulation Time": 0.005125,
+    "T": 93.428,
+    "P": 89.1323,
+    "V": 0.9234555,
+    "Particles": [
+        "Ti",
+        "Ar"
+    ],
+    "Energy": 5e-05,
+    "Model": "HS"
+}

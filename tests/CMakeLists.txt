@@ -64,8 +64,9 @@ endif()
 include_directories("../include/")
 add_executable(
     all_tests
-
     main.cpp
+    
+    ConfigParserTests.cpp
     MathVectorTests.cpp
     MeshTests.cpp
     ParticleTests.cpp

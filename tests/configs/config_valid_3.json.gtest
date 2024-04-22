@@ -1,0 +1,16 @@
+{
+    "Mesh File": "../meshes/TetrahedronTestMesh.msh.gtest",
+    "Count": 1000000,
+    "Threads": 20,
+    "Time Step": 0.001,
+    "Simulation Time": 0.1,
+    "T": 300.0,
+    "P": 10.0,
+    "V": 1.0,
+    "Particles": [
+        "Ti",
+        "Ar"
+    ],
+    "Energy": 1.602176634e-18,
+    "Model": "VHS"
+}
