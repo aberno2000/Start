@@ -36,9 +36,10 @@ all_tests
 *.root
 
 # GMSH files
-*.pos*
-*.msh*
-*.geo*
+*.pos
+*.msh
+*.msh.opt
+*.geo
 
 # HDF5 format
 *.hdf5
