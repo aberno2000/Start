@@ -47,7 +47,7 @@ TEST_F(MeshTest, GetIntersectionPoint)
 
 TEST_F(MeshTest, GetMeshParams)
 {
-    std::string filepath("../TriangleTestMesh.msh.gtest");
+    std::string filepath("../meshes/TriangleTestMesh.msh.gtest");
     std::ifstream ifile(filepath);
     ASSERT_TRUE(ifile.good()) << "File not found or cannot be opened: " << filepath;
 
@@ -57,7 +57,7 @@ TEST_F(MeshTest, GetMeshParams)
 
 TEST_F(MeshTest, GetTetrahedronMeshParams)
 {
-    std::string filepath("../TetrahedronTestMesh.msh.gtest");
+    std::string filepath("../meshes/TetrahedronTestMesh.msh.gtest");
     std::ifstream ifile(filepath);
     ASSERT_TRUE(ifile.good()) << "File not found or cannot be opened: " << filepath;
 
@@ -67,7 +67,7 @@ TEST_F(MeshTest, GetTetrahedronMeshParams)
 
 TEST_F(MeshTest, TotalVolumeFromTetrahedrons)
 {
-    std::string filepath("../TetrahedronTestMesh.msh.gtest");
+    std::string filepath("../meshes/TetrahedronTestMesh.msh.gtest");
     std::ifstream ifile(filepath);
     ASSERT_TRUE(ifile.good()) << "File not found or cannot be opened: " << filepath;
 
@@ -78,7 +78,7 @@ TEST_F(MeshTest, TotalVolumeFromTetrahedrons)
 
 TEST_F(MeshTest, MeshBoundaryNodes)
 {
-    std::string filepath("../TetrahedronTestMesh.msh.gtest");
+    std::string filepath("../meshes/TetrahedronTestMesh.msh.gtest");
     std::ifstream ifile(filepath);
     ASSERT_TRUE(ifile.good()) << "File not found or cannot be opened: " << filepath;
 
