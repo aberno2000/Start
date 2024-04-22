@@ -83,6 +83,11 @@ if [ "$COMPILE_TESTS" = true ]; then
     echo "Compiling tests with $NUM_THREADS threads. Your PC provides $(nproc) threads."
     cmake .. && make -j"$NUM_THREADS"
 
+    if [ $? -ne 0 ]; then
+        echo "Compilation failed, exiting..."
+        exit 1
+    fi
+
     # Run the tests after building
     if [ -f "all_tests" ]; then
         echo "Running tests..."
