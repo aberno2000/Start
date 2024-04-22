@@ -19,27 +19,27 @@ SphereVector generateRandomSpheres(int count)
     return spheres;
 }
 
-class GeometryCreationTest : public ::testing::Test
+class VolumeCreatorTest : public ::testing::Test
 {
 protected:
     static void SetUpTestSuite()
     {
         gmsh::initialize();
-        gmsh::model::add("GeometryCreation");
+        gmsh::model::add("VolumeCreator");
     }
 
     static void TearDownTestSuite() { gmsh::finalize(); }
 };
 
-TEST_F(GeometryCreationTest, BoxCreating) { EXPECT_EQ(VolumeCreator::createBox(10, 10, 10, 10, 20, 30), 1); }
+TEST_F(VolumeCreatorTest, BoxCreating) { EXPECT_EQ(VolumeCreator::createBox(10, 10, 10, 10, 20, 30), 1); }
 
-TEST_F(GeometryCreationTest, SphereCreating) { EXPECT_EQ(VolumeCreator::createSphere(5, 5, 5, 5), 2); }
+TEST_F(VolumeCreatorTest, SphereCreating) { EXPECT_EQ(VolumeCreator::createSphere(5, 5, 5, 5), 2); }
 
-TEST_F(GeometryCreationTest, CylinderCreating) { EXPECT_EQ(VolumeCreator::createCylinder(0, 0, 0, 10, 20, 30, 5), 3); }
+TEST_F(VolumeCreatorTest, CylinderCreating) { EXPECT_EQ(VolumeCreator::createCylinder(0, 0, 0, 10, 20, 30, 5), 3); }
 
-TEST_F(GeometryCreationTest, ConeCreating) { EXPECT_EQ(VolumeCreator::createCone(25, 25, 25, 10, 20, 30, 5, 10), 4); }
+TEST_F(VolumeCreatorTest, ConeCreating) { EXPECT_EQ(VolumeCreator::createCone(25, 25, 25, 10, 20, 30, 5, 10), 4); }
 
-TEST_F(GeometryCreationTest, SpheresCreating)
+TEST_F(VolumeCreatorTest, SpheresCreating)
 {
     auto sphereTags{VolumeCreator::createSpheres(generateRandomSpheres(100))};
     int expectedTag{5};
@@ -47,7 +47,7 @@ TEST_F(GeometryCreationTest, SpheresCreating)
         EXPECT_EQ(tag, expectedTag++);
 }
 
-TEST_F(GeometryCreationTest, RandomSpheresCreating)
+TEST_F(VolumeCreatorTest, RandomSpheresCreating)
 {
     for (int i{}; i < 100; ++i)
     {
