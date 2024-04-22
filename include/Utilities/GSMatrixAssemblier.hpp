@@ -7,14 +7,14 @@
 class GSMatrixAssemblier final
 {
 private:
-    std::string_view m_meshfilename;                            ///< GMSH mesh file.
-    Commutator m_comm;                                          ///< Handles inter-process communication within a parallel computing environment. MPI communicator.
-    Teuchos::RCP<MapType> m_map;                                ///< A smart pointer managing the lifetime of a Map object, which defines the layout of distributed data across the processes in a parallel computation.
-    int m_polynomOrder{}, m_desiredAccuracy{};                  ///< Polynom order and desired accuracy of calculations.
-    int _countCubPoints{}, _countBasisFunctions{}, _spaceDim{}; ///< Private data members to store count of cubature points/cubature weights and count of basis functions.
-    size_t _countTetrahedra{};                                  ///< Private data member - count of tetrahedra in specified mesh.
-    DynRankView _cubPoints, _cubWeights;                        ///< Storing cubature points and cubature weights in static data members because theay are initialized in ctor.
-    Teuchos::RCP<TpetraMatrixType> m_gsmatrix;                  ///< Smart pointer on the global stiffness matrix.
+    std::string_view m_meshfilename;                              ///< GMSH mesh file.
+    Commutator m_comm;                                            ///< Handles inter-process communication within a parallel computing environment. MPI communicator.
+    Teuchos::RCP<MapType> m_map;                                  ///< A smart pointer managing the lifetime of a Map object, which defines the layout of distributed data across the processes in a parallel computation.
+    short m_polynomOrder{}, m_desiredAccuracy{};                  ///< Polynom order and desired accuracy of calculations.
+    short _countCubPoints{}, _countBasisFunctions{}, _spaceDim{}; ///< Private data members to store count of cubature points/cubature weights and count of basis functions.
+    size_t _countTetrahedra{};                                    ///< Private data member - count of tetrahedra in specified mesh.
+    DynRankView _cubPoints, _cubWeights;                          ///< Storing cubature points and cubature weights in static data members because theay are initialized in ctor.
+    Teuchos::RCP<TpetraMatrixType> m_gsmatrix;                    ///< Smart pointer on the global stiffness matrix.
 
     struct MatrixEntry
     {
@@ -95,11 +95,10 @@ private:
     /**
      * @brief Computes the inverse of the Jacobians for a set of cells.
      * @details The inverse Jacobians are used for transforming gradients of basis functions from the physical domain back to the reference domain, which is essential for correct assembly of stiffness matrices.
-     * @param cellsCount The number of cells (elements) for which the Jacobians are computed.
      * @param jacobians The Jacobians for which the inverses are to be computed.
      * @return Dynamically ranked view of the inverse Jacobians.
      */
-    DynRankView _computeInverseJacobians(size_t cellsCount, DynRankView const &jacobians);
+    DynRankView _computeInverseJacobians(DynRankView const &jacobians);
 
     /**
      * @brief Computes the local stiffness matrix for a given set of basis gradients and cubature weights.

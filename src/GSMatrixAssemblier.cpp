@@ -4,7 +4,6 @@
 #include <set>
 
 static constexpr short _tetrahedronVerticesCount{4};
-static constexpr short _tetrahedronDimensions{3};
 
 shards::CellTopology GSMatrixAssemblier::_getTetrahedronCellTopology() const { return shards::getCellTopologyData<shards::Tetrahedron<>>(); }
 
@@ -37,11 +36,25 @@ void GSMatrixAssemblier::_initializeCubature()
 
     // 2. Getting cubature points and weights.
     cubature->getCubature(_cubPoints, _cubWeights);
+
+    std::cout << "\n\n"
+              << __PRETTY_FUNCTION__ << '\n';
+    std::cout << "Cubature points\n";
+    for (short i{}; i < _countCubPoints; ++i)
+    {
+        for (short j{}; j < _spaceDim; ++j)
+            std::cout << _cubPoints(i, j) << ' ';
+        std::endl(std::cout);
+    }
+    std::cout << "Cubature weights: ";
+    for (short i{}; i < _countCubPoints; ++i)
+        std::cout << _cubWeights(i) << ' ';
+    std::endl(std::cout);
 }
 
 DynRankView GSMatrixAssemblier::_getTetrahedronVertices(MeshTetrahedronParamVector const &meshParams) const
 {
-    DynRankView vertices("vertices", _countTetrahedra, _tetrahedronVerticesCount, _tetrahedronDimensions);
+    DynRankView vertices("vertices", _countTetrahedra, _tetrahedronVerticesCount, _spaceDim);
     Kokkos::deep_copy(vertices, 0.0);
 
     size_t i{};
@@ -94,6 +107,19 @@ DynRankView GSMatrixAssemblier::_computeTetrahedronBasisFunctionGradients()
     auto basis{_getBasis()};
     basis.getValues(basisGradients, _cubPoints, Intrepid2::OPERATOR_GRAD);
 
+    std::cout << "\n\n"
+              << __PRETTY_FUNCTION__ << '\n';
+    for (short i{}; i < _countBasisFunctions; ++i)
+    {
+        std::cout << std::format("φ_{}\n", i);
+        for (short j{}; j < _countCubPoints; ++j)
+        {
+            for (short k{}; k < _spaceDim; k++)
+                std::cout << basisGradients(i, j, k) << ' ';
+            std::endl(std::cout);
+        }
+    }
+
     return basisGradients;
 }
 
@@ -106,15 +132,48 @@ DynRankView GSMatrixAssemblier::_computeCellJacobians(MeshTetrahedronParamVector
     auto cellTopology{_getTetrahedronCellTopology()};
 
     Intrepid2::CellTools<DeviceType>::setJacobian(jacobians, _cubPoints, vertices, cellTopology);
+
+    std::cout << "\n\n"
+              << __PRETTY_FUNCTION__ << '\n';
+    for (size_t i{}; i < _countTetrahedra; ++i)
+    {
+        std::cout << std::format("J_{}\n", i);
+        for (short j{}; j < _countCubPoints; ++j)
+        {
+            std::cout << std::format("P_{}\n", j);
+            for (short k{}; k < _spaceDim; k++)
+            {
+                for (short k2{}; k2 < _spaceDim; k2++)
+                    std::cout << jacobians(i, j, k, k2) << '\t';
+                std::endl(std::cout);
+            }
+        }
+    }
     return jacobians;
 }
 
-DynRankView GSMatrixAssemblier::_computeInverseJacobians(size_t cellsCount, DynRankView const &jacobians)
+DynRankView GSMatrixAssemblier::_computeInverseJacobians(DynRankView const &jacobians)
 {
-    DynRankView invJacobians("invJacobians", cellsCount, _countCubPoints, _spaceDim, _spaceDim);
+    DynRankView invJacobians("invJacobians", _countTetrahedra, _countCubPoints, _spaceDim, _spaceDim);
     Kokkos::deep_copy(invJacobians, 0.0);
 
     Intrepid2::CellTools<DeviceType>::setJacobianInv(invJacobians, jacobians);
+    std::cout << "\n\n"
+              << __PRETTY_FUNCTION__ << '\n';
+    for (size_t i{}; i < _countTetrahedra; ++i)
+    {
+        std::cout << std::format("Inv_J_{}\n", i);
+        for (short j{}; j < _countCubPoints; ++j)
+        {
+            std::cout << std::format("P_{}\n", j);
+            for (short k{}; k < _spaceDim; k++)
+            {
+                for (short k2{}; k2 < _spaceDim; k2++)
+                    std::cout << invJacobians(i, j, k, k2) << '\t';
+                std::endl(std::cout);
+            }
+        }
+    }
     return invJacobians;
 }
 
@@ -125,9 +184,23 @@ DynRankView GSMatrixAssemblier::_computeTetrahedronBasisFunctionGradientsTransfo
 
     auto basisGradients{_computeTetrahedronBasisFunctionGradients()};
     auto jacobians{_computeCellJacobians(meshParams)};
-    auto invJacobians{_computeInverseJacobians(_countTetrahedra, jacobians)};
+    auto invJacobians{_computeInverseJacobians(jacobians)};
 
     Intrepid2::FunctionSpaceTools<DeviceType>::HGRADtransformGRAD(transformedBasisGradients, invJacobians, basisGradients);
+
+    std::cout << "\n\n"
+              << __PRETTY_FUNCTION__ << '\n';
+    for (size_t i{}; i < _countTetrahedra; ++i)
+    {
+        std::cout << std::format("Tetrahedron[{}]\n", i);
+        for (short j{}; j < _countBasisFunctions; ++j)
+        {
+            std::cout << std::format("φ_{}: ", j);
+            for (short k{}; k < _countCubPoints; ++k)
+                std::cout << transformedBasisGradients(i, j, k) << ' ';
+            std::endl(std::cout);
+        }
+    }
     return transformedBasisGradients;
 }
 
@@ -156,8 +229,21 @@ std::vector<GSMatrixAssemblier::MatrixEntry> GSMatrixAssemblier::_getMatrixEntri
     // 1. Getting all LSMs.
     auto localStiffnessMatrices{_computeLocalStiffnessMatrices(basisGradients)};
 
+    std::cout << "\n\nLocal stiffness matrices\n";
+    for (size_t i{}; i < _countTetrahedra; ++i)
+    {
+        std::cout << std::format("LSM of tetrahedron[{}]\n", i);
+        for (short j{}; j < _countBasisFunctions; ++j)
+        {
+            for (short k{}; k < _countBasisFunctions; ++k)
+                std::cout << localStiffnessMatrices(i, j, k) << ' ';
+            std::endl(std::cout);
+        }
+    }
+
     // 2. Counting basis functions per node.
     auto countBasisFuncsPerNode{_countBasisFunctions / _tetrahedronVerticesCount};
+    std::cout << "Count basis funcs per node: " << countBasisFuncsPerNode << '\n';
 
     // 3. Filling matrix entries.
     std::vector<GSMatrixAssemblier::MatrixEntry> matrixEntries;
@@ -240,7 +326,7 @@ auto GSMatrixAssemblier::_assemblyGlobalStiffnessMatrixHelper(DynRankView const 
             for (auto const &rowEntry : graphEntries)
                 numEntriesPerRow[m_map->getLocalElement(rowEntry.first)] = rowEntry.second.size();
             Teuchos::ArrayView<size_t const> entriesPerRowView(numEntriesPerRow.data(), numEntriesPerRow.size());
-            graph = Teuchos::rcp(new Tpetra::CrsGraph<>(m_map, m_map, entriesPerRowView));
+            graph = Teuchos::rcp(new Tpetra::CrsGraph<>(m_map, entriesPerRowView));
             for (auto const &rowEntries : graphEntries)
             {
                 std::vector<GlobalOrdinal> columns(rowEntries.second.begin(), rowEntries.second.end());
@@ -416,7 +502,7 @@ void GSMatrixAssemblier::print() const
 
                 std::cout << std::format("Row {}: ", globalRow);
                 for (size_t k{}; k < checkNumEntries; ++k)
-                    std::cout << std::format("({}, {}) ", indices[k], values[k]);
+                    std::cout << "(" << indices[k] << ", " << std::scientific << std::setprecision(2) << values[k] << ") ";
                 std::endl(std::cout);
             }
         }
