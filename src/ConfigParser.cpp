@@ -15,7 +15,7 @@ void ConfigParser::clearConfig()
     m_isValid = false;
 }
 
-double ConfigParser::getConfigData(std::string_view config)
+int ConfigParser::getConfigData(std::string_view config)
 {
     if (config.empty())
         return EMPTY_STR;
@@ -73,7 +73,7 @@ double ConfigParser::getConfigData(std::string_view config)
 
     m_isValid = true;
 
-    if(m_config.mshfilename.empty() || !util::exists(m_config.mshfilename))
+    if (m_config.mshfilename.empty() || !util::exists(m_config.mshfilename))
         return BAD_MSHFILE;
     if (m_config.particles_count == 0ul)
         return BAD_PARTICLE_COUNT;
@@ -106,9 +106,9 @@ double ConfigParser::getConfigData(std::string_view config)
 
 ConfigParser::ConfigParser(std::string_view config)
 {
-    auto res{getConfigData(config)};
-    if (res != STATUS_OK)
-        std::cerr << "Error occured! Code: " << STATUS_TO_STR(res) << '\n';
+    m_status_code = getConfigData(config);
+    if (m_status_code != STATUS_OK)
+        std::cerr << "Error occured! Code: " << STATUS_TO_STR(m_status_code) << '\n';
 }
 
 ConfigParser::~ConfigParser() { clearConfig(); }

@@ -16,9 +16,9 @@ std::string util::getCurTime(std::string_view format)
     return ss.str();
 }
 
-std::string util::getStatusName(double status)
+std::string util::getStatusName(int status)
 {
-    switch (static_cast<int>(status))
+    switch (status)
     {
     case -15:
         return "BAD_MSHFILE";

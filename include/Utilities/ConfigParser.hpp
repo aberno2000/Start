@@ -37,7 +37,8 @@ private:
         std::string model;          ///< Scattering model, e.g., HS/VHS/VSS.
     } m_config;                     ///< Instance of config_data_t to store configuration.
 
-    bool m_isValid{}; ///< Flag indicating if the configuration is valid.
+    bool m_isValid{};    ///< Flag indicating if the configuration is valid.
+    int m_status_code{}; ///< Status code for check the error.
 
     /// @brief Clearing out all values from the `m_config`.
     void clearConfig();
@@ -71,24 +72,24 @@ private:
      * Model: HS
      *
      * @return Concentration calculated from the specified conditions in [N] (count of particles in V).
-     * `EMPTY_STR` constant (=0.0) if `config` is empty.
-     * `BAD_FILE` constant (=-1.0) if something wrong with the file.
-     * `BAD_PARTICLES_FORMAT` constant (=-2.0) if particles format is incorrect.
-     * `UNKNOWN_PARTICLES` constant (=-3.0) if input particles aren't correspond to known.
-     * `BAD_MODEL` constant (=-4.0) if model is unknown.
-     * `BAD_ENERGY` constant (=-5.0) if energy is equals to `0.0` or negative.
-     * `BAD_TEMPERATURE` constant (=-6.0) if temperature is equals to `0.0` or negative.
-     * `BAD_PRESSURE` constant (=-7.0) if pressure is negative.
-     * `BAD_VOLUME` constant (=-8.0) if volume is <= 0.0.
-     * `BAD_SIMTIME` constant (=-9.0) if count contains not only digits.
-     * `BAD_TIME_STEP` constant (=-10.0) if count contains not only digits.
-     * `BAD_THREAD_COUNT` constant (=-11.0) if count contains not only digits.
-     * `BAD_PARTICLE_COUNT` constant (=-12.0) if count contains not only digits.
-     * `JSON_BAD_PARAM` constant (=-13.0) if some parameter failed to assign to the config.
-     * `JSON_BAD_PARSE` constant (=-14.0) if JSON failed to parse the configuration file.
-     * `BAD_MSHFILE` constant (=-15.0) if mesh file not specified or doesn't exist in specified path.
+     * `EMPTY_STR` constant (=0) if `config` is empty.
+     * `BAD_FILE` constant (=-1) if something wrong with the file.
+     * `BAD_PARTICLES_FORMAT` constant (=-2) if particles format is incorrect.
+     * `UNKNOWN_PARTICLES` constant (=-3) if input particles aren't correspond to known.
+     * `BAD_MODEL` constant (=-4) if model is unknown.
+     * `BAD_ENERGY` constant (=-5) if energy is equals to `0` or negative.
+     * `BAD_TEMPERATURE` constant (=-6) if temperature is equals to `0` or negative.
+     * `BAD_PRESSURE` constant (=-7) if pressure is negative.
+     * `BAD_VOLUME` constant (=-8) if volume is <= 0.
+     * `BAD_SIMTIME` constant (=-9) if count contains not only digits.
+     * `BAD_TIME_STEP` constant (=-10) if count contains not only digits.
+     * `BAD_THREAD_COUNT` constant (=-11) if count contains not only digits.
+     * `BAD_PARTICLE_COUNT` constant (=-12) if count contains not only digits.
+     * `JSON_BAD_PARAM` constant (=-13) if some parameter failed to assign to the config.
+     * `JSON_BAD_PARSE` constant (=-14) if JSON failed to parse the configuration file.
+     * `BAD_MSHFILE` constant (=-15) if mesh file not specified or doesn't exist in specified path.
      */
-    double getConfigData(std::string_view config);
+    int getConfigData(std::string_view config);
 
 public:
     /**
@@ -113,6 +114,7 @@ public:
     constexpr ParticleType getGas() const { return m_config.gas; }
     constexpr std::string getMeshFilename() const { return m_config.mshfilename; }
     constexpr std::string getScatteringModel() const { return m_config.model; }
+    constexpr int getStatusCode() const { return m_status_code; }
     constexpr bool isValid() const { return m_isValid; }
     constexpr bool isInvalid() const { return not m_isValid; }
 };

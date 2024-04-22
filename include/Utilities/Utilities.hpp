@@ -13,23 +13,23 @@
 using namespace constants;
 using namespace particle_types;
 
-#define BAD_MSHFILE -15.0
-#define JSON_BAD_PARSE -14.0
-#define JSON_BAD_PARAM -13.0
-#define BAD_PARTICLE_COUNT -12.0
-#define BAD_THREAD_COUNT -11.0
-#define BAD_TIME_STEP -10.0
-#define BAD_SIMTIME -9.0
-#define BAD_VOLUME -8.0
-#define BAD_PRESSURE -7.0
-#define BAD_TEMPERATURE -6.0
-#define BAD_ENERGY -5.0
-#define BAD_MODEL -4.0
-#define UNKNOWN_PARTICLES -3.0
-#define BAD_PARTICLES_FORMAT -2.0
-#define BAD_FILE -1.0
-#define EMPTY_STR 0.0
-#define STATUS_OK 1.0
+#define BAD_MSHFILE -15
+#define JSON_BAD_PARSE -14
+#define JSON_BAD_PARAM -13
+#define BAD_PARTICLE_COUNT -12
+#define BAD_THREAD_COUNT -11
+#define BAD_TIME_STEP -10
+#define BAD_SIMTIME -9
+#define BAD_VOLUME -8
+#define BAD_PRESSURE -7
+#define BAD_TEMPERATURE -6
+#define BAD_ENERGY -5
+#define BAD_MODEL -4
+#define UNKNOWN_PARTICLES -3
+#define BAD_PARTICLES_FORMAT -2
+#define BAD_FILE -1
+#define EMPTY_STR 0
+#define STATUS_OK 1
 
 #define STATUS_TO_STR(status) util::getStatusName(status)
 
@@ -128,7 +128,7 @@ namespace util
     }
 
     /// @brief Helper function to get status name from its value.
-    std::string getStatusName(double status);
+    std::string getStatusName(int status);
 
     /// @brief Helper function to parse and define particle type by string.
     ParticleType getParticleTypeFromStrRepresentation(std::string_view particle);
