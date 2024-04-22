@@ -41,7 +41,7 @@ std::string util::getStatusName(double status)
     case 1:
         return "STATUS_OK";
     default:
-        return "UNKNOWN_STATUS";
+        return std::string(COMMON_PRETTY_FUNC) + ": Status code is " + std::to_string(static_cast<int>(status));
     }
 }
 
