@@ -67,6 +67,7 @@ add_executable(
 
     main.cpp
     MathVectorTests.cpp
+    MeshTests.cpp
     ParticleTests.cpp
     RealNumberGeneratorTests.cpp
     VolumeCreatorTests.cpp
