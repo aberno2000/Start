@@ -8,6 +8,7 @@ usage() {
     echo "  -h, --help                     Display this help message and exit."
     echo "  -i, --intermediate <FILE_PATH> Compile only the specified intermediate result file."
     echo "  -ir, --irebuild    <FILE_PATH> Clean and rebuild the intermediate results from scratch."
+    echo "  --tests                        Compiles and runs tests."
     exit 1
 }
 
