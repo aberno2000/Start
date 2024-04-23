@@ -67,19 +67,21 @@ add_executable(
     main.cpp
     
     ConfigParserTests.cpp
+    HDF5HandlerTests.cpp
     MathVectorTests.cpp
     MeshTests.cpp
     ParticleTests.cpp
     RealNumberGeneratorTests.cpp
     VolumeCreatorTests.cpp
 
+    ../src/ConfigParser.cpp
+    ../src/HDF5Handler.cpp
     ../src/MathVector.cpp
     ../src/Mesh.cpp
     ../src/Particle.cpp
     ../src/RayTriangleIntersection.cpp
     ../src/RealNumberGenerator.cpp
     ../src/Utilities.cpp
-    ../src/ConfigParser.cpp
     ../src/VolumeCreator.cpp
 )
 
@@ -92,11 +94,12 @@ target_link_libraries(
     Threads::Threads
     ${CGAL_NAMESPACE}
     ${CGAL_LIBRARIES}
+    ${GMSH_LIBRARIES} 
+    ${Boost_LIBRARIES} 
     ${GMP_LIBRARIES}
+    ${HDF5_LIBRARIES}
     ${TBB_NAMESPACE}
     ${TBB_LIBRARIES}
-    ${GMSH_LIBRARIES} 
-    ${Boost_LIBRARIES}
 )
 
 include(CTest)
