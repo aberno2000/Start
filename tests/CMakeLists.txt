@@ -4,7 +4,7 @@ project(Tests)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Werror -Wno-maybe-uninitialized")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread -O3 -Wall -Wextra -Werror -Wno-maybe-uninitialized")
 
 find_package(Threads REQUIRED)
 
@@ -47,6 +47,13 @@ else()
 endif()
 include_directories(${GMP_INCLUDE_DIR})
 
+find_package(TBB QUIET)
+if (TBB_FOUND)
+    set(TBB_NAMESPACE TBB::tbb)
+    message(STATUS "TBB library found")
+endif()
+include_directories(${TBB_INCLUDE_DIRS})
+
 find_package(Boost REQUIRED)
 include_directories(${Boost_INCLUDE_DIRS})
 
@@ -66,6 +73,7 @@ add_executable(
     all_tests
     main.cpp
     
+    CollisionTrackerTests.cpp
     ConfigParserTests.cpp
     HDF5HandlerTests.cpp
     MathVectorTests.cpp
@@ -74,6 +82,7 @@ add_executable(
     RealNumberGeneratorTests.cpp
     VolumeCreatorTests.cpp
 
+    ../src/CollisionTracker.cpp
     ../src/ConfigParser.cpp
     ../src/HDF5Handler.cpp
     ../src/MathVector.cpp
