@@ -1,6 +1,6 @@
 {
     "Mesh File": "../meshes/TetrahedronTestMesh.msh.gtest",
-    "Count": 150500,
+    "Count": 15050,
     "Threads": 1,
     "Time Step": 0.004,
     "Simulation Time": 5.0,
