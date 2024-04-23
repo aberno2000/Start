@@ -122,7 +122,7 @@ private:
      * @param globalNodeIndicesPerElement Global indices of nodes per element.
      * @return Smart pointer to the assembled global stiffness matrix.
      */
-    auto _assemblyGlobalStiffnessMatrixHelper(DynRankView const &basisGradients,
+    void _assemblyGlobalStiffnessMatrixHelper(DynRankView const &basisGradients,
                                               TetrahedronIndicesVector const &globalNodeIndicesPerElement);
 
 public:
@@ -134,13 +134,24 @@ public:
      * @param mesh_filename Mesh filename.
      * @return Sparse matrix: global stiffness matrix of the tetrahedron mesh.
      */
-    Teuchos::RCP<TpetraMatrixType> assembleGlobalStiffnessMatrix(std::string_view mesh_filename);
+    void assembleGlobalStiffnessMatrix(std::string_view mesh_filename);
 
     /* === Getters for matrix params. === */
     constexpr Teuchos::RCP<TpetraMatrixType> const &getGlobalStiffnessMatrix() const { return m_gsmatrix; }
     size_t rows() const { return m_gsmatrix->getGlobalNumRows(); }
     size_t cols() const { return m_gsmatrix->getGlobalNumCols(); }
     Scalar getScalarFieldValue(GlobalOrdinal nodeID) const;
+
+    /// @brief Checks is the global stiffness matrix empty or not.
+    bool empty() const;
+
+    /**
+     * @brief Getter for value from global stiffness matrix.
+     * @param row Row in the sparse global stiffness matrix.
+     * @param col Column in the sparse global stiffness matrix.
+     * @return Value from [i][j] specified row and column.
+     */
+    Scalar getValueFromGSM(GlobalOrdinal row, GlobalOrdinal col) const;
 
     /**
      * @brief Sets the boundary conditions to the global stiffness matrix. Changes specified values from map.
