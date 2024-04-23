@@ -16,10 +16,10 @@ int main(int argc, char *argv[])
     double meshSize{};
     std::cout << "Enter box mesh size: ";
     std::cin >> meshSize;
-    vc.createBoxAndMesh(meshSize, 3, k_mesh_filename, 0, 0, 0, 100, 100, 100);
+    vc.createBoxAndMesh(meshSize, 3, k_mesh_filename, 0, 0, 0, 100, 100, 300);
 
-    // // 3. Filling the tetrahedron mesh.
-    // auto tetrahedronMesh{vc.getTetrahedronMeshParams(k_mesh_filename)};
+    // 3. Filling the tetrahedron mesh.
+    auto tetrahedronMesh{vc.getTetrahedronMeshParams(k_mesh_filename)};
 
     // std::cout << "\n\n\nBoundary nodes\n";
     // auto boundaryNodes{Mesh::getTetrahedronMeshBoundaryNodes(k_mesh_filename)};
@@ -54,53 +54,48 @@ int main(int argc, char *argv[])
         GSMatrixAssemblier assemblier(k_mesh_filename, polynomOrder, desiredAccuracy);
         assemblier.print();
 
-        // // 2. Setting boundary conditions: for mesh size = 3
-        // std::map<int, double> boundaryConditions;
-        // auto boundaryNodes{Mesh::getTetrahedronMeshBoundaryNodes(k_mesh_filename)};
-        // for (size_t nodeId : boundaryNodes)
-        // {
-        //     std::cout << nodeId << ' ';
-        //     boundaryConditions[nodeId] = 0.0;
-        // }
-        // std::endl(std::cout);
-        // for (int nodeId : {2, 4, 6, 8, 105, 106, 107, 108, 109, 110, 51, 52, 53, 54, 55, 56, 99, 100, 101, 102, 103, 104, 117, 118, 119, 120, 121, 122,
-        //                    687, 650, 653, 647, 679, 651, 689, 682, 681, 655, 654, 676, 678, 684, 677, 657, 656, 667, 665, 686,
-        //                    646, 683, 659, 658, 680, 645, 683, 673, 662, 660, 661, 664, 685, 669, 68, 666, 671, 672, 675, 688, 652, 674, 648, 670, 649, 690})
-        //     boundaryConditions[nodeId] = 1.0;
+        // 2. Setting boundary conditions: for mesh size = 3
+        std::map<int, double> boundaryConditions;
+        [[maybe_unused]]auto boundaryNodes{Mesh::getTetrahedronMeshBoundaryNodes(k_mesh_filename)};
+        // Boundary conditions for box: 100x100x300, mesh size: 3
+        for (size_t nodeId : {1, 3, 5, 7, 38})
+            boundaryConditions[nodeId] = 0.0;
+        for (int nodeId : {2, 4, 6, 8, 37})
+            boundaryConditions[nodeId] = 1.0;
 
-        // assemblier.setBoundaryConditions(boundaryConditions);
-        // assemblier.print(); // 2_opt. Printing the matrix.
+        assemblier.setBoundaryConditions(boundaryConditions);
+        assemblier.print(); // 2_opt. Printing the matrix.
 
-        // // 3. Getting the global stiffness matrix and its size to the variable.
-        // // Matrix is square, hence we can get only count of rows or cols.
-        // auto A{assemblier.getGlobalStiffnessMatrix()};
-        // auto size{assemblier.rows()};
+        // 3. Getting the global stiffness matrix and its size to the variable.
+        // Matrix is square, hence we can get only count of rows or cols.
+        auto A{assemblier.getGlobalStiffnessMatrix()};
+        auto size{assemblier.rows()};
 
-        // // 4. Creating solution vector, filling it with the random values, and applying boundary conditions.
-        // SolutionVector b(size);
-        // b.clear();
-        // b.setBoundaryConditions(boundaryConditions);
-        // b.print(); // 4_opt. Printing the solution vector.
+        // 4. Creating solution vector, filling it with the random values, and applying boundary conditions.
+        SolutionVector b(size);
+        b.clear();
+        b.setBoundaryConditions(boundaryConditions);
+        b.print(); // 4_opt. Printing the solution vector.
 
-        // // 5. Solve the equation Ax=b.
-        // MatrixEquationSolver solver(assemblier, b);
-        // solver.solveAndPrint();
-        // solver.printLHS();
+        // 5. Solve the equation Ax=b.
+        MatrixEquationSolver solver(assemblier, b);
+        solver.solveAndPrint();
+        solver.printLHS();
 
-        // /* Colorizing results from the global stiffness matrix. */
-        // std::ofstream posFile("scalarField.pos");
-        // posFile << "View \"Scalar Field\" {\n";
-        // auto nodes{Mesh::getTetrahedronNodeCoordinates(k_mesh_filename)};
-        // for (auto const &[nodeID, coords] : nodes)
-        // {
-        //     double value{solver.getScalarFieldValueFromX(nodeID - 1)};
-        //     posFile << std::format("SP({}, {}, {})", coords[0], coords[1], coords[2]);
-        //     posFile << '{' << value << "};\n";
-        // }
+        /* Colorizing results from the global stiffness matrix. */
+        std::ofstream posFile("scalarField.pos");
+        posFile << "View \"Scalar Field\" {\n";
+        auto nodes{Mesh::getTetrahedronNodeCoordinates(k_mesh_filename)};
+        for (auto const &[nodeID, coords] : nodes)
+        {
+            double value{solver.getScalarFieldValueFromX(nodeID - 1)};
+            posFile << std::format("SP({}, {}, {})", coords[0], coords[1], coords[2]);
+            posFile << '{' << value << "};\n";
+        }
 
-        // posFile << "};\n";
-        // posFile.close();
-        // LOGMSG("File 'scalarField.pos' was successfully created");
+        posFile << "};\n";
+        posFile.close();
+        LOGMSG("File 'scalarField.pos' was successfully created");
     }
     Kokkos::finalize();
 
