@@ -1,6 +1,6 @@
+#include "../include/FiniteElementMethod/MatrixEquationSolver.hpp"
 #include "../include/Generators/VolumeCreator.hpp"
 #include "../include/Particles/Particles.hpp"
-#include "../include/Utilities/MatrixEquationSolver.hpp"
 #include "../include/Utilities/ParticleTracker.hpp"
 
 static constexpr std::string_view k_mesh_filename{"test.msh"};
@@ -44,59 +44,45 @@ int main(int argc, char *argv[])
     Teuchos::GlobalMPISession mpiSession(std::addressof(argc), std::addressof(argv));
     Kokkos::initialize(argc, argv);
     {
-        // 1. Assemblying global stiffness matrix from the mesh file.
+        // 1. Acquiring polynom order and desired calculation accuracy.
         int polynomOrder{}, desiredAccuracy;
         std::cout << "Enter polynom order to describe basis function: ";
         std::cin >> polynomOrder;
         std::cout << "Enter desired accuracy of calculations (this parameter influences the number of cubature points used for integrating over mesh elements when computing the stiffness matrix): ";
         std::cin >> desiredAccuracy;
 
+        // 2. Assemblying global stiffness matrix from the mesh file.
         GSMatrixAssemblier assemblier(k_mesh_filename, polynomOrder, desiredAccuracy);
-        assemblier.print();
 
-        // 2. Setting boundary conditions: for mesh size = 3
+        // 3. Setting boundary conditions: for mesh size = 3
         std::map<int, double> boundaryConditions;
-        [[maybe_unused]]auto boundaryNodes{Mesh::getTetrahedronMeshBoundaryNodes(k_mesh_filename)};
-        // Boundary conditions for box: 100x100x300, mesh size: 3
-        for (size_t nodeId : {1, 3, 5, 7, 38})
+        for (size_t nodeId : {1, 3, 5, 7, 38}) // *Boundary conditions for box: 100x100x300, mesh size: 3
             boundaryConditions[nodeId] = 0.0;
         for (int nodeId : {2, 4, 6, 8, 37})
             boundaryConditions[nodeId] = 1.0;
 
         assemblier.setBoundaryConditions(boundaryConditions);
-        assemblier.print(); // 2_opt. Printing the matrix.
+        assemblier.print(); // 3_opt. Printing the matrix.
 
-        // 3. Getting the global stiffness matrix and its size to the variable.
+        // 4. Getting the global stiffness matrix and its size to the variable.
         // Matrix is square, hence we can get only count of rows or cols.
         auto A{assemblier.getGlobalStiffnessMatrix()};
         auto size{assemblier.rows()};
 
-        // 4. Creating solution vector, filling it with the random values, and applying boundary conditions.
-        SolutionVector b(size);
+        // 5. Creating solution vector, filling it with the random values, and applying boundary conditions.
+        SolutionVector b(size, polynomOrder);
         b.clear();
         b.setBoundaryConditions(boundaryConditions);
         b.print(); // 4_opt. Printing the solution vector.
 
-        // 5. Solve the equation Ax=b.
+        // 6. Solve the equation Ax=b.
         MatrixEquationSolver solver(assemblier, b);
         solver.solveAndPrint();
         solver.printLHS();
 
-        /* Colorizing results from the global stiffness matrix. */
-        std::ofstream posFile("scalarField.pos");
-        posFile << "View \"Scalar Field\" {\n";
-        auto nodes{Mesh::getTetrahedronNodeCoordinates(k_mesh_filename)};
-        for (auto const &[nodeID, coords] : nodes)
-        {
-            double value{solver.getScalarFieldValueFromX(nodeID - 1)};
-            posFile << std::format("SP({}, {}, {})", coords[0], coords[1], coords[2]);
-            posFile << '{' << value << "};\n";
-        }
-
-        posFile << "};\n";
-        posFile.close();
-        LOGMSG("File 'scalarField.pos' was successfully created");
-    }
+        // 7. Gathering results from the solution of the equation Ax=b to the GMSH .pos file.
+        solver.writeResultsToPosFile();
+    }        
     Kokkos::finalize();
 
     return EXIT_SUCCESS;

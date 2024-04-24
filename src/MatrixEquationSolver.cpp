@@ -1,4 +1,4 @@
-#include "../include/Utilities/MatrixEquationSolver.hpp"
+#include "../include/FiniteElementMethod/MatrixEquationSolver.hpp"
 #include "../include/Utilities/Utilities.hpp"
 
 MatrixEquationSolver::MatrixEquationSolver(GSMatrixAssemblier const &assemblier, SolutionVector const &solutionVector)
@@ -16,20 +16,57 @@ void MatrixEquationSolver::setRHS(const Teuchos::RCP<TpetraVectorType> &rhs) { m
 
 Scalar MatrixEquationSolver::getScalarFieldValueFromX(size_t nodeID) const
 {
-    if (!m_x.is_null())
+    if (m_x.is_null())
+        throw std::runtime_error("Solution vector is not initialized");
+
+    // 1. Calculating initial index for `nodeID` node.
+    short polynomOrder{m_assemblier.getPolynomOrder()};
+    size_t actualIndex{nodeID * polynomOrder};
+    if (actualIndex >= m_x->getLocalLength())
+        throw std::runtime_error(util::stringify("Node index ", actualIndex, " is out of range in the solution vector."));
+
+    Teuchos::ArrayRCP<Scalar const> data{m_x->getData(0)};
+    Scalar value{};
+
+    // 2. Accumulating values for all DOFs.
+    for (int i{}; i < polynomOrder; ++i)
+        value += data[actualIndex + i];
+    value /= polynomOrder;
+
+    return value;
+}
+
+void MatrixEquationSolver::writeResultsToPosFile() const
+{
+    if (m_x.is_null())
     {
-        if (nodeID < static_cast<size_t>(m_x->getLocalLength()))
-        {
-            Scalar value{};
-            Teuchos::ArrayRCP<Scalar const> data{m_x->getData(0)};
-            value = data[nodeID];
-            return value;
-        }
-        else
-            throw std::out_of_range("Node index is out of range in the solution vector.");
+        WARNINGMSG("There is nothing to show. Solution vector is empty.");
+        return;
     }
-    else
-        throw std::runtime_error("Solution vector is not initialized.");
+
+    try
+    {
+        std::ofstream posFile("scalarField.pos");
+        posFile << "View \"Scalar Field\" {\n";
+        auto nodes{m_assemblier.getNodes()};
+        for (auto const &[nodeID, coords] : nodes)
+        {
+            std::cout << "Node ID is: " << nodeID - 1 << "\tCoords: " << coords[0] << "; " << coords[1] << "; " << coords[2] << '\n';
+            double value{getScalarFieldValueFromX(nodeID - 1)};
+            posFile << std::format("SP({}, {}, {}){{{}}};\n", coords[0], coords[1], coords[2], value);
+        }
+        posFile << "};\n";
+        posFile.close();
+        LOGMSG("File 'scalarField.pos' was successfully created");
+    }
+    catch (std::exception const &ex)
+    {
+        ERRMSG(ex.what());
+    }
+    catch (...)
+    {
+        ERRMSG("Unknown error was occured while writing results to the .pos file");
+    }
 }
 
 bool MatrixEquationSolver::solve()
@@ -57,7 +94,7 @@ bool MatrixEquationSolver::solve()
     }
     catch (...)
     {
-        ERRMSG("Solver: Unknown error occured");
+        ERRMSG("Solver: Unknown error was occured while trying to solve equation");
     }
     return false;
 }
