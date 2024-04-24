@@ -51,7 +51,6 @@ void MatrixEquationSolver::writeResultsToPosFile() const
         auto nodes{m_assemblier.getNodes()};
         for (auto const &[nodeID, coords] : nodes)
         {
-            std::cout << "Node ID is: " << nodeID - 1 << "\tCoords: " << coords[0] << "; " << coords[1] << "; " << coords[2] << '\n';
             double value{getScalarFieldValueFromX(nodeID - 1)};
             posFile << std::format("SP({}, {}, {}){{{}}};\n", coords[0], coords[1], coords[2], value);
         }
