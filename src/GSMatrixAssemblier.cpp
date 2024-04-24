@@ -1,4 +1,4 @@
-#include "../include/Utilities/GSMatrixAssemblier.hpp"
+#include "../include/FiniteElementMethod/GSMatrixAssemblier.hpp"
 #include "../include/Generators/RealNumberGenerator.hpp"
 
 Scalar getValueFromMatrix(Teuchos::RCP<TpetraMatrixType> const &matrix, GlobalOrdinal row, GlobalOrdinal col)
@@ -597,7 +597,25 @@ void GSMatrixAssemblier::_assemblyGlobalStiffnessMatrixHelper(DynRankView const 
     }
 }
 
-GSMatrixAssemblier::GSMatrixAssemblier(std::string_view mesh_filename, int polynomOrder, int desiredCalculationAccuracy)
+void GSMatrixAssemblier::_setBoundaryConditionForNode(LocalOrdinal nodeID, Scalar value)
+{
+    size_t numEntries{m_gsmatrix->getNumEntriesInGlobalRow(nodeID)};
+    TpetraMatrixType::nonconst_global_inds_host_view_type indices("ind", numEntries);
+    TpetraMatrixType::nonconst_values_host_view_type values("val", numEntries);
+    size_t checkNumEntries{};
+
+    // 1. Fetch the current row's structure.
+    m_gsmatrix->getGlobalRowCopy(nodeID, indices, values, checkNumEntries);
+
+    // 2. Modify the values array to set the diagonal to 'value' and others to 0
+    for (size_t i{}; i < numEntries; i++)
+        values[i] = (indices[i] == nodeID) ? value : 0.0; // Set diagonal value to specified value, other - to 0.
+
+    // 3. Replace the modified row back into the matrix.
+    m_gsmatrix->replaceGlobalValues(nodeID, indices, values);
+}
+
+GSMatrixAssemblier::GSMatrixAssemblier(std::string_view mesh_filename, short polynomOrder, short desiredCalculationAccuracy)
     : m_meshfilename(mesh_filename), m_comm(Tpetra::getDefaultComm()),
       m_polynomOrder(polynomOrder), m_desiredAccuracy(desiredCalculationAccuracy)
 {
@@ -639,37 +657,6 @@ void GSMatrixAssemblier::assembleGlobalStiffnessMatrix(std::string_view mesh_fil
     _assemblyGlobalStiffnessMatrixHelper(basisGradients, globalNodeIndicesPerElement);
 }
 
-Scalar GSMatrixAssemblier::getScalarFieldValue(GlobalOrdinal nodeID) const
-{
-    try
-    {
-        size_t numEntries{m_gsmatrix->getNumEntriesInGlobalRow(nodeID)};
-        if (numEntries > 0)
-        {
-            TpetraMatrixType::nonconst_global_inds_host_view_type indices("ind", numEntries);
-            TpetraMatrixType::nonconst_values_host_view_type values("val", numEntries);
-
-            m_gsmatrix->getGlobalRowCopy(nodeID, indices, values, numEntries);
-
-            // Search for the column index in the retrieved row.
-            for (size_t i{}; i < numEntries; ++i)
-                if (indices[i] == nodeID)
-                    return values[i];
-        }
-    }
-    catch (std::exception const &ex)
-    {
-        ERRMSG(ex.what());
-    }
-    catch (...)
-    {
-        ERRMSG("Unknown error was occured while getting scalar field value from the matrix");
-    }
-
-    // If the column index was not found in the row, the element is assumed to be zero (sparse matrix property).
-    return Scalar(0.0);
-}
-
 bool GSMatrixAssemblier::empty() const { return m_gsmatrix->getGlobalNumEntries() == 0; }
 
 Scalar GSMatrixAssemblier::getValueFromGSM(GlobalOrdinal row, GlobalOrdinal col) const { return getValueFromMatrix(m_gsmatrix, row, col); }
@@ -688,38 +675,30 @@ void GSMatrixAssemblier::setBoundaryConditions(std::map<LocalOrdinal, Scalar> co
         return;
     }
 
-    if (rows() < static_cast<size_t>(boundaryConditions.rbegin()->first))
-        throw std::runtime_error(util::stringify("Boundary condition refers to row ",
-                                                 boundaryConditions.rbegin()->first,
-                                                 ", which exceeds the maximum row index of ",
-                                                 rows() - 1, "."));
     try
     {
         // 1. Ensure the matrix is in a state that allows adding or replacing entries.
         m_gsmatrix->resumeFill();
 
         // 2. Setting boundary conditions to global stiffness matrix:
+        int DOF_per_node{m_polynomOrder};
         for (auto const &[nodeInGmsh, value] : boundaryConditions)
         {
-            auto nodeID{nodeInGmsh - 1}; // In the program node id is less on 1.
+            for (int j{}; j < DOF_per_node; ++j)
+            {
+                LocalOrdinal nodeID{(nodeInGmsh - 1) * DOF_per_node + j};
 
-            size_t numEntries{m_gsmatrix->getNumEntriesInGlobalRow(nodeID)};
-            TpetraMatrixType::nonconst_global_inds_host_view_type indices("ind", numEntries);
-            TpetraMatrixType::nonconst_values_host_view_type values("val", numEntries);
-            size_t checkNumEntries{};
+                if (nodeID >= static_cast<LocalOrdinal>(rows()))
+                    throw std::runtime_error(util::stringify("Boundary condition refers to node index ",
+                                                             nodeID,
+                                                             ", which exceeds the maximum row index of ",
+                                                             rows() - 1, "."));
 
-            // 2_1. Fetch the current row's structure.
-            m_gsmatrix->getGlobalRowCopy(nodeID, indices, values, checkNumEntries);
-
-            // 2_2. Modify the values array to set the diagonal to 'value' and others to 0
-            for (size_t i{}; i < numEntries; i++)
-                values[i] = (indices[i] == nodeID) ? value : 0.0; // Set diagonal value to specified value, other - to 0.
-
-            // 2_3. Replace the modified row back into the matrix.
-            m_gsmatrix->replaceGlobalValues(nodeID, indices, values);
+                _setBoundaryConditionForNode(nodeID, value);
+            }
         }
 
-        // 3. Finilizing filling of the global stiffness matrix.
+        // 4. Finilizing filling of the global stiffness matrix.
         m_gsmatrix->fillComplete();
     }
     catch (std::exception const &ex)

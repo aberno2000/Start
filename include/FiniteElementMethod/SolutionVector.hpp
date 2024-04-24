@@ -9,9 +9,10 @@ private:
     Commutator m_comm;                                ///< Handles inter-process communication within a parallel computing environment. MPI communicator.
     Teuchos::RCP<MapType> m_map;                      ///< A smart pointer managing the lifetime of a Map object, which defines the layout of distributed data across the processes in a parallel computation.
     Teuchos::RCP<TpetraVectorType> m_solution_vector; ///< Solution vector `b` in the equation: Ax=b. Where `A` - global stiffness matrix; `x` - vector to find; `b` - solution vector.
+    short m_polynomOrder{};                           ///< Polynom order to associate with count of basis funcs (WARNING: must be equals to polynom order of the global stiffness matrix).
 
 public:
-    SolutionVector(size_t size);
+    SolutionVector(size_t size, short polynomOrder = 1);
     ~SolutionVector() {}
 
     /**
@@ -37,6 +38,9 @@ public:
 
     /// @brief Getter for the solution vector.
     constexpr Teuchos::RCP<TpetraVectorType> const &getSolutionVector() const { return m_solution_vector; }
+
+    /// @brief Getter for the polynom order.
+    constexpr short getPolynomOrder() const { return m_polynomOrder; }
 
     /// @brief Setter for the solution vector.
     void setSolutionVector(Teuchos::RCP<TpetraVectorType> const &vec) { m_solution_vector = vec; }

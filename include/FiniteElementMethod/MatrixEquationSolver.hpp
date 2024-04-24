@@ -33,6 +33,9 @@ public:
     Teuchos::RCP<TpetraMatrixType> getGlobalStiffnessMatrix() const { return m_A; }
     Scalar getScalarFieldValueFromX(size_t nodeID) const;
 
+    /// @brief Writes solution vector to the .pos file (GMSH format) to have the capability to view results of the solved equation Ax=b.
+    void writeResultsToPosFile() const;
+
     /// @brief Solves the equation Ax=b.
     bool solve();
 

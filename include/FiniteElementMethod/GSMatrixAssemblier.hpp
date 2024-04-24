@@ -125,8 +125,16 @@ private:
     void _assemblyGlobalStiffnessMatrixHelper(DynRankView const &basisGradients,
                                               TetrahedronIndicesVector const &globalNodeIndicesPerElement);
 
+    /**
+     * @brief Sets boundary conditions for the node with specified node ID.
+     * @details Sets diagonal element to the specified value, other elements in the row sets to 0.
+     * @param nodeID Node ID (row|col).
+     * @param value Value to assign.
+     */
+    void _setBoundaryConditionForNode(LocalOrdinal nodeID, Scalar value);
+
 public:
-    GSMatrixAssemblier(std::string_view mesh_filename, int polynomOrder = 1, int desiredCalculationAccuracy = 1);
+    GSMatrixAssemblier(std::string_view mesh_filename, short polynomOrder = 1, short desiredCalculationAccuracy = 1);
     ~GSMatrixAssemblier() {}
 
     /**
@@ -140,7 +148,9 @@ public:
     constexpr Teuchos::RCP<TpetraMatrixType> const &getGlobalStiffnessMatrix() const { return m_gsmatrix; }
     size_t rows() const { return m_gsmatrix->getGlobalNumRows(); }
     size_t cols() const { return m_gsmatrix->getGlobalNumCols(); }
-    Scalar getScalarFieldValue(GlobalOrdinal nodeID) const;
+    constexpr short getPolynomOrder() const { return m_polynomOrder; }
+    constexpr short getCalculationAccuracy() const { return m_desiredAccuracy; }
+    auto getNodes() const { return Mesh::getTetrahedronNodeCoordinates(m_meshfilename); }
 
     /// @brief Checks is the global stiffness matrix empty or not.
     bool empty() const;
