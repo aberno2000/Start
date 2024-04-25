@@ -34,7 +34,6 @@ int main(int argc, char *argv[])
     ParticleTracker tracker(particles, grid, dt, simtime);
     tracker.printPIC();
     tracker.printChargeDensityMap();
-    std::cout << tracker.getTimeIntervals() << '\n';
 
     /* Work with matrices. */
     Teuchos::GlobalMPISession mpiSession(std::addressof(argc), std::addressof(argv));
