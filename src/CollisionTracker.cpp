@@ -79,6 +79,12 @@ void CollisionTracker::processSegment(size_t start_index, size_t end_index,
 
 std::unordered_map<size_t, int> CollisionTracker::trackCollisions(unsigned int num_threads)
 {
+    if (auto curThreads{std::thread::hardware_concurrency()}; curThreads < num_threads)
+        throw std::runtime_error("The number of threads requested (" + std::to_string(num_threads) +
+                                 ") exceeds the number of hardware threads supported by the system (" +
+                                 std::to_string(curThreads) +
+                                 "). Please reduce the number of threads or run on a system with more resources.");
+
     std::unordered_map<size_t, int> m;
 
     // Number of concurrent threads supported by the implementation
