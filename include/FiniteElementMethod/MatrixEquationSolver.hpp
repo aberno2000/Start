@@ -14,15 +14,15 @@ private:
     Teuchos::RCP<TpetraVectorType> m_x;   ///< Solution vector 'x'.
     Teuchos::RCP<TpetraMatrixType> m_A;   ///< Matrix 'A'.
 
+    /// @brief Initializes the matrix, solution, and RHS vectors
+    void initialize();
+
 public:
     /// @brief Ctor with params.
     MatrixEquationSolver(GSMatrixAssemblier const &assemblier, SolutionVector const &solutionVector);
     
     /// @brief Dtor.
     ~MatrixEquationSolver() {}
-
-    /// @brief Initializes the matrix, solution, and RHS vectors
-    void initialize();
 
     /// @brief Sets the RHS vector 'b'.
     void setRHS(Teuchos::RCP<TpetraVectorType> const &rhs);
@@ -32,6 +32,7 @@ public:
     Teuchos::RCP<TpetraVectorType> getLHS() const { return m_x; }
     Teuchos::RCP<TpetraMatrixType> getGlobalStiffnessMatrix() const { return m_A; }
     Scalar getScalarFieldValueFromX(size_t nodeID) const;
+    std::vector<Scalar> getValuesFromX() const;
 
     /// @brief Writes solution vector to the .pos file (GMSH format) to have the capability to view results of the solved equation Ax=b.
     void writeResultsToPosFile() const;

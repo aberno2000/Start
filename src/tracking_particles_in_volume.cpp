@@ -1,7 +1,7 @@
 #include "../include/FiniteElementMethod/MatrixEquationSolver.hpp"
 #include "../include/Generators/VolumeCreator.hpp"
-#include "../include/Particles/Particles.hpp"
 #include "../include/ParticleInCell/ParticleTracker.hpp"
+#include "../include/Particles/Particles.hpp"
 
 static constexpr std::string_view k_mesh_filename{"test.msh"};
 static constexpr size_t k_particles_count{100};

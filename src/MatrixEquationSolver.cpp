@@ -1,9 +1,6 @@
 #include "../include/FiniteElementMethod/MatrixEquationSolver.hpp"
 #include "../include/Utilities/Utilities.hpp"
 
-MatrixEquationSolver::MatrixEquationSolver(GSMatrixAssemblier const &assemblier, SolutionVector const &solutionVector)
-    : m_assemblier(assemblier), m_solutionVector(solutionVector) { initialize(); }
-
 void MatrixEquationSolver::initialize()
 {
     m_A = m_assemblier.getGlobalStiffnessMatrix();
@@ -11,6 +8,9 @@ void MatrixEquationSolver::initialize()
     m_rhs = m_solutionVector.getSolutionVector();
     m_x->putScalar(0.0); // Initialize solution vector `x` with zeros.
 }
+
+MatrixEquationSolver::MatrixEquationSolver(GSMatrixAssemblier const &assemblier, SolutionVector const &solutionVector)
+    : m_assemblier(assemblier), m_solutionVector(solutionVector) { initialize(); }
 
 void MatrixEquationSolver::setRHS(const Teuchos::RCP<TpetraVectorType> &rhs) { m_rhs = rhs; }
 
@@ -29,11 +29,25 @@ Scalar MatrixEquationSolver::getScalarFieldValueFromX(size_t nodeID) const
     Scalar value{};
 
     // 2. Accumulating values for all DOFs.
-    for (int i{}; i < polynomOrder; ++i)
-        value += data[actualIndex + i];
-    value /= polynomOrder;
+    if (polynomOrder == 1)
+        value = data[actualIndex];
+    if (polynomOrder > 1)
+    {
+        for (int i{}; i < polynomOrder; ++i)
+            value += data[actualIndex + i];
+        value /= polynomOrder;
+    }
 
     return value;
+}
+
+std::vector<Scalar> MatrixEquationSolver::getValuesFromX() const
+{
+    if (m_x.is_null())
+        throw std::runtime_error("Solution vector is not initialized");
+
+    Teuchos::ArrayRCP<Scalar const> data{m_x->getData(0)};
+    return std::vector<Scalar>(data.begin(), data.end());
 }
 
 void MatrixEquationSolver::writeResultsToPosFile() const

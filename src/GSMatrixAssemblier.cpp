@@ -619,6 +619,17 @@ GSMatrixAssemblier::GSMatrixAssemblier(std::string_view mesh_filename, short pol
     : m_meshfilename(mesh_filename), m_comm(Tpetra::getDefaultComm()),
       m_polynomOrder(polynomOrder), m_desiredAccuracy(desiredCalculationAccuracy)
 {
+    if (polynomOrder <= 0)
+    {
+        ERRMSG("Polynom order can't be negative or equals to 0");
+        throw std::runtime_error("Polynom order can't be negative or equals to 0");
+    }
+    if (desiredCalculationAccuracy <= 0)
+    {
+        ERRMSG("Desired calculation accuracy can't be negative or equals to 0");
+        throw std::runtime_error("Desired calculation accuracy can't be negative or equals to 0");
+    }
+
     _initializeCubature();
     assembleGlobalStiffnessMatrix(m_meshfilename);
 }
@@ -747,7 +758,7 @@ void GSMatrixAssemblier::print() const
 
                     std::cout << std::format("Row {}: ", globalRow);
                     for (size_t k{}; k < checkNumEntries; ++k)
-                        std::cout << "(" << indices[k] << ", " << std::scientific << std::setprecision(2) << values[k] << ") ";
+                        std::cout << "(" << indices[k] << ", " << values[k] << ") ";
                     std::endl(std::cout);
                 }
             }

@@ -7,6 +7,11 @@ SolutionVector::SolutionVector(size_t size, short polynomOrder)
       m_solution_vector(Teuchos::rcp(new TpetraVectorType(m_map))),
       m_polynomOrder(polynomOrder)
 {
+    if (polynomOrder <= 0)
+    {
+        ERRMSG("Polynom order can't be negative or equals to 0");
+        throw std::runtime_error("Polynom order can't be negative or equals to 0");
+    }
 }
 
 void SolutionVector::setBoundaryConditions(std::map<LocalOrdinal, Scalar> const &boundaryConditions)
