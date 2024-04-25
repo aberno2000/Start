@@ -1,7 +1,7 @@
 #include "../include/FiniteElementMethod/MatrixEquationSolver.hpp"
 #include "../include/Generators/VolumeCreator.hpp"
 #include "../include/Particles/Particles.hpp"
-#include "../include/Utilities/ParticleTracker.hpp"
+#include "../include/ParticleInCell/ParticleTracker.hpp"
 
 static constexpr std::string_view k_mesh_filename{"test.msh"};
 static constexpr size_t k_particles_count{100};
@@ -21,24 +21,19 @@ int main(int argc, char *argv[])
     // 3. Filling the tetrahedron mesh.
     auto tetrahedronMesh{vc.getTetrahedronMeshParams(k_mesh_filename)};
 
-    // std::cout << "\n\n\nBoundary nodes\n";
-    // auto boundaryNodes{Mesh::getTetrahedronMeshBoundaryNodes(k_mesh_filename)};
-    // for (auto const &[dim, tag] : boundaryNodes)
-    //     std::cout << tag << ' ';
-    // std::endl(std::cout);
+    // 4. Getting edge size from user's input.
+    double edgeSize{};
+    std::cout << "Enter 2nd mesh size (size of the cube edge): ";
+    std::cin >> edgeSize;
 
-    // // 4. Getting edge size from user's input.
-    // double edgeSize{};
-    // std::cout << "Enter 2nd mesh size (size of the cube edge): ";
-    // std::cin >> edgeSize;
+    // 5. Creating grid.
+    Grid3D grid(tetrahedronMesh, edgeSize);
 
-    // // 5. Creating grid.
-    // Grid3D grid(tetrahedronMesh, edgeSize);
-
-    // // 6. Tracking particles inside the tetrahedrons.
-    // double dt{0.1}, simtime{0.5};
-    // ParticleTracker tracker(particles, grid, dt, simtime);
-    // tracker.trackParticles();
+    // 6. Tracking particles inside the tetrahedrons.
+    double dt{0.1}, simtime{0.5};
+    ParticleTracker tracker(particles, grid, dt, simtime);
+    tracker.trackParticles();
+    tracker.print();
 
     /* Work with matrices. */
     Teuchos::GlobalMPISession mpiSession(std::addressof(argc), std::addressof(argv));
@@ -82,7 +77,7 @@ int main(int argc, char *argv[])
 
         // 7. Gathering results from the solution of the equation Ax=b to the GMSH .pos file.
         solver.writeResultsToPosFile();
-    }        
+    }
     Kokkos::finalize();
 
     return EXIT_SUCCESS;

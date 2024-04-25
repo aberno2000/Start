@@ -4,7 +4,7 @@
 #include <CGAL/Bbox_3.h>
 #include <map>
 
-#include "Mesh.hpp"
+#include "../Geometry/Mesh.hpp"
 
 #define MAX_GRID_SIZE 0x7A1200 ///< Maximum allowed grid size to prevent memory overflow (default: 8'000'000).
 

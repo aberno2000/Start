@@ -3,7 +3,7 @@
 #include <utility>
 #include <vector>
 
-#include "../include/Geometry/Grid3D.hpp"
+#include "../include/ParticleInCell/Grid3D.hpp"
 
 Grid3D::Grid3D(MeshTetrahedronParamVector const &meshParams, double edgeSize) : m_cubeEdgeSize(edgeSize)
 {

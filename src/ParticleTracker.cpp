@@ -2,10 +2,10 @@
 #include <execution>
 #include <future>
 
-#include "../include/Utilities/ParticleTracker.hpp"
+#include "../include/ParticleInCell/ParticleTracker.hpp"
 
 std::mutex ParticleTracker::m_trackerMutex;
-std::mutex ParticleTracker::m_outputStreamMutex;
+std::mutex ParticleTracker::m_PICMutex;
 
 bool ParticleTracker::isParticleInsideTetrahedron(Particle const &particle, MeshTetrahedronParam const &meshParam)
 {
@@ -39,21 +39,9 @@ void ParticleTracker::processSegment(double start_time, double end_time)
                 }
             } });
 
-        // Opt: Printing results.
         {
-            std::lock_guard<std::mutex> lock(m_outputStreamMutex);
-            size_t count{};
-            std::cout << std::format("\033[1;34mTime {}\n\033[0m", t);
-            for (auto const &[tetrId, pts] : tempTracker)
-            {
-                count += pts.size();
-                std::cout << std::format("Tetrahedron[{}]: ", tetrId);
-                for (auto const &pt : pts)
-                    std::cout << pt.getId() << ' ';
-                std::endl(std::cout);
-            }
-            std::cout << "Count of particles: " << count << '\n';
-            tempTracker.clear();
+            std::lock_guard<std::mutex> lock(m_PICMutex);
+            m_particles_in_cell.insert({start_time, tempTracker});
         }
     }
 }
@@ -74,4 +62,28 @@ void ParticleTracker::trackParticles(unsigned int num_threads)
 
     for (auto &future : futures)
         future.get();
+}
+
+void ParticleTracker::print() const
+{
+    if (m_particles_in_cell.empty())
+    {
+        WARNINGMSG("Nothing to print. Data storage for the particles in cell is empty");
+        return;
+    }
+
+    for (auto const &[dt, PICs] : m_particles_in_cell)
+    {
+        size_t count{};
+        std::cout << std::format("\033[1;34mTime {}\n\033[0m", dt);
+        for (auto const &[tetrId, particles] : PICs)
+        {
+            count += particles.size();
+            std::cout << std::format("Tetrahedron[{}]: ", tetrId);
+            for (auto const &pt : particles)
+                std::cout << pt.getId() << ' ';
+            std::endl(std::cout);
+        }
+        std::cout << "Count of particles: " << count << '\n';
+    }
 }
