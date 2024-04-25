@@ -32,8 +32,9 @@ int main(int argc, char *argv[])
     // 6. Tracking particles inside the tetrahedrons.
     double dt{0.1}, simtime{0.5};
     ParticleTracker tracker(particles, grid, dt, simtime);
-    tracker.trackParticles();
-    tracker.print();
+    tracker.printPIC();
+    tracker.printChargeDensityMap();
+    std::cout << tracker.getTimeIntervals() << '\n';
 
     /* Work with matrices. */
     Teuchos::GlobalMPISession mpiSession(std::addressof(argc), std::addressof(argv));

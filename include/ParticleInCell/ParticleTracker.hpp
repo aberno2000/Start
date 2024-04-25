@@ -1,7 +1,6 @@
 #ifndef PARTICLETRACKER_HPP
 #define PARTICLETRACKER_HPP
 
-#include <atomic>
 #include <mutex>
 
 #include "../Particles/Particles.hpp"
@@ -21,10 +20,19 @@ private:
     double m_simtime;            ///< Total simulation time.
 
     /* (Time step | Tetrahedron ID | Particles inside) */
-    std::map<double, std::map<size_t, ParticleVector>> m_particles_in_cell; ///< Variable to store particles in each time step with known tetrahedra ID.
+    std::map<double, std::map<size_t, ParticleVector>> m_particlesInCell; ///< Variable to store particles in each time step with known tetrahedra ID.
+
+    /* (Time step | Tetrahedron ID | Charge in coulumbs) */
+    std::map<double, std::map<size_t, double>> m_chargeDensityMap; ///< Charge map: charge in coulumbs for all tetrahedra and for all time steps.
+
+    /* (Time interval ID | time value) */
+    std::map<int, double> m_timeMap; ///< Time interval map.
 
     static std::mutex m_trackerMutex; ///< Mutex for synchronizing access to the particle tracker map.
-    static std::mutex m_PICMutex;     ///< Mutex for synchronizing adding values to the `m_particles_in_cell`.
+    static std::mutex m_PICMutex;     ///< Mutex for synchronizing adding values to the `m_particlesInCell`.
+
+    /// @brief Fills time interval map.
+    void fillTimeMap();
 
     /**
      * @brief Checker for point inside the tetrahedron.
@@ -41,10 +49,6 @@ private:
      */
     void processSegment(double start_time, double end_time);
 
-public:
-    ParticleTracker(ParticleVector &particles, Grid3D &grid, double dt, double simtime)
-        : m_particles(particles), m_grid(grid), m_dt(dt), m_simtime(simtime) {}
-
     /**
      * @brief Runs the particle tracking simulation over the specified time frame using multiple threads.
      * @param num_threads Number of threads to use for the simulation.
@@ -52,13 +56,40 @@ public:
      */
     void trackParticles(unsigned int num_threads = std::thread::hardware_concurrency());
 
-    /// @brief Prints all the data: in what time where were particles (in which tetrahedra).
-    void print() const;
+    /// @brief Fills charge map with according data.
+    void calculateChargeDensityMap();
+
+public:
+    ParticleTracker(ParticleVector &particles, Grid3D &grid,
+                    double dt, double simtime,
+                    unsigned int num_threads = std::thread::hardware_concurrency());
+
+    /// @brief Prints all the data from the particle in cell storage: in what time where were particles (in which tetrahedra).
+    void printPIC() const;
+
+    /// @brief Prints all the data from the charge map.
+    void printChargeDensityMap() const;
 
     /* Getters. */
     constexpr double getTimeStep() const { return m_dt; }
     constexpr double getSimulationTime() const { return m_simtime; }
-    constexpr std::map<double, std::map<size_t, ParticleVector>> const &getParticlesInCell() const { return m_particles_in_cell; }
+    constexpr std::map<double, std::map<size_t, ParticleVector>> const &getParticlesInCell() const { return m_particlesInCell; }
+    constexpr std::map<double, std::map<size_t, double>> const &getChargeDensityMap() const { return m_chargeDensityMap; }
+    constexpr std::map<int, double> const &getTimeIntervalMap() const { return m_timeMap; }
+    size_t getTimeIntervals() const { return m_timeMap.size(); }
+    double getTimeFromInterval(int time_interval) const { return m_timeMap.at(time_interval); }
+
+    /* Cleaners. */
+    void clearParticlesInCell() { m_particlesInCell.clear(); }
+    void clearChargeDensityMap() { m_chargeDensityMap.clear(); }
+
+    /* Getters on emptiness. */
+    bool isParticlesIncellEmpty() const { return m_particlesInCell.empty(); }
+    bool isChargeDensityMapEmpty() const { return m_chargeDensityMap.empty(); }
+
+    /* Getters for specified time step. */
+    std::map<size_t, ParticleVector> getParticlesInCell(int time_interval) const;
+    std::map<size_t, double> getChargeDensityMap(int time_interval) const;
 };
 
 #endif // !PARTICLETRACKER_HPP
