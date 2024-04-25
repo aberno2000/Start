@@ -90,7 +90,7 @@ void ParticleTracker::calculateChargeDensityMap()
             tempMap.insert({tetrId,
                             (std::accumulate(particles.cbegin(), particles.cend(), 0.0, [](double sum, auto const &particle)
                                              { return sum + particle.getCharge(); })) /
-                                std::get<2>(m_grid.getTetrahedronMeshParamById(tetrId))});
+                                std::get<2>(m_grid.getTetrahedronMeshParamById(tetrId)) * 1e9}); // m³ to mm³.
         }
         m_chargeDensityMap.insert({dt, tempMap});
     }
