@@ -27,7 +27,6 @@ void SolutionVector::setBoundaryConditions(std::map<LocalOrdinal, Scalar> const 
             {
                 // -1 because indexing in GMSH is on 1 bigger than in the program.
                 LocalOrdinal nodeID{(nodeInGmsh - 1) * DOF_per_node + j};
-                std::cout << "Node ID: " << nodeID << " to set value " << value << '\n';
 
                 if (nodeID >= static_cast<LocalOrdinal>(size()))
                     throw std::runtime_error(util::stringify("Boundary condition refers to node index ",
