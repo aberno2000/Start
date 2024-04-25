@@ -114,8 +114,8 @@ private:
         case ParticleType::He:
             return He_VTI;
         default:
-            WARNINGMSG("Viscosity temperature index is 0 - it means smth went wrong while simulation with VHS or VSS");
-            return 0;
+            WARNINGMSG("Viscosity temperature index is 0 - it means smth went wrong while simulation with VHS or VSS, or you passed wrong particle type");
+            return 0.0;
         }
     }
 
@@ -135,8 +135,39 @@ private:
         case ParticleType::He:
             return He_VSS_TI;
         default:
-            WARNINGMSG("VSS deflection parameter is 0 - it means smth went wrong while simulation with VHS or VSS");
-            return 0;
+            WARNINGMSG("VSS deflection parameter is 0 - it means smth went wrong while simulation with VHS or VSS, or you passed wrong particle type");
+            return 0.0;
+        }
+    }
+
+    /**
+     * @brief Gets charge from the specified type of the particle.
+     * @param type Type of the particle represented as enum.
+     * @return Charge of the particle [C - columbs].
+     */
+    constexpr double getChargeFromType(ParticleType type) const
+    {
+        switch (type)
+        {
+        case ParticleType::Ti:
+            return ion_charges_coulombs::Ti_2plus; // By default returning 2 ion Ti.
+        case ParticleType::Al:
+            return ion_charges_coulombs::Al_3plus;
+        case ParticleType::Sn:
+            return ion_charges_coulombs::Sn_2plus; // By default returning 2 ion Sn.
+        case ParticleType::W:
+            return ion_charges_coulombs::W_6plus;
+        case ParticleType::Au:
+            return ion_charges_coulombs::Au_3plus; // By default returning 3 ion Au.
+        case ParticleType::Cu:
+            return ion_charges_coulombs::Cu_1plus; // By defaule returning 1 ion Cu.
+        case ParticleType::Ni:
+            return ion_charges_coulombs::Ni_2plus;
+        case ParticleType::Ag:
+            return ion_charges_coulombs::Ag_1plus;
+        default:
+            WARNINGMSG("Charge of the atom is 0 - it means smth went wrong or you passed unknown particle type, or it's a noble gas");
+            return 0.0;
         }
     }
 
@@ -220,6 +251,7 @@ public:
     constexpr double getRadius() const { return getRadiusFromType(m_type); }
     constexpr double getViscosityTemperatureIndex() const { return getViscosityTemperatureIndexFromType(m_type); }
     constexpr double getVSSDeflectionParameter() const { return getVSSDeflectionParameterFromType(m_type); }
+    constexpr double getCharge() const { getChargeFromType(m_type); }
 
     /**
      * @brief Chooses the specified scattering model.

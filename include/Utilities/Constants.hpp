@@ -96,7 +96,7 @@ namespace constants
         static constinit const int Ag_1plus{1}; ///< Silver typically forms a +1 ion.
     }
 
-    namespace ion_charges_columbs
+    namespace ion_charges_coulombs
     {
         static constinit const double Ar_charge{0.0};
         static constinit const double Ne_charge{0.0};
