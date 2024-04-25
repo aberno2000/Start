@@ -251,7 +251,7 @@ public:
     constexpr double getRadius() const { return getRadiusFromType(m_type); }
     constexpr double getViscosityTemperatureIndex() const { return getViscosityTemperatureIndexFromType(m_type); }
     constexpr double getVSSDeflectionParameter() const { return getVSSDeflectionParameterFromType(m_type); }
-    constexpr double getCharge() const { getChargeFromType(m_type); }
+    constexpr double getCharge() const { return getChargeFromType(m_type); }
 
     /**
      * @brief Chooses the specified scattering model.
