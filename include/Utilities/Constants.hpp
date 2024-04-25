@@ -5,12 +5,13 @@ namespace constants
 {
     namespace physical_constants
     {
-        static constinit const double R{8.314};                           // [J/k*mol].
-        static constinit const double T{300};                             // [K].
-        static constexpr const double KT_reference{297.0 * 1.380658e-23}; // KT referevnce value [J/kg].
-        static constinit const double N_av{6.22e23};                      // Avogadro number.
-        static constinit const double eV_J{1.602176565e-19};              // Conversion factor of eV to J (1 eV is ...  J).
-        static constinit const double J_eV{6.242e+18};                    // Conversion factor of J to eV (1 J  is ... eV).
+        static constinit const double R{8.314};                           ///< [J/k*mol].
+        static constinit const double T{300};                             ///< [K].
+        static constexpr const double KT_reference{297.0 * 1.380658e-23}; ///< KT referevnce value [J/kg].
+        static constinit const double N_av{6.22e23};                      ///< Avogadro number.
+        static constexpr const double e_charge{1.602176565e-19};          ///< Charge of the electron.
+        static constinit const double eV_J{1.602176565e-19};              ///< Conversion factor of eV to J (1 eV is ...  J).
+        static constinit const double J_eV{6.242e+18};                    ///< Conversion factor of J to eV (1 J  is ... eV).
 
         /*** Weight of particles in [kg]. ***/
         static constinit const double Ar_mass{6.6335209e-26};
@@ -73,6 +74,46 @@ namespace constants
             Ag,
             Unknown
         };
+    }
+
+    namespace ion_charges
+    {
+        static constinit const int Ar_charge{0}; ///< Argon is a noble gas and generally does not form ions.
+        static constinit const int Ne_charge{0}; ///< Neon is a noble gas and generally does not form ions.
+        static constinit const int He_charge{0}; ///< Helium is a noble gas and generally does not form ions.
+
+        static constinit const int Ti_2plus{2}; ///< Titanium typically forms a +2 ion.
+        static constinit const int Ti_4plus{4}; ///< Titanium can also form a +4 ion.
+        static constinit const int Al_3plus{3}; ///< Aluminum typically forms a +3 ion.
+        static constinit const int Sn_2plus{2}; ///< Tin typically forms a +2 ion.
+        static constinit const int Sn_4plus{4}; ///< Tin can also form a +4 ion.
+        static constinit const int W_6plus{6};  ///< Tungsten typically forms a +6 ion.
+        static constinit const int Au_1plus{1}; ///< Gold can also form a +1 ion.
+        static constinit const int Au_3plus{3}; ///< Gold typically forms a +3 ion.
+        static constinit const int Cu_1plus{1}; ///< Copper typically forms a +1 ion.
+        static constinit const int Cu_2plus{2}; ///< Copper can also form a +2 ion.
+        static constinit const int Ni_2plus{2}; ///< Nickel typically forms a +2 ion.
+        static constinit const int Ag_1plus{1}; ///< Silver typically forms a +1 ion.
+    }
+
+    namespace ion_charges_columbs
+    {
+        static constinit const double Ar_charge{0.0};
+        static constinit const double Ne_charge{0.0};
+        static constinit const double He_charge{0.0};
+
+        static constexpr const double Ti_2plus{2 * physical_constants::e_charge};
+        static constexpr const double Ti_4plus{4 * physical_constants::e_charge};
+        static constexpr const double Al_3plus{3 * physical_constants::e_charge};
+        static constexpr const double Sn_2plus{2 * physical_constants::e_charge};
+        static constexpr const double Sn_4plus{4 * physical_constants::e_charge};
+        static constexpr const double W_6plus{6 * physical_constants::e_charge};
+        static constexpr const double Au_1plus{1 * physical_constants::e_charge};
+        static constexpr const double Au_3plus{3 * physical_constants::e_charge};
+        static constexpr const double Cu_1plus{1 * physical_constants::e_charge};
+        static constexpr const double Cu_2plus{2 * physical_constants::e_charge};
+        static constexpr const double Ni_2plus{2 * physical_constants::e_charge};
+        static constexpr const double Ag_1plus{1 * physical_constants::e_charge};
     }
 
     static constinit const double gasConcentrationMinimalValue{1e18};
