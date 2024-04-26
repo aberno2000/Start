@@ -3,7 +3,7 @@ from numpy import cross
 from os import rename
 from os.path import isfile, exists, basename, split
 from vtkmodules.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
-from vtkmodules.vtkInteractionStyle import vtkInteractorStyleTrackballCamera
+from vtkmodules.vtkInteractionStyle import vtkInteractorStyleTrackballCamera, vtkInteractorStyleTrackballActor
 from vtkmodules.vtkFiltersGeneral import vtkBooleanOperationPolyDataFilter
 from PyQt5.QtGui import QStandardItem, QIcon
 from PyQt5.QtCore import QSize
@@ -12,7 +12,8 @@ from vtk import(
     vtkCellArray, vtkPolyDataMapper, vtkActor, vtkSphereSource, vtkUnstructuredGrid,
     vtkCylinderSource, vtkAxesActor, vtkOrientationMarkerWidget, vtkCellTypes,
     vtkGenericDataObjectReader, vtkDataSetMapper, vtkCellPicker, vtkDelaunay2D,
-    vtkCubeSource, vtkCleanPolyData, vtkPlane, vtkClipPolyData,
+    vtkCubeSource, vtkCleanPolyData, vtkPlane, vtkClipPolyData, vtkAppendPolyData,
+    vtkTransform, vtkTransformPolyDataFilter, vtkPlaneSource, vtkArrowSource,
     VTK_TRIANGLE, VTK_QUAD
 )
 from PyQt5.QtWidgets import(
@@ -34,7 +35,7 @@ from util.util import(
     DEFAULT_TEMP_MESH_FILE
 )
 from .mesh_dialog import MeshDialog
-from .styles import DEFAULT_ACTOR_COLOR, SELECTED_ACTOR_COLOR
+from .styles import DEFAULT_ACTOR_COLOR, SELECTED_ACTOR_COLOR, ARROW_ACTOR_COLOR
 from logger.log_console import LogConsole
 
 
@@ -219,6 +220,7 @@ class GraphicalEditor(QFrame):
         self.unionObjectsButton = self.create_button('icons/union.png', 'Combine (union) objects')
         self.intersectObjectsButton = self.create_button('icons/intersection.png', 'Intersection of two objects')
         self.crossSectionButton = self.create_button('icons/cross-section.png', 'Cross section of the object')
+        self.directParticleButton = self.create_button('icons/particle-source-direction.png', 'Set particle source and direction of this source')
         
         self.spacer = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
         self.toolbarLayout.addSpacerItem(self.spacer)
@@ -240,6 +242,7 @@ class GraphicalEditor(QFrame):
         self.unionObjectsButton.clicked.connect(self.combine_button_clicked)
         self.intersectObjectsButton.clicked.connect(self.intersection_button_clicked)
         self.crossSectionButton.clicked.connect(self.cross_section_button_clicked)
+        self.directParticleButton.clicked.connect(self.activate_particle_direction_mode)
 
     def setup_ui(self):
         self.vtkWidget = QVTKRenderWindowInteractor(self)
@@ -1032,14 +1035,23 @@ class GraphicalEditor(QFrame):
 
     def on_key_press(self, obj, event):
         key = self.interactor.GetKeySym()
-        if key == 'Escape' and self.selected_actor:
-            self.deselect()            
-        elif key == 'Enter' and self.selected_actor:
-            self.interactorStyle.OnRotate()
+        if key == 'Escape':
+            self.interactorStyle = vtkInteractorStyleTrackballCamera()
+            self.interactor.SetInteractorStyle(self.interactorStyle)
+            self.setup_interaction()
+            self.deselect()
         elif key == 'Delete' or key == 'BackSpace':
             if self.selected_actor:
                 self.remove_object_with_restore(self.selected_actor)
                 self.selected_actor = None
+        
+        # M - manage object.
+        if key == 'm' or key == 'M':
+            if self.selected_actor:
+                self.interactorStyle = vtkInteractorStyleTrackballActor()
+                self.interactor.SetInteractorStyle(self.interactorStyle)
+                self.deselect()
+        
         self.interactorStyle.OnKeyPress()
     
     def align_view_by_axis(self, axis: str):
@@ -1280,3 +1292,47 @@ class GraphicalEditor(QFrame):
         self.add_actor_and_row(actor2)
         
         self.log_console.appendLog("Created a cross-section.")
+        
+    def activate_particle_direction_mode(self):
+        # Создание плоскости сразу со стрелкой
+        self.particleSourceDirection = self.create_interaction_plane_with_arrow()
+        self.statusBar.showMessage("Particle direction set.")
+ 
+    def create_interaction_plane_with_arrow(self):
+        planeSource = vtkPlaneSource()
+        planeSource.SetXResolution(10)
+        planeSource.SetYResolution(10)
+        planeSource.Update()
+        normal = planeSource.GetNormal()
+        
+        arrowSource = vtkArrowSource()
+        arrowSource.SetTipLength(0.25)
+        arrowSource.SetTipRadius(0.1)
+        arrowSource.SetShaftRadius(0.01)
+        arrowSource.Update()
+
+        arrowTransform = vtkTransform()
+        arrowTransform.RotateX(90)
+        arrowTransform.RotateWXYZ(90, normal[0], normal[1], normal[2])
+        arrowTransformFilter = vtkTransformPolyDataFilter()
+        arrowTransformFilter.SetTransform(arrowTransform)
+        arrowTransformFilter.SetInputConnection(arrowSource.GetOutputPort())
+        arrowTransformFilter.Update()
+
+        appendFilter = vtkAppendPolyData()
+        appendFilter.AddInputData(planeSource.GetOutput())
+        appendFilter.AddInputData(arrowTransformFilter.GetOutput())
+        appendFilter.Update()
+
+        combinedMapper = vtkPolyDataMapper()
+        combinedMapper.SetInputConnection(appendFilter.GetOutputPort())
+        
+        combinedActor = vtkActor()
+        combinedActor.SetMapper(combinedMapper)
+        combinedActor.GetProperty().SetColor(ARROW_ACTOR_COLOR)
+        
+        self.renderer.AddActor(combinedActor)
+        self.renderer.ResetCamera()
+        self.vtkWidget.GetRenderWindow().Render()
+
+        return combinedActor
