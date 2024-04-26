@@ -1,4 +1,5 @@
-import gmsh, tempfile
+import gmsh, tempfile, re
+from math import pi
 from os import remove
 from vtk import (
     vtkRenderer, vtkPolyData, vtkPolyDataWriter, vtkAppendPolyData,
@@ -12,6 +13,7 @@ from PyQt5.QtWidgets import (
     QTableWidgetItem, QSizePolicy, QLabel, QHBoxLayout,
     QWidget, QScrollArea, QCheckBox, QComboBox
 )
+from PyQt5.QtGui import QValidator, QDoubleValidator, QRegExpValidator
 from PyQt5.QtCore import QSize
 from .converter import is_positive_real_number, is_real_number
 from os.path import exists, isfile
@@ -669,6 +671,49 @@ class AxisSelectionDialog(QDialog):
     def getSelectedAxis(self):
         return self.axisComboBox.currentText()
 
+class ScatteringAngleDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Set Scattering Angles")
+        self.setMinimumWidth(220)
+
+        layout = QVBoxLayout(self)
+
+        self.theta_input = QLineEdit(self)
+        self.theta_input.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
+        layout.addWidget(QLabel("Polar angle θ [0; 2π]"))
+        layout.addWidget(self.theta_input)
+
+        self.phi_input = QLineEdit(self)
+        self.phi_input.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
+        layout.addWidget(QLabel("Azimuthal angle φ [0; 2π]"))
+        layout.addWidget(self.phi_input)
+
+        self.buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self)
+        self.buttons.accepted.connect(self.accept)
+        self.buttons.rejected.connect(self.reject)
+        
+        layout.addWidget(self.buttons)
+        
+    def getValues(self):       
+        if not is_positive_real_number(self.theta_input.text()):
+            QMessageBox.warning(self, "Invalid Input", f"Invalid input for θ angle: {self.theta_input.text()}")
+            return None, None
+        if not is_positive_real_number(self.phi_input.text()):
+            QMessageBox.warning(self, "Invalid Input", f"Invalid input for φ angle: {self.phi_input.text()}")
+            return None, None
+        
+        theta, phi = float(self.theta_input.text()), float(self.phi_input.text())
+        if theta > pi:
+            QMessageBox.information(self, "Warning", "Scattering will also occur in the reverse direction for theta greater than π.")
+        
+        if not 0 <= theta <= 2 * pi:
+            QMessageBox.warning(self, "Invalid Input", f"Can't assign value {theta} to θ. Because this value is out of bounds: [0; {2 * pi}]")
+            return None, None
+        if not 0 <= phi <= 2 * pi:
+            QMessageBox.warning(self, "Invalid Input", f"Can't assign value {phi} to φ. Because this value is out of bounds: [0; {2 * pi}]")
+            return None, None
+        return theta, phi
 
 def align_view_by_axis(axis: str, renderer: vtkRenderer, vtkWidget: QVTKRenderWindowInteractor):
     axis = axis.strip().lower()

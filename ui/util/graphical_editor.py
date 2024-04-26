@@ -1,4 +1,5 @@
 import gmsh, meshio
+from math import pi
 from numpy import cross
 from os import rename
 from os.path import isfile, exists, basename, split
@@ -12,8 +13,8 @@ from vtk import(
     vtkCellArray, vtkPolyDataMapper, vtkActor, vtkSphereSource, vtkUnstructuredGrid,
     vtkCylinderSource, vtkAxesActor, vtkOrientationMarkerWidget, vtkCellTypes,
     vtkGenericDataObjectReader, vtkDataSetMapper, vtkCellPicker, vtkDelaunay2D,
-    vtkCubeSource, vtkCleanPolyData, vtkPlane, vtkClipPolyData, vtkAppendPolyData,
-    vtkTransform, vtkTransformPolyDataFilter, vtkPlaneSource, vtkArrowSource,
+    vtkCubeSource, vtkCleanPolyData, vtkPlane, vtkClipPolyData, vtkTransform, 
+    vtkTransformPolyDataFilter, vtkArrowSource,
     VTK_TRIANGLE, VTK_QUAD
 )
 from PyQt5.QtWidgets import(
@@ -26,7 +27,8 @@ from PyQt5.QtGui import QCursor, QStandardItemModel
 from .util import(
     PointDialog, LineDialog, SurfaceDialog, 
     SphereDialog, BoxDialog, CylinderDialog,
-    AngleDialog, MoveActorDialog, AxisSelectionDialog
+    AngleDialog, MoveActorDialog, AxisSelectionDialog,
+    ScatteringAngleDialog
 )
 from util.util import(
     align_view_by_axis, save_scene, load_scene, convert_msh_to_vtk, 
@@ -85,6 +87,8 @@ class GraphicalEditor(QFrame):
         self.crossSectionLinePoints = []  # To store points for the cross-section line
         self.isDrawingLine = False        # To check if currently drawing the line
         self.tempLineActor = None         # Temporary actor for the line visualization
+        
+        self.particleSourceDirection = None
         
     
     def initialize_tree(self):
@@ -1203,8 +1207,7 @@ class GraphicalEditor(QFrame):
 
             return actor
         except Exception as e:
-            self.log_console.insert_colored_text("Error: ", "red")
-            self.log_console.appendLog(str(e))
+            self.log_console.printError(str(e))
             return None        
     
     def subtract_objects(self, obj_from: vtkActor, obj_to: vtkActor):
@@ -1294,17 +1297,27 @@ class GraphicalEditor(QFrame):
         self.log_console.appendLog("Created a cross-section.")
         
     def activate_particle_direction_mode(self):
-        # Создание плоскости сразу со стрелкой
-        self.particleSourceDirection = self.create_interaction_plane_with_arrow()
-        self.statusBar.showMessage("Particle direction set.")
+        if not self.particleSourceDirection:
+            self.particleSourceDirection = self.create_interaction_plane_with_arrow()
+
+        dialog = ScatteringAngleDialog(self)
+        if dialog.exec_():
+            try:                
+                theta, phi = dialog.getValues()
+                if not theta and not phi:
+                    return
+                self.log_console.printInfo(f"Successfully assigned values to the scattering angles:\nθ = {theta} ({theta * 180. / pi}°)\nφ = {phi} ({phi * 180. / pi}°)")
+            except Exception as e:
+                QMessageBox.critical(self, "Scattering angles", f"Exception while assigning scattering angles: {e}")
+                self.log_console.printError(f"Exception while assigning scattering angles: {e}")
+                return
+            
+            self.statusBar.showMessage(f'Arrow position: {self.particleSourceDirection.GetPosition()}')
+
+            self.theta_angle = theta
+            self.phi_angle = phi
  
     def create_interaction_plane_with_arrow(self):
-        planeSource = vtkPlaneSource()
-        planeSource.SetXResolution(10)
-        planeSource.SetYResolution(10)
-        planeSource.Update()
-        normal = planeSource.GetNormal()
-        
         arrowSource = vtkArrowSource()
         arrowSource.SetTipLength(0.25)
         arrowSource.SetTipRadius(0.1)
@@ -1313,26 +1326,21 @@ class GraphicalEditor(QFrame):
 
         arrowTransform = vtkTransform()
         arrowTransform.RotateX(90)
-        arrowTransform.RotateWXYZ(90, normal[0], normal[1], normal[2])
+        arrowTransform.RotateWXYZ(90, 0, 0, 1) # Initial direction by Z-axis.
         arrowTransformFilter = vtkTransformPolyDataFilter()
         arrowTransformFilter.SetTransform(arrowTransform)
         arrowTransformFilter.SetInputConnection(arrowSource.GetOutputPort())
         arrowTransformFilter.Update()
 
-        appendFilter = vtkAppendPolyData()
-        appendFilter.AddInputData(planeSource.GetOutput())
-        appendFilter.AddInputData(arrowTransformFilter.GetOutput())
-        appendFilter.Update()
-
-        combinedMapper = vtkPolyDataMapper()
-        combinedMapper.SetInputConnection(appendFilter.GetOutputPort())
+        mapper = vtkPolyDataMapper()
+        mapper.SetInputConnection(arrowTransformFilter.GetOutputPort())
         
-        combinedActor = vtkActor()
-        combinedActor.SetMapper(combinedMapper)
-        combinedActor.GetProperty().SetColor(ARROW_ACTOR_COLOR)
+        arrowActor = vtkActor()
+        arrowActor.SetMapper(mapper)
+        arrowActor.GetProperty().SetColor(ARROW_ACTOR_COLOR)
         
-        self.renderer.AddActor(combinedActor)
+        self.renderer.AddActor(arrowActor)
         self.renderer.ResetCamera()
         self.vtkWidget.GetRenderWindow().Render()
 
-        return combinedActor
+        return arrowActor
