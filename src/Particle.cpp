@@ -6,15 +6,16 @@
 
 std::atomic<size_t> Particle::m_nextId{0ul};
 
-void Particle::calculateVelocityFromEnergy_J()
+void Particle::calculateVelocityFromEnergy_J(std::array<double, 3> const &thetaPhi)
 {
+	auto [thetaUsers, phiCalculated, thetaCalculated]{thetaPhi};
 	RealNumberGenerator rng;
-	double v{std::sqrt(2 * m_energy / getMass())},
-		theta{rng(0, std::numbers::pi / 4)},
-		phi{rng(0, 2 * std::numbers::pi)},
-		vx{v * sin(theta) * cos(phi)},
-		vy{v * sin(theta) * sin(phi)},
-		vz{v * cos(theta)};
+
+	double theta{thetaCalculated + rng(-1, 1) * thetaUsers},
+		v{std::sqrt(2 * getEnergy_J() / getMass())},
+		vx{v * std::sin(theta) * std::cos(phiCalculated)},
+		vy{v * std::sin(theta) * std::sin(phiCalculated)},
+		vz{v * std::cos(theta)};
 
 	m_velocity = VelocityVector(vx, vy, vz);
 }
@@ -37,13 +38,13 @@ Particle::Particle(ParticleType type_)
 	  m_bbox(0, 0, 0, 0, 0, 0) {}
 
 Particle::Particle(ParticleType type_, double x_, double y_, double z_,
-				   double energyJ_)
+				   double energyJ_, std::array<double, 3> const &thetaPhi)
 	: m_id(m_nextId++),
 	  m_type(type_),
 	  m_centre(Point(x_, y_, z_)),
 	  m_energy(energyJ_)
 {
-	calculateVelocityFromEnergy_J();
+	calculateVelocityFromEnergy_J(thetaPhi);
 	calculateBoundingBox();
 }
 
@@ -80,23 +81,25 @@ Particle::Particle(ParticleType type_, Point &&centre,
 	calculateBoundingBox();
 }
 
-Particle::Particle(ParticleType type_, Point const &centre, double energyJ_)
+Particle::Particle(ParticleType type_, Point const &centre, double energyJ_,
+				   std::array<double, 3> const &thetaPhi)
 	: m_id(m_nextId++),
 	  m_type(type_),
 	  m_centre(centre),
 	  m_energy(energyJ_)
 {
-	calculateVelocityFromEnergy_J();
+	calculateVelocityFromEnergy_J(thetaPhi);
 	calculateBoundingBox();
 }
 
-Particle::Particle(ParticleType type_, Point &&centre, double energyJ_)
+Particle::Particle(ParticleType type_, Point &&centre, double energyJ_,
+				   std::array<double, 3> const &thetaPhi)
 	: m_id(m_nextId++),
 	  m_type(type_),
 	  m_centre(std::move(centre)),
 	  m_energy(energyJ_)
 {
-	calculateVelocityFromEnergy_J();
+	calculateVelocityFromEnergy_J(thetaPhi);
 	calculateBoundingBox();
 }
 
@@ -200,7 +203,7 @@ bool Particle::colide(Particle target, double n_concentration, std::string_view 
 
 bool Particle::colideHS(Particle target, double n_concentration, double time_step)
 {
-	RealNumberGenerator rng;
+
 	double p_mass{getMass()},
 		t_mass{target.getMass()},
 		sigma{(std::numbers::pi)*std::pow(getRadius() + target.getRadius(), 2)};
@@ -209,6 +212,7 @@ bool Particle::colideHS(Particle target, double n_concentration, double time_ste
 	double Probability{sigma * getVelocityModule() * n_concentration * time_step};
 
 	// Result of the collision: if colide -> change attributes of the particle
+	RealNumberGenerator rng;
 	bool iscolide{rng() < Probability};
 	if (iscolide)
 	{
@@ -230,7 +234,7 @@ bool Particle::colideHS(Particle target, double n_concentration, double time_ste
 
 bool Particle::colideVHS(Particle target, double n_concentration, double omega, double time_step)
 {
-	RealNumberGenerator rng;
+
 	double d_reference{(getRadius() + target.getRadius())},
 		mass_constant{getMass() * target.getMass() / (getMass() + target.getMass())},
 		t_mass{target.getMass()}, p_mass{getMass()},
@@ -244,6 +248,7 @@ bool Particle::colideVHS(Particle target, double n_concentration, double omega, 
 	double sigma{std::numbers::pi * d_vhs_2},
 		Probability{sigma * getVelocityModule() * n_concentration * time_step};
 
+	RealNumberGenerator rng;
 	bool iscolide{rng() < Probability};
 	if (iscolide)
 	{
@@ -267,7 +272,7 @@ bool Particle::colideVHS(Particle target, double n_concentration, double omega, 
 bool Particle::colideVSS(Particle target, double n_concentration, double omega,
 						 double alpha, double time_step)
 {
-	RealNumberGenerator rng;
+
 	double d_reference{(getRadius() + target.getRadius())},
 		mass_constant{getMass() * target.getMass() / (getMass() + target.getMass())},
 		t_mass{target.getMass()},
@@ -282,6 +287,7 @@ bool Particle::colideVSS(Particle target, double n_concentration, double omega,
 	double sigma{std::numbers::pi * d_vhs_2},
 		Probability{sigma * getVelocityModule() * n_concentration * time_step};
 
+	RealNumberGenerator rng;
 	bool iscolide{rng() < Probability};
 	if (iscolide)
 	{
@@ -307,69 +313,25 @@ ParticleVector createParticlesWithVelocities(size_t count, ParticleType type,
 											 double x, double y, double z,
 											 double vx, double vy, double vz)
 {
-	RealNumberGenerator rng;
 	ParticleVector particles;
-
 	for (size_t i{}; i < count; ++i)
 		particles.emplace_back(type, x, y, z, vx, vy, vz);
-
-	return particles;
-}
-
-ParticleVector createParticlesWithVelocities(size_t count, ParticleType type,
-											 double x, double y, double z,
-											 double minvx, double minvy, double minvz,
-											 double maxvx, double maxvy, double maxvz)
-{
-	RealNumberGenerator rng;
-	ParticleVector particles;
-
-	for (size_t i{}; i < count; ++i)
-	{
-		double vx{rng(minvx, maxvx)},
-			vy{rng(minvy, maxvy)},
-			vz{rng(minvz, maxvz)};
-
-		particles.emplace_back(type, x, y, z, vx, vy, vz);
-	}
-
-	return particles;
-}
-
-ParticleVector createParticlesWithVelocities(size_t count, ParticleType type,
-											 double minx, double miny, double minz,
-											 double maxx, double maxy, double maxz,
-											 double minvx, double minvy, double minvz,
-											 double maxvx, double maxvy, double maxvz)
-{
-	RealNumberGenerator rng;
-	ParticleVector particles;
-
-	for (size_t i{}; i < count; ++i)
-	{
-		double x{rng(minx, maxx)},
-			y{rng(miny, maxy)},
-			z{rng(minz, maxz)},
-			vx{rng(minvx, maxvx)},
-			vy{rng(minvy, maxvy)},
-			vz{rng(minvz, maxvz)};
-		particles.emplace_back(type, x, y, z, vx, vy, vz);
-	}
-
 	return particles;
 }
 
 ParticleVector createParticlesWithVelocityModule(size_t count, ParticleType type,
 												 double x, double y, double z,
-												 double v)
+												 double v, double theta, double phi)
 {
 	RealNumberGenerator rng;
 	ParticleVector particles;
 
 	for (size_t i{}; i < count; ++i)
 	{
-		double theta{rng(0, std::numbers::pi)}, phi{rng(0, 2 * std::numbers::pi)},
-			vx{v * sin(theta) * cos(phi)},
+		theta = rng(0, theta);
+		phi = rng(0, phi);
+
+		double vx{v * sin(theta) * cos(phi)},
 			vy{v * sin(theta) * sin(phi)},
 			vz{v * cos(theta)};
 		particles.emplace_back(type, x, y, z, vx, vy, vz);
@@ -379,36 +341,19 @@ ParticleVector createParticlesWithVelocityModule(size_t count, ParticleType type
 }
 
 ParticleVector createParticlesWithEnergy(size_t count, ParticleType type,
-										 double x, double y, double z,
-										 double minenergy, double maxenergy)
+										 double energy,
+										 std::array<double, 6> const &particleSourceBaseAndDirection)
 {
-	RealNumberGenerator rng;
+	std::array<double, 3> thetaPhi;
+	thetaPhi[0] = particleSourceBaseAndDirection[3];
+	thetaPhi[1] = particleSourceBaseAndDirection[4];
+	thetaPhi[2] = particleSourceBaseAndDirection[5];
+
 	ParticleVector particles;
-
 	for (size_t i{}; i < count; ++i)
-		particles.emplace_back(type, x, y, z, rng(minenergy, maxenergy));
-
-	return particles;
-}
-
-ParticleVector createParticlesWithEnergy(size_t count, ParticleType type,
-										 double minx, double miny, double minz,
-										 double maxx, double maxy, double maxz,
-										 double minenergy, double maxenergy)
-{
-	RealNumberGenerator rng;
-	ParticleVector particles;
-
-	for (size_t i{}; i < count; ++i)
-	{
-		double x{rng(minx, maxx)},
-			y{rng(miny, maxy)},
-			z{rng(minz, maxz)},
-			energy{rng(minenergy, maxenergy)};
-
-		particles.emplace_back(type, x, y, z, energy);
-	}
-
+		particles.emplace_back(type,
+							   Point(particleSourceBaseAndDirection[0], particleSourceBaseAndDirection[1], particleSourceBaseAndDirection[2]),
+							   energy, thetaPhi);
 	return particles;
 }
 

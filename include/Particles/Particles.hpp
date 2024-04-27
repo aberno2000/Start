@@ -176,10 +176,10 @@ private:
      * calculates Vx, Vy, Vz from this module using random numbers.
      * Formula:
      * |V| = √(2⋅E/mass)
-     * @param energy Energy of the particle in [J].
+     * @param thetaPhi Polar angle θ and azimuthal angle φ.
      * @return Velocity module.
      */
-    void calculateVelocityFromEnergy_J();
+    void calculateVelocityFromEnergy_J(std::array<double, 3> const &thetaPhi);
 
     /**
      * @brief Calculates the kinetic energy of a particle from its velocity components.
@@ -205,12 +205,12 @@ private:
 public:
     Particle() : m_bbox(0, 0, 0, 0, 0, 0) {}
     Particle(ParticleType type_);
-    Particle(ParticleType type_, double x_, double y_, double z_, double energyJ_);
+    Particle(ParticleType type_, double x_, double y_, double z_, double energyJ_, std::array<double, 3> const &thetaPhi);
     Particle(ParticleType type_, double x_, double y_, double z_, double vx_, double vy_, double vz_);
     Particle(ParticleType type_, Point const &centre, double vx_, double vy_, double vz_);
     Particle(ParticleType type_, Point &&centre, double vx_, double vy_, double vz_);
-    Particle(ParticleType type_, Point const &centre, double energyJ_);
-    Particle(ParticleType type_, Point &&centre, double energyJ_);
+    Particle(ParticleType type_, Point const &centre, double energyJ_, std::array<double, 3> const &thetaPhi);
+    Particle(ParticleType type_, Point &&centre, double energyJ_, std::array<double, 3> const &thetaPhi);
     Particle(ParticleType type_, double x_, double y_, double z_, VelocityVector const &velvec);
     Particle(ParticleType type_, double x_, double y_, double z_, VelocityVector &&velvec);
     Particle(ParticleType type_, Point const &centre, VelocityVector const &velvec);
@@ -272,31 +272,17 @@ std::ostream &operator<<(std::ostream &os, Particle const &particle);
 
 using ParticleVector = std::vector<Particle>;
 
-/// @brief Generates a vector of particles with specified velocity ranges.
+/// @brief Generates a vector of particles with velocity.
 ParticleVector createParticlesWithVelocities(size_t count, ParticleType type,
                                              double x, double y, double z,
                                              double vx, double vy, double vz);
-ParticleVector createParticlesWithVelocities(size_t count, ParticleType type,
-                                             double x, double y, double z,
-                                             double minvx = 50.0, double minvy = 50.0, double minvz = 50.0,
-                                             double maxvx = 100.0, double maxvy = 100.0, double maxvz = 100.0);
-ParticleVector createParticlesWithVelocities(size_t count, ParticleType type,
-                                             double minx = 0.0, double miny = 0.0, double minz = 0.0,
-                                             double maxx = 100.0, double maxy = 100.0, double maxz = 100.0,
-                                             double minvx = 10.0, double minvy = 10.0, double minvz = 10.0,
-                                             double maxvx = 20.0, double maxvy = 20.0, double maxvz = 20.0);
-
 ParticleVector createParticlesWithVelocityModule(size_t count, ParticleType type,
                                                  double x, double y, double z,
-                                                 double v);
+                                                 double v, double theta, double phi);
 
-/// @brief Creates a vector of particles with specified properties.
+/// @brief Creates a vector of particles with energy.
 ParticleVector createParticlesWithEnergy(size_t count, ParticleType type,
-                                         double x, double y, double z,
-                                         double minenergy = 30.0, double maxenergy = 50.0);
-ParticleVector createParticlesWithEnergy(size_t count, ParticleType type,
-                                         double minx = 0.0, double miny = 0.0, double minz = 0.0,
-                                         double maxx = 100.0, double maxy = 100.0, double maxz = 100.0,
-                                         double minenergy = 30.0, double maxenergy = 50.0);
+                                         double energy,
+                                         std::array<double, 6> const &particleSourceBaseAndDirection);
 
 #endif // !PARTICLES_HPP
