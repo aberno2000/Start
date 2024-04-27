@@ -106,7 +106,7 @@ class LogConsole(QWidget):
         cursor.movePosition(cursor.End)
         self.log_console.setTextCursor(cursor)
         default_format = QTextCharFormat()
-        cursor.mergeCharFormat(default_format)
+        self.log_console.setCurrentCharFormat(default_format)
         
         
     def appendLog(self, message):
