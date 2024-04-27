@@ -310,6 +310,21 @@ bool Particle::colideVSS(Particle target, double n_concentration, double omega,
 }
 
 ParticleVector createParticlesWithVelocities(size_t count, ParticleType type,
+											 double minx, double miny, double minz,
+											 double maxx, double maxy, double maxz,
+											 double minvx, double minvy, double minvz,
+											 double maxvx, double maxvy, double maxvz)
+{
+	RealNumberGenerator rng;
+	ParticleVector particles;
+	for (size_t i{}; i < count; ++i)
+		particles.emplace_back(type,
+							   rng(minx, maxx), rng(miny, maxy), rng(minz, maxz),
+							   rng(minvx, maxvx), rng(minvy, maxvy), rng(minvz, maxvz));
+	return particles;
+}
+
+ParticleVector createParticlesWithVelocities(size_t count, ParticleType type,
 											 double x, double y, double z,
 											 double vx, double vy, double vz)
 {

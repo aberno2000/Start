@@ -274,6 +274,11 @@ using ParticleVector = std::vector<Particle>;
 
 /// @brief Generates a vector of particles with velocity.
 ParticleVector createParticlesWithVelocities(size_t count, ParticleType type,
+                                             double minx = 0, double miny = 0, double minz = 0,
+                                             double maxx = 100, double maxy = 100, double maxz = 100,
+                                             double minvx = -100, double minvy = -100, double minvz = -100,
+                                             double maxvx = 100, double maxvy = 100, double maxvz = 100);
+ParticleVector createParticlesWithVelocities(size_t count, ParticleType type,
                                              double x, double y, double z,
                                              double vx, double vy, double vz);
 ParticleVector createParticlesWithVelocityModule(size_t count, ParticleType type,
