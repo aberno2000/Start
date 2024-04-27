@@ -168,7 +168,11 @@ public:
         return is;
     }
 
-    /// @brief Calculates rotation angles.
+    /**
+     * @brief Calculates the rotation angles required to align the vector with the Z-axis.
+     * @return A pair of angles (beta, gamma) in radians.
+     * @throws std::runtime_error If the vector is near-zero or exactly zero, which would lead to undefined behavior.
+     */
     std::pair<double, double> calcBetaGamma() const;
 
     /**

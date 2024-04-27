@@ -123,8 +123,12 @@ MathVector MathVector::operator/(double value) const
 
 std::pair<double, double> MathVector::calcBetaGamma() const
 {
+    double magnitude{module()};
+    if (magnitude == 0)
+        throw std::runtime_error("Cannot calculate angles for a zero vector.");
+
     // Calculating rotation angles
-    double beta{acos(getZ() / module())},
+    double beta{acos(getZ() / magnitude)},
         gamma{atan2(getY(), getX())};
     return std::make_pair(beta, gamma);
 }
