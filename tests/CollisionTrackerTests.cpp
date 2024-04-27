@@ -36,11 +36,8 @@ void TestHelperValidConfigs(std::string_view config_filename, std::string_view m
         }
     }
     ConfigParser configObj(config_filename);
-    auto particles(createParticlesWithEnergy(configObj.getParticlesCount(),
-                                             configObj.getProjective(),
-                                             -100, -100, -100,
-                                             100, 100, 100,
-                                             configObj.getEnergy(), configObj.getEnergy()));
+    auto particles(createParticlesWithVelocities(configObj.getParticlesCount(),
+                                                 configObj.getProjective()));
 
     double gasConcentration(util::calculateConcentration(config_filename));
     if (gasConcentration < gasConcentrationMinimalValue)

@@ -2,6 +2,8 @@
 
 #include "../include/Particles/Particles.hpp"
 
+static constexpr std::array<double, 3> thetaPhi{1, 1, 1};
+
 // Test default constructor
 TEST(ParticleTest, DefaultConstructor)
 {
@@ -19,7 +21,7 @@ TEST(ParticleTest, ConstructorWithParticleType)
 // Test constructor with ParticleType and position, energy
 TEST(ParticleTest, ConstructorWithTypeAndPositionAndEnergy)
 {
-    Particle particle(ParticleType::Ar, 1.0, 2.0, 3.0, 1.5e-21);
+    Particle particle(ParticleType::Ar, 1.0, 2.0, 3.0, 1.5e-21, thetaPhi);
     EXPECT_EQ(particle.getType(), ParticleType::Ar);
     EXPECT_DOUBLE_EQ(particle.getX(), 1.0);
     EXPECT_DOUBLE_EQ(particle.getY(), 2.0);
@@ -71,7 +73,7 @@ TEST(ParticleTest, ConstructorWithTypeRvaluePointAndVelocity)
 TEST(ParticleTest, ConstructorWithTypeConstPointRefAndEnergy)
 {
     Point center(1.0, 2.0, 3.0);
-    Particle particle(ParticleType::Ar, center, 1.5e-21);
+    Particle particle(ParticleType::Ar, center, 1.5e-21, thetaPhi);
     EXPECT_EQ(particle.getType(), ParticleType::Ar);
     EXPECT_DOUBLE_EQ(particle.getX(), 1.0);
     EXPECT_DOUBLE_EQ(particle.getY(), 2.0);
@@ -82,7 +84,7 @@ TEST(ParticleTest, ConstructorWithTypeConstPointRefAndEnergy)
 // Test constructor with ParticleType, rvalue Point, and energy
 TEST(ParticleTest, ConstructorWithTypeRvaluePointAndEnergy)
 {
-    Particle particle(ParticleType::Ar, Point(1.0, 2.0, 3.0), 1.5e-21);
+    Particle particle(ParticleType::Ar, Point(1.0, 2.0, 3.0), 1.5e-21, thetaPhi);
     EXPECT_EQ(particle.getType(), ParticleType::Ar);
     EXPECT_DOUBLE_EQ(particle.getX(), 1.0);
     EXPECT_DOUBLE_EQ(particle.getY(), 2.0);
@@ -105,9 +107,9 @@ TEST(ParticleTest, UpdatePosition)
 // Test particle overlap detection
 TEST(ParticleTest, Overlaps)
 {
-    Particle particle1(ParticleType::Ar, 0.0, 0.0, 0.0, 0);
-    Particle particle2(ParticleType::Ar, 0.0, 0.0 + particle2.getRadius(), 0.0, 0);
-    Particle particle3(ParticleType::Ar, 1.0, 1.0, 1.0, 0);
+    Particle particle1(ParticleType::Ar, 0.0, 0.0, 0.0, 0, thetaPhi);
+    Particle particle2(ParticleType::Ar, 0.0, 0.0 + particle2.getRadius(), 0.0, 0, thetaPhi);
+    Particle particle3(ParticleType::Ar, 1.0, 1.0, 1.0, 0, thetaPhi);
 
     EXPECT_TRUE(particle1.overlaps(particle2));  // Close enough to overlap
     EXPECT_FALSE(particle1.overlaps(particle3)); // Too far, no overlap
@@ -116,7 +118,7 @@ TEST(ParticleTest, Overlaps)
 // Test getters for the coords
 TEST(ParticleTest, PositionGetters)
 {
-    Particle particle(ParticleType::Ar, 1.5, 2.5, 3.5, 0);
+    Particle particle(ParticleType::Ar, 1.5, 2.5, 3.5, 0, thetaPhi);
 
     EXPECT_DOUBLE_EQ(particle.getX(), 1.5);
     EXPECT_DOUBLE_EQ(particle.getY(), 2.5);
@@ -126,7 +128,7 @@ TEST(ParticleTest, PositionGetters)
 // Test the getter for position module
 TEST(ParticleTest, PositionModule)
 {
-    Particle particle(ParticleType::Ar, 3.0, 4.0, 0.0, 0); // Using a 3-4-5 triangle for easy verification
+    Particle particle(ParticleType::Ar, 3.0, 4.0, 0.0, 0, thetaPhi); // Using a 3-4-5 triangle for easy verification
 
     EXPECT_DOUBLE_EQ(particle.getPositionModule(), 5.0); // Hypotenuse of the triangle, should be 5
 }
@@ -134,7 +136,7 @@ TEST(ParticleTest, PositionModule)
 // Test the getter for energy in electron volts
 TEST(ParticleTest, EnergyGetters)
 {
-    Particle particle(ParticleType::Ar, 0, 0, 0, 1.602e-19);
+    Particle particle(ParticleType::Ar, 0, 0, 0, 1.602e-19, thetaPhi);
 
     EXPECT_DOUBLE_EQ(std::round(particle.getEnergy_eV()), 1.0); // Should return 1 electron volt
 }
@@ -148,21 +150,21 @@ TEST(ParticleTest, VelocityModule)
 
 TEST(ParticleTest, HardSphereCollision)
 {
-    Particle projective(ParticleType::Ti, 0, 0, 0, 1.602e-19), gas(ParticleType::Ar);
+    Particle projective(ParticleType::Ti, 0, 0, 0, 1.602e-19, thetaPhi), gas(ParticleType::Ar);
     EXPECT_TRUE(projective.colideHS(gas, 1.0e20, 0.01));
     EXPECT_FALSE(projective.colideHS(gas, 1, 1));
 }
 
 TEST(ParticleTest, VariableHardSphereCollision)
 {
-    Particle projective(ParticleType::Ag, 0, 0, 0, 1.602e-19), gas(ParticleType::Ne);
+    Particle projective(ParticleType::Ag, 0, 0, 0, 1.602e-19, thetaPhi), gas(ParticleType::Ne);
     EXPECT_TRUE(projective.colideVHS(gas, 1.0e20, gas.getViscosityTemperatureIndex(), 0.01));
     EXPECT_FALSE(projective.colideVHS(gas, 1, gas.getViscosityTemperatureIndex(), 1));
 }
 
 TEST(ParticleTest, VariableSoftSphereCollision)
 {
-    Particle projective(ParticleType::Au, 0, 0, 0, 1.602e-19), gas(ParticleType::He);
+    Particle projective(ParticleType::Au, 0, 0, 0, 1.602e-19, thetaPhi), gas(ParticleType::He);
     EXPECT_TRUE(projective.colideVSS(gas, 1.0e20, gas.getViscosityTemperatureIndex(), gas.getVSSDeflectionParameter(), 0.01));
     EXPECT_FALSE(projective.colideVSS(gas, 1, gas.getViscosityTemperatureIndex(), gas.getVSSDeflectionParameter(), 1));
 }
