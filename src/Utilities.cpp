@@ -138,3 +138,58 @@ bool util::exists(std::string_view filename)
     return (_stat(filename.data(), std::addressof(buf)) == 0);
 #endif
 }
+
+void util::checkRestrictions(double time_step, size_t particles_count, std::string_view mshfilename)
+{
+    if (not util::exists(mshfilename))
+    {
+        ERRMSG(util::stringify("File (", mshfilename, ") doesn't exist"));
+        std::exit(EXIT_FAILURE);
+    }
+    if (time_step <= 0.0)
+    {
+        ERRMSG(util::stringify("Time step can't be less or equal 0"));
+        std::exit(EXIT_FAILURE);
+    }
+    if (particles_count > 10'000'000)
+    {
+        ERRMSG(util::stringify("Particles count limited by 10'000'000.\nBut you entered ", particles_count));
+        std::exit(EXIT_FAILURE);
+    }
+}
+
+std::array<double, 6> util::getParticleSourceCoordsAndDirection()
+{
+    std::string path("sourceAndDirection.txt");
+    std::ifstream ifs(path);
+    if (!ifs.is_open())
+    {
+        ERRMSG("Can't read coordinates of the particle source");
+        std::exit(EXIT_FAILURE);
+    }
+
+    std::array<double, 6> result;
+    for (short i{}; i < 6; ++i)
+    {
+        if (!(ifs >> result[i]))
+        {
+            if (i != 3)
+                ERRMSG("Failed to read coordinate #" + std::to_string(i + 1) + " from the particle source");
+            if (i == 3)
+                ERRMSG("Failed to read expansion angle θ");
+            if (i == 4)
+                ERRMSG("Failed to read angle φ");
+            if (i == 5)
+                ERRMSG("Failed to read angle θ");
+
+            ifs.close();                   // Ensure the file is closed before exiting.
+            std::filesystem::remove(path); // Remove the file for clean-up.
+            std::exit(EXIT_FAILURE);
+        }
+    }
+
+    ifs.close();
+    std::filesystem::remove(path); // Remove the file after successful reading
+
+    return result;
+}
