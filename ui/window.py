@@ -503,6 +503,8 @@ class WindowApp(QMainWindow):
     def run_cpp(self, args: str) -> None:
         self.progress_bar.setHidden(False)
         self.start_time = time()
+
+        self.geditor.writeParticleSouceAndDirectionToFile()
         
         # Checking OS
         if os.name == 'nt':
