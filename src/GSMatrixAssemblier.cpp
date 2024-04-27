@@ -233,7 +233,7 @@ DynRankView GSMatrixAssemblier::_computeTetrahedronBasisFunctionGradients()
                   << __PRETTY_FUNCTION__ << '\n';
         for (short i{}; i < _countBasisFunctions; ++i)
         {
-            std::cout << std::format("φ_{}\n", i);
+            std::cout << std::format("∇φ_{}\n", i);
             for (short j{}; j < _countCubPoints; ++j)
             {
                 for (short k{}; k < _spaceDim; k++)
@@ -362,7 +362,7 @@ DynRankView GSMatrixAssemblier::_computeTetrahedronBasisFunctionGradientsTransfo
             std::cout << std::format("Tetrahedron[{}]\n", i);
             for (short j{}; j < _countBasisFunctions; ++j)
             {
-                std::cout << std::format("φ_{}: ", j);
+                std::cout << std::format("∇φ_{}: ", j);
                 for (short k{}; k < _countCubPoints; ++k)
                     std::cout << transformedBasisGradients(i, j, k) << ' ';
                 std::endl(std::cout);
