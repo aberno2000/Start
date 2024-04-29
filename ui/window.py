@@ -504,7 +504,8 @@ class WindowApp(QMainWindow):
         self.progress_bar.setHidden(False)
         self.start_time = time()
 
-        self.geditor.writeParticleSouceAndDirectionToFile()
+        if self.geditor.writeParticleSouceAndDirectionToFile() is None:
+            return
         
         # Checking OS
         if os.name == 'nt':

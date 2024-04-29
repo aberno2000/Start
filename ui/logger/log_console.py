@@ -114,17 +114,17 @@ class LogConsole(QWidget):
         
     
     def printError(self, message):
-        self.log_console.insert_colored_text("Error: ", "red")
-        self.appendLog(message)
+        self.insert_colored_text("Error: ", "red")
+        self.appendLog(message + '\n')
     
     
     def printWarning(self, message):
-        self.log_console.insert_colored_text("Warning: ", "yellow")
-        self.appendLog(message)
+        self.insert_colored_text("Warning: ", "yellow")
+        self.appendLog(message + '\n')
         
         
     def printInfo(self, message):
-        self.appendLog("Info: " + message)
+        self.appendLog("Info: " + message + '\n')
         
         
     def handle_command(self):

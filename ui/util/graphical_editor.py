@@ -292,7 +292,7 @@ class GraphicalEditor(QFrame):
             
             self.add_actor(actor)
             self.update_tree_model('Point', f'Point: ({x}, {y}, {z})', actor)
-            self.log_console.printInfo(f'Successfully created point: ({x}, {y}, {z})\n')
+            self.log_console.printInfo(f'Successfully created point: ({x}, {y}, {z})')
             
     def create_line(self):
         dialog = LineDialog(self)
@@ -332,7 +332,7 @@ class GraphicalEditor(QFrame):
             line_str = 'Line'
             tmp = '\n'.join(points_str_list)
             self.update_tree_model(line_str, tmp, actor)
-            self.log_console.printInfo(f'Successfully created line:\n{tmp}\n')
+            self.log_console.printInfo(f'Successfully created line:\n{tmp}')
 
     
     def create_surface(self):
@@ -385,7 +385,7 @@ class GraphicalEditor(QFrame):
                 surface_str = 'Surface'
                 tmp = '\n'.join(points_str_list)
                 self.update_tree_model(surface_str, tmp, actor)
-                self.log_console.printInfo(f'Successfully created surface:\n{tmp}\n')
+                self.log_console.printInfo(f'Successfully created surface:\n{tmp}')
             
 
     def create_surface_with_gmsh(self, points, mesh_size):
@@ -503,7 +503,7 @@ class GraphicalEditor(QFrame):
             center_str = 'Sphere'
             tmp = '\n'.join(sphere_data_str)
             self.update_tree_model(center_str, tmp, actor)
-            self.log_console.printInfo(f'Successfully created sphere:\n{tmp}\n')
+            self.log_console.printInfo(f'Successfully created sphere:\n{tmp}')
 
 
     def create_box(self):
@@ -555,7 +555,7 @@ class GraphicalEditor(QFrame):
             box_str = 'Box'
             tmp = '\n'.join(box_data_str)
             self.update_tree_model(box_str, tmp, actor)
-            self.log_console.printInfo(f'Successfully created box:\n{tmp}\n')
+            self.log_console.printInfo(f'Successfully created box:\n{tmp}')
 
 
     def create_cylinder(self):
@@ -607,7 +607,7 @@ class GraphicalEditor(QFrame):
             cylinder_str = 'Cylinder'
             tmp = '\n'.join(cylinder_data_str)
             self.update_tree_model(cylinder_str, tmp, actor)
-            self.log_console.printInfo(f'Successfully created cylinder:\n{tmp}\n')
+            self.log_console.printInfo(f'Successfully created cylinder:\n{tmp}')
             
     
     def upload_custom(self):
@@ -643,7 +643,7 @@ class GraphicalEditor(QFrame):
                 QMessageBox.critical(self, "Error", "Dialog was closed by user. Invalid mesh size or mesh dimensions.")
         elif file_name.endswith('.msh') or file_name.endswith('.vtk'):
             self.add_custom(file_name)
-            self.log_console.printInfo(f'Successfully uploaded custom object from {file_name}\n')
+            self.log_console.printInfo(f'Successfully uploaded custom object from {file_name}')
             
             
     
@@ -1207,7 +1207,7 @@ class GraphicalEditor(QFrame):
 
             return actor
         except Exception as e:
-            self.log_console.printError(str(e) + '\n')
+            self.log_console.printError(str(e))
             return None        
     
     def subtract_objects(self, obj_from: vtkActor, obj_to: vtkActor):
@@ -1294,7 +1294,7 @@ class GraphicalEditor(QFrame):
         self.add_actor_and_row(actor1)
         self.add_actor_and_row(actor2)
         
-        self.log_console.printInfo("Successfully created a cross-section\n")
+        self.log_console.printInfo("Successfully created a cross-section")
     
     
     def writeParticleSouceAndDirectionToFile(self):
@@ -1304,30 +1304,28 @@ class GraphicalEditor(QFrame):
                 self.log_console.printError("Base coordinates are not defined")
                 raise ValueError("Base coordinates are not defined")
 
-            if not self.theta_angle:
+            if not self.expansion_angle:
                 self.log_console.printError("Expansion angle θ is undefined")
                 raise ValueError("Expansion angle θ is undefined")
 
             if self.getParticleSourceDirection() is None:
                 return
-            thetaDirectionVector, phi = self.getParticleSourceDirection()
-            
-            if phi is None:
-                self.log_console.printError("Can't define φ angle")
-                raise ValueError("Can't define φ angle")
+            theta, phi = self.getParticleSourceDirection()
 
             with open(DEFAULT_TEMP_FILE_FOR_PARTICLE_SOURCE_AND_THETA, "w") as f:
-                f.write(f"{base_coords[0]} {base_coords[1]} {base_coords[2]} {self.theta_angle} {phi} {thetaDirectionVector}")
+                f.write(f"{base_coords[0]} {base_coords[1]} {base_coords[2]} {self.expansion_angle} {phi} {theta}")
             
             self.statusBar.showMessage("Successfully set particle source and calculated direction angles")
-            self.log_console.printInfo(f"Successfully written coordinates of the particle source:\nBase: {base_coords}\nUser's θ: {self.theta_angle} ({rad_to_degree(self.theta_angle)} °)\nθ: {thetaDirectionVector} ({rad_to_degree(thetaDirectionVector)} °)\nφ: {phi}{rad_to_degree(phi)} °)\n")
+            self.log_console.printInfo(f"Successfully written coordinates of the particle source:\nBase: {base_coords}\nExpansion angle θ: {self.expansion_angle} ({rad_to_degree(self.expansion_angle)}°)\nPolar (colatitude) angle θ: {theta} ({rad_to_degree(theta)}°)\nAzimuthal angle φ: {phi} ({rad_to_degree(phi)}°)")
             
             self.resetParticleSourceArrow()
+            return 1
 
         except Exception as e:
             error_message = f"Error defining particle source. {e}"
             self.log_console.printError(error_message)
             QMessageBox.warning(self, "Particle Source", error_message)
+            return None
 
         
     def resetParticleSourceArrow(self):
@@ -1361,8 +1359,8 @@ class GraphicalEditor(QFrame):
         try:
             theta, phi = calculate_thetaPhi(base_coords, tip_coords)
         except Exception as e:
-            self.log_console.printError(f"An error occured when calculating θ and φ: {e}")
-            QMessageBox.warning(self, "Invalid Angles", f"An error occured when calculating θ and φ: {e}")
+            self.log_console.printError(f"An error occured when calculating polar (colatitude) θ and azimuthal φ: {e}")
+            QMessageBox.warning(self, "Invalid Angles", f"An error occured when calculating polar (colatitude) θ and azimuthal φ: {e}")
             return None
         
         return theta, phi
@@ -1381,15 +1379,15 @@ class GraphicalEditor(QFrame):
                 _, phi = self.getParticleSourceDirection()
                 
                 if thetaMax > pi / 2.:
-                    self.log_console.printWarning(f"The θ angle exceeds 90°, so some particles can fly in the opposite direction\nθ = {thetaMax} ({thetaMax * 180. / pi}°)")    
-                self.log_console.printInfo(f"Successfully assigned values to the expansion angle and calculated φ angle\nθ = {thetaMax} ({thetaMax * 180. / pi}°)\nφ = {phi} ({phi * 180. / pi}°)\n")
+                    self.log_console.printWarning(f"The θ angle exceeds 90°, so some particles can distribute in the opposite direction\nθ = {thetaMax} ({thetaMax * 180. / pi}°)")    
+                self.log_console.printInfo(f"Successfully assigned values to the expansion angle and calculated φ angle\nθ = {thetaMax} ({thetaMax * 180. / pi}°)\nφ = {phi} ({phi * 180. / pi}°)")
             
             except Exception as e:
                 QMessageBox.critical(self, "Scattering angles", f"Exception while assigning expansion angle θ: {e}")
-                self.log_console.printError(f"Exception while assigning expansion angle θ: {e}\n")
+                self.log_console.printError(f"Exception while assigning expansion angle θ: {e}")
                 return
 
-            self.theta_angle = thetaMax
+            self.expansion_angle = thetaMax
         else:
             self.resetParticleSourceArrow()
             
