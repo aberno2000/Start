@@ -106,7 +106,7 @@ ParticleTracker::ParticleTracker(ParticleVector &particles, Grid3D &grid,
     fillTimeMap();
 }
 
-void ParticleTracker::printPIC() const
+void ParticleTracker::printParticlesMap() const
 {
     if (m_particlesInCell.empty())
     {
@@ -117,7 +117,7 @@ void ParticleTracker::printPIC() const
     for (auto const &[dt, PICs] : m_particlesInCell)
     {
         size_t count{};
-        std::cout << std::format("\033[1;34mTime {}\n\033[0m", dt);
+        std::cout << std::format("\033[1;34mTime {} s\n\033[0m", dt);
         for (auto const &[tetrId, particles] : PICs)
         {
             count += particles.size();
@@ -140,9 +140,9 @@ void ParticleTracker::printChargeDensityMap() const
 
     for (auto const &[dt, PICs] : m_chargeDensityMap)
     {
-        std::cout << std::format("\033[1;34mTime {}\n\033[0m", dt);
+        std::cout << std::format("\033[1;34mTime {} s\n\033[0m", dt);
         for (auto const &[tetrId, charge] : PICs)
-            std::cout << std::format("Tetrahedron[{}]: {}\n", tetrId, charge);
+            std::cout << std::format("Tetrahedron[{}]: {} C/m³\n", tetrId, charge);
     }
 }
 

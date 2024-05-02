@@ -32,7 +32,7 @@ int main(int argc, char *argv[])
     // 6. Tracking particles inside the tetrahedrons.
     double dt{0.1}, simtime{0.5};
     ParticleTracker tracker(particles, grid, dt, simtime);
-    tracker.printPIC();
+    tracker.printParticlesMap();
     tracker.printChargeDensityMap();
 
     /* Work with matrices. */

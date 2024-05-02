@@ -65,7 +65,7 @@ public:
                     unsigned int num_threads = std::thread::hardware_concurrency());
 
     /// @brief Prints all the data from the particle in cell storage: in what time where were particles (in which tetrahedra).
-    void printPIC() const;
+    void printParticlesMap() const;
 
     /// @brief Prints all the data from the charge map.
     void printChargeDensityMap() const;
