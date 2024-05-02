@@ -133,9 +133,9 @@ class WindowApp(QMainWindow):
             
             QMessageBox.information(self,
                                     "Uknnown Error",
-                                    f"Something went wrong at the start of the simulation. Maybe specified particle count is a small amount, try to increase this field. Current particle count is {self.config_tab.particles_count}\n")
+                                    f"Something went wrong at the start of the simulation. Maybe specified particle count is a small amount, try to increase this field. Current particle count is {self.config_tab.particles_count}. Or maybe your mesh is very small and you don't have anough space to simulate\n")
             self.log_console.insert_colored_text('Warning: ', 'yellow')
-            self.log_console.insert_colored_text(f'Something went wrong at the start of the simulation. Maybe specified particle count is a small amount, try to increase this field. Current particle count is {self.config_tab.particles_count}\n', self.setupFontColor)
+            self.log_console.insert_colored_text(f"Something went wrong at the start of the simulation. Maybe specified particle count is a small amount, try to increase this field. Current particle count is {self.config_tab.particles_count}. Or maybe your mesh is very small and you don't have anough space to simulate\n", self.setupFontColor)
         else:
             self.results_tab.clear_plot()
             
