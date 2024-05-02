@@ -767,8 +767,10 @@ class GraphicalEditor(QFrame):
             return
 
     def remove_all_actors(self):
+        self.particleSourceArrowActor = None
+        
         actors = self.renderer.GetActors()
-        actors.InitTraversal()
+        actors.InitTraversal()        
         for i in range(actors.GetNumberOfItems()):
             actor = actors.GetNextActor()
             self.renderer.RemoveActor(actor)
@@ -920,7 +922,7 @@ class GraphicalEditor(QFrame):
                 self.isPerformOperation = (False, None)
                 self.statusBar.clearMessage()
                 
-        
+    
     def setup_interaction(self):
         self.picker = vtkCellPicker()
         self.picker.SetTolerance(0.005)
@@ -929,19 +931,8 @@ class GraphicalEditor(QFrame):
         self.original_color = None
 
         self.interactor.SetInteractorStyle(self.interactorStyle)
-        
-        def on_right_button_press(obj, event):
-            click_pos = self.interactor.GetEventPosition()
-            self.picker.Pick(click_pos[0], click_pos[1], 0, self.renderer)
-
-            actor = self.picker.GetActor()
-            if actor:
-                self.selected_actor = actor
-                self.original_color = actor.GetProperty().GetColor()
-                self.context_menu()
-
         self.interactorStyle.AddObserver("LeftButtonPressEvent", self.on_left_button_press)
-        self.interactorStyle.AddObserver("RightButtonPressEvent", on_right_button_press)
+        self.interactorStyle.AddObserver("RightButtonPressEvent", self.on_right_button_press)
         self.interactor.AddObserver("KeyPressEvent", self.on_key_press)
         self.interactor.Initialize()
         
@@ -950,6 +941,40 @@ class GraphicalEditor(QFrame):
             self.handle_drawing_line()
         else:
             self.pick_actor(obj, event)
+        
+    def on_right_button_press(self, obj, event):
+        click_pos = self.interactor.GetEventPosition()
+        self.picker.Pick(click_pos[0], click_pos[1], 0, self.renderer)
+
+        actor = self.picker.GetActor()
+        if actor:
+            self.selected_actor = actor
+            self.original_color = actor.GetProperty().GetColor()
+            self.context_menu()
+            
+    def on_key_press(self, obj, event):
+        key = self.interactor.GetKeySym()
+
+        if key == 'Escape':            
+            self.interactorStyle = vtkInteractorStyleTrackballCamera()
+            self.interactor.SetInteractorStyle(self.interactorStyle)
+            self.interactorStyle.AddObserver("LeftButtonPressEvent", self.on_left_button_press)
+            self.interactorStyle.AddObserver("RightButtonPressEvent", self.on_right_button_press)
+            self.deselect()
+            
+        if key == 'Delete' or key == 'BackSpace':
+            if self.selected_actor:
+                self.remove_object_with_restore(self.selected_actor)
+                self.selected_actor = None
+
+        # C - controlling the object.
+        if key == 'c' or key == 'C':
+            if self.selected_actor:
+                self.interactorStyle = vtkInteractorStyleTrackballActor()
+                self.interactor.SetInteractorStyle(self.interactorStyle)
+                self.deselect()
+
+        self.interactorStyle.OnKeyPress()
         
     def context_menu(self):
         if self.selected_actor:
@@ -979,9 +1004,10 @@ class GraphicalEditor(QFrame):
             
     def deselect(self):
         try:
-            self.selected_actor.GetProperty().SetColor(DEFAULT_ACTOR_COLOR)
-            self.vtkWidget.GetRenderWindow().Render()
-            self.selected_actor = None
+            if self.selected_actor:
+                self.selected_actor.GetProperty().SetColor(DEFAULT_ACTOR_COLOR)
+                self.vtkWidget.GetRenderWindow().Render()
+                self.selected_actor = None
         except Exception as _:
             return
 
@@ -1036,27 +1062,6 @@ class GraphicalEditor(QFrame):
                     self.vtkWidget.GetRenderWindow().Render()
                     
                     self.deselect()
-
-    def on_key_press(self, obj, event):
-        key = self.interactor.GetKeySym()
-        if key == 'Escape':
-            self.interactorStyle = vtkInteractorStyleTrackballCamera()
-            self.interactor.SetInteractorStyle(self.interactorStyle)
-            self.setup_interaction()
-            self.deselect()
-        elif key == 'Delete' or key == 'BackSpace':
-            if self.selected_actor:
-                self.remove_object_with_restore(self.selected_actor)
-                self.selected_actor = None
-        
-        # C - controlling the object.
-        if key == 'c' or key == 'C':
-            if self.selected_actor:
-                self.interactorStyle = vtkInteractorStyleTrackballActor()
-                self.interactor.SetInteractorStyle(self.interactorStyle)
-                self.deselect()
-        
-        self.interactorStyle.OnKeyPress()
     
     def align_view_by_axis(self, axis: str):
         align_view_by_axis(axis, self.renderer, self.vtkWidget)
