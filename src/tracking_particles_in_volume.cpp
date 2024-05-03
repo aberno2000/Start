@@ -49,7 +49,7 @@ int main(int argc, char *argv[])
         // 2. Assemblying global stiffness matrix from the mesh file.
         GSMatrixAssemblier assemblier(k_mesh_filename, polynomOrder, desiredAccuracy);
 
-        // 3. Setting boundary conditions: for mesh size = 3
+        // 3. Setting boundary conditions.
         std::map<int, double> boundaryConditions;
         for (size_t nodeId : {2, 4, 6, 8, 28, 29, 30, 59, 60, 61, 50, 51, 52, 53, 54, 55,
                               215, 201, 206, 211, 203, 205, 207, 209, 204, 210, 214, 202, 208, 213, 212})
