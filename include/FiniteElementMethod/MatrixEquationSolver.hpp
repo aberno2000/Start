@@ -1,6 +1,8 @@
 #ifndef MATRIX_EQUATION_SOLVER_HPP
 #define MATRIX_EQUATION_SOLVER_HPP
 
+/* ATTENTION: Works well only for the polynom order = 1. */
+
 #include "GSMatrixAssemblier.hpp"
 #include "SolutionVector.hpp"
 #include "TrilinosTypes.hpp"

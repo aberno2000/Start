@@ -1,6 +1,8 @@
 #ifndef SOLUTION_VECTOR_HPP
 #define SOLUTION_VECTOR_HPP
 
+/* ATTENTION: Works well only for the polynom order = 1. */
+
 #include "TrilinosTypes.hpp"
 
 class SolutionVector
