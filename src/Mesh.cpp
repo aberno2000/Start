@@ -310,3 +310,43 @@ std::vector<size_t> Mesh::getTetrahedronMeshBoundaryNodes(std::string_view msh_f
     }
     return boundaryNodeTags;
 }
+
+std::map<size_t, std::array<double, 3>> Mesh::getTetrahedronCenters(std::string_view msh_filename)
+{
+    std::map<size_t, std::array<double, 3>> tetrahedronCenters;
+    try
+    {
+        auto nodeMap{getTetrahedronNodesMap(msh_filename)};           // map<TetraID, vector<NodeID>>.
+        auto nodeCoords{getTetrahedronNodeCoordinates(msh_filename)}; // map<NodeID, array<double, 3>>.
+
+        for (auto const &[tetraId, nodeIds] : nodeMap)
+        {
+            std::array<double, 3> tetraCentre = {0.0, 0.0, 0.0};
+
+            for (size_t nodeId : nodeIds)
+            {
+                auto coords{nodeCoords.at(nodeId)};
+                tetraCentre[0] += coords[0];
+                tetraCentre[1] += coords[1];
+                tetraCentre[2] += coords[2];
+            }
+
+            tetraCentre[0] /= 4.;
+            tetraCentre[1] /= 4.;
+            tetraCentre[2] /= 4.;
+
+            tetrahedronCenters[tetraId] = tetraCentre;
+        }
+        return tetrahedronCenters;
+    }
+    catch (const std::exception &e)
+    {
+        ERRMSG(e.what());
+    }
+    catch (...)
+    {
+        ERRMSG("An unknown error occurred.");
+    }
+    WARNINGMSG("Returning an empty map for tetrahedron centers");
+    return tetrahedronCenters;
+}

@@ -159,6 +159,28 @@ public:
      *         caught and handled by printing the error message to the standard error output.
      */
     static std::vector<size_t> getTetrahedronMeshBoundaryNodes(std::string_view msh_filename);
+
+    /**
+     * @brief Calculates the geometric centers of all tetrahedrons in a given mesh.
+     *
+     * @details This function opens a mesh file in Gmsh format specified by `msh_filename` and computes
+     *          the geometric centers of each tetrahedron. The center of a tetrahedron is calculated as
+     *          the arithmetic mean of its vertices' coordinates. These centers are often used for
+     *          various geometric and physical calculations, such as finding the centroid of mass in
+     *          finite element analysis or for visualizing properties that vary across the mesh volume.
+     *
+     * @param msh_filename The path to the mesh file in Gmsh format, represented as a string view.
+     *          This file should contain the tetrahedral mesh data from which the tetrahedron centers
+     *          will be computed.
+     * @return std::map<size_t, std::array<double, 3>> A map where each key is a tetrahedron ID and
+     *         the value is an array representing the XYZ coordinates of its geometric center. This map
+     *         provides a convenient way to access the center of each tetrahedron by its identifier.
+     *
+     * @throws std::exception Propagates any exceptions thrown by file handling or the Gmsh API, which
+     *         might occur during file opening, reading, or processing. These exceptions are typically
+     *         caught and should be handled to avoid crashes and ensure that the error is reported properly.
+     */
+    static std::map<size_t, std::array<double, 3>> getTetrahedronCenters(std::string_view msh_filename);
 };
 
 #endif // !MESH_HPP
