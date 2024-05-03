@@ -106,6 +106,38 @@ MathVector MathVector::operator+(MathVector const &other) const { return MathVec
 MathVector MathVector::operator-(double value) const { return MathVector(x - value, y - value, z - value); }
 MathVector MathVector::operator+(double value) const { return MathVector(x + value, y + value, z + value); }
 
+MathVector &MathVector::operator+=(const MathVector &other)
+{
+    x += other.x;
+    y += other.y;
+    z += other.z;
+    return *this;
+}
+
+MathVector &MathVector::operator-=(const MathVector &other)
+{
+    x -= other.x;
+    y -= other.y;
+    z -= other.z;
+    return *this;
+}
+
+MathVector &MathVector::operator+=(double value)
+{
+    x += value;
+    y += value;
+    z += value;
+    return *this;
+}
+
+MathVector &MathVector::operator-=(double value)
+{
+    x -= value;
+    y -= value;
+    z -= value;
+    return *this;
+}
+
 MathVector MathVector::operator*(double value) const { return MathVector(x * value, y * value, z * value); }
 double MathVector::operator*(MathVector const &other) const { return (x * other.x + y * other.y + z * other.z); }
 double MathVector::operator*(MathVector &&other) const { return (x * other.x + y * other.y + z * other.z); }
