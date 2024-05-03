@@ -341,18 +341,18 @@ DynRankView GSMatrixAssemblier::_computeInverseJacobians(DynRankView const &jaco
     return DynRankView();
 }
 
-DynRankView GSMatrixAssemblier::_computeTetrahedronBasisFunctionGradientsTransformed(MeshTetrahedronParamVector const &meshParams)
+void GSMatrixAssemblier::_computeTetrahedronBasisFunctionGradientsTransformed(MeshTetrahedronParamVector const &meshParams)
 {
     try
     {
-        DynRankView transformedBasisGradients("transformedBasisGradients", _countTetrahedra, _countBasisFunctions, _countCubPoints, _spaceDim);
-        Kokkos::deep_copy(transformedBasisGradients, 0.0);
+        m_basisFuncGrads = DynRankView("transformedBasisGradients", _countTetrahedra, _countBasisFunctions, _countCubPoints, _spaceDim);
+        Kokkos::deep_copy(m_basisFuncGrads, 0.0);
 
         auto basisGradients{_computeTetrahedronBasisFunctionGradients()};
         auto jacobians{_computeCellJacobians(meshParams)};
         auto invJacobians{_computeInverseJacobians(jacobians)};
 
-        Intrepid2::FunctionSpaceTools<DeviceType>::HGRADtransformGRAD(transformedBasisGradients, invJacobians, basisGradients);
+        Intrepid2::FunctionSpaceTools<DeviceType>::HGRADtransformGRAD(m_basisFuncGrads, invJacobians, basisGradients);
 
 #ifdef PRINT_ALL
         std::cout << "\n\n"
@@ -362,14 +362,32 @@ DynRankView GSMatrixAssemblier::_computeTetrahedronBasisFunctionGradientsTransfo
             std::cout << std::format("Tetrahedron[{}]\n", i);
             for (short j{}; j < _countBasisFunctions; ++j)
             {
-                std::cout << std::format("∇φ_{}: ", j);
+                std::cout << std::format("∇φ[{}]\n", j);
                 for (short k{}; k < _countCubPoints; ++k)
-                    std::cout << transformedBasisGradients(i, j, k) << ' ';
-                std::endl(std::cout);
+                {
+                    for (short l{}; l < 3; ++l)
+                        std::cout << m_basisFuncGrads(i, j, k, l) << ' ';
+                    std::endl(std::cout);
+                }
             }
         }
 #endif
-        return transformedBasisGradients;
+
+        // Only for polynom order = 1:
+        size_t firstTetraID{std::get<0>(meshParams.front())}; // Local index is 0, global index for tetrahedra is the 1st element of the tuple.
+        auto nodesMap{Mesh::getTetrahedronNodesMap(m_meshfilename)};
+        for (size_t localTetraId{}; localTetraId < meshParams.size(); ++localTetraId)
+        {
+            auto globalNodeIds{nodesMap.at(localTetraId + firstTetraID)};
+            for (short localNodeId{}; localNodeId < _countBasisFunctions; ++localNodeId)
+            {
+                // As we have polynom order = 1, that all the values from the ∇φ in all cub points are the same, so we can add only 1 row from each ∇φ.
+                m_basisFuncGradientMap[globalNodeIds.at(localNodeId)].emplace_back(MathVector(
+                    m_basisFuncGrads(localTetraId, localNodeId, 0, 0),
+                    m_basisFuncGrads(localTetraId, localNodeId, 0, 1),
+                    m_basisFuncGrads(localTetraId, localNodeId, 0, 2)));
+            }
+        }
     }
     catch (std::exception const &ex)
     {
@@ -379,8 +397,6 @@ DynRankView GSMatrixAssemblier::_computeTetrahedronBasisFunctionGradientsTransfo
     {
         ERRMSG("Unknown error");
     }
-    WARNINGMSG("Returning empty multidimensional array which was intended for gradients of basis function that are transformed to physical space");
-    return DynRankView();
 }
 
 DynRankView GSMatrixAssemblier::_computeLocalStiffnessMatrices(DynRankView const &basisGradients) const
@@ -662,10 +678,10 @@ void GSMatrixAssemblier::assembleGlobalStiffnessMatrix(std::string_view mesh_fil
     }
 
     // 4. Computing all basis gradients and cubature weights.
-    auto basisGradients{_computeTetrahedronBasisFunctionGradientsTransformed(tetrahedronMesh)};
+    _computeTetrahedronBasisFunctionGradientsTransformed(tetrahedronMesh);
 
     // 5. Assemblying global stiffness matrix.
-    _assemblyGlobalStiffnessMatrixHelper(basisGradients, globalNodeIndicesPerElement);
+    _assemblyGlobalStiffnessMatrixHelper(m_basisFuncGrads, globalNodeIndicesPerElement);
 }
 
 bool GSMatrixAssemblier::empty() const { return m_gsmatrix->getGlobalNumEntries() == 0; }

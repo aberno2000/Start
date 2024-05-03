@@ -16,7 +16,7 @@ int main(int argc, char *argv[])
     double meshSize{};
     std::cout << "Enter box mesh size: ";
     std::cin >> meshSize;
-    vc.createBoxAndMesh(meshSize, 3, k_mesh_filename, 0, 0, 0, 100, 100, 300);
+    vc.createBoxAndMesh(meshSize, 3, k_mesh_filename, 0, 0, 0, 300, 300, 700);
 
     // 3. Filling the tetrahedron mesh.
     auto tetrahedronMesh{vc.getTetrahedronMeshParams(k_mesh_filename)};
@@ -51,9 +51,11 @@ int main(int argc, char *argv[])
 
         // 3. Setting boundary conditions: for mesh size = 3
         std::map<int, double> boundaryConditions;
-        for (size_t nodeId : {1, 3, 5, 7, 38}) // *Boundary conditions for box: 100x100x300, mesh size: 3
+        for (size_t nodeId : {2, 4, 6, 8, 28, 29, 30, 59, 60, 61, 50, 51, 52, 53, 54, 55,
+                              215, 201, 206, 211, 203, 205, 207, 209, 204, 210, 214, 202, 208, 213, 212})
             boundaryConditions[nodeId] = 0.0;
-        for (int nodeId : {2, 4, 6, 8, 37})
+        for (int nodeId : {1, 3, 5, 7, 17, 18, 19, 39, 40, 41, 56, 57, 58, 62, 63, 64, 230,
+                           216, 221, 226, 224, 218, 220, 222, 225, 229, 217, 228, 223, 219, 227}) // *Boundary conditions for box: 300x300x700, mesh size: 1
             boundaryConditions[nodeId] = 1.0;
 
         assemblier.setBoundaryConditions(boundaryConditions);
@@ -76,7 +78,10 @@ int main(int argc, char *argv[])
         solver.printLHS();
 
         // 7. Gathering results from the solution of the equation Ax=b to the GMSH .pos file.
-        solver.writeResultsToPosFile();
+        solver.writeElectricPotentialsToPosFile();
+
+        // 8. Making vectors of electrical field for all the tetrahedra in GMSH .pos file.
+        solver.writeElectricFieldVectorsToPosFile();
     }
     Kokkos::finalize();
 

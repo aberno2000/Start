@@ -4,17 +4,21 @@
 #include "../Geometry/Mesh.hpp"
 #include "TrilinosTypes.hpp"
 
+using GradientMatrix = std::vector<std::vector<MathVector>>;
+
 class GSMatrixAssemblier final
 {
 private:
-    std::string_view m_meshfilename;                              ///< GMSH mesh file.
-    Commutator m_comm;                                            ///< Handles inter-process communication within a parallel computing environment. MPI communicator.
-    Teuchos::RCP<MapType> m_map;                                  ///< A smart pointer managing the lifetime of a Map object, which defines the layout of distributed data across the processes in a parallel computation.
-    short m_polynomOrder{}, m_desiredAccuracy{};                  ///< Polynom order and desired accuracy of calculations.
-    short _countCubPoints{}, _countBasisFunctions{}, _spaceDim{}; ///< Private data members to store count of cubature points/cubature weights and count of basis functions.
-    size_t _countTetrahedra{};                                    ///< Private data member - count of tetrahedra in specified mesh.
-    DynRankView _cubPoints, _cubWeights;                          ///< Storing cubature points and cubature weights in static data members because theay are initialized in ctor.
-    Teuchos::RCP<TpetraMatrixType> m_gsmatrix;                    ///< Smart pointer on the global stiffness matrix.
+    std::string_view m_meshfilename;                                         ///< GMSH mesh file.
+    Commutator m_comm;                                                       ///< Handles inter-process communication within a parallel computing environment. MPI communicator.
+    Teuchos::RCP<MapType> m_map;                                             ///< A smart pointer managing the lifetime of a Map object, which defines the layout of distributed data across the processes in a parallel computation.
+    short m_polynomOrder{}, m_desiredAccuracy{};                             ///< Polynom order and desired accuracy of calculations.
+    short _countCubPoints{}, _countBasisFunctions{}, _spaceDim{};            ///< Private data members to store count of cubature points/cubature weights and count of basis functions.
+    size_t _countTetrahedra{};                                               ///< Private data member - count of tetrahedra in specified mesh.
+    DynRankView _cubPoints, _cubWeights;                                     ///< Storing cubature points and cubature weights in static data members because theay are initialized in ctor.
+    DynRankView m_basisFuncGrads;                                            ///< Basis function gradients.
+    std::map<GlobalOrdinal, std::vector<MathVector>> m_basisFuncGradientMap; ///< Basis function gradient map. Key - node ID, value - list of the basis function gradients for this node.
+    Teuchos::RCP<TpetraMatrixType> m_gsmatrix;                               ///< Smart pointer on the global stiffness matrix.
 
     struct MatrixEntry
     {
@@ -80,9 +84,8 @@ private:
      * @brief Computes the gradients of the tetrahedron basis functions transformed to the physical frame for a given mesh parameter.
      * @details This function calculates the gradients of basis functions in the reference coordinate system and transforms them to the physical coordinate system based on the mesh parameters. This transformation is crucial for finite element calculations in the physical domain.
      * @param meshParams The mesh parameter containing the geometry of a tetrahedron.
-     * @return Dynamically ranked view of the transformed basis function gradients.
      */
-    DynRankView _computeTetrahedronBasisFunctionGradientsTransformed(MeshTetrahedronParamVector const &meshParams);
+    void _computeTetrahedronBasisFunctionGradientsTransformed(MeshTetrahedronParamVector const &meshParams);
 
     /**
      * @brief Computes the Jacobians for cells based on mesh parameters.
@@ -150,7 +153,13 @@ public:
     size_t cols() const { return m_gsmatrix->getGlobalNumCols(); }
     constexpr short getPolynomOrder() const { return m_polynomOrder; }
     constexpr short getCalculationAccuracy() const { return m_desiredAccuracy; }
+    constexpr short getCountCubPoints() const { return _countCubPoints; }
+    constexpr short getCountBasisFuncs() const { return _countBasisFunctions; }
+    auto getBasisFuncGrads() const { return m_basisFuncGrads; }
+    constexpr auto const &getBasisFuncGradsMap() const { return m_basisFuncGradientMap; }
     auto getNodes() const { return Mesh::getTetrahedronNodeCoordinates(m_meshfilename); }
+    auto getNodeMap() const { return Mesh::getTetrahedronNodesMap(m_meshfilename); }
+    auto getTetrahedronCentres() const { return Mesh::getTetrahedronCenters(m_meshfilename); }
 
     /// @brief Checks is the global stiffness matrix empty or not.
     bool empty() const;
