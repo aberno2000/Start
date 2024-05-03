@@ -50,7 +50,68 @@ std::vector<Scalar> MatrixEquationSolver::getValuesFromX() const
     return std::vector<Scalar>(data.begin(), data.end());
 }
 
-void MatrixEquationSolver::writeResultsToPosFile() const
+std::map<GlobalOrdinal, Scalar> MatrixEquationSolver::getNodePotentialMap() const
+{
+    if (m_x.is_null())
+        throw std::runtime_error("Solution vector is not initialized");
+
+    std::map<GlobalOrdinal, Scalar> nodePotentialMap;
+    GlobalOrdinal id{1};
+    for (Scalar potential : getValuesFromX())
+        nodePotentialMap[id++] = potential;
+    return nodePotentialMap;
+}
+
+std::map<GlobalOrdinal, MathVector> MatrixEquationSolver::getElectricFieldMap() const
+{
+    try
+    {
+        std::map<GlobalOrdinal, MathVector> electricFieldNodesMap;
+        auto basisFuncGradientsMap{m_assemblier.getBasisFuncGradsMap()};
+        auto nodePotentialsMap{getNodePotentialMap()};
+
+        // 1. Calculating electrical field for nodes: Ei = -Σ(φi⋅∇φi), where i - global index of the node.
+        for (auto const &[nodeId, basisFuncGrads] : basisFuncGradientsMap)
+        {
+            MathVector electricFieldInNode;
+            for (auto const &basisFuncGrad : basisFuncGrads)
+            {
+                double potential{nodePotentialsMap.at(nodeId)};   // φi.
+                electricFieldInNode += potential * basisFuncGrad; // φi⋅∇φi.
+            }
+            electricFieldNodesMap[nodeId] = -electricFieldInNode;
+        }
+
+        // 2. Calculating electric fields for the cells.
+        std::map<GlobalOrdinal, MathVector> electricFieldMap;
+        auto nodesMap{m_assemblier.getNodeMap()};
+        for (auto const &[tetraId, nodeIds] : nodesMap)
+        {
+            // E_cell = ΣE_i, where i - global index of the node.
+            // Let tetrahedra with vertices ABCD, so sum electric field will consist of the electric field in each vertex:
+            // E_cell = E_A + E_B + E_C + E_D.
+
+            MathVector electricFieldInCell;
+            for (size_t nodeId : nodeIds)
+                electricFieldInCell += electricFieldNodesMap.at(nodeId);
+            electricFieldMap[tetraId] = electricFieldInCell;
+        }
+
+        return electricFieldMap;
+    }
+    catch (std::exception const &ex)
+    {
+        ERRMSG(ex.what());
+    }
+    catch (...)
+    {
+        ERRMSG("Unknown error was occured while writing results to the .pos file");
+    }
+    WARNINGMSG("Returning empty electric field map");
+    return std::map<GlobalOrdinal, MathVector>();
+}
+
+void MatrixEquationSolver::writeElectricPotentialsToPosFile() const
 {
     if (m_x.is_null())
     {
@@ -60,7 +121,7 @@ void MatrixEquationSolver::writeResultsToPosFile() const
 
     try
     {
-        std::ofstream posFile("scalarField.pos");
+        std::ofstream posFile("electricPotential.pos");
         posFile << "View \"Scalar Field\" {\n";
         auto nodes{m_assemblier.getNodes()};
         for (auto const &[nodeID, coords] : nodes)
@@ -70,7 +131,52 @@ void MatrixEquationSolver::writeResultsToPosFile() const
         }
         posFile << "};\n";
         posFile.close();
-        LOGMSG("File 'scalarField.pos' was successfully created");
+        LOGMSG("File 'electricPotential.pos' was successfully created");
+    }
+    catch (std::exception const &ex)
+    {
+        ERRMSG(ex.what());
+    }
+    catch (...)
+    {
+        ERRMSG("Unknown error was occured while writing results to the .pos file");
+    }
+}
+
+void MatrixEquationSolver::writeElectricFieldVectorsToPosFile() const
+{
+    if (m_x.is_null())
+    {
+        WARNINGMSG("There is nothing to show. Solution vector is empty.");
+        return;
+    }
+
+    auto tetrahedronCentres{m_assemblier.getTetrahedronCentres()};
+    if (tetrahedronCentres.empty())
+    {
+        WARNINGMSG("There is nothing to show. Storage for the tetrahedron centres is empty.");
+        return;
+    }
+
+    auto electricFieldMap{getElectricFieldMap()};
+    if (electricFieldMap.empty())
+    {
+        WARNINGMSG("There is nothing to show. Storage for the electric field values is empty.");
+        return;
+    }
+
+    try
+    {
+        std::ofstream posFile("electricField.pos");
+        posFile << "View \"Vector Field\" {\n";
+        for (auto const &[tetraId, fieldVector] : electricFieldMap)
+            posFile << std::format("VP({}, {}, {}){{{}, {}, {}}};\n",
+                                   tetrahedronCentres.at(tetraId).at(0), tetrahedronCentres.at(tetraId).at(1), tetrahedronCentres.at(tetraId).at(2),
+                                   electricFieldMap.at(tetraId).getX(), electricFieldMap.at(tetraId).getY(), electricFieldMap.at(tetraId).getZ());
+
+        posFile << "};\n";
+        posFile.close();
+        LOGMSG("File 'electricField.pos' was successfully created");
     }
     catch (std::exception const &ex)
     {
