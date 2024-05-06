@@ -11,7 +11,7 @@
  * This class uses multithreading to update particle positions and track their locations within tetrahedrons
  * over time, effectively simulating particle movement in a 3D space.
  */
-class ParticleTracker final
+class ParticleInCellTracker final
 {
 private:
     ParticleVector &m_particles; ///< Reference to the vector of particles to be tracked.
@@ -60,9 +60,9 @@ private:
     void calculateChargeDensityMap();
 
 public:
-    ParticleTracker(ParticleVector &particles, Grid3D &grid,
-                    double dt, double simtime,
-                    unsigned int num_threads = std::thread::hardware_concurrency());
+    ParticleInCellTracker(ParticleVector &particles, Grid3D &grid,
+                          double dt, double simtime,
+                          unsigned int num_threads = std::thread::hardware_concurrency());
 
     /// @brief Prints all the data from the particle in cell storage: in what time where were particles (in which tetrahedra).
     void printParticlesMap() const;

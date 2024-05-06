@@ -1,6 +1,6 @@
 #include "../include/FiniteElementMethod/MatrixEquationSolver.hpp"
 #include "../include/Generators/VolumeCreator.hpp"
-#include "../include/ParticleInCell/ParticleTracker.hpp"
+#include "../include/ParticleInCell/ParticleInCellTracker.hpp"
 #include "../include/Particles/Particles.hpp"
 
 static constexpr std::string_view k_mesh_filename{"test.msh"};
@@ -33,7 +33,7 @@ int main(int argc, char *argv[])
 
     // 6. Tracking particles inside the tetrahedrons.
     double dt{0.1}, simtime{0.5};
-    ParticleTracker tracker(particles, grid, dt, simtime);
+    ParticleInCellTracker tracker(particles, grid, dt, simtime);
     tracker.printParticlesMap();
     tracker.printChargeDensityMap();
 
