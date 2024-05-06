@@ -266,6 +266,18 @@ public:
     bool colideHS(Particle target, double n_concentration, double time_step);
     bool colideVHS(Particle target, double n_concentration, double omega, double time_step);
     bool colideVSS(Particle target, double n_concentration, double omega, double alpha, double time_step);
+
+    /**
+     * @brief Uses Boris Integrator to calculate updated velocity.
+     * @details Lorentz force: F_L = q(E + v × B), where E - is the electric field,
+                                                B - magnetic field,
+                                                v - instantaneous velocity (velocity of the particle),
+                                                q - charge of the particle.
+                By using II-nd Newton's Law: a = F/m.
+                                             a_L = F_L/m.
+                                             a_L = [q(E + v × B)]/m.
+     */
+    void electroMagneticPush(MathVector const &magneticInduction, MathVector const &electricField, double time_step);
 };
 
 std::ostream &operator<<(std::ostream &os, Particle const &particle);

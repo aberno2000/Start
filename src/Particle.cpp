@@ -309,6 +309,41 @@ bool Particle::colideVSS(Particle target, double n_concentration, double omega,
 	return iscolide;
 }
 
+void Particle::electroMagneticPush(MathVector const &magneticInduction, MathVector const &electricField, double time_step)
+{
+	// Checking 1. Time step can't be null.
+	if (time_step == 0.0)
+	{
+		WARNINGMSG(util::stringify("There is no any movement in particle[", m_id, "]: Time step is 0"));
+		return;
+	}
+
+	// Checking 2. If both of vectors are null - just skip pushing particle with EM.
+	if (magneticInduction.isNull() && electricField.isNull())
+		return;
+
+	// 1. Calculating acceleration using II-nd Newton's Law:
+	MathVector a_L{getCharge() * (electricField + m_velocity.crossProduct(magneticInduction)) / getMass()};
+
+	// 2. Acceleration semistep: V_- = V_old + a_L ⋅ Δt/2.
+	MathVector v_minus{m_velocity + a_L * time_step / 2.};
+
+	// 3. Rotation:
+	/*
+		t = qBΔt/(2m).
+		s = 2t/(1 + |t|^2).
+		V' = V_- + V_- × t.
+		V_+ = V_- + V' × s.
+	*/
+	MathVector t{getCharge() * magneticInduction * time_step / (2. * getMass())},
+		s{2. * t / (1 + t.module() * t.module())},
+		v_apostrophe{v_minus + v_minus.crossProduct(t)},
+		v_plus{v_minus + v_apostrophe.crossProduct(s)};
+
+	// 4. Final acceleration semistep: v_upd = v_+ + a_L ⋅ Δt/2.
+	m_velocity = v_plus + a_L * time_step / 2.;
+}
+
 ParticleVector createParticlesWithVelocities(size_t count, ParticleType type,
 											 double minx, double miny, double minz,
 											 double maxx, double maxy, double maxz,
