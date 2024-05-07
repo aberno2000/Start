@@ -23,6 +23,9 @@ class LogConsole(QWidget):
         self.layout = QVBoxLayout(self)
         self.setup_ui()
         self.setup_vtk_logger()
+        
+        # Flag to check initial adding of extra new line
+        self.isAddedExtraNewLine = False
     
     def __del__(self):
         try:
@@ -73,6 +76,13 @@ class LogConsole(QWidget):
                 else:
                     self.appendLog(line.strip())
         open(self.log_file_path, 'w').close()
+        
+        # Adding '\n' to the end of the first output
+        if not self.isAddedExtraNewLine:
+            logs = self.getAllLogs()
+            if logs.endswith('verbosity: 0'):
+                self.appendLog('\n')
+            self.isAddedExtraNewLine = True
     
     def cleanup(self):
         self.timer.stop()
@@ -89,43 +99,48 @@ class LogConsole(QWidget):
         self.log_console.setTextCursor(cursor)
 
 
-    def insert_colored_text(self, text: str, color: str):
+    def insert_colored_text(self, prefix: str, message: str, color: str):
         """
-        Inserts colored text into a QPlainTextEdit widget.
+        Inserts colored text followed by default-colored text into a QPlainTextEdit widget.
 
         Parameters:
-        - widget: QPlainTextEdit, the widget where the text will be inserted.
-        - text: str, the text to insert.
-        - color: str, the name of the color to use for the text.
+        - prefix: str, the prefix text to insert in color.
+        - message: str, the message text to insert in default color.
+        - color: str, the name of the color to use for the prefix.
         """
         cursor = self.log_console.textCursor()
-        text_format = QTextCharFormat()
-        text_format.setForeground(QColor(color))
-        cursor.mergeCharFormat(text_format)
-        cursor.insertText(text, text_format)
+        
+        # Insert colored prefix
+        prefix_format = QTextCharFormat()
+        prefix_format.setForeground(QColor(color))
+        cursor.mergeCharFormat(prefix_format)
+        cursor.insertText(prefix, prefix_format)
+
+        # Insert the message in default color
+        message_format = QTextCharFormat()
+        cursor.setCharFormat(message_format)
+        cursor.insertText(message + '\n')
+
+        # Ensure the cursor is moved to the end and reset the format
         cursor.movePosition(cursor.End)
         self.log_console.setTextCursor(cursor)
-        default_format = QTextCharFormat()
-        self.log_console.setCurrentCharFormat(default_format)
-        
+        self.log_console.setCurrentCharFormat(QTextCharFormat())
+
         
     def appendLog(self, message):
         self.log_console.appendPlainText(str(message))
         
-    
     def printError(self, message):
-        self.insert_colored_text("Error: ", "red")
-        self.appendLog(message + '\n')
-    
-    
+        self.insert_colored_text("Error: ", message, "red")
+
     def printWarning(self, message):
-        self.insert_colored_text("Warning: ", "yellow")
-        self.appendLog(message + '\n')
-        
-        
+        self.insert_colored_text("Warning: ", message, "yellow")
+    
     def printInfo(self, message):
-        self.appendLog("Info: " + message + '\n')
+        self.appendLog("Info: ", message)
         
+    def getAllLogs(self) -> str:
+        return self.log_console.toPlainText()        
         
     def handle_command(self):
         """
