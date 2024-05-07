@@ -137,7 +137,7 @@ class LogConsole(QWidget):
         self.insert_colored_text("Warning: ", message, "yellow")
     
     def printInfo(self, message):
-        self.appendLog("Info: ", message)
+        self.appendLog("Info: " + str(message))
         
     def getAllLogs(self) -> str:
         return self.log_console.toPlainText()        
