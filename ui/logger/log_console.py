@@ -70,9 +70,9 @@ class LogConsole(QWidget):
         with open(self.log_file_path, 'r') as file:
             for line in file:
                 if 'WARN|' in line:
-                    self.insert_colored_text(line, 'yellow')
+                    self.printWarning(line)
                 elif 'ERR|' in line:
-                    self.insert_colored_text(line, 'red')
+                    self.printError(line)
                 else:
                     self.appendLog(line.strip())
         open(self.log_file_path, 'w').close()
