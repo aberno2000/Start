@@ -21,7 +21,7 @@ public:
      * @brief Sets the boundary conditions to the solution vector. Changes specified values from map.
      * @param boundaryConditions Map for the boundary conditions. Key - ID of diagonal element (row and col). Value - value to be assigned.
      */
-    void setBoundaryConditions(std::map<LocalOrdinal, Scalar> const &boundaryConditions);
+    void setBoundaryConditions(std::map<GlobalOrdinal, Scalar> const &boundaryConditions);
 
     /**
      * @brief Getter for size of the vector.

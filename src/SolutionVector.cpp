@@ -14,7 +14,7 @@ SolutionVector::SolutionVector(size_t size, short polynomOrder)
     }
 }
 
-void SolutionVector::setBoundaryConditions(std::map<LocalOrdinal, Scalar> const &boundaryConditions)
+void SolutionVector::setBoundaryConditions(std::map<GlobalOrdinal, Scalar> const &boundaryConditions)
 {
     if (boundaryConditions.empty())
     {

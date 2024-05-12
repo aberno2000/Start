@@ -688,7 +688,7 @@ bool GSMatrixAssemblier::empty() const { return m_gsmatrix->getGlobalNumEntries(
 
 Scalar GSMatrixAssemblier::getValueFromGSM(GlobalOrdinal row, GlobalOrdinal col) const { return getValueFromMatrix(m_gsmatrix, row, col); }
 
-void GSMatrixAssemblier::setBoundaryConditions(std::map<LocalOrdinal, Scalar> const &boundaryConditions)
+void GSMatrixAssemblier::setBoundaryConditions(std::map<GlobalOrdinal, Scalar> const &boundaryConditions)
 {
     if (boundaryConditions.empty())
     {
