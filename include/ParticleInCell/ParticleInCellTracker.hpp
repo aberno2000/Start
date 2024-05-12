@@ -22,8 +22,8 @@ private:
     /* (Time step | Tetrahedron ID | Particles inside) */
     std::map<double, std::map<size_t, ParticleVector>> m_particlesInCell; ///< Variable to store particles in each time step with known tetrahedra ID.
 
-    /* (Time step | Tetrahedron ID | Charge in coulumbs) */
-    std::map<double, std::map<size_t, double>> m_chargeDensityMap; ///< Charge map: charge in coulumbs for all tetrahedra and for all time steps.
+    /* (Time step | Tetrahedron ID | Charge density in C/m³) */
+    std::map<double, std::map<size_t, double>> m_chargeDensityMap; ///< Charge map: charge density in C/m³ for all tetrahedra and for all time steps.
 
     /* (Time interval ID | time value) */
     std::map<int, double> m_timeMap; ///< Time interval map.
