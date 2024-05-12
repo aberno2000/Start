@@ -121,6 +121,6 @@ if [ "$INTERMEDIATE" = true ] && [ -n "$INTERMEDIATE_FILE" ]; then
     echo -e "Then, select the correspoing \e[1m.root\e[0m file in TBrowser"
 else
     mkdir -pv build && cd build
-    echo "Making with $NUM_THREADS threads. Your PC provides $(nproc) threads."
-    cmake .. && make -j$NUM_THREADS
+    echo "Making with $(($NUM_THREADS / 2)) threads. Your PC provides $(nproc) threads."
+    cmake .. && make -j$(($NUM_THREADS / 2))
 fi
