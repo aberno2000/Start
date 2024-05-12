@@ -138,6 +138,13 @@ public:
     static std::map<size_t, std::vector<size_t>> getTetrahedronNodesMap(std::string_view msh_filename);
 
     /**
+     * @brief Map for global mesh nodes with all neighbour tetrahedrons.
+     * @param msh_filename Mesh file.
+     * @return Map with key = node ID, value = list of neighbour tetrahedrons to this node.
+     */
+    static std::map<size_t, std::vector<size_t>> getNodeTetrahedronsMap(std::string_view msh_filename);
+
+    /**
      * @brief Retrieves node coordinates from a mesh file. Useful for visualization and FEM calculations.
      * @param msh_filename The name of the mesh file (.msh) from which node coordinates are extracted.
      * @return A map where the key is the node ID and the value is an array of three elements (x, y, z) representing the coordinates of the node.
