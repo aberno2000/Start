@@ -124,6 +124,14 @@ public:
     getIntersectionPoint(Ray &&ray, MeshTriangleParam &&triangle) { return getIntersectionPointImpl(std::move(ray), std::move(triangle)); }
 
     /**
+     * @brief Checker for point inside the tetrahedron.
+     * @param point `Point_3` from CGAL.
+     * @param tetrahedron `Tetrahedron_3` from CGAL.
+     * @return `true` if point within the tetrahedron, otherwise `false`.
+     */
+    static bool isPointInsideTetrahedron(Point const &point, MeshTetrahedronParam const &meshParam);
+
+    /**
      * @brief Calculates volume value from the specified mesh file.
      * @param msh_filename The filename of the Gmsh .msh file to parse.
      * @return Volume value.
