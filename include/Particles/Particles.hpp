@@ -278,6 +278,32 @@ public:
                                              a_L = [q(E + v × B)]/m.
      */
     void electroMagneticPush(MathVector const &magneticInduction, MathVector const &electricField, double time_step);
+
+    /**
+     * @brief Compares this Particle object to another for equality.
+     * @details Two particles are considered equal if all their corresponding
+     *          properties are equal.
+     * @param other The Particle object to compare against.
+     * @return `true` if the particles are equal, `false` otherwise.
+     */
+    [[nodiscard("Check of Particle equality should not be ignored to prevent logical errors")]] friend bool operator==(const Particle &lhs, const Particle &rhs)
+    {
+        return lhs.m_id == rhs.m_id &&
+               lhs.m_type == rhs.m_type &&
+               lhs.m_centre == rhs.m_centre &&
+               lhs.m_velocity == rhs.m_velocity &&
+               lhs.m_energy == rhs.m_energy &&
+               lhs.m_bbox == rhs.m_bbox;
+    }
+
+    /**
+     * @brief Compares this Particle object to another for inequality.
+     * @details Two particles are considered unequal if any of their corresponding
+     *          properties are not equal.
+     * @param other The Particle object to compare against.
+     * @return `true` if the particles are not equal, `false` otherwise.
+     */
+    [[nodiscard("Check of Particle inequality should not be ignored to ensure correct logic flow")]] friend bool operator!=(Particle const &lhs, Particle const &rhs) { return !(lhs == rhs); }
 };
 
 std::ostream &operator<<(std::ostream &os, Particle const &particle);
