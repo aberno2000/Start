@@ -172,6 +172,37 @@ private:
     }
 
     /**
+     * @brief Gets charge in count of ions from the specified type of the particle.
+     * @param type Type of the particle represented as enum.
+     * @return Charge of the particle [C - columbs].
+     */
+    constexpr double getChargeInIonsFromType(ParticleType type) const
+    {
+        switch (type)
+        {
+        case ParticleType::Ti:
+            return ion_charges::Ti_2plus; // By default returning 2 ion Ti.
+        case ParticleType::Al:
+            return ion_charges::Al_3plus;
+        case ParticleType::Sn:
+            return ion_charges::Sn_2plus; // By default returning 2 ion Sn.
+        case ParticleType::W:
+            return ion_charges::W_6plus;
+        case ParticleType::Au:
+            return ion_charges::Au_3plus; // By default returning 3 ion Au.
+        case ParticleType::Cu:
+            return ion_charges::Cu_1plus; // By defaule returning 1 ion Cu.
+        case ParticleType::Ni:
+            return ion_charges::Ni_2plus;
+        case ParticleType::Ag:
+            return ion_charges::Ag_1plus;
+        default:
+            WARNINGMSG("Charge of the atom is 0 - it means smth went wrong or you passed unknown particle type, or it's a noble gas");
+            return 0.0;
+        }
+    }
+
+    /**
      * @brief Calculates velocity module from energy of particle and then
      * calculates Vx, Vy, Vz from this module using random numbers.
      * Formula:
@@ -252,6 +283,7 @@ public:
     constexpr double getViscosityTemperatureIndex() const { return getViscosityTemperatureIndexFromType(m_type); }
     constexpr double getVSSDeflectionParameter() const { return getVSSDeflectionParameterFromType(m_type); }
     constexpr double getCharge() const { return getChargeFromType(m_type); }
+    constexpr int getChargeInIons() const { return getChargeInIonsFromType(m_type); }
 
     /**
      * @brief Chooses the specified scattering model.
