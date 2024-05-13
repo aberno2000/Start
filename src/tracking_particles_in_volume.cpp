@@ -25,8 +25,8 @@ int main(int argc, char *argv[])
     auto particles{createParticlesWithVelocities(k_particles_count, k_projective,
                                                  0, 0, 0,
                                                  300, 300, 300,
-                                                 -200, -200, -200,
-                                                 200, 200, 200)};
+                                                 -100, -100, -100,
+                                                 100, 100, 1000)};
 
     // Creating box in the GMSH application.
     GMSHVolumeCreator vc;
@@ -35,8 +35,31 @@ int main(int argc, char *argv[])
     std::cin >> meshSize;
     vc.createBoxAndMesh(meshSize, 3, k_mesh_filename, 0, 0, 0, 300, 300, 700);
 
-    // Filling the tetrahedron mesh and node tetrahedron map.
+    // Initializing triangle mesh and AABB tree for it.
     auto triangleMesh{vc.getMeshParams(k_mesh_filename)};
+    if (triangleMesh.empty())
+    {
+        ERRMSG("Can't construct AABB for triangle mesh -> mesh is empty");
+        return EXIT_FAILURE;
+    }
+
+    TriangleVector triangles;
+    for (auto const &meshParam : triangleMesh)
+    {
+        auto const &triangle{std::get<1>(meshParam)};
+        if (!triangle.is_degenerate())
+            triangles.emplace_back(triangle);
+    }
+
+    if (triangles.empty())
+    {
+        ERRMSG("Can't create AABB for triangle mesh -> triangles from the mesh are invalid (all degenerate)");
+        return EXIT_FAILURE;
+    }
+    AABB_Tree_Triangle tree(std::cbegin(triangles), std::cend(triangles));
+    size_t totalParticlesCount{particles.size()}, deletedParticlesCounter{};
+
+    // Filling the tetrahedron mesh and node tetrahedron map.
     auto tetrahedronMesh{vc.getTetrahedronMeshParams(k_mesh_filename)};
     auto nodeTetrahedronMap{Mesh::getNodeTetrahedronsMap(k_mesh_filename)};
 
@@ -71,7 +94,7 @@ int main(int argc, char *argv[])
             boundaryConditions[nodeId] = 1.0;
 
         assemblier.setBoundaryConditions(boundaryConditions);
-        // assemblier.print(); // 3_opt. Printing the matrix.
+        assemblier.print(); // 3_opt. Printing the matrix.
 
         // Getting the global stiffness matrix and its size to the variable.
         // Matrix is square, hence we can get only count of rows or cols.
@@ -112,9 +135,9 @@ int main(int argc, char *argv[])
                                                                      { return sum + particle.getCharge(); })) /
                                                         (std::get<2>(grid.getTetrahedronMeshParamById(tetrId)) * 1e-9)}); // mm³ to m³.
 
-            // std::cout << "Charge density in tetrahedrons:\n";
-            // for (auto const &[tetrId, tetrDensity] : tetrahedronChargeDensityMap)
-            //     std::cout << std::format("Tetrahedron[{}]: {} C/m³\n", tetrId, tetrDensity);
+            std::cout << "Charge density in tetrahedrons:\n";
+            for (auto const &[tetrId, tetrDensity] : tetrahedronChargeDensityMap)
+                std::cout << std::format("Tetrahedron[{}]: {} C/m³\n", tetrId, tetrDensity);
 
             // Go around each node and aggregate data from adjacent tetrahedra.
             for (auto const &[nodeId, adjecentTetrahedrons] : nodeTetrahedronMap)
@@ -139,9 +162,9 @@ int main(int argc, char *argv[])
                     nodeChargeDensityMap[nodeId] = totalCharge / totalVolume;
             }
 
-            // std::cout << "Charge density in nodes:\n";
-            // for (auto const &[nodeId, chargeDensity] : nodeChargeDensityMap)
-            //     std::cout << std::format("Node[{}] : {} C/m³\n", nodeId, chargeDensity);
+            std::cout << "Charge density in nodes:\n";
+            for (auto const &[nodeId, chargeDensity] : nodeChargeDensityMap)
+                std::cout << std::format("Node[{}] : {} C/m³\n", nodeId, chargeDensity);
 
             /* Remains FEM. */
             // Creating solution vector, filling it with the random values, and applying boundary conditions.
@@ -155,12 +178,12 @@ int main(int argc, char *argv[])
                     boundaryConditions[nodeId] = nodeChargeDensity;
                 b.setBoundaryConditions(boundaryConditions);
             }
-            // b.print(); // 4_opt. Printing the solution vector.
+            b.print(); // 4_opt. Printing the solution vector.
 
             // Solve the equation Ax=b.
             MatrixEquationSolver solver(assemblier, b);
             solver.solveAndPrint();
-            // solver.printLHS();
+            solver.printLHS();
 
             // Writing to files just ones.
             if (t == 0.0)
@@ -196,46 +219,23 @@ int main(int argc, char *argv[])
 
                 // Updating velocity according to the EM-field.
                 if (electricFieldMap.find(containingTetrahedron) != electricFieldMap.cend())
-                {
-                    std::cout << std::format("BEFORE: EM-push: particle[{}]_V: [{}; {}; {}]\n", p.getId(), p.getVx(), p.getVy(), p.getVz());
                     p.electroMagneticPush(magneticInduction, electricFieldMap.at(containingTetrahedron), k_time_step);
-                    std::cout << std::format("AFTER: EM-push: particle[{}]_V: [{}; {}; {}]\n", p.getId(), p.getVx(), p.getVy(), p.getVz());
-                }
 
                 // Updating positions for all the particles.
                 Point prev(p.getCentre()); // Saving previous particle position before updating the position.
-                std::cout << std::format("BEFORE: particle[{}]: ({}; {}; {})\n", p.getId(), p.getX(), p.getY(), p.getZ());
                 p.updatePosition(k_time_step);
-                std::cout << std::format("AFTER: particle[{}]: ({}; {}; {})\n", p.getId(), p.getX(), p.getY(), p.getZ());
 
                 /* Gas collision part. */
-                std::cout << std::format("BEFORE: Gas collision: particle[{}]_V: [{}; {}; {}]\n", p.getId(), p.getVx(), p.getVy(), p.getVz());
                 p.colide(k_gas, k_gas_concentration, k_scattering_model, k_time_step); // Updating velocity according to gas collision.
-                std::cout << std::format("AFTER: Gas collision: particle[{}]_V: [{}; {}; {}]\n", p.getId(), p.getVx(), p.getVy(), p.getVz());
                 Ray ray(prev, p.getCentre());
-
-                // Initializing AABB-tree.
-                auto tree{constructAABBTreeFromMeshParams(triangleMesh)};
-                if (!tree)
-                {
-                    ERRMSG("Failed to fill AABB tree for 2D mesh. Exiting...");
-                    std::exit(EXIT_FAILURE);
-                }
 
                 // Check ray on degeneracy.
                 if (!ray.is_degenerate())
                 {
-                    std::cout << std::format("Ray: ({}; {}; {}) --- ({}; {}; {})\n",
-                                             CGAL_TO_DOUBLE(ray.source().x()), CGAL_TO_DOUBLE(ray.source().y()), CGAL_TO_DOUBLE(ray.source().z()),
-                                             CGAL_TO_DOUBLE(ray.second_point().x()), CGAL_TO_DOUBLE(ray.second_point().y()), CGAL_TO_DOUBLE(ray.second_point().z()));
-
                     // Check intersection of ray with mesh.
-                    auto intersection{tree->first_intersection(ray)};
-                    std::cout << "\033[1;31mIntersection succeed MAYBE\033[0m\033[1m\n";
+                    auto intersection{tree.first_intersection(ray)};
                     if (intersection)
                     {
-                        std::cout << "\033[1;31mIntersection succeed\033[0m\033[1m\n";
-
                         // Getting triangle object.
                         auto triangle{boost::get<Triangle>(*intersection->second)};
 
@@ -249,33 +249,24 @@ int main(int argc, char *argv[])
                             {
                                 // Filling map to detect how much particles settled on certain triangle.
                                 size_t id{Mesh::isRayIntersectTriangle(ray, *matchedIt)};
-                                std::cout << "Settled id is " << id << '\n';
                                 if (id != -1ul)
                                 {
                                     ++settledParticlesMap[id];
 
                                     // Deleting settled particle.
                                     particlesIter = particles.erase(particlesIter);
+                                    ++deletedParticlesCounter;
                                     continue; // Skip the increment step.
                                 }
                             }
                         }
-                        else
-                            std::cout << "Triangle is degenerate\n";
                     }
-                    else
-                        std::cout << p.getId() << " - there is no intersection\n";
                 }
-                else
-                    std::cout << "Ray is degenerate\n";
                 ++particlesIter; // Moving to the next particle.
             }
-
-            std::cout << "Settled particles\n";
-            for (auto const &[triangleId, count] : settledParticlesMap)
-                std::cout << std::format("Triangle[{}]: {}\n", triangleId, count);
         }
     }
     Kokkos::finalize();
+    std::cout << std::format("Total particles count: {}\nDeleted particles count: {}\nRemains: {}\n", totalParticlesCount, deletedParticlesCounter, particles.size());
     return EXIT_SUCCESS;
 }
