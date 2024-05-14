@@ -46,18 +46,7 @@ public:
     /**
      * @brief Calculates and returns a map of the cumulative electric field vectors for each tetrahedron.
      *
-     * @details This function computes the electric field vectors in two stages:
-     *          1. For each node, the electric field vector is calculated using the formula:
-     *             Ei = -Σφi⋅∇φi
-     *             where φi is the potential at node 'i', and ∇φi is the gradient of the basis
-     *             function associated with node 'i'. This step accumulates the contributions of the
-     *             potential and its gradient to the electric field at each node.
-     *          2. For each tetrahedron, the cumulative electric field vector is computed by summing
-     *             up the electric field vectors of all its nodes. This gives a representation of the
-     *             overall electric field influence within each tetrahedron, providing insights into
-     *             the combined effects of the electric fields from all constituent nodes.
-     *
-     *          The result is a map where each key corresponds to a tetrahedron ID, and each value
+     * @details The result is a map where each key corresponds to a tetrahedron ID, and each value
      *          is the cumulative electric field vector for that tetrahedron, representing the
      *          aggregated influence of all its nodes' electric fields.
      *

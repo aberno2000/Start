@@ -66,37 +66,34 @@ std::map<GlobalOrdinal, MathVector> MatrixEquationSolver::getElectricFieldMap() 
 {
     try
     {
-        std::map<GlobalOrdinal, MathVector> electricFieldNodesMap;
-        auto basisFuncGradientsMap{m_assemblier.getBasisFuncGradsMap()};
-        auto nodePotentialsMap{getNodePotentialMap()};
-
-        // 1. Calculating electrical field for nodes: Ei = -Σ(φi⋅∇φi), where i - global index of the node.
-        for (auto const &[nodeId, basisFuncGrads] : basisFuncGradientsMap)
-        {
-            MathVector electricFieldInNode;
-            for (auto const &basisFuncGrad : basisFuncGrads)
-            {
-                double potential{nodePotentialsMap.at(nodeId)};   // φi.
-                electricFieldInNode += potential * basisFuncGrad; // φi⋅∇φi.
-            }
-            electricFieldNodesMap[nodeId] = -electricFieldInNode;
-        }
-
-        // 2. Calculating electric fields for the cells.
         std::map<GlobalOrdinal, MathVector> electricFieldMap;
-        auto nodesMap{m_assemblier.getNodeMap()};
-        for (auto const &[tetraId, nodeIds] : nodesMap)
+        auto basisFuncGradientsMap{m_assemblier.getBasisFuncGradsMap()};
+        if (basisFuncGradientsMap.empty())
         {
-            // E_cell = ΣE_i, where i - global index of the node.
-            // Let tetrahedra with vertices ABCD, so sum electric field will consist of the electric field in each vertex:
-            // E_cell = E_A + E_B + E_C + E_D.
-
-            MathVector electricFieldInCell;
-            for (size_t nodeId : nodeIds)
-                electricFieldInCell += electricFieldNodesMap.at(nodeId);
-            electricFieldMap[tetraId] = electricFieldInCell;
+            WARNINGMSG("There is no basis function gradients");
+            return electricFieldMap;
         }
 
+        auto nodePotentialsMap{getNodePotentialMap()};
+        if (nodePotentialsMap.empty())
+        {
+            WARNINGMSG("There are no potentials in nodes. Maybe you forget to calculate the matrix equation Ax=b");
+            return electricFieldMap;
+        }
+
+        // We have map: (Tetrahedron ID | map<Node ID | Basis function gradient math vector (3 components)>).
+        // To get electric field of the cell we just need to accumulate all the basis func grads for each node for each tetrahedron:
+        // E_cell = -Σ(φi⋅∇φi), where i - global index of the node.
+        for (auto const &[tetraId, basisFuncGrads] : basisFuncGradientsMap)
+        {
+            MathVector E_cell;
+            for (auto const &[nodeId, basisFuncGrad] : basisFuncGrads)
+                E_cell += nodePotentialsMap.at(nodeId) * basisFuncGrad;
+            electricFieldMap[tetraId] = -E_cell;
+        }
+
+        if (electricFieldMap.empty())
+            WARNINGMSG("Something went wrong: There is no electric field in the mesh")
         return electricFieldMap;
     }
     catch (std::exception const &ex)
