@@ -224,7 +224,6 @@ bool Mesh::isPointInsideTetrahedron(Point const &point, MeshTetrahedronParam con
     else if (oriented_side == CGAL::ON_NEGATIVE_SIDE)
         return false;
     else
-        // TODO: Correctly handle case when particle is on boundary of tetrahedron.
         return true;
 }
 
