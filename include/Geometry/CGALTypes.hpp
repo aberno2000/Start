@@ -5,13 +5,14 @@
 #include <CGAL/AABB_tree.h>
 #include <CGAL/AABB_triangle_primitive.h>
 #include <CGAL/Exact_predicates_exact_constructions_kernel.h>
+#include <CGAL/Segment_3.h>
 #include <CGAL/intersections.h>
 
 #define CGAL_TO_DOUBLE(var) CGAL::to_double(var)
 
 using Kernel = CGAL::Exact_predicates_inexact_constructions_kernel;
 using Point = Kernel::Point_3;
-using Ray = Kernel::Ray_3;
+using Ray = Kernel::Segment_3; // Finite ray - line segment.
 using Triangle = Kernel::Triangle_3;
 using Tetrahedron = Kernel::Tetrahedron_3;
 
