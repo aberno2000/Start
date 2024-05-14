@@ -37,7 +37,7 @@ void CollisionTracker::processSegment(size_t start_index, size_t end_index,
                           if (not ray.is_degenerate())
                           {
                               // Check intersection of ray with mesh
-                              auto intersection{tree.first_intersection(ray)};
+                              auto intersection{tree.any_intersection(ray)};
                               if (intersection)
                               {
                                   // Getting triangle object
