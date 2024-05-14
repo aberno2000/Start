@@ -720,7 +720,7 @@ void GSMatrixAssemblier::setBoundaryConditions(std::map<GlobalOrdinal, Scalar> c
                                                              ", which exceeds the maximum row index of ",
                                                              rows() - 1, "."));
 
-                _setBoundaryConditionForNode(nodeID, value);
+                _setBoundaryConditionForNode(nodeID, 1); // Maybe there is need to be 1, to have value = `value` in `x` vector, while solve Ax=b. 
             }
         }
 
