@@ -90,6 +90,10 @@ bool ParticleTracker::isPointInsideTetrahedron(Point const &point, MeshTetrahedr
 
 size_t ParticleTracker::isRayIntersectTriangle(Ray const &ray, MeshTriangleParam const &triangle)
 {
+    // Returning invalid index if ray or triangle is degenerate
+    if (std::get<1>(triangle).is_degenerate() || ray.is_degenerate())
+        return -1ul;
+
     return (RayTriangleIntersection::isIntersectTriangle(ray, std::get<1>(triangle)))
                ? std::get<0>(triangle)
                : -1ul;
@@ -125,9 +129,8 @@ void ParticleTracker::startSimulation(ParticleType const &particleType, size_t p
     // Setting boundary conditions.
     // *Boundary conditions for box: 300x300x700, mesh size: 1.
     std::map<GlobalOrdinal, double> boundaryConditions;
-    for (size_t nodeId : /* _boundaryNodes */
-         {2, 4, 6, 8, 28, 29, 30, 59, 60, 61, 50, 51, 52, 53, 54, 55,
-          215, 201, 206, 211, 203, 205, 207, 209, 204, 210, 214, 202, 208, 213, 212})
+    for (size_t nodeId : {2, 4, 6, 8, 28, 29, 30, 59, 60, 61, 50, 51, 52, 53, 54, 55,
+                          215, 201, 206, 211, 203, 205, 207, 209, 204, 210, 214, 202, 208, 213, 212})
         boundaryConditions[nodeId] = 0.0;
     for (GlobalOrdinal nodeId : {1, 3, 5, 7, 17, 18, 19, 39, 40, 41, 56, 57, 58, 62, 63, 64, 230,
                                  216, 221, 226, 224, 218, 220, 222, 225, 229, 217, 228, 223, 219, 227})
@@ -255,37 +258,37 @@ void ParticleTracker::startSimulation(ParticleType const &particleType, size_t p
             // Updating positions for all the particles.
             Point prev(particle.getCentre()); // Saving previous particle position before updating the position.
             particle.updatePosition(time_step);
-
-            /* Gas collision part. */
-            particle.colide(k_gas, k_gas_concentration, k_scattering_model, time_step); // Updating velocity according to gas collision.
             Ray ray(prev, particle.getCentre());
 
             // Check ray on degeneracy.
-            if (!ray.is_degenerate())
-            {
-                // Check intersection of ray with mesh.
-                auto intersection{_surfaceMeshAABBtree.any_intersection(ray)};
-                if (intersection)
-                {
-                    // Getting triangle object.
-                    auto triangle{boost::get<Triangle>(*intersection->second)};
+            if (ray.is_degenerate())
+                continue;
 
-                    // Check if some of sides of angles in the triangle <= 0 (check on degeneracy).
-                    if (!triangle.is_degenerate())
-                    {
-                        // Finding matching triangle in the mesh.
-                        auto matchedIt{std::ranges::find_if(_triangleMesh, [triangle](auto const &el)
-                                                            { return triangle == std::get<1>(el); })};
-                        if (matchedIt != _triangleMesh.cend())
-                        {
-                            size_t id{isRayIntersectTriangle(ray, *matchedIt)};
-                            if (id != -1ul)
-                            {
-                                ++settledParticlesCounterMap[id];              // Filling map to detect how much particles settled on certain triangle.
-                                _settledParticlesIds.insert(particle.getId()); // Remembering settled particle ID.
-                            }
-                        }
-                    }
+            /* Gas collision part. */
+            particle.colide(k_gas, k_gas_concentration, k_scattering_model, time_step); // Updating velocity according to gas collision.
+
+            // Check intersection of ray with mesh.
+            auto intersection{_surfaceMeshAABBtree.any_intersection(ray)};
+            if (!intersection)
+                continue;
+
+            // Getting triangle object.
+            auto triangle{boost::get<Triangle>(*intersection->second)};
+
+            // Check if some of sides of angles in the triangle <= 0 (check on degeneracy).
+            if (triangle.is_degenerate())
+                continue;
+
+            // Finding matching triangle in the mesh.
+            auto matchedIt{std::ranges::find_if(_triangleMesh, [triangle](auto const &el)
+                                                { return triangle == std::get<1>(el); })};
+            if (matchedIt != _triangleMesh.cend())
+            {
+                size_t id{isRayIntersectTriangle(ray, *matchedIt)};
+                if (id != -1ul)
+                {
+                    ++settledParticlesCounterMap[id];              // Filling map to detect how much particles settled on certain triangle.
+                    _settledParticlesIds.insert(particle.getId()); // Remembering settled particle ID.
                 }
             }
         }
