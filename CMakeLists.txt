@@ -119,6 +119,7 @@ set(SOURCES
     src/Mesh.cpp
     src/Particle.cpp
     src/ParticleInCellTracker.cpp
+    src/ParticleTracker.cpp
     src/RayTriangleIntersection.cpp
     src/RealNumberGenerator.cpp
     src/SolutionVector.cpp
