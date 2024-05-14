@@ -11,16 +11,16 @@ using GradientMatrix = std::vector<std::vector<MathVector>>;
 class GSMatrixAssemblier final
 {
 private:
-    std::string_view m_meshfilename;                                         ///< GMSH mesh file.
-    Commutator m_comm;                                                       ///< Handles inter-process communication within a parallel computing environment. MPI communicator.
-    Teuchos::RCP<MapType> m_map;                                             ///< A smart pointer managing the lifetime of a Map object, which defines the layout of distributed data across the processes in a parallel computation.
-    short m_polynomOrder{}, m_desiredAccuracy{};                             ///< Polynom order and desired accuracy of calculations.
-    short _countCubPoints{}, _countBasisFunctions{}, _spaceDim{};            ///< Private data members to store count of cubature points/cubature weights and count of basis functions.
-    size_t _countTetrahedra{};                                               ///< Private data member - count of tetrahedra in specified mesh.
-    DynRankView _cubPoints, _cubWeights;                                     ///< Storing cubature points and cubature weights in static data members because theay are initialized in ctor.
-    DynRankView m_basisFuncGrads;                                            ///< Basis function gradients.
-    std::map<GlobalOrdinal, std::vector<MathVector>> m_basisFuncGradientMap; ///< Basis function gradient map. Key - node ID, value - list of the basis function gradients for this node.
-    Teuchos::RCP<TpetraMatrixType> m_gsmatrix;                               ///< Smart pointer on the global stiffness matrix.
+    std::string_view m_meshfilename;                                                     ///< GMSH mesh file.
+    Commutator m_comm;                                                                   ///< Handles inter-process communication within a parallel computing environment. MPI communicator.
+    Teuchos::RCP<MapType> m_map;                                                         ///< A smart pointer managing the lifetime of a Map object, which defines the layout of distributed data across the processes in a parallel computation.
+    short m_polynomOrder{}, m_desiredAccuracy{};                                         ///< Polynom order and desired accuracy of calculations.
+    short _countCubPoints{}, _countBasisFunctions{}, _spaceDim{};                        ///< Private data members to store count of cubature points/cubature weights and count of basis functions.
+    size_t _countTetrahedra{};                                                           ///< Private data member - count of tetrahedra in specified mesh.
+    DynRankView _cubPoints, _cubWeights;                                                 ///< Storing cubature points and cubature weights in static data members because theay are initialized in ctor.
+    DynRankView m_basisFuncGrads;                                                        ///< Basis function gradients.
+    std::map<GlobalOrdinal, std::map<GlobalOrdinal, MathVector>> m_basisFuncGradientMap; ///< Basis function gradient map. Key - node ID, value - list of the basis function gradients for this node.
+    Teuchos::RCP<TpetraMatrixType> m_gsmatrix;                                           ///< Smart pointer on the global stiffness matrix.
 
     struct MatrixEntry
     {

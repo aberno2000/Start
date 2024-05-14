@@ -375,19 +375,30 @@ void GSMatrixAssemblier::_computeTetrahedronBasisFunctionGradientsTransformed(Me
 
         // Only for polynom order = 1:
         size_t firstTetraID{std::get<0>(meshParams.front())}; // Local index is 0, global index for tetrahedra is the 1st element of the tuple.
-        auto nodesMap{Mesh::getTetrahedronNodesMap(m_meshfilename)};
+        auto tetraNodesMap{Mesh::getTetrahedronNodesMap(m_meshfilename)};
+
         for (size_t localTetraId{}; localTetraId < meshParams.size(); ++localTetraId)
         {
-            auto globalNodeIds{nodesMap.at(localTetraId + firstTetraID)};
+            auto globalNodeIds{tetraNodesMap.at(localTetraId + firstTetraID)};
             for (short localNodeId{}; localNodeId < _countBasisFunctions; ++localNodeId)
             {
                 // As we have polynom order = 1, that all the values from the ∇φ in all cub points are the same, so we can add only 1 row from each ∇φ.
-                m_basisFuncGradientMap[globalNodeIds.at(localNodeId)].emplace_back(MathVector(
-                    m_basisFuncGrads(localTetraId, localNodeId, 0, 0),
-                    m_basisFuncGrads(localTetraId, localNodeId, 0, 1),
-                    m_basisFuncGrads(localTetraId, localNodeId, 0, 2)));
+                m_basisFuncGradientMap[localTetraId + firstTetraID].insert(std::make_pair(
+                    globalNodeIds.at(localNodeId),
+                    MathVector(m_basisFuncGrads(localTetraId, localNodeId, 0, 0),
+                               m_basisFuncGrads(localTetraId, localNodeId, 0, 1),
+                               m_basisFuncGrads(localTetraId, localNodeId, 0, 2))));
             }
         }
+
+#ifdef PRINT_ALL
+        for (auto const &[tetraId, entries] : m_basisFuncGradientMap)
+        {
+            std::cout << std::format("\033[1;34mTetrahedron[{}]\033[0m\033[1m\n", tetraId);
+            for (auto const &[nodeId, basisFuncGrad] : entries)
+                std::cout << std::format("Node[{}]: ", nodeId) << basisFuncGrad << '\n';
+        }
+#endif
     }
     catch (std::exception const &ex)
     {
@@ -720,7 +731,7 @@ void GSMatrixAssemblier::setBoundaryConditions(std::map<GlobalOrdinal, Scalar> c
                                                              ", which exceeds the maximum row index of ",
                                                              rows() - 1, "."));
 
-                _setBoundaryConditionForNode(nodeID, 1); // Maybe there is need to be 1, to have value = `value` in `x` vector, while solve Ax=b. 
+                _setBoundaryConditionForNode(nodeID, 1); // Maybe there is need to be 1, to have value = `value` in `x` vector, while solve Ax=b.
             }
         }
 
