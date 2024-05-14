@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <execution>
+#include <gmsh.h>
 
 #include "../include/FiniteElementMethod/MatrixEquationSolver.hpp"
 #include "../include/Generators/VolumeCreator.hpp"
@@ -7,13 +8,67 @@
 #include "../include/Particles/Particles.hpp"
 
 static constexpr std::string_view k_mesh_filename{"test.msh"};
-static constexpr size_t k_particles_count{1'000};
+static constexpr size_t k_particles_count{10'000};
 static constexpr ParticleType k_projective{particle_types::Al};
 static constexpr ParticleType k_gas{particle_types::Ar};
 static constexpr double k_gas_concentration{10e26};
 static constexpr std::string_view k_scattering_model{"HS"};
 static constexpr double k_time_step{0.1};
 static constexpr double k_simtime{0.5};
+
+static std::vector<Ray> particleMovements;
+
+void writeMeshFile(MeshTriangleParamVector const &meshParams, const std::string &outputFilename)
+{
+    gmsh::model::add("MeshTriangles");
+
+    for (const auto &param : meshParams)
+    {
+        auto const &[id, triangle, area, counter] = param;
+        std::vector<int> pointTags;
+        for (int i = 0; i < 3; ++i)
+        {
+            auto const &vertex = triangle.vertex(i);
+            int pt = gmsh::model::geo::addPoint(vertex.x(), vertex.y(), vertex.z(), 1.0);
+            pointTags.push_back(pt);
+        }
+
+        std::vector<int> lineTags;
+        for (int i = 0; i < 3; ++i)
+        {
+            int next = (i + 1) % 3;
+            int line = gmsh::model::geo::addLine(pointTags[i], pointTags[next]);
+            lineTags.push_back(line);
+        }
+
+        int ll = gmsh::model::geo::addCurveLoop(lineTags);
+        gmsh::model::geo::addPlaneSurface({ll});
+
+        gmsh::model::geo::synchronize();
+    }
+    gmsh::write(outputFilename);
+}
+
+void writeRaysFile(const std::vector<Ray> &rays, const std::string &outputFilename)
+{
+    gmsh::model::add("ParticleMovements");
+
+    double sphereRadius{3};
+    for (const auto &ray : rays)
+    {
+        int startPt = gmsh::model::geo::addPoint(ray.vertex(0).x(), ray.vertex(0).y(), ray.vertex(0).z(), 1.0);
+        int endPt = gmsh::model::geo::addPoint(ray.vertex(1).x(), ray.vertex(1).y(), ray.vertex(1).z(), 1.0);
+
+        gmsh::model::geo::addLine(startPt, endPt);
+        gmsh::model::occ::addSphere(ray.vertex(0).x(), ray.vertex(0).y(), ray.vertex(0).z(), sphereRadius);
+        gmsh::model::occ::addSphere(ray.vertex(1).x(), ray.vertex(1).y(), ray.vertex(1).z(), sphereRadius);
+
+        gmsh::option::setNumber("Mesh.MeshSizeFactor", 1);
+        gmsh::model::occ::synchronize();
+        gmsh::model::mesh::generate(2);
+    }
+    gmsh::write(outputFilename);
+}
 
 int main(int argc, char *argv[])
 {
@@ -23,10 +78,11 @@ int main(int argc, char *argv[])
 
     // Creating particles.
     auto particles{createParticlesWithVelocities(k_particles_count, k_projective,
-                                                 0, 0, 0,
-                                                 300, 300, 300,
+                                                 100, 100, 100,
+                                                 200, 200, 200,
                                                  -100, -100, -100,
-                                                 100, 100, 1000)};
+                                                 100, 100, 100)};
+    std::set<int> settledParticlesIds; // Set of the particle IDs that are been settled (need to avoid checking already settled particles).
 
     // Creating box in the GMSH application.
     GMSHVolumeCreator vc;
@@ -57,7 +113,6 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
     AABB_Tree_Triangle tree(std::cbegin(triangles), std::cend(triangles));
-    size_t totalParticlesCount{particles.size()}, deletedParticlesCounter{};
 
     // Filling the tetrahedron mesh and node tetrahedron map.
     auto tetrahedronMesh{vc.getTetrahedronMeshParams(k_mesh_filename)};
@@ -101,8 +156,11 @@ int main(int argc, char *argv[])
         auto A{assemblier.getGlobalStiffnessMatrix()};
         auto size{assemblier.rows()};
 
+        SolutionVector b(size, polynomOrder);
+        b.clear();
+
         // Tracking particles inside the tetrahedrons.
-        for (double t{}; t < k_simtime; t += k_time_step)
+        for (double t{}; t <= k_simtime; t += k_time_step)
         {
             std::cout << std::format("\033[1;34mTime {} s\n\033[0m", t);
 
@@ -116,10 +174,10 @@ int main(int argc, char *argv[])
             std::map<GlobalOrdinal, double> nodeChargeDensityMap;
 
             /* (Triangle ID | Counter of settled particle in this triangle) */
-            std::map<size_t, int> settledParticlesMap;
+            std::map<size_t, int> settledParticlesCounterMap;
 
             // For each time step managing movement of each particle.
-            for (auto &particle : particles)
+            for (Particle const &particle : particles)
             {
                 // Determine which tetrahedrons the particle may intersect based on its grid index.
                 auto meshParams{grid.getTetrahedronsByGridIndex(grid.getGridIndexByPosition(particle.getCentre()))};
@@ -168,16 +226,9 @@ int main(int argc, char *argv[])
 
             /* Remains FEM. */
             // Creating solution vector, filling it with the random values, and applying boundary conditions.
-            SolutionVector b(size, polynomOrder);
-            b.clear();
-            if (t == 0.0)
-                b.setBoundaryConditions(boundaryConditions);
-            else
-            {
-                for (auto const &[nodeId, nodeChargeDensity] : boundaryConditions)
-                    boundaryConditions[nodeId] = nodeChargeDensity;
-                b.setBoundaryConditions(boundaryConditions);
-            }
+            for (auto const &[nodeId, nodeChargeDensity] : nodeChargeDensityMap)
+                boundaryConditions[nodeId] = nodeChargeDensity;
+            b.setBoundaryConditions(boundaryConditions);
             b.print(); // 4_opt. Printing the solution vector.
 
             // Solve the equation Ax=b.
@@ -185,7 +236,7 @@ int main(int argc, char *argv[])
             solver.solveAndPrint();
             solver.printLHS();
 
-            // Writing to files just ones.
+            // Writing to electric and potential fields to files just ones.
             if (t == 0.0)
             {
                 // Gathering results from the solution of the equation Ax=b to the GMSH .pos file.
@@ -198,19 +249,18 @@ int main(int argc, char *argv[])
             // EM-pushgin particle with Boris Integrator.
             MathVector magneticInduction{};                      // For brevity assuming that induction vector B is 0.
             auto electricFieldMap{solver.getElectricFieldMap()}; // Getting electric field for the each cell.
-            auto particlesIter{particles.begin()};
-            while (particlesIter != particles.cend())
+            for (Particle &particle : particles)
             {
-                Particle &p{*particlesIter};
+                // If set contains specified particle ID - skip checking this particle.
+                if (settledParticlesIds.find(particle.getId()) != settledParticlesIds.cend())
+                    continue;
 
                 // Finding tetrahedron that containing this particle.
                 size_t containingTetrahedron{};
                 for (auto const &[tetraId, particlesInside] : PICtracker)
                 {
-                    auto it{
-                        std::ranges::find_if(particlesInside, [&p](Particle const &storedParticle)
-                                             { return p.getId() == storedParticle.getId(); })};
-                    if (it != particlesInside.cend())
+                    if (std::ranges::find_if(particlesInside, [&particle](Particle const &storedParticle)
+                                             { return particle.getId() == storedParticle.getId(); }) != particlesInside.cend())
                     {
                         containingTetrahedron = tetraId;
                         break; // If particle was found inside certain tetrahedron - breaking down the loop.
@@ -219,21 +269,22 @@ int main(int argc, char *argv[])
 
                 // Updating velocity according to the EM-field.
                 if (electricFieldMap.find(containingTetrahedron) != electricFieldMap.cend())
-                    p.electroMagneticPush(magneticInduction, electricFieldMap.at(containingTetrahedron), k_time_step);
+                    particle.electroMagneticPush(magneticInduction, electricFieldMap.at(containingTetrahedron), k_time_step);
 
                 // Updating positions for all the particles.
-                Point prev(p.getCentre()); // Saving previous particle position before updating the position.
-                p.updatePosition(k_time_step);
+                Point prev(particle.getCentre()); // Saving previous particle position before updating the position.
+                particle.updatePosition(k_time_step);
 
                 /* Gas collision part. */
-                p.colide(k_gas, k_gas_concentration, k_scattering_model, k_time_step); // Updating velocity according to gas collision.
-                Ray ray(prev, p.getCentre());
+                particle.colide(k_gas, k_gas_concentration, k_scattering_model, k_time_step); // Updating velocity according to gas collision.
+                Ray ray(prev, particle.getCentre());
+                particleMovements.emplace_back(ray);
 
                 // Check ray on degeneracy.
                 if (!ray.is_degenerate())
                 {
                     // Check intersection of ray with mesh.
-                    auto intersection{tree.first_intersection(ray)};
+                    auto intersection{tree.any_intersection(ray)};
                     if (intersection)
                     {
                         // Getting triangle object.
@@ -247,26 +298,19 @@ int main(int argc, char *argv[])
                                                                 { return triangle == std::get<1>(el); })};
                             if (matchedIt != triangleMesh.cend())
                             {
-                                // Filling map to detect how much particles settled on certain triangle.
                                 size_t id{Mesh::isRayIntersectTriangle(ray, *matchedIt)};
                                 if (id != -1ul)
                                 {
-                                    ++settledParticlesMap[id];
-
-                                    // Deleting settled particle.
-                                    particlesIter = particles.erase(particlesIter);
-                                    ++deletedParticlesCounter;
-                                    continue; // Skip the increment step.
+                                    ++settledParticlesCounterMap[id];             // Filling map to detect how much particles settled on certain triangle.
+                                    settledParticlesIds.insert(particle.getId()); // Remembering settled particle ID.
                                 }
                             }
                         }
                     }
                 }
-                ++particlesIter; // Moving to the next particle.
             }
         }
     }
     Kokkos::finalize();
-    std::cout << std::format("Total particles count: {}\nDeleted particles count: {}\nRemains: {}\n", totalParticlesCount, deletedParticlesCounter, particles.size());
     return EXIT_SUCCESS;
 }
