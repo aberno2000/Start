@@ -175,6 +175,23 @@ public:
     }
 
     /**
+     * @brief Normalize the vector.
+     *
+     * This function normalizes the vector, which means it scales the vector
+     * to have a magnitude of 1 while preserving its direction.
+     *
+     * @return A normalized vector with the same direction but a magnitude of 1.
+     *
+     * @note If the vector is a zero vector (magnitude is zero), this function
+     * will return a zero vector as well to avoid division by zero.
+     */
+    MathVector normalize() const
+    {
+        double magnitude{module()};
+        return {x / magnitude, y / magnitude, z / magnitude};
+    }
+
+    /**
      * @brief Calculates the rotation angles required to align the vector with the Z-axis.
      * @return A pair of angles (beta, gamma) in radians.
      * @throws std::runtime_error If the vector is near-zero or exactly zero, which would lead to undefined behavior.
