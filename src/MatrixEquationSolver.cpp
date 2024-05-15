@@ -169,7 +169,7 @@ void MatrixEquationSolver::writeElectricFieldVectorsToPosFile() const
         for (auto const &[tetraId, fieldVector] : electricFieldMap)
             posFile << std::format("VP({}, {}, {}){{{}, {}, {}}};\n",
                                    tetrahedronCentres.at(tetraId).at(0), tetrahedronCentres.at(tetraId).at(1), tetrahedronCentres.at(tetraId).at(2),
-                                   electricFieldMap.at(tetraId).getX(), electricFieldMap.at(tetraId).getY(), electricFieldMap.at(tetraId).getZ());
+                                   fieldVector.getX(), fieldVector.getY(), fieldVector.getZ());
 
         posFile << "};\n";
         posFile.close();
