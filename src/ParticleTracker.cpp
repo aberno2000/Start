@@ -35,21 +35,20 @@ void ParticleTracker::initializeSurfaceMeshAABB()
         throw std::runtime_error("");
     }
 
-    TriangleVector triangles;
     for (auto const &meshParam : _triangleMesh)
     {
         auto const &triangle{std::get<1>(meshParam)};
         if (!triangle.is_degenerate())
-            triangles.emplace_back(triangle);
+            _triangles.emplace_back(triangle);
     }
 
-    if (triangles.empty())
+    if (_triangles.empty())
     {
         ERRMSG("Can't create AABB for triangle mesh - triangles from the mesh are invalid. Possible reason: all the triangles are degenerate")
         throw std::runtime_error("");
     }
 
-    _surfaceMeshAABBtree = AABB_Tree_Triangle(std::cbegin(triangles), std::cend(triangles));
+    _surfaceMeshAABBtree = AABB_Tree_Triangle(std::cbegin(_triangles), std::cend(_triangles));
 }
 
 void ParticleTracker::initializeVolumeMesh() { _tetrahedronMesh = Mesh::getTetrahedronMeshParams(m_mesh_filename); }

@@ -19,6 +19,7 @@ private:
     /* All neccessary data members from the mesh. */
     std::string m_mesh_filename;                 ///< Mesh filename (must has .msh format).
     MeshTriangleParamVector _triangleMesh;       ///< Triangle mesh params acquired from the mesh file. Surface mesh.
+    TriangleVector _triangles;                   ///< Triangles extracted from the triangle mesh params `_triangleMesh` (surface mesh). Need to initialize AABB tree.
     AABB_Tree_Triangle _surfaceMeshAABBtree;     ///< AABB tree for the surface mesh to effectively detect collisions with surface.
     MeshTetrahedronParamVector _tetrahedronMesh; ///< Tetrahedron mesh params acquired from the mesh file. Volume mesh.
     NodeTetrahedronMap _nodeTetraMap;            ///< Map for the nodes and tetrahedrons - which tetrahedrons surround certain node. (Node ID | Tetrahedron IDs).
