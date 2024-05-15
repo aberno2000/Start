@@ -128,6 +128,11 @@ void ParticleTracker::startSimulation(ParticleType const &particleType, size_t p
     // Setting boundary conditions.
     // *Boundary conditions for box: 300x300x700, mesh size: 1.
     std::map<GlobalOrdinal, double> boundaryConditions;
+    std::vector<int> nonChangableNodes{2, 4, 6, 8, 28, 29, 30, 59, 60, 61, 50, 51, 52, 53, 54, 55,
+                                       215, 201, 206, 211, 203, 205, 207, 209, 204, 210, 214, 202, 208, 213, 212,
+                                       1, 3, 5, 7, 17, 18, 19, 39, 40, 41, 56, 57, 58, 62, 63, 64, 230,
+                                       216, 221, 226, 224, 218, 220, 222, 225, 229, 217, 228, 223, 219, 227};
+
     for (size_t nodeId : {2, 4, 6, 8, 28, 29, 30, 59, 60, 61, 50, 51, 52, 53, 54, 55,
                           215, 201, 206, 211, 203, 205, 207, 209, 204, 210, 214, 202, 208, 213, 212})
         boundaryConditions[nodeId] = 0.0;
@@ -210,7 +215,8 @@ void ParticleTracker::startSimulation(ParticleType const &particleType, size_t p
         /* Remains FEM. */
         // Creating solution vector, filling it with the random values, and applying boundary conditions.
         for (auto const &[nodeId, nodeChargeDensity] : nodeChargeDensityMap)
-            boundaryConditions[nodeId] = nodeChargeDensity;
+            if (std::ranges::find(nonChangableNodes, nodeId) == nonChangableNodes.cend())
+                boundaryConditions[nodeId] = nodeChargeDensity;
         solutionVector.setBoundaryConditions(boundaryConditions);
         solutionVector.print(); // 4_opt. Printing the solution vector.
 
