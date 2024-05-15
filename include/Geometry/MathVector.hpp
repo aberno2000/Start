@@ -188,7 +188,7 @@ public:
     MathVector normalize() const
     {
         double magnitude{module()};
-        return {x / magnitude, y / magnitude, z / magnitude};
+        return magnitude != 0 ? MathVector{x / magnitude, y / magnitude, z / magnitude} : MathVector{};
     }
 
     /**
