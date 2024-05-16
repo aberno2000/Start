@@ -174,7 +174,7 @@ void MatrixEquationSolver::writeElectricFieldVectorsToPosFile() const
 
             posFile << std::format("VP({}, {}, {}){{{}, {}, {}}};\n",
                                    x, y, z,
-                                   -(x + fieldVector.getX()), -(y + fieldVector.getY()), -(z + fieldVector.getZ()));
+                                   fieldVector.getX(), fieldVector.getY(), fieldVector.getZ());
         }
 
         posFile << "};\n";
