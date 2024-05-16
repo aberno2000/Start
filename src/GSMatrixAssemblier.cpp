@@ -636,7 +636,7 @@ void GSMatrixAssemblier::_setBoundaryConditionForNode(LocalOrdinal nodeID, Scala
 
     // 2. Modify the values array to set the diagonal to 'value' and others to 0
     for (size_t i{}; i < numEntries; i++)
-        values[i] = (indices[i] == nodeID) ? value : 0.0; // Set diagonal value to specified value, other - to 0.
+        values[i] = (indices[i] == nodeID) ? 1.0 : 0.0; // Set diagonal value to the value = 1, other - to 0 to correctly solve matrix equation Ax=b.
 
     // 3. Replace the modified row back into the matrix.
     m_gsmatrix->replaceGlobalValues(nodeID, indices, values);
