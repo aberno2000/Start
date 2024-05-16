@@ -164,6 +164,14 @@ void MatrixEquationSolver::writeElectricFieldVectorsToPosFile() const
 
     try
     {
+        // std::vector<double> values;
+        // values.reserve(electricFieldMap.size());
+        // for (auto const &[id, value] : electricFieldMap)
+        //     values.emplace_back(value.module());
+        // std::cout << "E_min = " << *std::ranges::min_element(values) << '\n';
+        // std::cout << "E_max = " << *std::ranges::max_element(values) << '\n';
+        // values.clear();
+
         std::ofstream posFile("electricField.pos");
         posFile << "View \"Vector Field\" {\n";
         for (auto const &[tetraId, fieldVector] : electricFieldMap)
