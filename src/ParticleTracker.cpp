@@ -236,8 +236,8 @@ void ParticleTracker::startSimulation(ParticleType const &particleType, size_t p
         }
 
         // EM-pushgin particle with Boris Integrator.
-        MathVector magneticInduction{};                      // For brevity assuming that induction vector B is 0.
-        auto electricFieldMap{solver.getElectricFieldMap()}; // Getting electric field for the each cell.
+        MathVector magneticInduction{};                            // For brevity assuming that induction vector B is 0.
+        auto electricFieldMap{solver.calculateElectricFieldMap()}; // Getting electric field for the each cell.
         for (Particle &particle : m_particles)
         {
             // If set contains specified particle ID - skip checking this particle.
