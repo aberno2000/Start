@@ -133,6 +133,9 @@ class LogConsole(QWidget):
     def printError(self, message):
         self.insert_colored_text("Error: ", message, "red")
 
+    def printInternalError(self, message):
+        self.insert_colored_text("Internal error: ", message, "purple")
+
     def printWarning(self, message):
         self.insert_colored_text("Warning: ", message, "yellow")
     
