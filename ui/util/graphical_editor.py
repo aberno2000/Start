@@ -1,4 +1,4 @@
-import gmsh, meshio
+import gmsh, meshio, json
 from numpy import cross
 from os import rename
 from os.path import isfile, exists, basename, split
@@ -39,7 +39,8 @@ from util.util import(
     get_polydata_from_actor, write_vtk_polydata_to_file, 
     convert_vtkUnstructuredGrid_to_vtkPolyData, extract_transform_from_actor,
     calculate_thetaPhi, rad_to_degree,
-    DEFAULT_TEMP_MESH_FILE, DEFAULT_TEMP_FILE_FOR_PARTICLE_SOURCE_AND_THETA
+    DEFAULT_TEMP_MESH_FILE, DEFAULT_TEMP_FILE_FOR_PARTICLE_SOURCE_AND_THETA,
+    DEFAULT_FILE_FOR_BOUNDARY_CONDITIONS
 )
 from .mesh_dialog import MeshDialog
 from .styles import DEFAULT_ACTOR_COLOR, SELECTED_ACTOR_COLOR, ARROW_ACTOR_COLOR
@@ -1570,10 +1571,24 @@ class GraphicalEditor(QFrame):
         # Open a dialog to get the double value
         value, ok = QInputDialog.getDouble(self, "Set Node Value", "Enter value:", decimals=3)
         if ok:
-            for node_id in self.selected_node_ids:
-                print(f"Applying value {value} to node {node_id}")
+            formatted_nodes = ", ".join(map(str, self.selected_node_ids))
+            self.log_console.printInfo(f"Applying value {value} to nodes: ({formatted_nodes})")
+            self.saveBoundaryConditions(self.selected_node_ids, value)
         
         self.reset_selection_nodes()
+
+    def saveBoundaryConditions(self, node_ids, value):
+        try:
+            with open(DEFAULT_FILE_FOR_BOUNDARY_CONDITIONS, 'r') as file:
+                data = json.load(file)
+        except FileNotFoundError:
+            data = {}
+
+        node_key = ','.join(map(str, node_ids))
+        data[node_key] = value
+
+        with open(DEFAULT_FILE_FOR_BOUNDARY_CONDITIONS, 'w') as file:
+            json.dump(data, file, indent=4)
 
     def activate_selection_boundary_conditions_mode(self):
         if not self.selected_actor:
