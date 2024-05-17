@@ -141,7 +141,7 @@ void ParticleTracker::startSimulation(ParticleType const &particleType, size_t p
         boundaryConditions[nodeId] = 1.0;
 
     assemblier.setBoundaryConditions(boundaryConditions);
-    assemblier.print(); // 3_opt. Printing the matrix.
+    // assemblier.print(); // 3_opt. Printing the matrix.
 
     SolutionVector solutionVector(assemblier.rows(), kdefault_polynomOrder);
     solutionVector.clear();
@@ -181,9 +181,9 @@ void ParticleTracker::startSimulation(ParticleType const &particleType, size_t p
                                                                  { return sum + particle.getCharge(); })) /
                                                     (std::get<2>(cubicGrid.getTetrahedronMeshParamById(tetrId)) * 1e-9)}); // mm³ to m³.
 
-        std::cout << "Charge density in tetrahedrons:\n";
-        for (auto const &[tetrId, tetrDensity] : tetrahedronChargeDensityMap)
-            std::cout << std::format("Tetrahedron[{}]: {} C/m³\n", tetrId, tetrDensity);
+        // std::cout << "Charge density in tetrahedrons:\n";
+        // for (auto const &[tetrId, tetrDensity] : tetrahedronChargeDensityMap)
+        //     std::cout << std::format("Tetrahedron[{}]: {} C/m³\n", tetrId, tetrDensity);
 
         // Go around each node and aggregate data from adjacent tetrahedra.
         for (auto const &[nodeId, adjecentTetrahedrons] : _nodeTetraMap)
@@ -208,9 +208,9 @@ void ParticleTracker::startSimulation(ParticleType const &particleType, size_t p
                 nodeChargeDensityMap[nodeId] = totalCharge / totalVolume;
         }
 
-        std::cout << "Charge density in nodes:\n";
-        for (auto const &[nodeId, chargeDensity] : nodeChargeDensityMap)
-            std::cout << std::format("Node[{}] : {} C/m³\n", nodeId, chargeDensity);
+        // std::cout << "Charge density in nodes:\n";
+        // for (auto const &[nodeId, chargeDensity] : nodeChargeDensityMap)
+        //     std::cout << std::format("Node[{}] : {} C/m³\n", nodeId, chargeDensity);
 
         /* Remains FEM. */
         // Creating solution vector, filling it with the random values, and applying boundary conditions.
@@ -218,12 +218,12 @@ void ParticleTracker::startSimulation(ParticleType const &particleType, size_t p
             if (std::ranges::find(nonChangableNodes, nodeId) == nonChangableNodes.cend())
                 boundaryConditions[nodeId] = nodeChargeDensity;
         solutionVector.setBoundaryConditions(boundaryConditions);
-        solutionVector.print(); // 4_opt. Printing the solution vector.
+        // solutionVector.print(); // 4_opt. Printing the solution vector.
 
         // Solve the equation Ax=b.
         MatrixEquationSolver solver(assemblier, solutionVector);
-        solver.solveAndPrint();
-        solver.printLHS();
+        solver.solve("GMRES", solver.createSolverParams());
+        // solver.printLHS();
 
         // Writing to electric and potential fields to files just ones.
         if (t == 0.0)
