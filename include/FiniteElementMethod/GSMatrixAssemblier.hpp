@@ -6,8 +6,6 @@
 #include "../Geometry/Mesh.hpp"
 #include "TrilinosTypes.hpp"
 
-using GradientMatrix = std::vector<std::vector<MathVector>>;
-
 class GSMatrixAssemblier final
 {
 private:
@@ -162,6 +160,7 @@ public:
     auto getNodes() const { return Mesh::getTetrahedronNodeCoordinates(m_meshfilename); }
     auto getNodeMap() const { return Mesh::getTetrahedronNodesMap(m_meshfilename); }
     auto getTetrahedronCentres() const { return Mesh::getTetrahedronCenters(m_meshfilename); }
+    auto getTetrahedronsDataMap() const { return Mesh::getTetrahedronsDataMap(m_meshfilename); }
 
     /// @brief Checks is the global stiffness matrix empty or not.
     bool empty() const;
