@@ -953,3 +953,19 @@ def rad_to_degree(angle: float):
 
 def degree_to_rad(angle: float):
     return angle * pi / 180.
+
+def extract_transformed_points(polydata: vtkPolyData):
+    points = polydata.GetPoints()
+    return [points.GetPoint(i) for i in range(points.GetNumberOfPoints())]
+
+def get_transformation_matrix(actor: vtkActor):
+    return actor.GetMatrix()
+
+def transform_coordinates(points, matrix):
+    transform = vtkTransform()
+    transform.SetMatrix(matrix)
+    transformed_points = []
+    for point in points:
+        transformed_point = transform.TransformPoint(point[0], point[1], point[2])
+        transformed_points.append(transformed_point)
+    return transformed_points

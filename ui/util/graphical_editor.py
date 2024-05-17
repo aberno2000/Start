@@ -3,7 +3,11 @@ from numpy import cross
 from os import rename
 from os.path import isfile, exists, basename, split
 from vtkmodules.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
-from vtkmodules.vtkInteractionStyle import vtkInteractorStyleTrackballCamera, vtkInteractorStyleTrackballActor
+from vtkmodules.vtkInteractionStyle import(
+    vtkInteractorStyleTrackballCamera, 
+    vtkInteractorStyleTrackballActor, 
+    vtkInteractorStyleRubberBandPick
+)
 from vtkmodules.vtkFiltersGeneral import vtkBooleanOperationPolyDataFilter
 from PyQt5.QtGui import QStandardItem, QIcon
 from PyQt5.QtCore import QSize
@@ -13,14 +17,15 @@ from vtk import(
     vtkCylinderSource, vtkAxesActor, vtkOrientationMarkerWidget, vtkCellTypes,
     vtkGenericDataObjectReader, vtkDataSetMapper, vtkCellPicker, vtkDelaunay2D,
     vtkCubeSource, vtkCleanPolyData, vtkPlane, vtkClipPolyData, vtkTransform, 
-    vtkTransformPolyDataFilter, vtkArrowSource,
+    vtkTransformPolyDataFilter, vtkArrowSource, vtkCommand,
     VTK_TRIANGLE, VTK_QUAD
 )
 from PyQt5.QtWidgets import(
     QFrame, QVBoxLayout, QHBoxLayout, QTreeView,
     QPushButton, QDialog, QSpacerItem, QColorDialog,
     QSizePolicy, QMessageBox, QFileDialog,
-    QMenu, QAction, QInputDialog, QStatusBar
+    QMenu, QAction, QInputDialog, QStatusBar,
+    QListWidget, QListWidgetItem, QAbstractItemView
 )
 from PyQt5.QtGui import QCursor, QStandardItemModel
 from .util import(
@@ -31,15 +36,18 @@ from .util import(
 )
 from util.util import(
     align_view_by_axis, save_scene, load_scene, convert_msh_to_vtk, 
-    get_polydata_from_actor, write_vtk_polydata_to_file,
+    get_polydata_from_actor, write_vtk_polydata_to_file, 
     convert_vtkUnstructuredGrid_to_vtkPolyData, extract_transform_from_actor,
-    calculate_thetaPhi, degree_to_rad, rad_to_degree,
+    calculate_thetaPhi, rad_to_degree,
     DEFAULT_TEMP_MESH_FILE, DEFAULT_TEMP_FILE_FOR_PARTICLE_SOURCE_AND_THETA
 )
 from .mesh_dialog import MeshDialog
 from .styles import DEFAULT_ACTOR_COLOR, SELECTED_ACTOR_COLOR, ARROW_ACTOR_COLOR
 from logger.log_console import LogConsole
 
+INTERACTOR_STYLE_TRACKBALL_CAMERA = 'trackball_camera'
+INTERACTOR_STYLE_TRACKBALL_ACTOR = 'trackball_actor'
+INTERACTOR_STYLE_RUBBER_AND_PICK = 'rubber_and_pick'
 
 def get_action(id: int, data, actor: vtkActor, isDifficultObj: bool = False, figure_type: str = '', mesh_file: str = ''):
     if isDifficultObj:
@@ -67,6 +75,10 @@ class GraphicalEditor(QFrame):
         self.treeView = QTreeView()
         self.model = QStandardItemModel()
         self.model.setHorizontalHeaderLabels(['Mesh Tree'])
+        self.mesh_file = None
+        
+        self.picker = vtkCellPicker()
+        self.picker.SetTolerance(0.005)
         
         self.setup_toolbar()
         self.setup_ui()
@@ -82,6 +94,9 @@ class GraphicalEditor(QFrame):
         self.statusBar = QStatusBar()
         self.layout.addWidget(self.statusBar)
         
+        self.init_node_selection_attributes()
+        self.selected_node_ids = None
+
         self.log_console = log_console
         
         self.crossSectionLinePoints = []  # To store points for the cross-section line
@@ -103,6 +118,52 @@ class GraphicalEditor(QFrame):
         action = get_action(self.object_idx, data, self.actor_from_mesh, isDifficultObj=True, mesh_file=self.mesh_file)
         self.undo_stack.append(action)
         self.object_idx += 1
+        
+
+    def initialize_node_map(self):
+        gmsh.initialize()
+        gmsh.open(self.mesh_file)
+        node_ids, node_coords, _ = gmsh.model.mesh.getNodesByElementType(2)
+        it = iter(node_coords)  # Iterator over the node coordinates
+        for node_id in node_ids:
+            coords = (next(it), next(it), next(it))
+            sphere = vtkSphereSource()
+            sphere.SetCenter(coords)
+            sphere.SetRadius(0.75)
+            mapper = vtkPolyDataMapper()
+            mapper.SetInputConnection(sphere.GetOutputPort())
+            actor = vtkActor()
+            actor.SetMapper(mapper)
+            actor.GetProperty().SetColor(1, 1, 0)  # Yellow color for unselected nodes
+            self.nodeMap[node_id] = {'actor': actor, 'coords': coords}
+        gmsh.finalize()
+        
+    def populate_node_list(self):
+        self.nodeListWidget.clear()        
+        for node_id in set(self.nodeMap.keys()):
+            item = QListWidgetItem(str(node_id))
+            self.nodeListWidget.addItem(item)
+            
+    def add_actors_from_node_list(self):
+        if not self.nodeMap:
+            return
+        
+        for node_data in self.nodeMap.values():
+            actor = node_data['actor']
+            self.renderer.AddActor(actor)
+        
+        self.vtkWidget.GetRenderWindow().Render()
+        
+    def remove_actors_from_node_list(self):
+        if not self.nodeMap:
+            return
+        
+        for node_data in self.nodeMap.values():
+            actor = node_data['actor']
+            self.renderer.RemoveActor(actor)
+        
+        self.nodeMap.clear()
+        self.vtkWidget.GetRenderWindow().Render()
     
     
     def set_mesh_file(self, file_path):        
@@ -110,6 +171,7 @@ class GraphicalEditor(QFrame):
             self.mesh_file = file_path
             self.actor_from_mesh = self.get_actor_from_mesh(self.mesh_file)
             self.initialize_tree()
+            self.initialize_node_map()
         else:
             QMessageBox.warning(self, "Warning", f"Unable to open file {file_path}")
             return None
@@ -225,6 +287,7 @@ class GraphicalEditor(QFrame):
         self.intersectObjectsButton = self.create_button('icons/intersection.png', 'Intersection of two objects')
         self.crossSectionButton = self.create_button('icons/cross-section.png', 'Cross section of the object')
         self.directParticleButton = self.create_button('icons/particle-source-direction.png', 'Set particle source and direction of this source')
+        self.setBoundaryConditionsMode = self.create_button('icons/boundary-conditions.png', 'Turning on mode to select boundary nodes')
         
         self.spacer = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
         self.toolbarLayout.addSpacerItem(self.spacer)
@@ -247,6 +310,7 @@ class GraphicalEditor(QFrame):
         self.intersectObjectsButton.clicked.connect(self.intersection_button_clicked)
         self.crossSectionButton.clicked.connect(self.cross_section_button_clicked)
         self.directParticleButton.clicked.connect(self.activate_particle_direction_mode)
+        self.setBoundaryConditionsMode.clicked.connect(self.activate_selection_boundary_conditions_mode)
 
     def setup_ui(self):
         self.vtkWidget = QVTKRenderWindowInteractor(self)
@@ -257,10 +321,7 @@ class GraphicalEditor(QFrame):
         self.renderer = vtkRenderer()
         self.vtkWidget.GetRenderWindow().AddRenderer(self.renderer)
         
-        self.interactor = self.vtkWidget.GetRenderWindow().GetInteractor()
-        self.interactorStyle = vtkInteractorStyleTrackballCamera()
-        self.interactor.SetInteractorStyle(self.interactorStyle)
-        self.interactor.Initialize()
+        self.change_interactor(INTERACTOR_STYLE_TRACKBALL_CAMERA)
         
     
     def create_point(self):
@@ -514,7 +575,7 @@ class GraphicalEditor(QFrame):
             gmsh.option.setNumber("Mesh.MeshSizeMax", mesh_size)
             gmsh.option.setNumber("Mesh.MeshSizeMin", mesh_size)
             gmsh.model.occ.synchronize()
-            gmsh.model.mesh.generate(2)
+            gmsh.model.mesh.generate(3)
             msh_filename = DEFAULT_TEMP_MESH_FILE
             gmsh.write(msh_filename)
             gmsh.finalize()
@@ -891,9 +952,10 @@ class GraphicalEditor(QFrame):
             self.original_color = actor.GetProperty().GetColor()
             self.selected_actor = actor
 
-            # Change the actor's color to orange
+            # Change the actor's color to orange as default selected actor color
             actor.GetProperty().SetColor(SELECTED_ACTOR_COLOR)
             self.vtkWidget.GetRenderWindow().Render()
+        
         # Call the original OnLeftButtonDown event handler to maintain default interaction behavior
         self.interactorStyle.OnLeftButtonDown()
         
@@ -924,24 +986,18 @@ class GraphicalEditor(QFrame):
                 
     
     def setup_interaction(self):
-        self.picker = vtkCellPicker()
-        self.picker.SetTolerance(0.005)
-
         self.selected_actor = None
         self.original_color = None
-
-        self.interactor.SetInteractorStyle(self.interactorStyle)
-        self.interactorStyle.AddObserver("LeftButtonPressEvent", self.on_left_button_press)
-        self.interactorStyle.AddObserver("RightButtonPressEvent", self.on_right_button_press)
-        self.interactor.AddObserver("KeyPressEvent", self.on_key_press)
-        self.interactor.Initialize()
+        self.change_interactor(INTERACTOR_STYLE_TRACKBALL_CAMERA)
+        self.interactor.AddObserver(vtkCommand.KeyPressEvent, self.on_key_press)
         
-    def on_left_button_press(self, obj, event):
+    
+    def on_left_button_press(self, obj, event):                
         if self.isDrawingLine:
             self.handle_drawing_line()
         else:
             self.pick_actor(obj, event)
-        
+    
     def on_right_button_press(self, obj, event):
         click_pos = self.interactor.GetEventPosition()
         self.picker.Pick(click_pos[0], click_pos[1], 0, self.renderer)
@@ -951,15 +1007,12 @@ class GraphicalEditor(QFrame):
             self.selected_actor = actor
             self.original_color = actor.GetProperty().GetColor()
             self.context_menu()
-            
+    
     def on_key_press(self, obj, event):
         key = self.interactor.GetKeySym()
 
         if key == 'Escape':            
-            self.interactorStyle = vtkInteractorStyleTrackballCamera()
-            self.interactor.SetInteractorStyle(self.interactorStyle)
-            self.interactorStyle.AddObserver("LeftButtonPressEvent", self.on_left_button_press)
-            self.interactorStyle.AddObserver("RightButtonPressEvent", self.on_right_button_press)
+            self.change_interactor(INTERACTOR_STYLE_TRACKBALL_CAMERA)
             self.deselect()
             
         if key == 'Delete' or key == 'BackSpace':
@@ -970,12 +1023,34 @@ class GraphicalEditor(QFrame):
         # C - controlling the object.
         if key == 'c' or key == 'C':
             if self.selected_actor:
-                self.interactorStyle = vtkInteractorStyleTrackballActor()
-                self.interactor.SetInteractorStyle(self.interactorStyle)
-                self.deselect()
+                self.change_interactor(INTERACTOR_STYLE_TRACKBALL_ACTOR)
 
         self.interactorStyle.OnKeyPress()
         
+    def change_interactor(self, style: str):
+        self.interactor = self.vtkWidget.GetRenderWindow().GetInteractor()
+
+        if style == INTERACTOR_STYLE_TRACKBALL_CAMERA:
+            self.interactorStyle = vtkInteractorStyleTrackballCamera()
+            self.picker = vtkCellPicker()  # Use single object picker
+            self.interactorStyle.AddObserver(vtkCommand.LeftButtonPressEvent, self.on_left_button_press)
+            self.interactorStyle.AddObserver(vtkCommand.RightButtonPressEvent, self.on_right_button_press)
+        elif style == INTERACTOR_STYLE_TRACKBALL_ACTOR:
+            self.interactorStyle = vtkInteractorStyleTrackballActor()
+            self.picker = vtkCellPicker()  # Use single object picker
+            QMessageBox.warning(self, "Interactor Style Changed", "Be careful with arbitrary object transformation! If you want to set boundary conditions for this object, they will apply to the old coordinates of the nodes. Because the program does not provide for changes to key objects for which boundary conditions are set")
+            self.log_console.printWarning("Be careful with arbitrary object transformation! If you want to set boundary conditions for this object, they will apply to the old coordinates of the nodes. Because the program does not provide for changes to key objects for which boundary conditions are set")
+        elif style == INTERACTOR_STYLE_RUBBER_AND_PICK:
+            self.interactorStyle = vtkInteractorStyleRubberBandPick()
+            self.interactorStyle.AddObserver(vtkCommand.LeftButtonPressEvent, self.on_left_button_press)
+        else:
+            QMessageBox.warning(self, "Change Interactor", f"Can't change current interactor style. There is no such interactor: {style}")
+            self.log_console.printWarning(f"Can't change current interactor style. There is no such interactor: {style}")
+        
+        self.interactor.SetInteractorStyle(self.interactorStyle)
+        self.interactor.Initialize()
+        self.interactor.Start()
+    
     def context_menu(self):
         if self.selected_actor:
             menu = QMenu(self)
@@ -1075,7 +1150,8 @@ class GraphicalEditor(QFrame):
         if data.IsA("vtkUnstructuredGrid") or data.IsA("vtkPolyData"):
             self.populate_tree(data, rootItem)
         else:
-            print("Unsupported data type")
+            QMessageBox.warning(self, "Parsing VTK Data", f"Internal: Can't parse vtk data and populate tree - got unsupported data type: {type(data).__name__}")
+            self.log_console.printInternalError(f"Can't parse vtk data and populate tree - got unsupported data type: {type(data).__name__}")
             return
 
         tree_model.appendRow(rootItem)
@@ -1124,6 +1200,8 @@ class GraphicalEditor(QFrame):
             self.undo_stack.clear()
             self.redo_stack.clear()
             self.object_idx = 0
+            
+        self.reset_selection_nodes()
         
     
     def subtract_button_clicked(self):
@@ -1426,3 +1504,131 @@ class GraphicalEditor(QFrame):
         self.vtkWidget.GetRenderWindow().Render()
 
         return arrowActor
+
+    def init_node_selection_attributes(self):
+        self.nodeMap = {}
+        self.selected_node_ids = set()
+        
+        self.nodeListWidget = QListWidget()
+        self.nodeListWidget.setMinimumHeight(150)
+        self.nodeListWidget.setMaximumHeight(150)
+        self.nodeListWidget.setMinimumWidth(167.5)
+        self.nodeListWidget.setMaximumWidth(167.5)
+        self.nodeListWidget.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        self.nodeListWidget.itemSelectionChanged.connect(self.on_node_selection_changed)
+        self.nodeListWidget.setVisible(False)
+        
+        self.setBoundaryNodeValuesButton = QPushButton('Set Value')
+        self.setBoundaryNodeValuesButton.setVisible(False)
+        self.setBoundaryNodeValuesButton.setFixedSize(QSize(80, 27.5))
+        self.setBoundaryNodeValuesButton.setToolTip('Check this tab and move to the next with starting the simulation')
+        self.setBoundaryNodeValuesButton.clicked.connect(self.setBoundaryNodeValuesButtonClicked)
+        
+        self.resetNodeSelectionButton = QPushButton('Cancel')
+        self.resetNodeSelectionButton.setVisible(False)
+        self.resetNodeSelectionButton.setFixedSize(QSize(80, 27.5))
+        self.resetNodeSelectionButton.setToolTip('Cancel selection of the nodes')
+        self.resetNodeSelectionButton.clicked.connect(self.cancelNodeSelection)
+        
+        self.layout.addWidget(self.nodeListWidget)
+
+        hlayout = QHBoxLayout()
+        hlayout.addWidget(self.setBoundaryNodeValuesButton)
+        hlayout.addWidget(self.resetNodeSelectionButton)
+        
+        spacer = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
+        hlayout.addSpacerItem(spacer)
+
+        self.layout.addLayout(hlayout)
+        
+    
+    def cancelNodeSelection(self):
+        self.reset_selection_nodes()
+        
+    
+    def reset_selection_nodes(self):
+        self.deselect()
+        self.statusBar.clearMessage()
+        self.nodeListWidget.setVisible(False)
+        
+        self.remove_actors_from_node_list()
+        
+        self.vtkWidget.GetRenderWindow().Render()
+        if self.selected_node_ids:
+            self.selected_node_ids.clear()
+        self.setBoundaryNodeValuesButton.setVisible(False)
+        self.resetNodeSelectionButton.setVisible(False)
+        self.change_interactor(INTERACTOR_STYLE_TRACKBALL_CAMERA)
+    
+    
+    def setBoundaryNodeValuesButtonClicked(self):        
+        if not self.selected_node_ids:
+            QMessageBox.warning(self, "No Selection", "Please select at least one node")
+            self.log_console.printWarning("Please select at least one node")
+            return
+
+        # Open a dialog to get the double value
+        value, ok = QInputDialog.getDouble(self, "Set Node Value", "Enter value:", decimals=3)
+        if ok:
+            for node_id in self.selected_node_ids:
+                print(f"Applying value {value} to node {node_id}")
+        
+        self.reset_selection_nodes()
+
+    def activate_selection_boundary_conditions_mode(self):
+        if not self.selected_actor:
+            QMessageBox.warning(self, "Set Boundary Conditions", "To begin with setting boundary conditions you'll need to select object")
+            self.log_console.printWarning("To begin with setting boundary conditions you'll need to select object")
+            return
+        
+        if not self.mesh_file:
+            QMessageBox.warning(self, "Set Boundary Conditions", "To begin with setting boundary conditions you'll need to select mesh file in .msh/.stp format")
+            self.log_console.printWarning("To begin with setting boundary conditions you'll need to select mesh file in .msh/.stp format")
+            return
+    
+        if not exists(self.mesh_file):
+            QMessageBox.warning(self, "Set Boundary Conditions", f"Make sure, that path {self.mesh_file} is really exists")
+            self.log_console.printWarning(f"Make sure, that path {self.mesh_file} is really exists")
+            return
+        
+        if not self.mesh_file.endswith('.msh'):
+            QMessageBox.warning(self, "Set Boundary Conditions", f"File {self.mesh_file} have to ends with .msh format. Tip: if you upload mesh in .stp format program will automatically convert it to .msh format")
+            self.log_console.printWarning(f"File {self.mesh_file} have to ends with .msh format. Tip: if you upload mesh in .stp format program will automatically convert it to .msh format")
+            return
+        
+        if not self.setBoundaryNodeValuesButton.isVisible():
+            self.setBoundaryNodeValuesButton.setVisible(True)
+        if not self.resetNodeSelectionButton.isVisible():
+            self.resetNodeSelectionButton.setVisible(True)
+        if not self.nodeListWidget.isVisible():
+            self.nodeListWidget.setVisible(True)
+        
+        try:
+            self.statusBar.showMessage("Select boundary nodes:")
+            self.initialize_node_map()
+            self.populate_node_list()
+            self.add_actors_from_node_list()
+        except Exception as e:
+            QMessageBox.critical(self, "Set Boundary Conditions", f"Error was occured: {e}")
+            self.log_console.printError(f"Error was occured: {e}")
+            self.reset_selection_nodes()
+            return
+            
+    def on_node_selection_changed(self):
+        selected_items = self.nodeListWidget.selectedItems()
+        self.selected_node_ids = [int(item.text()) for item in selected_items]
+
+        # Перекрасить все ноды в желтый цвет (unselected state)
+        for node_id, data in self.nodeMap.items():
+            actor = data['actor']
+            actor.GetProperty().SetColor(DEFAULT_ACTOR_COLOR)  # Yellow color for unselected nodes
+
+        # Перекрасить выбранные ноды в красный цвет
+        for node_id in self.selected_node_ids:
+            if node_id in self.nodeMap:
+                actor = self.nodeMap[node_id]['actor']
+                actor.GetProperty().SetColor(1, 0, 0)  # Red color for selected nodes
+
+        self.vtkWidget.GetRenderWindow().Render()
+
+
