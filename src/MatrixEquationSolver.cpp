@@ -199,7 +199,70 @@ void MatrixEquationSolver::writeElectricFieldVectorsToPosFile() const
     }
 }
 
-bool MatrixEquationSolver::solve()
+Teuchos::RCP<Teuchos::ParameterList> MatrixEquationSolver::createSolverParams(std::string_view solverName, int maxIterations,
+                                                                              double convergenceTolerance, int verbosity, int outputFrequency, int numBlocks,
+                                                                              int blockSize, int maxRestarts, bool flexibleGMRES, std::string_view orthogonalization,
+                                                                              bool adaptiveBlockSize, int convergenceTestFrequency)
+{
+    Teuchos::RCP<Teuchos::ParameterList> params{Teuchos::parameterList()};
+    try
+    {
+        params->set("Solver Name", solverName);
+        params->set("Maximum Iterations", maxIterations);
+        params->set("Convergence Tolerance", convergenceTolerance);
+        params->set("Verbosity", verbosity);
+        params->set("Output Frequency", outputFrequency);
+
+        if (solverName == "GMRES" || solverName == "Block GMRES" || solverName == "Pseudo-block GMRES" || solverName == "Block Flexible GMRES")
+        {
+            params->set("Num Blocks", numBlocks);
+            params->set("Block Size", blockSize);
+            params->set("Maximum Restarts", maxRestarts);
+            params->set("Flexible GMRES", flexibleGMRES);
+            params->set("Orthogonalization", orthogonalization.data());
+            params->set("Adaptive Block Size", adaptiveBlockSize);
+            if (convergenceTestFrequency >= 0)
+                params->set("Convergence Test Frequency", convergenceTestFrequency);
+        }
+        else if (solverName == "CG" || solverName == "Block CG" || solverName == "Pseudo-block CG")
+        {
+            params->set("Block Size", blockSize);
+            params->set("Convergence Tolerance", convergenceTolerance);
+            params->set("Maximum Iterations", maxIterations);
+        }
+        else if (solverName == "LSQR")
+        {
+            params->set("Convergence Tolerance", convergenceTolerance);
+            params->set("Maximum Iterations", maxIterations);
+        }
+        else if (solverName == "MINRES")
+        {
+            params->set("Convergence Tolerance", convergenceTolerance);
+            params->set("Maximum Iterations", maxIterations);
+        }
+        else if (solverName == "GCRO-DR")
+        {
+            params->set("Num Blocks", numBlocks);
+            params->set("Block Size", blockSize);
+            params->set("Maximum Restarts", maxRestarts);
+            params->set("Convergence Tolerance", convergenceTolerance);
+            params->set("Maximum Iterations", maxIterations);
+        }
+        else
+            throw std::invalid_argument(util::stringify("Unsupported solver name: ", solverName));
+    }
+    catch (std::exception const &ex)
+    {
+        ERRMSG(ex.what());
+    }
+    catch (...)
+    {
+        ERRMSG("Unknown error occurred while setting parameters for the solver.");
+    }
+    return params;
+}
+
+bool MatrixEquationSolver::solve(std::string_view solverName, Teuchos::RCP<Teuchos::ParameterList> solverParams)
 {
     try
     {
@@ -212,7 +275,7 @@ bool MatrixEquationSolver::solve()
             return false;
 
         Belos::SolverFactory<Scalar, TpetraMultiVector, TpetraOperator> factory;
-        auto solver{factory.create("CG", Teuchos::parameterList())};
+        auto solver{factory.create(solverName.data(), solverParams)};
         solver->setProblem(problem);
 
         Belos::ReturnType result{solver->solve()};
@@ -229,7 +292,7 @@ bool MatrixEquationSolver::solve()
     return false;
 }
 
-void MatrixEquationSolver::solveAndPrint()
+void MatrixEquationSolver::solveDefaultAndPrint()
 {
     try
     {
