@@ -90,7 +90,7 @@ std::map<GlobalOrdinal, MathVector> MatrixEquationSolver::calculateElectricField
 
         // We have map: (Tetrahedron ID | map<Node ID | Basis function gradient math vector (3 components)>).
         // To get electric field of the cell we just need to accumulate all the basis func grads for each node for each tetrahedron:
-        // E_cell = -Σ(φi⋅∇φi), where i - global index of the node.
+        // E_cell = -1/(6V)*Σ(φi⋅∇φi), where i - global index of the node.
         for (const auto &[tetraId, nodeGradientMap] : basisFuncGradientsMap)
         {
             MathVector electricField{};
