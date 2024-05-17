@@ -1,10 +1,13 @@
 #include <chrono>
+#include <nlohmann/json.hpp>
 #include <sstream>
 #include <sys/stat.h>
 
 #include "../include/Generators/RealNumberGenerator.hpp"
 #include "../include/Utilities/ConfigParser.hpp"
 #include "../include/Utilities/Utilities.hpp"
+
+using json = nlohmann::json;
 
 std::string util::getCurTime(std::string_view format)
 {
@@ -192,4 +195,92 @@ std::array<double, 6> util::getParticleSourceCoordsAndDirection()
     std::filesystem::remove(path); // Remove the file after successful reading
 
     return result;
+}
+
+util::BoundaryConditionsData util::loadBoundaryConditions(std::string_view filename)
+{
+    if (!std::filesystem::exists(filename))
+    {
+        throw std::runtime_error("File does not exist: " + std::string(filename));
+    }
+
+    if (std::filesystem::path(filename).extension() != ".json")
+    {
+        throw std::runtime_error("File is not a JSON file: " + std::string(filename));
+    }
+
+    std::ifstream file(filename.data());
+    if (!file.is_open())
+    {
+        throw std::runtime_error("Unable to open file: " + std::string(filename));
+    }
+
+    std::vector<std::pair<std::vector<size_t>, double>> boundaryConditions;
+    std::vector<size_t> nonChangebleNodes;
+    json j;
+
+    try
+    {
+        file >> j;
+    }
+    catch (const json::parse_error &e)
+    {
+        throw std::runtime_error("Failed to parse JSON file: " + std::string(filename) + ". Error: " + e.what());
+    }
+
+    for (auto const &[key, value] : j.items())
+    {
+        std::vector<size_t> nodes;
+        std::string nodesStr = key;
+        size_t pos{};
+        std::string token;
+        while ((pos = nodesStr.find(',')) != std::string::npos)
+        {
+            token = nodesStr.substr(0ul, pos);
+            try
+            {
+                nodes.emplace_back(std::stoi(token));
+            }
+            catch (std::invalid_argument const &e)
+            {
+                throw std::runtime_error("Invalid node ID: " + token + ". Error: " + e.what());
+            }
+            catch (std::out_of_range const &e)
+            {
+                throw std::runtime_error("Node ID out of range: " + token + ". Error: " + e.what());
+            }
+            nodesStr.erase(0ul, pos + 1ul);
+        }
+        if (!nodesStr.empty())
+        {
+            try
+            {
+                size_t nodeId{std::stoul(nodesStr)};
+                nodes.emplace_back(nodeId);
+                nonChangebleNodes.emplace_back(nodeId);
+            }
+            catch (const std::invalid_argument &e)
+            {
+                throw std::runtime_error("Invalid node ID: " + nodesStr + ". Error: " + e.what());
+            }
+            catch (std::out_of_range const &e)
+            {
+                throw std::runtime_error("Node ID out of range: " + nodesStr + ". Error: " + e.what());
+            }
+        }
+
+        double val{};
+        try
+        {
+            val = value.get<double>();
+        }
+        catch (json::type_error const &e)
+        {
+            throw std::runtime_error("Invalid value for node IDs: " + key + ". Error: " + e.what());
+        }
+
+        boundaryConditions.emplace_back(nodes, val);
+    }
+
+    return std::make_pair(nonChangebleNodes, boundaryConditions);
 }

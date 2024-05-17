@@ -157,6 +157,23 @@ namespace util
 
     /// @brief Gets particle source coordinates from the file that generates with Python code. Removes this file after getting copy of the data.
     std::array<double, 6> getParticleSourceCoordsAndDirection();
+
+    using BoundaryConditionsVector = std::vector<std::pair<std::vector<size_t>, double>>;
+    using BoundaryConditionsData = std::pair<std::vector<size_t>, BoundaryConditionsVector>;
+    /**
+     * @brief Load boundary conditions from a JSON file.
+     *
+     * This function reads a JSON file and extracts node IDs and their associated values.
+     * The data is returned as a vector of pairs, where each pair contains a vector of node IDs
+     * and a double value.
+     *
+     * @param filename The name of the JSON file.
+     * @return std::pair<std::vector<size_t>, std::vector<std::pair<std::vector<size_t>, double>>> As a result, where:
+     *         - std::vector<size_t> A vector of all the nonchageble nodes. Composed from all the node IDs.
+     *         - std::vector<std::pair<std::vector<size_t>, double>> A vector of pairs with node IDs and their values.
+     * @throws std::runtime_error if the file cannot be opened or is not a valid JSON file.
+     */
+    BoundaryConditionsData loadBoundaryConditions(std::string_view filename);
 }
 
 #endif // !UTILITIES_HPP
