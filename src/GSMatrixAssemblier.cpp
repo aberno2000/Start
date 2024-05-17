@@ -670,6 +670,10 @@ void GSMatrixAssemblier::assembleGlobalStiffnessMatrix(std::string_view mesh_fil
     if (tetrahedronMesh.empty())
         throw std::runtime_error(util::stringify("Can't get mesh parameters from file ", mesh_filename));
 
+    // 1_1. Filling map with tetrahedra volumes.
+    for (auto const &[tetraId, tetrahedron, volume] : tetrahedronMesh)
+        m_tetraVolumesMap[tetraId] = volume;
+
     _countTetrahedra = tetrahedronMesh.size();
     auto endIt{tetrahedronMesh.cend()};
     auto tetrahedronNodes{Mesh::getTetrahedronNodesMap(mesh_filename)};

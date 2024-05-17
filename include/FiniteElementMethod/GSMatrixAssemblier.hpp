@@ -19,6 +19,7 @@ private:
     DynRankView m_basisFuncGrads;                                                        ///< Basis function gradients.
     std::map<GlobalOrdinal, std::map<GlobalOrdinal, MathVector>> m_basisFuncGradientMap; ///< Basis function gradient map. Key - node ID, value - list of the basis function gradients for this node.
     Teuchos::RCP<TpetraMatrixType> m_gsmatrix;                                           ///< Smart pointer on the global stiffness matrix.
+    std::map<size_t, double> m_tetraVolumesMap;                                          ///< Map for tetrahedron volumes. Key - tetrahedron ID. Value - volume of this tetrahedron.
 
     struct MatrixEntry
     {
@@ -157,6 +158,7 @@ public:
     constexpr short getCountBasisFuncs() const { return _countBasisFunctions; }
     auto getBasisFuncGrads() const { return m_basisFuncGrads; }
     constexpr auto const &getBasisFuncGradsMap() const { return m_basisFuncGradientMap; }
+    constexpr auto const &getTetrahedraVolumesMap() const { return m_tetraVolumesMap; }
     auto getNodes() const { return Mesh::getTetrahedronNodeCoordinates(m_meshfilename); }
     auto getNodeMap() const { return Mesh::getTetrahedronNodesMap(m_meshfilename); }
     auto getTetrahedronCentres() const { return Mesh::getTetrahedronCenters(m_meshfilename); }
