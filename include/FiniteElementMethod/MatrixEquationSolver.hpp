@@ -83,7 +83,7 @@ public:
      *
      * @param solverName The name of the iterative solver (e.g., "GMRES", "CG").
      * @param maxIterations The maximum number of iterations the solver will perform (default: 1000).
-     * @param convergenceTolerance The tolerance for the relative residual norm used to determine convergence (default: 1e-8).
+     * @param convergenceTolerance The tolerance for the relative residual norm used to determine convergence (default: 1e-20).
      * @param verbosity Controls the amount and type of information printed during the solution process (default: Belos::Errors + Belos::Warnings + Belos::IterationDetails).
      * @param outputFrequency Determines how often information is printed during the iterative process (default: 1).
      * @param numBlocks Sets the number of blocks in the Krylov basis, related to the restart mechanism of GMRES (default: 30).
@@ -99,7 +99,7 @@ public:
     Teuchos::RCP<Teuchos::ParameterList> createSolverParams(
         std::string_view solverName = "GMRES",
         int maxIterations = 1000,
-        double convergenceTolerance = 1e-8,
+        double convergenceTolerance = 1e-20,
         int verbosity = Belos::Errors + Belos::Warnings + Belos::IterationDetails,
         int outputFrequency = 1,
         int numBlocks = 30,
