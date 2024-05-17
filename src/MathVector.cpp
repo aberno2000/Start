@@ -138,6 +138,23 @@ MathVector &MathVector::operator-=(double value)
     return *this;
 }
 
+MathVector &MathVector::operator*=(double value)
+{
+    x *= value;
+    y *= value;
+    z *= value;
+    return *this;
+}
+
+/// @brief Vector multiplication assignment operator.
+MathVector &MathVector::operator*=(MathVector const &other)
+{
+    x *= other.x;
+    y *= other.y;
+    z *= other.z;
+    return *this;
+}
+
 MathVector MathVector::operator*(double value) const { return MathVector(x * value, y * value, z * value); }
 double MathVector::operator*(MathVector const &other) const { return (x * other.x + y * other.y + z * other.z); }
 double MathVector::operator*(MathVector &&other) const { return (x * other.x + y * other.y + z * other.z); }

@@ -132,11 +132,13 @@ public:
     MathVector operator-(MathVector const &other) const;
     MathVector operator+(MathVector const &other) const;
 
-    /* += Subtract and sum assign operators for scalar and for the other vector. -= */
+    /* +++ Subtract/sum/product-assign operators for scalar and for the other vector. +++ */
     MathVector &operator+=(MathVector const &other);
     MathVector &operator-=(MathVector const &other);
     MathVector &operator+=(double value);
     MathVector &operator-=(double value);
+    MathVector &operator*=(double value);
+    MathVector &operator*=(MathVector const &other);
 
     /* +++ Subtract and sum of value to vector. +++ */
     MathVector operator-(double value) const;
