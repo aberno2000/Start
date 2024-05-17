@@ -62,7 +62,7 @@ std::map<GlobalOrdinal, Scalar> MatrixEquationSolver::getNodePotentialMap() cons
     return nodePotentialMap;
 }
 
-std::map<GlobalOrdinal, MathVector> MatrixEquationSolver::getElectricFieldMap() const
+std::map<GlobalOrdinal, MathVector> MatrixEquationSolver::calculateElectricFieldMap() const
 {
     try
     {
@@ -81,15 +81,34 @@ std::map<GlobalOrdinal, MathVector> MatrixEquationSolver::getElectricFieldMap() 
             return electricFieldMap;
         }
 
+        auto tetraVolumesMap{m_assemblier.getTetrahedraVolumesMap()};
+        if (tetraVolumesMap.empty())
+        {
+            WARNINGMSG("Storage for the tetrahedron volumes is empty for some reason. It might lead to unexpected results");
+            return electricFieldMap;
+        }
+
         // We have map: (Tetrahedron ID | map<Node ID | Basis function gradient math vector (3 components)>).
         // To get electric field of the cell we just need to accumulate all the basis func grads for each node for each tetrahedron:
         // E_cell = -Σ(φi⋅∇φi), where i - global index of the node.
-        for (auto const &[tetraId, basisFuncGrads] : basisFuncGradientsMap)
+        for (const auto &[tetraId, nodeGradientMap] : basisFuncGradientsMap)
         {
-            MathVector E_cell;
-            for (auto const &[nodeId, basisFuncGrad] : basisFuncGrads)
-                E_cell += nodePotentialsMap.at(nodeId) * basisFuncGrad;
-            electricFieldMap[tetraId] = -E_cell;
+            MathVector electricField{};
+            double volumeFactor{1.0 / (6.0 * tetraVolumesMap.at(tetraId))};
+
+            // Accumulate the electric field contributions from each node
+            for (const auto &[nodeId, gradient] : nodeGradientMap)
+            {
+                if (nodePotentialsMap.find(nodeId) != nodePotentialsMap.end())
+                {
+                    double potentialInNode{nodePotentialsMap.at(nodeId)};
+                    electricField += gradient * potentialInNode;
+                }
+                else
+                    WARNINGMSG("Node ID not found in potentials map");
+            }
+            electricField *= -volumeFactor;
+            electricFieldMap[tetraId] = electricField;
         }
 
         if (electricFieldMap.empty())
@@ -155,7 +174,7 @@ void MatrixEquationSolver::writeElectricFieldVectorsToPosFile() const
         return;
     }
 
-    auto electricFieldMap{getElectricFieldMap()};
+    auto electricFieldMap{calculateElectricFieldMap()};
     if (electricFieldMap.empty())
     {
         WARNINGMSG("There is nothing to show. Storage for the electric field values is empty.");

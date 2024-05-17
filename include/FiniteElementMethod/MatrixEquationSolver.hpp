@@ -55,7 +55,7 @@ public:
      *         The electric field vector components are computed as the negative sums of the products
      *         of potentials and their respective gradient vectors across all nodes within the tetrahedron.
      */
-    std::map<GlobalOrdinal, MathVector> getElectricFieldMap() const;
+    std::map<GlobalOrdinal, MathVector> calculateElectricFieldMap() const;
 
     /// @brief Writes solution vector to the .pos file (GMSH format) to have the capability to view results of the solved equation Ax=b.
     void writeElectricPotentialsToPosFile() const;
