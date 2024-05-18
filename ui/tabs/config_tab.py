@@ -16,10 +16,13 @@ from util.converter import Converter, is_positive_real_number
 from util.mesh_dialog import MeshDialog
 from util import is_file_valid
 from util.util import(
-    is_path_accessable, 
-    DEFAULT_QLINEEDIT_STYLE, 
+    is_path_accessable, CustomDoubleValidator,
     DEFAULT_TEMP_CONFIG_FILE,
     DEFAULT_TEMP_SOLVER_PARAMS_FILE
+)
+from util.styles import(
+    DEFAULT_QLINEEDIT_STYLE, DEFAULT_COMBOBOX_STYLE,
+    DEFAULT_DISABLED_QLINEEDIT_STYLE, DEFAULT_DISABLED_COMBOBOX_STYLE
 )
 
 MIN_TIME = 1e-9
@@ -41,6 +44,7 @@ class ConfigTab(QWidget):
     meshFileSelected = pyqtSignal(str)
     requestToMoveToTheNextTab = pyqtSignal()
     requestToStartSimulation = pyqtSignal()
+    selectBoundaryConditionsSignal = pyqtSignal()
 
     def __init__(self, log_console, parent=None):
         super().__init__(parent)        
@@ -193,40 +197,95 @@ class ConfigTab(QWidget):
         simulation_group_box = QGroupBox("Simulation Parameters")
         simulation_group_box.setLayout(self.simulation_layout)
 
-        self.simulation_layout.addRow(
-            QLabel(f"System: {get_os_info()} has {get_thread_count()} threads"))
+        self.simulation_layout.addRow(QLabel(f"System: {get_os_info()} has {get_thread_count()} threads"))
 
         # Thread count
         self.thread_count_input, _, _ = self.create_simulation_field("Thread count:", QLineEdit)
 
         # Time Step with units
-        self.time_step_input, self.time_step_units, self.time_step_converted = self.create_simulation_field(
-            "Time Step:", QLineEdit, ["ns", "μs", "ms", "s", "min"], "ms", "0.0")
+        self.time_step_input, self.time_step_units, self.time_step_converted = self.create_simulation_field("Time Step:", QLineEdit, ["ns", "μs", "ms", "s", "min"], "ms", "0.0")
 
         # Simulation time with units
-        self.simulation_time_input, self.simulation_time_units, self.simulation_time_converted = self.create_simulation_field(
-            "Simulation Time:", QLineEdit, ["ns", "μs", "ms", "s", "min"], "s", "0.0")
+        self.simulation_time_input, self.simulation_time_units, self.simulation_time_converted = self.create_simulation_field("Simulation Time:", QLineEdit, ["ns", "μs", "ms", "s", "min"], "s", "0.0")
 
         # Temperature with units
-        self.temperature_input, self.temperature_units, self.temperature_converted = self.create_simulation_field(
-            "Temperature:", QLineEdit, ["K", "F", "C"], "K", "0.0 K")
+        self.temperature_input, self.temperature_units, self.temperature_converted = self.create_simulation_field("Temperature:", QLineEdit, ["K", "F", "C"], "K", "0.0 K")
 
         # Pressure with units
-        self.pressure_input, self.pressure_units, self.pressure_converted = self.create_simulation_field(
-            "Pressure:", QLineEdit, ["mPa", "Pa", "kPa", "psi"], "Pa", "0.0")
+        self.pressure_input, self.pressure_units, self.pressure_converted = self.create_simulation_field("Pressure:", QLineEdit, ["mPa", "Pa", "kPa", "psi"], "Pa", "0.0")
 
         # Volume with units
-        self.volume_input, self.volume_units, self.volume_converted = self.create_simulation_field(
-            "Volume:", QLineEdit, ["mm³", "cm³", "m³"], "m³", "0.0 m³")
+        self.volume_input, self.volume_units, self.volume_converted = self.create_simulation_field("Volume:", QLineEdit, ["mm³", "cm³", "m³"], "m³", "0.0 m³")
 
         # Energy with units
-        self.energy_input, self.energy_units, self.energy_converted = self.create_simulation_field(
-            "Energy:", QLineEdit, ["eV", "keV", "J", "kJ", "cal"], "eV", "0.0")
+        self.energy_input, self.energy_units, self.energy_converted = self.create_simulation_field("Energy:", QLineEdit, ["eV", "keV", "J", "kJ", "cal"], "eV", "0.0")
 
         simulation_group_box.setLayout(self.simulation_layout)
         
+        # Create PIC and FEM group boxes
+        picfem_group_box = QGroupBox("Particle In Cell (PIC) and Finite Element Method (FEM) Parameters")
+        pic_layout = QFormLayout()
+        fem_layout = QFormLayout()
+        picfem_layout = QHBoxLayout()
+        picfem_layout.addLayout(pic_layout)
+        picfem_layout.addLayout(fem_layout)
+        picfem_group_box.setLayout(picfem_layout)
+        
+        # Add PIC and FEM fields
+        self.pic_input = QLineEdit()
+        self.pic_input.setFixedWidth(DEFAULT_LINE_EDIT_WIDTH)
+        self.pic_input.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
+        self.pic_input.setValidator(CustomDoubleValidator(0.1, 1000.0, 3))
+        self.pic_input.setToolTip(
+            "Cubic Grid Size: This parameter specifies the edge size of the cubic cells in the 3D grid. "
+            "The grid is used to map tetrahedrons to their containing cells, facilitating the determination of which tetrahedron contains a given particle. "
+            "This grid-based approach improves the efficiency of spatial queries in the mesh.\n\n"
+            "Range: from 0.1 to 1'000\n"
+            "Purpose: The cubic grid helps in tracking particles within the volume by determining which tetrahedron each particle is located in. "
+            "This is achieved by checking the intersection of particles with the cells of the grid and identifying the corresponding tetrahedrons.\n\n"
+            "Warning: \n"
+            "- Setting the grid size too low (closer to 0.1) will result in a very fine grid, which may consume a significant amount of memory and can lead to performance issues.\n"
+            "- Setting the grid size too high (closer to 1000) may result in an overly coarse grid, potentially causing incorrect determination of particle locations within the tetrahedrons."
+        )
+        h_layout = QHBoxLayout()
+        h_layout.setContentsMargins(50, 0, 0, 0)
+        h_layout.addWidget(self.pic_input)
+        pic_layout.addRow(QLabel("Cubic grid size:"), h_layout)
+
+        self.fem_input = QLineEdit()
+        self.fem_input.setFixedWidth(DEFAULT_LINE_EDIT_WIDTH)
+        self.fem_input.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
+        self.fem_input.setValidator(QIntValidator(1, 100))
+        self.fem_input.setToolTip(
+            "FEM Calculation Accuracy: This parameter determines the number of quadrature points used in the Finite Element Method (FEM) calculations, based on the desired accuracy. "
+            "A higher accuracy typically requires more quadrature points, which increases both the computational cost and the memory usage of the program. "
+            "However, it also improves the approximation of the integral.\n\n"
+            "Purpose: The quadrature points are used to approximate integrals within the FEM. The more points used, the closer the numerical integration is to the actual value.\n\n"
+            "Range: from 1 to 100\n"
+            "Note: The specific number of quadrature points for a given accuracy is determined by an external library, Intrepid2.\n\n"
+            "Warning: \n"
+            "- Higher accuracy settings (closer to 100) will lead to increased computational costs and memory usage, but will provide better integral approximation.\n"
+            "- Lower accuracy settings (closer to 1) will reduce computational costs and memory usage, but may result in less accurate integral approximations."
+        )
+        h1_layout = QHBoxLayout()
+        h1_layout.setContentsMargins(25, 0, 0, 0)
+        h1_layout.addWidget(self.fem_input)
+        fem_layout.addRow(QLabel("FEM calculation accuracy:"), h1_layout)
+        
+        # Add Load Magnetic Induction button
+        self.load_magnetic_induction_button = QPushButton("Load Magnetic Induction")
+        self.load_magnetic_induction_button.setFixedWidth(DEFAULT_LINE_EDIT_WIDTH)
+        self.load_magnetic_induction_button.clicked.connect(self.load_magnetic_induction)
+        fem_layout.addRow(self.load_magnetic_induction_button)
+
+        # Add Select Boundary Conditions button
+        self.select_boundary_conditions_button = QPushButton("Select Boundary Conditions")
+        self.select_boundary_conditions_button.setFixedWidth(DEFAULT_LINE_EDIT_WIDTH)
+        self.select_boundary_conditions_button.clicked.connect(self.emit_select_boundary_conditions_signal)
+        fem_layout.addRow(self.select_boundary_conditions_button)
+        
         # Create additional fields group box
-        solver_group_box = QGroupBox("Iteration Solver Parameters")
+        solver_group_box = QGroupBox("Iterative Solver Parameters")
         additional_layout_left = QFormLayout()
         additional_layout_right = QFormLayout()
         additional_layout = QHBoxLayout()
@@ -298,7 +357,10 @@ class ConfigTab(QWidget):
         # Create main layout and add both group boxes
         main_layout = QHBoxLayout()
         main_layout.addWidget(simulation_group_box)
-        main_layout.addWidget(solver_group_box)
+        main_rightside_layout = QVBoxLayout()
+        main_rightside_layout.addWidget(picfem_group_box)
+        main_rightside_layout.addWidget(solver_group_box)
+        main_layout.addLayout(main_rightside_layout)
 
         # Create a QWidget to hold the main_layout
         main_widget = QWidget()
@@ -346,11 +408,20 @@ class ConfigTab(QWidget):
     def update_solver_parameters(self):
         solver = self.solver_selection.currentText()
 
-        # Hide all fields initially
+        # Disable all fields initially and apply disabled style
         for param in self.solver_parameters.values():
-            param[0].setVisible(False)
+            param[0].setEnabled(False)
+            if isinstance(param[0], QLineEdit):
+                param[0].setStyleSheet(DEFAULT_DISABLED_QLINEEDIT_STYLE)
+            elif isinstance(param[0], QComboBox):
+                param[0].setStyleSheet(DEFAULT_DISABLED_COMBOBOX_STYLE)
+
             if param[1] is not None:
-                param[1].setVisible(False)
+                param[1].setEnabled(False)
+                if isinstance(param[1], QLineEdit):
+                    param[1].setStyleSheet(DEFAULT_DISABLED_QLINEEDIT_STYLE)
+                elif isinstance(param[1], QComboBox):
+                    param[1].setStyleSheet(DEFAULT_DISABLED_COMBOBOX_STYLE)
 
         # Define which fields should be visible for each solver
         visible_params = {
@@ -368,9 +439,18 @@ class ConfigTab(QWidget):
 
         if solver in visible_params:
             for param in visible_params[solver]:
-                self.solver_parameters[param][0].setVisible(True)
+                self.solver_parameters[param][0].setEnabled(True)
+                if isinstance(self.solver_parameters[param][0], QLineEdit):
+                    self.solver_parameters[param][0].setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
+                elif isinstance(self.solver_parameters[param][0], QComboBox):
+                    self.solver_parameters[param][0].setStyleSheet(DEFAULT_COMBOBOX_STYLE)
+                    
                 if self.solver_parameters[param][1] is not None:
-                    self.solver_parameters[param][1].setVisible(True)
+                    self.solver_parameters[param][1].setEnabled(True)
+                    if isinstance(self.solver_parameters[param][1], QLineEdit):
+                        self.solver_parameters[param][1].setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
+                    elif isinstance(self.solver_parameters[param][1], QComboBox):
+                        self.solver_parameters[param][1].setStyleSheet(DEFAULT_COMBOBOX_STYLE)
 
 
     def check_validity_of_params(self):
@@ -898,3 +978,10 @@ class ConfigTab(QWidget):
             gmsh.finalize()
             self.mesh_file = output_file
             self.log_console.logSignal.emit(f'Successfully converted {file_path} to {output_file}. Mesh size is {mesh_size}. Mesh dimension: {mesh_dim}\n')
+
+    def load_magnetic_induction(self):
+        # TODO: Implement the functionality to load and parse the generated magnetic induction file from Ansys
+        pass
+
+    def emit_select_boundary_conditions_signal(self):
+        self.selectBoundaryConditionsSignal.emit()
