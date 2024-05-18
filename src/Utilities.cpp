@@ -218,12 +218,13 @@ util::BoundaryConditionsData util::loadBoundaryConditions(std::string_view filen
     std::vector<std::pair<std::vector<size_t>, double>> boundaryConditions;
     std::vector<size_t> nonChangebleNodes;
     json j;
+    std::unordered_map<size_t, std::vector<double>> nodeValues;
 
     try
     {
         file >> j;
     }
-    catch (const json::parse_error &e)
+    catch (json::parse_error const &e)
     {
         throw std::runtime_error("Failed to parse JSON file: " + std::string(filename) + ". Error: " + e.what());
     }
@@ -231,7 +232,7 @@ util::BoundaryConditionsData util::loadBoundaryConditions(std::string_view filen
     for (auto const &[key, value] : j.items())
     {
         std::vector<size_t> nodes;
-        std::string nodesStr = key;
+        std::string nodesStr(key);
         size_t pos{};
         std::string token;
         while ((pos = nodesStr.find(',')) != std::string::npos)
@@ -239,7 +240,10 @@ util::BoundaryConditionsData util::loadBoundaryConditions(std::string_view filen
             token = nodesStr.substr(0ul, pos);
             try
             {
-                nodes.emplace_back(std::stoi(token));
+                size_t nodeId{std::stoul(token)};
+                nodes.emplace_back(nodeId);
+                nonChangebleNodes.emplace_back(nodeId);
+                nodeValues[nodeId].push_back(value.get<double>());
             }
             catch (std::invalid_argument const &e)
             {
@@ -258,8 +262,9 @@ util::BoundaryConditionsData util::loadBoundaryConditions(std::string_view filen
                 size_t nodeId{std::stoul(nodesStr)};
                 nodes.emplace_back(nodeId);
                 nonChangebleNodes.emplace_back(nodeId);
+                nodeValues[nodeId].push_back(value.get<double>());
             }
-            catch (const std::invalid_argument &e)
+            catch (std::invalid_argument const &e)
             {
                 throw std::runtime_error("Invalid node ID: " + nodesStr + ". Error: " + e.what());
             }
@@ -281,6 +286,24 @@ util::BoundaryConditionsData util::loadBoundaryConditions(std::string_view filen
 
         boundaryConditions.emplace_back(nodes, val);
     }
+
+    // Check for duplicate nodes.
+    for (const auto &[nodeId, values] : nodeValues)
+    {
+        if (values.size() > 1)
+        {
+            ERRMSG(stringify("Node ID ", nodeId, " has multiple values assigned: "));
+            for (double val : values)
+                std::cerr << val << ' ';
+            std::endl(std::cout);
+
+            file.close();
+            std::filesystem::remove(filename);
+
+            throw std::runtime_error("Duplicate node values found. Temporary file with boundary conditions has been deleted.");
+        }
+    }
+    std::filesystem::remove(filename); // Removing the file after processing.
 
     return std::make_pair(nonChangebleNodes, boundaryConditions);
 }
