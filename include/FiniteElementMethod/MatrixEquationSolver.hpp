@@ -117,11 +117,11 @@ public:
      * It handles exceptions, checks for file existence, and validates the JSON format. 
      * @warning: Deletes the temporary file after parsing.   
      *
-     * @param filename The name of the JSON file containing solver parameters.
+     * @param filename The name of the JSON file containing solver parameters. By default uses filename that generates by UI side.
      * @return A pair containing the solver name (std::string) and a `Teuchos::RCP<Teuchos::ParameterList>` with the solver parameters.
      * @throws std::runtime_error if the file cannot be opened, does not exist, or is not a valid JSON file.
      */
-    std::pair<std::string, Teuchos::RCP<Teuchos::ParameterList>> parseSolverParamsFromJson(std::string_view filename);
+    std::pair<std::string, Teuchos::RCP<Teuchos::ParameterList>> parseSolverParamsFromJson(std::string_view filename = "temp_solver_params.json");
 
     /**
      * @brief Solves the equation Ax=b.
