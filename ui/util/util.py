@@ -26,6 +26,7 @@ DEFAULT_TEMP_HDF5_FILE = 'temp.hdf5'
 DEFAULT_TEMP_CONFIG_FILE = 'temp_config.json'
 DEFAULT_TEMP_FILE_FOR_PARTICLE_SOURCE_AND_THETA = 'sourceAndDirection.txt'
 DEFAULT_FILE_FOR_BOUNDARY_CONDITIONS = 'temp_boundary_conditions.json'
+DEFAULT_TEMP_SOLVER_PARAMS_FILE = 'temp_solver_params.json'
 
 DEFAULT_COUNT_OF_PROJECT_FILES = 3
 
