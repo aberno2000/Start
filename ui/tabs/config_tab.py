@@ -817,6 +817,8 @@ class ConfigTab(QWidget):
                 self.log_console.logSignal.emit(f'Successfully saved data to new config: {configFile}\n')
             except Exception as e:
                 self.log_console.logSignal.emit(f'Error: Failed to save configuration to {configFile}: Exception: {e}\n')
+        
+        self.save_solver_params_to_json(DEFAULT_TEMP_SOLVER_PARAMS_FILE)
 
 
     def save_config_to_file(self):
@@ -854,7 +856,8 @@ class ConfigTab(QWidget):
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Failed to save configuration: Exception: {e}")
                 self.log_console.logSignal.emit(f'Error: Failed to save configuration to {self.config_file_path}: Exception: {e}\n')
-                
+        self.save_solver_params_to_json(DEFAULT_TEMP_SOLVER_PARAMS_FILE)
+    
     
     def upload_mesh_file_with_filename(self, meshfilename):
         if meshfilename:
