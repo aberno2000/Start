@@ -84,10 +84,6 @@ def ansi_to_segments(text: str):
     append_segment(buffer, current_color)  # Append any remaining text
     return segments
 
-def insert_segments_into_log_console(segments, logConsole):
-    for text, color in segments:
-        logConsole.insert_colored_text(text, color)
-
 class Converter:
     @staticmethod
     def to_kelvin(value, unit):

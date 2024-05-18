@@ -9,7 +9,6 @@ import signal, os
 from sys import exit
 from time import time
 from json import dump
-from util.converter import ansi_to_segments, insert_segments_into_log_console
 from PyQt5.QtCore import Qt, QProcess
 from PyQt5.QtGui import QColor
 from tabs.config_tab import ConfigTab
@@ -95,14 +94,12 @@ class WindowApp(QMainWindow):
     
     def read_stderr(self):
         errout = self.process.readAllStandardError().data().decode('utf-8').strip()
-        segments = ansi_to_segments(errout)
-        insert_segments_into_log_console(segments, self.log_console)
+        self.log_console.appendLog(errout)
 
 
     def read_stdout(self):
         out = self.process.readAllStandardOutput().data().decode('utf-8').strip()
-        segments = ansi_to_segments(out)
-        insert_segments_into_log_console(segments, self.log_console)
+        self.log_console.appendLog(out)
 
     
     def on_process_finished(self, exitCode, exitStatus):
@@ -119,8 +116,8 @@ class WindowApp(QMainWindow):
                 return
                 
             self.results_tab.update_plot(self.hdf5_filename)
-            self.log_console.insert_colored_text('Successfully: ', 'green')
-            self.log_console.insert_colored_text(f'The simulation has completed in {exec_time:.3f}s\n', self.setupFontColor)
+            self.log_console.appendLog('\n')
+            self.log_console.printSuccess(f'The simulation has completed in {exec_time:.3f}s')
             
             # Moving to the results tab after finishing
             self.tab_widget.setCurrentIndex(2)
@@ -134,8 +131,7 @@ class WindowApp(QMainWindow):
             QMessageBox.information(self,
                                     "Uknnown Error",
                                     f"Something went wrong at the start of the simulation. Maybe specified particle count is a small amount, try to increase this field. Current particle count is {self.config_tab.particles_count}. Or maybe your mesh is very small and you don't have anough space to start the simulation\n")
-            self.log_console.insert_colored_text('Warning: ', 'yellow')
-            self.log_console.insert_colored_text(f"Something went wrong at the start of the simulation. Maybe specified particle count is a small amount, try to increase this field. Current particle count is {self.config_tab.particles_count}. Or maybe your mesh is very small and you don't have anough space to strat the simulation\n", self.setupFontColor)
+            self.log_console.printError(f"Something went wrong at the start of the simulation. Maybe specified particle count is a small amount, try to increase this field. Current particle count is {self.config_tab.particles_count}. Or maybe your mesh is very small and you don't have anough space to strat the simulation")
         else:
             self.results_tab.clear_plot()
             
@@ -147,8 +143,7 @@ class WindowApp(QMainWindow):
                                     f"Got signal {exitCode} which is undefined!")
                 signal_name = "Undefined"
             
-            self.log_console.insert_colored_text('Warning: ', 'yellow')
-            self.log_console.insert_colored_text(f'The simulation has been forcibly stopped with a code {exitCode} <{signal_name}>\n', self.setupFontColor)
+            self.log_console.printError(f'The simulation has been forcibly stopped with a code {exitCode} <{signal_name}>')
             QMessageBox.information(self, 
                                     "Simulation Stopped", 
                                     f"The simulation has been forcibly stopped with a code {exitCode} <{signal_name}>")
@@ -304,8 +299,7 @@ class WindowApp(QMainWindow):
             rmtree(project_dir)
         os.makedirs(project_dir, exist_ok=True)
         
-        self.log_console.insert_colored_text('Successfully: ', 'green')
-        self.log_console.insert_colored_text(f'Created new project directory: {project_dir}\n', self.setupFontColor)
+        self.log_console.printSuccess(f'Created new project directory: {project_dir}')
 
 
     def open_project(self):
@@ -321,8 +315,7 @@ class WindowApp(QMainWindow):
         if len(paths) != DEFAULT_COUNT_OF_PROJECT_FILES or \
             not paths[0].endswith('.json') or not paths[1].endswith('scene_camera_meshTab.json') or \
             not paths[2].endswith('scene_actors_meshTab.vtk'):
-                self.log_console.insert_colored_text('Error: ', 'red')
-                self.log_console.insert_colored_text(f'Can\'t open the project, check contegrity of all the files in directory {project_dir}. There must be {DEFAULT_COUNT_OF_PROJECT_FILES} files\n', self.setupFontColor)
+                self.log_console.printError(f'Can\'t open the project, check contegrity of all the files in directory {project_dir}. There must be {DEFAULT_COUNT_OF_PROJECT_FILES} files')
                 QMessageBox.critical(self, 'Open Project', f'Can\'t open the project, check contegrity of all the files in directory {project_dir}. There must be {DEFAULT_COUNT_OF_PROJECT_FILES} files')
                 return
         
@@ -370,12 +363,9 @@ class WindowApp(QMainWindow):
                 os.remove(filename)
             
         except Exception as e:
-            self.log_console.insert_colored_text(f'Error: {e}: Nothing to save or any file error occured\n', 'red')
-            self.log_console.insert_colored_text('', self.setupFontColor)
+            self.log_console.printError(f'Message: {e}: Nothing to save or any file error occured')
             return
-        
-        self.log_console.insert_colored_text('Successfully: ', 'green')
-        self.log_console.insert_colored_text(f'Project had been saved into {project_dir} directory\n', self.setupFontColor)
+        self.log_console.printSuccess(f'Project had been saved into {project_dir} directory')
 
 
     def setup_tabs(self):

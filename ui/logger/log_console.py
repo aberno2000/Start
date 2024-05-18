@@ -129,6 +129,9 @@ class LogConsole(QWidget):
         
     def appendLog(self, message):
         self.log_console.appendPlainText(str(message))
+    
+    def printSuccess(self, message):
+        self.insert_colored_text("Successfully: ", message, "green")
         
     def printError(self, message):
         self.insert_colored_text("Error: ", message, "red")
