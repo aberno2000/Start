@@ -1432,7 +1432,6 @@ class GraphicalEditor(QFrame):
         try:
             base_coords = self.getParticleSourceBaseCoords()
             if base_coords is None:
-                self.log_console.printError("Base coordinates are not defined")
                 raise ValueError("Base coordinates are not defined")
 
             if not self.expansion_angle:
