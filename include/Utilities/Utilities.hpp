@@ -152,6 +152,12 @@ namespace util
      */
     bool exists(std::string_view filename);
 
+    /**
+     * @brief Removes file from the PC.
+     * @param filename Name of the file (or path) to remove.
+     */
+    void removeFile(std::string_view filename);
+
     /// @brief Cheks restrictions for the certain simulation parameters, if something wrong - exits from the program.
     void checkRestrictions(double time_step, size_t particles_count, std::string_view mshfilename);
 
@@ -174,6 +180,22 @@ namespace util
      * @throws std::runtime_error if the file cannot be opened or is not a valid JSON file.
      */
     BoundaryConditionsData loadBoundaryConditions(std::string_view filename);
+
+    using PICFEMParameters = std::pair<double, short>;
+    /**
+     * @brief Loads PIC and FEM parameters from a JSON file.
+     *
+     * This function reads a JSON file containing parameters for Particle In Cell (PIC)
+     * and Finite Element Method (FEM) calculations. It extracts the edge size of the
+     * cubic grid and the desired FEM calculation accuracy. The parameters are returned
+     * as a pair of double and short.
+     *
+     * @param filename The name of the JSON file to load.
+     * @return A pair containing the edge size of the cubic grid (double) and the desired FEM calculation accuracy (short).
+     * @throws std::runtime_error If the file does not exist, if it cannot be opened, or if the JSON parsing fails.
+     * @throws std::invalid_argument If the parameters in the JSON file are not valid numbers.
+     */
+    PICFEMParameters loadPICFEMParameters(std::string_view filename);
 }
 
 #endif // !UTILITIES_HPP

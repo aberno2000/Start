@@ -142,6 +142,8 @@ bool util::exists(std::string_view filename)
 #endif
 }
 
+void util::removeFile(std::string_view filename) { std::filesystem::remove(filename); }
+
 void util::checkRestrictions(double time_step, size_t particles_count, std::string_view mshfilename)
 {
     if (not util::exists(mshfilename))
@@ -298,12 +300,54 @@ util::BoundaryConditionsData util::loadBoundaryConditions(std::string_view filen
             std::endl(std::cout);
 
             file.close();
-            std::filesystem::remove(filename);
-
             throw std::runtime_error("Duplicate node values found. Temporary file with boundary conditions has been deleted.");
         }
     }
-    std::filesystem::remove(filename); // Removing the file after processing.
-
     return std::make_pair(nonChangebleNodes, boundaryConditions);
+}
+
+util::PICFEMParameters util::loadPICFEMParameters(std::string_view filename)
+{
+    if (!std::filesystem::exists(filename))
+    {
+        throw std::runtime_error("File does not exist: " + std::string(filename));
+    }
+
+    std::ifstream file(filename.data());
+    if (!file.is_open())
+    {
+        throw std::runtime_error("Unable to open file: " + std::string(filename));
+    }
+
+    json j;
+    try
+    {
+        file >> j;
+    }
+    catch (const json::parse_error &e)
+    {
+        throw std::runtime_error("Failed to parse JSON file: " + std::string(filename) + ". Error: " + std::string(e.what()));
+    }
+
+    double edgeSize{};
+    short desiredAccuracy{};
+
+    try
+    {
+        if (!j.contains("EdgeSize") || !j.contains("DesiredAccuracy"))
+            throw std::runtime_error("Missing required parameters in the JSON file.");
+
+        edgeSize = std::stod(j.at("EdgeSize").get<std::string>());
+        desiredAccuracy = std::stoi(j.at("DesiredAccuracy").get<std::string>());
+    }
+    catch (std::invalid_argument const &e)
+    {
+        throw std::invalid_argument("Invalid parameter in JSON file: " + std::string(e.what()));
+    }
+    catch (std::out_of_range const &e)
+    {
+        throw std::invalid_argument("Parameter out of range in JSON file: " + std::string(e.what()));
+    }
+
+    return {edgeSize, desiredAccuracy};
 }
