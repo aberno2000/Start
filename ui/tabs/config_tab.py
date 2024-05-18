@@ -4,22 +4,29 @@ from PyQt5.QtWidgets import (
     QGroupBox, QFileDialog, QPushButton,
     QSizePolicy, QSpacerItem, QDialog
 )
+from PyQt5.QtGui import QIntValidator, QRegExpValidator
 import gmsh
 from os.path import dirname
 from PyQt5 import QtCore
-from PyQt5.QtCore import QSize, pyqtSignal
+from PyQt5.QtCore import QSize, pyqtSignal, QRegExp
 from json import load, dump, JSONDecodeError
 from multiprocessing import cpu_count
 from platform import platform
 from util.converter import Converter, is_positive_real_number
 from util.mesh_dialog import MeshDialog
 from util import is_file_valid
-from util.util import is_path_accessable
-from util.util import DEFAULT_QLINEEDIT_STYLE, DEFAULT_TEMP_CONFIG_FILE
+from util.util import(
+    is_path_accessable, 
+    DEFAULT_QLINEEDIT_STYLE, 
+    DEFAULT_TEMP_CONFIG_FILE,
+    DEFAULT_TEMP_SOLVER_PARAMS_FILE
+)
 
 MIN_TIME = 1e-9
 MAX_PRESSURE = 300.0
 
+DEFAULT_LINE_EDIT_WIDTH = 175
+DEFAULT_COMBOBOX_WIDTH = 85
 
 def get_thread_count():
     return cpu_count()
@@ -71,6 +78,20 @@ class ConfigTab(QWidget):
     
     def next_button_on_clicked(self):
         self.validate_input_with_highlight()
+        self.save_solver_params_to_json(DEFAULT_TEMP_SOLVER_PARAMS_FILE)
+        
+    
+    def save_solver_params_to_json(self, filename: str):
+        params = {}
+        for key, (input_field, units_combobox) in self.solver_parameters.items():
+            if isinstance(input_field, QLineEdit):
+                params[key] = input_field.text()
+            elif isinstance(input_field, QComboBox):
+                params[key] = input_field.currentText()
+
+        params["solverName"] = self.solver_selection.currentText()
+        with open(filename, 'w') as file:
+            dump(params, file, indent=4)
         
         
     def setup_mesh_group(self):
@@ -114,127 +135,164 @@ class ConfigTab(QWidget):
 
         scattering_group_box.setLayout(scattering_layout)
         self.layout.addWidget(scattering_group_box)
+        
+    def create_simulation_field(self, label_text, input_type, units=None, default_unit=None, default_value="0.0"):
+        input_field = QLineEdit()
+        input_field.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
+        input_field.setFixedWidth(DEFAULT_LINE_EDIT_WIDTH)
+
+        layout = QHBoxLayout()
+        layout.addWidget(input_field)
+
+        if units:
+            units_combobox = QComboBox()
+            units_combobox.addItems(units)
+            if default_unit:
+                units_combobox.setCurrentText(default_unit)
+            units_combobox.setFixedWidth(DEFAULT_COMBOBOX_WIDTH)
+            layout.addWidget(units_combobox, alignment=QtCore.Qt.AlignLeft)
+
+        converted_label = QLabel(f"{default_value} {units[0] if units else ''}")
+        layout.addWidget(converted_label, alignment=QtCore.Qt.AlignRight)
+
+        self.simulation_layout.addRow(QLabel(label_text), layout)
+
+        return input_field, units_combobox if units else None, converted_label
+    
+    def create_solver_params_field(self, parent_layout, label_text, default_value, units=None, is_combobox=False):
+        DEFAULT_LINE_EDIT_WIDTH = 175
+        DEFAULT_COMBOBOX_WIDTH = 85
+
+        if is_combobox:
+            input_field = QComboBox()
+            input_field.addItems(default_value)  # default_value should be a list of items for combobox
+            input_field.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
+            input_field.setFixedWidth(DEFAULT_LINE_EDIT_WIDTH)
+        else:
+            input_field = QLineEdit()
+            input_field.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
+            input_field.setFixedWidth(DEFAULT_LINE_EDIT_WIDTH)
+            input_field.setText(default_value)
+
+        layout = QHBoxLayout()
+        layout.addWidget(input_field)
+
+        units_combobox = None
+        if units:
+            units_combobox = QComboBox()
+            units_combobox.addItems(units)
+            units_combobox.setFixedWidth(DEFAULT_COMBOBOX_WIDTH)
+            layout.addWidget(units_combobox, alignment=QtCore.Qt.AlignLeft)
+
+        parent_layout.addRow(QLabel(label_text), layout)
+        return input_field, units_combobox
+
 
     def setup_simulation_parameters_group(self):
-        line_edit_width = 175
-        combobox_width = 85
+        self.simulation_layout = QFormLayout()
         simulation_group_box = QGroupBox("Simulation Parameters")
-        simulation_layout = QFormLayout()
-        simulation_layout.addRow(
+        simulation_group_box.setLayout(self.simulation_layout)
+
+        self.simulation_layout.addRow(
             QLabel(f"System: {get_os_info()} has {get_thread_count()} threads"))
 
         # Thread count
-        self.thread_count_input = QLineEdit()
-        self.thread_count_input.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
-        thread_count_layout = QHBoxLayout()
-        thread_count_layout.addWidget(self.thread_count_input)
-        simulation_layout.addRow(QLabel("Thread count:"), thread_count_layout)
-        self.thread_count_input.setFixedWidth(line_edit_width)
+        self.thread_count_input, _, _ = self.create_simulation_field("Thread count:", QLineEdit)
 
         # Time Step with units
-        self.time_step_input = QLineEdit()
-        self.time_step_input.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
-        self.time_step_units = QComboBox()
-        self.time_step_units.addItems(["ns", "μs", "ms", "s", "min"])
-        self.time_step_units.setCurrentText("ms")
-        self.time_step_converted = QLabel("0.0 s")  # Default display 0s
-        time_step_layout = QHBoxLayout()
-        time_step_layout.addWidget(self.time_step_input)
-        time_step_layout.addWidget(
-            self.time_step_units, alignment=QtCore.Qt.AlignLeft)
-        time_step_layout.addWidget(
-            self.time_step_converted, alignment=QtCore.Qt.AlignRight)
-        simulation_layout.addRow(QLabel("Time Step:"), time_step_layout)
-        self.time_step_input.setFixedWidth(line_edit_width)
-        self.time_step_units.setFixedWidth(combobox_width)
+        self.time_step_input, self.time_step_units, self.time_step_converted = self.create_simulation_field(
+            "Time Step:", QLineEdit, ["ns", "μs", "ms", "s", "min"], "ms", "0.0")
 
         # Simulation time with units
-        self.simulation_time_input = QLineEdit()
-        self.simulation_time_input.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
-        self.simulation_time_units = QComboBox()
-        self.simulation_time_units.addItems(["ns", "μs", "ms", "s", "min"])
-        self.simulation_time_units.setCurrentText("s")
-        self.simulation_time_converted = QLabel("0.0 s")  # Default display 0s
-        simulation_time_layout = QHBoxLayout()
-        simulation_time_layout.addWidget(self.simulation_time_input)
-        simulation_time_layout.addWidget(
-            self.simulation_time_units, alignment=QtCore.Qt.AlignLeft)
-        simulation_time_layout.addWidget(
-            self.simulation_time_converted, alignment=QtCore.Qt.AlignRight)
-        simulation_layout.addRow(
-            QLabel("Simulation Time:"), simulation_time_layout)
-        self.simulation_time_input.setFixedWidth(line_edit_width)
-        self.simulation_time_units.setFixedWidth(combobox_width)
+        self.simulation_time_input, self.simulation_time_units, self.simulation_time_converted = self.create_simulation_field(
+            "Simulation Time:", QLineEdit, ["ns", "μs", "ms", "s", "min"], "s", "0.0")
 
         # Temperature with units
-        self.temperature_input = QLineEdit()
-        self.temperature_input.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
-        self.temperature_units = QComboBox()
-        self.temperature_units.addItems(["K", "F", "C"])
-        self.temperature_converted = QLabel("0.0 K")
-        temperature_layout = QHBoxLayout()
-        temperature_layout.addWidget(self.temperature_input)
-        temperature_layout.addWidget(
-            self.temperature_units, alignment=QtCore.Qt.AlignLeft)
-        temperature_layout.addWidget(
-            self.temperature_converted, alignment=QtCore.Qt.AlignRight)
-        simulation_layout.addRow(QLabel("Temperature:"), temperature_layout)
-        self.temperature_input.setFixedWidth(line_edit_width)
-        self.temperature_units.setFixedWidth(combobox_width)
+        self.temperature_input, self.temperature_units, self.temperature_converted = self.create_simulation_field(
+            "Temperature:", QLineEdit, ["K", "F", "C"], "K", "0.0 K")
 
         # Pressure with units
-        self.pressure_input = QLineEdit()
-        self.pressure_input.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
-        self.pressure_units = QComboBox()
-        self.pressure_units.addItems(["mPa", "Pa", "kPa", "psi"])
-        self.pressure_units.setCurrentText("Pa")
-        self.pressure_converted = QLabel("0.0 Pa")
-        pressure_layout = QHBoxLayout()
-        pressure_layout.addWidget(self.pressure_input)
-        pressure_layout.addWidget(
-            self.pressure_units, alignment=QtCore.Qt.AlignLeft)
-        pressure_layout.addWidget(
-            self.pressure_converted, alignment=QtCore.Qt.AlignRight)
-        simulation_layout.addRow(QLabel("Pressure:"), pressure_layout)
-        self.pressure_input.setFixedWidth(line_edit_width)
-        self.pressure_units.setFixedWidth(combobox_width)
+        self.pressure_input, self.pressure_units, self.pressure_converted = self.create_simulation_field(
+            "Pressure:", QLineEdit, ["mPa", "Pa", "kPa", "psi"], "Pa", "0.0")
 
         # Volume with units
-        self.volume_input = QLineEdit()
-        self.volume_input.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
-        self.volume_units = QComboBox()
-        self.volume_units.addItems(["mm³", "cm³", "m³"])
-        self.volume_units.setCurrentText("m³")
-        self.volume_converted = QLabel("0.0 m³")
-        volume_layout = QHBoxLayout()
-        volume_layout.addWidget(self.volume_input)
-        volume_layout.addWidget(
-            self.volume_units, alignment=QtCore.Qt.AlignLeft)
-        volume_layout.addWidget(self.volume_converted,
-                                alignment=QtCore.Qt.AlignRight)
-        simulation_layout.addRow(QLabel("Volume:"), volume_layout)
-        self.volume_input.setFixedWidth(line_edit_width)
-        self.volume_units.setFixedWidth(combobox_width)
+        self.volume_input, self.volume_units, self.volume_converted = self.create_simulation_field(
+            "Volume:", QLineEdit, ["mm³", "cm³", "m³"], "m³", "0.0 m³")
 
         # Energy with units
-        self.energy_input = QLineEdit()
-        self.energy_input.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
-        self.energy_units = QComboBox()
-        self.energy_units.addItems(["eV", "keV", "J", "kJ", "cal"])
-        self.energy_units.setCurrentText("eV")
-        self.energy_converted = QLabel("0.0 J")
-        energy_layout = QHBoxLayout()
-        energy_layout.addWidget(self.energy_input)
-        energy_layout.addWidget(
-            self.energy_units, alignment=QtCore.Qt.AlignLeft)
-        energy_layout.addWidget(self.energy_converted,
-                                alignment=QtCore.Qt.AlignRight)
-        simulation_layout.addRow(QLabel("Energy:"), energy_layout)
-        self.energy_input.setFixedWidth(line_edit_width)
-        self.energy_units.setFixedWidth(combobox_width)
+        self.energy_input, self.energy_units, self.energy_converted = self.create_simulation_field(
+            "Energy:", QLineEdit, ["eV", "keV", "J", "kJ", "cal"], "eV", "0.0")
 
-        simulation_group_box.setLayout(simulation_layout)
-        self.layout.addWidget(simulation_group_box)
+        simulation_group_box.setLayout(self.simulation_layout)
+        
+        # Create additional fields group box
+        solver_group_box = QGroupBox("Iteration Solver Parameters")
+        additional_layout_left = QFormLayout()
+        additional_layout_right = QFormLayout()
+        additional_layout = QHBoxLayout()
+        additional_layout.addLayout(additional_layout_left)
+        additional_layout.addLayout(additional_layout_right)
+        solver_group_box.setLayout(additional_layout)
+
+        # Solver selection
+        self.solver_selection = QComboBox()
+        self.solver_selection.setFixedWidth(DEFAULT_LINE_EDIT_WIDTH)
+        self.solver_selection.addItems([
+            "CG", "Block CG", "GMRES", "Block GMRES", "Pseudo-block GMRES",
+            "Block Flexible GMRES", "GCRO-DR", "Pseudo-block CG", "LSQR", "MINRES"
+        ])
+        self.solver_selection.currentIndexChanged.connect(self.update_solver_parameters)
+        additional_layout_left.addRow(QLabel("Solver:"), self.solver_selection)
+
+        # Parameters for solvers
+        self.solver_parameters = {}
+
+        self.solver_parameters["maxIterations"] = self.create_solver_params_field(additional_layout_left, "Max Iterations:", "1000")
+        self.solver_parameters["convergenceTolerance"] = self.create_solver_params_field(additional_layout_left, "Convergence Tolerance:", "1e-20")
+        self.solver_parameters["outputFrequency"] = self.create_solver_params_field(additional_layout_left, "Output Frequency:", "1")
+        self.solver_parameters["numBlocks"] = self.create_solver_params_field(additional_layout_left, "Num Blocks:", "30")
+        self.solver_parameters["blockSize"] = self.create_solver_params_field(additional_layout_left, "Block Size:", "1")
+
+        self.solver_parameters["maxRestarts"] = self.create_solver_params_field(additional_layout_right, "Max Restarts:", "20")
+        self.solver_parameters["flexibleGMRES"] = self.create_solver_params_field(additional_layout_right, "Flexible GMRES:", ["false", "true"], is_combobox=True)
+        self.solver_parameters["orthogonalization"] = self.create_solver_params_field(additional_layout_right, "Orthogonalization:", ["ICGS", "IMGS"], is_combobox=True)
+        self.solver_parameters["adaptiveBlockSize"] = self.create_solver_params_field(additional_layout_right, "Adaptive Block Size:", ["false", "true"], is_combobox=True)
+        self.solver_parameters["convergenceTestFrequency"] = self.create_solver_params_field(additional_layout_right, "Convergence Test Frequency:", "-1")
+        self.solver_selection.setCurrentIndex(2) # By default using GMRES
+        
+        # Applying validators to different fields
+        exp_regexp = QRegExp(r'1e-([1-9]|[1-4][0-9]|50)|1e-1')
+        
+        self.solver_parameters["maxIterations"][0].setValidator(QIntValidator(1, 1000000))
+        self.solver_parameters["convergenceTolerance"][0].setValidator(QRegExpValidator(exp_regexp))
+        self.solver_parameters["outputFrequency"][0].setValidator(QIntValidator(1, 1000))
+        self.solver_parameters["numBlocks"][0].setValidator(QIntValidator(1, 1000))
+        self.solver_parameters["blockSize"][0].setValidator(QIntValidator(1, 1000))
+        self.solver_parameters["maxRestarts"][0].setValidator(QIntValidator(0, 1000))
+        
+        # Adding tooltips to different fields
+        self.solver_parameters["maxIterations"][0].setToolTip("Max Iterations: The maximum number of iterations the solver will perform. Range: 1 to 1'000'000.")
+        self.solver_parameters["convergenceTolerance"][0].setToolTip("Convergence Tolerance: The tolerance for the relative residual norm used to determine convergence. Range: 1e-50 to 1e-1.")
+        self.solver_parameters["outputFrequency"][0].setToolTip("Output Frequency: Determines how often information is printed during the iterative process. Range: 1 to 1'000.")
+        self.solver_parameters["numBlocks"][0].setToolTip("Num Blocks: Sets the number of blocks in the Krylov basis, related to the restart mechanism of GMRES. Range: 1 to 1'000.")
+        self.solver_parameters["blockSize"][0].setToolTip("Block Size: Determines the block size for block methods. Range: 1 to 1'000.")
+        self.solver_parameters["maxRestarts"][0].setToolTip("Max Restarts: Specifies the maximum number of restarts allowed. Range: 0 to 1'000.")
+        self.solver_parameters["flexibleGMRES"][0].setToolTip("Flexible GMRES: Indicates whether to use the flexible version of GMRES. Options: true, false.")
+        self.solver_parameters["orthogonalization"][0].setToolTip("Orthogonalization: Specifies the orthogonalization method to use. Options: ICGS, IMGS.")
+        self.solver_parameters["adaptiveBlockSize"][0].setToolTip("Adaptive Block Size: Indicates whether to adapt the block size in block methods. Options: true, false.")
+        self.solver_parameters["convergenceTestFrequency"][0].setToolTip("Convergence Test Frequency: Specifies how often convergence is tested (in iterations). Default setting is used if negative. Range: -1 or positive integers.")
+
+        # Create main layout and add both group boxes
+        main_layout = QHBoxLayout()
+        main_layout.addWidget(simulation_group_box)
+        main_layout.addWidget(solver_group_box)
+
+        # Create a QWidget to hold the main_layout
+        main_widget = QWidget()
+        main_widget.setLayout(main_layout)
+
+        # Add the main_widget to the parent layout
+        self.layout.addWidget(main_widget)
 
         # Connect signals to the slot that updates converted value labels
         self.time_step_input.textChanged.connect(self.update_converted_values)
@@ -258,7 +316,6 @@ class ConfigTab(QWidget):
         self.energy_units.currentIndexChanged.connect(
             self.update_converted_values)
 
-
     def update_converted_values(self):
         self.time_step_converted.setText(
             f"{self.converter.to_seconds(self.time_step_input.text(), self.time_step_units.currentText())} s")
@@ -272,6 +329,35 @@ class ConfigTab(QWidget):
             f"{self.converter.to_cubic_meters(self.volume_input.text(), self.volume_units.currentText())} m³")
         self.energy_converted.setText(
             f"{self.converter.to_joules(self.energy_input.text(), self.energy_units.currentText())} J")
+
+    def update_solver_parameters(self):
+        solver = self.solver_selection.currentText()
+
+        # Hide all fields initially
+        for param in self.solver_parameters.values():
+            param[0].setVisible(False)
+            if param[1] is not None:
+                param[1].setVisible(False)
+
+        # Define which fields should be visible for each solver
+        visible_params = {
+            "CG": ["maxIterations", "convergenceTolerance", "outputFrequency", "blockSize"],
+            "Block CG": ["maxIterations", "convergenceTolerance", "outputFrequency", "blockSize", "adaptiveBlockSize"],
+            "GMRES": ["maxIterations", "convergenceTolerance", "outputFrequency", "numBlocks", "maxRestarts", "orthogonalization", "flexibleGMRES"],
+            "Block GMRES": ["maxIterations", "convergenceTolerance", "outputFrequency", "numBlocks", "maxRestarts", "orthogonalization", "adaptiveBlockSize", "convergenceTestFrequency"],
+            "Pseudo-block GMRES": ["maxIterations", "convergenceTolerance", "outputFrequency", "numBlocks", "maxRestarts", "orthogonalization"],
+            "Block Flexible GMRES": ["maxIterations", "convergenceTolerance", "outputFrequency", "numBlocks", "maxRestarts", "orthogonalization", "adaptiveBlockSize"],
+            "GCRO-DR": ["maxIterations", "convergenceTolerance", "outputFrequency", "numBlocks", "maxRestarts", "orthogonalization", "adaptiveBlockSize", "convergenceTestFrequency"],
+            "Pseudo-block CG": ["maxIterations", "convergenceTolerance", "outputFrequency", "blockSize"],
+            "LSQR": ["maxIterations", "convergenceTolerance", "outputFrequency"],
+            "MINRES": ["maxIterations", "convergenceTolerance", "outputFrequency"]
+        }
+
+        if solver in visible_params:
+            for param in visible_params[solver]:
+                self.solver_parameters[param][0].setVisible(True)
+                if self.solver_parameters[param][1] is not None:
+                    self.solver_parameters[param][1].setVisible(True)
 
 
     def check_validity_of_params(self):
