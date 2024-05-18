@@ -241,6 +241,19 @@ class ConfigTab(QWidget):
             "CG", "Block CG", "GMRES", "Block GMRES", "Pseudo-block GMRES",
             "Block Flexible GMRES", "GCRO-DR", "Pseudo-block CG", "LSQR", "MINRES"
         ])
+        self.solver_selection.setToolTip(
+            "CG (Conjugate Gradient): Used for solving systems of linear equations with symmetric positive-definite matrices.\n"
+            "Block CG: A variant of CG that handles multiple right-hand sides simultaneously.\n"
+            "GMRES (Generalized Minimal Residual): Suitable for non-symmetric or indefinite matrices, minimizes the residual over a Krylov subspace.\n"
+            "Block GMRES: A block version of GMRES for multiple right-hand sides.\n"
+            "Pseudo-block GMRES: A variant of GMRES that improves performance for multiple right-hand sides.\n"
+            "Block Flexible GMRES: Allows variable preconditioning within the GMRES algorithm, handling multiple right-hand sides.\n"
+            "GCRO-DR (Generalized Conjugate Residual with Deflated Restarting): Combines GMRES with a deflation technique to accelerate convergence.\n"
+            "Pseudo-block CG: Similar to CG but handles multiple right-hand sides more efficiently.\n"
+            "LSQR: An iterative method for solving sparse linear equations and sparse least squares problems.\n"
+            "MINRES (Minimal Residual): Solves symmetric linear systems, particularly effective for symmetric indefinite systems.\n"
+            "For a more detailed description, see the corresponding Internet resources."
+        )
         self.solver_selection.currentIndexChanged.connect(self.update_solver_parameters)
         additional_layout_left.addRow(QLabel("Solver:"), self.solver_selection)
 
