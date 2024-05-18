@@ -338,7 +338,6 @@ std::pair<std::string, Teuchos::RCP<Teuchos::ParameterList>> MatrixEquationSolve
     {
         throw std::runtime_error("Type error in JSON file: " + std::string(filename) + ". Error: " + e.what());
     }
-    std::filesystem::remove(filename);
     return std::make_pair(solverName, params);
 }
 

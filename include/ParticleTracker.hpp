@@ -10,6 +10,10 @@
 #include "ParticleInCell/Grid3D.hpp"
 #include "Particles/Particles.hpp"
 
+static constexpr std::string_view const kdefault_temp_picfem_params_filename{"temp_picfem_params.json"};
+static constexpr std::string_view const kdefault_temp_solver_params_filename{"temp_solver_params.json"};
+static constexpr std::string_view const kdefault_temp_boundary_conditions_filename{"temp_boundary_conditions.json"};
+
 class ParticleTracker final
 {
     using NodeTetrahedronMap = std::map<size_t, std::vector<std::size_t>>;

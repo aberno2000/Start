@@ -218,7 +218,7 @@ void ParticleTracker::startSimulation(ParticleType const &particleType, size_t p
 
         // Solve the equation Ax=b.
         MatrixEquationSolver solver(assemblier, solutionVector);
-        auto solverParams{solver.parseSolverParamsFromJson("temp_solver_params.json")};
+        auto solverParams{solver.parseSolverParamsFromJson()};
         solver.solve(solverParams.first, solverParams.second);
         std::cout << "Solution is:\n";
         solver.printLHS();
@@ -296,4 +296,9 @@ void ParticleTracker::startSimulation(ParticleType const &particleType, size_t p
             }
         }
     }
+
+    // Removing all the intermediate files after simulation finalization.
+    util::removeFile(kdefault_temp_boundary_conditions_filename);
+    util::removeFile(kdefault_temp_picfem_params_filename);
+    util::removeFile(kdefault_temp_solver_params_filename);
 }
