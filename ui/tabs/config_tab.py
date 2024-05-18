@@ -6,6 +6,7 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtGui import QIntValidator, QRegExpValidator
 import gmsh
+from os import remove
 from os.path import dirname
 from PyQt5 import QtCore
 from PyQt5.QtCore import QSize, pyqtSignal, QRegExp
@@ -18,7 +19,8 @@ from util import is_file_valid
 from util.util import(
     is_path_accessable, CustomDoubleValidator,
     DEFAULT_TEMP_CONFIG_FILE,
-    DEFAULT_TEMP_SOLVER_PARAMS_FILE
+    DEFAULT_TEMP_SOLVER_PARAMS_FILE,
+    DEFAULT_TEMP_PICFEM_PARAMS_FILE
 )
 from util.styles import(
     DEFAULT_QLINEEDIT_STYLE, DEFAULT_COMBOBOX_STYLE,
@@ -83,6 +85,7 @@ class ConfigTab(QWidget):
     def next_button_on_clicked(self):
         self.validate_input_with_highlight()
         self.save_solver_params_to_json(DEFAULT_TEMP_SOLVER_PARAMS_FILE)
+        self.save_picfem_params_to_json(DEFAULT_TEMP_PICFEM_PARAMS_FILE)
         
     
     def save_solver_params_to_json(self, filename: str):
@@ -96,7 +99,22 @@ class ConfigTab(QWidget):
         params["solverName"] = self.solver_selection.currentText()
         with open(filename, 'w') as file:
             dump(params, file, indent=4)
+    
+    
+    def save_picfem_params_to_json(self, filename: str):
+        params = {}
         
+        # If empty - setting values by default
+        if not self.pic_input.text():
+            self.pic_input.setText("5")
+        if not self.fem_input.text():
+            self.fem_input.setText("3")
+        
+        params["EdgeSize"] = self.pic_input.text()
+        params["DesiredAccuracy"] = self.fem_input.text()
+        with open(filename, 'w') as file:
+            dump(params, file, indent=4)
+    
         
     def setup_mesh_group(self):
         self.mesh_file_label = QLabel("No file selected")
@@ -240,6 +258,7 @@ class ConfigTab(QWidget):
             "Cubic Grid Size: This parameter specifies the edge size of the cubic cells in the 3D grid. "
             "The grid is used to map tetrahedrons to their containing cells, facilitating the determination of which tetrahedron contains a given particle. "
             "This grid-based approach improves the efficiency of spatial queries in the mesh.\n\n"
+            "If not specified - default value is 5\n"
             "Range: from 0.1 to 1'000\n"
             "Purpose: The cubic grid helps in tracking particles within the volume by determining which tetrahedron each particle is located in. "
             "This is achieved by checking the intersection of particles with the cells of the grid and identifying the corresponding tetrahedrons.\n\n"
@@ -261,6 +280,7 @@ class ConfigTab(QWidget):
             "A higher accuracy typically requires more quadrature points, which increases both the computational cost and the memory usage of the program. "
             "However, it also improves the approximation of the integral.\n\n"
             "Purpose: The quadrature points are used to approximate integrals within the FEM. The more points used, the closer the numerical integration is to the actual value.\n\n"
+            "If not specified - default value is 3\n"
             "Range: from 1 to 100\n"
             "Note: The specific number of quadrature points for a given accuracy is determined by an external library, Intrepid2.\n\n"
             "Warning: \n"
@@ -799,6 +819,16 @@ class ConfigTab(QWidget):
             return None
 
 
+    def save_additional_params(self):
+        self.save_solver_params_to_json(DEFAULT_TEMP_SOLVER_PARAMS_FILE)
+        self.save_picfem_params_to_json(DEFAULT_TEMP_PICFEM_PARAMS_FILE)
+        
+        
+    def remove_additional_params_files(self):
+        remove(DEFAULT_TEMP_SOLVER_PARAMS_FILE)
+        remove(DEFAULT_TEMP_PICFEM_PARAMS_FILE)
+
+
     def save_config_to_file_with_filename(self, configFile):
         if not is_file_valid(self.mesh_file) or not is_path_accessable(self.mesh_file):
             QMessageBox.warning(self, "File Error", f"Mesh file '{self.mesh_file}' can't be selected. Check path or existance of it")
@@ -809,6 +839,8 @@ class ConfigTab(QWidget):
             QMessageBox.critical(
                 self, "Error", f"Failed to save configuration")
             return
+        
+        self.save_additional_params()
     
         if configFile:
             try:
@@ -817,9 +849,7 @@ class ConfigTab(QWidget):
                 self.log_console.logSignal.emit(f'Successfully saved data to new config: {configFile}\n')
             except Exception as e:
                 self.log_console.logSignal.emit(f'Error: Failed to save configuration to {configFile}: Exception: {e}\n')
-        
-        self.save_solver_params_to_json(DEFAULT_TEMP_SOLVER_PARAMS_FILE)
-
+                self.remove_additional_params_files()
 
     def save_config_to_file(self):
         config_content = self.validate_input()
@@ -847,6 +877,8 @@ class ConfigTab(QWidget):
         if not self.config_file_path.endswith('.json'):
             self.config_file_path += '.json'
         
+        self.save_additional_params()
+        
         if self.config_file_path:
             try:
                 with open(self.config_file_path, "w") as file:
@@ -856,7 +888,7 @@ class ConfigTab(QWidget):
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Failed to save configuration: Exception: {e}")
                 self.log_console.logSignal.emit(f'Error: Failed to save configuration to {self.config_file_path}: Exception: {e}\n')
-        self.save_solver_params_to_json(DEFAULT_TEMP_SOLVER_PARAMS_FILE)
+                self.remove_additional_params_files()
     
     
     def upload_mesh_file_with_filename(self, meshfilename):
