@@ -218,7 +218,8 @@ void ParticleTracker::startSimulation(ParticleType const &particleType, size_t p
 
         // Solve the equation Ax=b.
         MatrixEquationSolver solver(assemblier, solutionVector);
-        solver.solve("GMRES", solver.createSolverParams());
+        auto solverParams{solver.parseSolverParamsFromJson("temp_solver_params.json")};
+        solver.solve(solverParams.first, solverParams.second);
         std::cout << "Solution is:\n";
         solver.printLHS();
 
