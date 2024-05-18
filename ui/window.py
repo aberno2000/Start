@@ -9,7 +9,7 @@ import signal, os
 from sys import exit
 from time import time
 from json import dump
-from PyQt5.QtCore import Qt, QProcess
+from PyQt5.QtCore import Qt, QProcess, pyqtSlot
 from PyQt5.QtGui import QColor
 from tabs.config_tab import ConfigTab
 from tabs.results_tab import ResultsTab
@@ -44,6 +44,7 @@ class WindowApp(QMainWindow):
         self.config_tab = ConfigTab(self.log_console)
         self.config_tab.requestToMoveToTheNextTab.connect(self.switch_tab)
         self.config_tab.requestToStartSimulation.connect(self.start_simulation)
+        self.config_tab.selectBoundaryConditionsSignal.connect(self.handle_select_boundary_conditions)
         self.mesh_tab = GraphicalEditorTab(self.config_tab, self.log_console)
         self.geditor = self.mesh_tab.geditor
 
@@ -503,7 +504,12 @@ class WindowApp(QMainWindow):
         else:
             executable_path = './nia_start'
         self.process.start(executable_path, args.split())
-        
+    
+    
+    @pyqtSlot()
+    def handle_select_boundary_conditions(self):
+        self.tab_widget.setCurrentIndex(0)
+        self.geditor.activate_selection_boundary_conditions_mode_slot()
 
     
     def show_shortcuts(self):

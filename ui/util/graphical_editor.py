@@ -10,7 +10,7 @@ from vtkmodules.vtkInteractionStyle import(
 )
 from vtkmodules.vtkFiltersGeneral import vtkBooleanOperationPolyDataFilter
 from PyQt5.QtGui import QStandardItem, QIcon
-from PyQt5.QtCore import QSize, Qt
+from PyQt5.QtCore import QSize, Qt, pyqtSlot
 from vtk import(
     vtkRenderer, vtkPoints, vtkPolyData, vtkVertexGlyphFilter, vtkPolyLine,
     vtkCellArray, vtkPolyDataMapper, vtkActor, vtkSphereSource, vtkUnstructuredGrid,
@@ -109,6 +109,9 @@ class GraphicalEditor(QFrame):
         
         self.particleSourceArrowActor = None
         
+    @pyqtSlot()
+    def activate_selection_boundary_conditions_mode_slot(self):
+        self.setBoundaryConditionsButton.click()
     
     def initialize_tree(self):
         self.model = QStandardItemModel()
@@ -291,7 +294,7 @@ class GraphicalEditor(QFrame):
         self.intersectObjectsButton = self.create_button('icons/intersection.png', 'Intersection of two objects')
         self.crossSectionButton = self.create_button('icons/cross-section.png', 'Cross section of the object')
         self.directParticleButton = self.create_button('icons/particle-source-direction.png', 'Set particle source and direction of this source')
-        self.setBoundaryConditionsMode = self.create_button('icons/boundary-conditions.png', 'Turning on mode to select boundary nodes')
+        self.setBoundaryConditionsButton = self.create_button('icons/boundary-conditions.png', 'Turning on mode to select boundary nodes')
         
         self.spacer = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
         self.toolbarLayout.addSpacerItem(self.spacer)
@@ -314,7 +317,7 @@ class GraphicalEditor(QFrame):
         self.intersectObjectsButton.clicked.connect(self.intersection_button_clicked)
         self.crossSectionButton.clicked.connect(self.cross_section_button_clicked)
         self.directParticleButton.clicked.connect(self.activate_particle_direction_mode)
-        self.setBoundaryConditionsMode.clicked.connect(self.activate_selection_boundary_conditions_mode)
+        self.setBoundaryConditionsButton.clicked.connect(self.activate_selection_boundary_conditions_mode)
 
     def setup_ui(self):
         self.vtkWidget = QVTKRenderWindowInteractor(self)
