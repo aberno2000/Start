@@ -6,14 +6,14 @@ from vtk import (
     vtkPolyDataReader, vtkPolyDataMapper, vtkActor, vtkPolyDataWriter,
     vtkUnstructuredGrid, vtkGeometryFilter, vtkTransform
 )
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QSize
 from PyQt5.QtWidgets import (
     QDialog, QFormLayout, QLineEdit, QDialogButtonBox, 
     QVBoxLayout, QMessageBox, QPushButton, QTableWidget,
     QTableWidgetItem, QSizePolicy, QLabel, QHBoxLayout,
     QWidget, QScrollArea, QCheckBox, QComboBox
 )
-from PyQt5.QtCore import QSize
+from PyQt5.QtGui import QDoubleValidator
 from .converter import is_positive_real_number, is_real_number
 from os.path import exists, isfile
 from vtkmodules.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
@@ -707,6 +707,35 @@ class ExpansionAngleDialog(QDialog):
         # Converting to rad.
         theta = theta * pi / 180.
         return theta
+    
+class CustomDoubleValidator(QDoubleValidator):
+    def __init__(self, bottom, top, decimals, parent=None):
+        super().__init__(bottom, top, decimals, parent)
+    
+    def validate(self, input_str, pos):
+        if not input_str:
+            return (self.Intermediate, input_str, pos)
+        
+        if '.' in input_str:
+            try:
+                value = float(input_str)
+                if self.bottom() <= value <= self.top():
+                    return (self.Acceptable, input_str, pos)
+                else:
+                    return (self.Invalid, input_str, pos)
+            except ValueError:
+                return (self.Invalid, input_str, pos)
+        else:
+            try:
+                value = int(input_str)
+                if self.bottom() <= value <= self.top():
+                    return (self.Acceptable, input_str, pos)
+                else:
+                    return (self.Invalid, input_str, pos)
+            except ValueError:
+                return (self.Invalid, input_str, pos)
+        
+        return (self.Intermediate, input_str, pos)
 
 def align_view_by_axis(axis: str, renderer: vtkRenderer, vtkWidget: QVTKRenderWindowInteractor):
     axis = axis.strip().lower()
