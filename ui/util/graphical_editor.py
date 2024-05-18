@@ -10,7 +10,7 @@ from vtkmodules.vtkInteractionStyle import(
 )
 from vtkmodules.vtkFiltersGeneral import vtkBooleanOperationPolyDataFilter
 from PyQt5.QtGui import QStandardItem, QIcon
-from PyQt5.QtCore import QSize
+from PyQt5.QtCore import QSize, Qt
 from vtk import(
     vtkRenderer, vtkPoints, vtkPolyData, vtkVertexGlyphFilter, vtkPolyLine,
     vtkCellArray, vtkPolyDataMapper, vtkActor, vtkSphereSource, vtkUnstructuredGrid,
@@ -78,6 +78,9 @@ class GraphicalEditor(QFrame):
         self.model.setHorizontalHeaderLabels(['Mesh Tree'])
         self.mesh_file = None
         
+        self.selected_actors = set()
+        self.isBoundaryNodeSelectionMode = False
+        
         self.picker = vtkCellPicker()
         self.picker.SetTolerance(0.005)
         
@@ -96,7 +99,7 @@ class GraphicalEditor(QFrame):
         self.layout.addWidget(self.statusBar)
         
         self.init_node_selection_attributes()
-        self.selected_node_ids = None
+        self.isBoundaryNodeSelectionMode = False
 
         self.log_console = log_console
         
@@ -943,26 +946,56 @@ class GraphicalEditor(QFrame):
         click_pos = self.interactor.GetEventPosition()
         self.picker.Pick(click_pos[0], click_pos[1], 0, self.renderer)
 
-        # If there is already a selected actor, reset its color
-        if self.selected_actor:
-            self.selected_actor.GetProperty().SetColor(self.original_color)
-
         actor = self.picker.GetActor()
-        if actor:
-            # Store the original color and the selected actor
-            self.original_color = actor.GetProperty().GetColor()
-            self.selected_actor = actor
 
-            # Change the actor's color to orange as default selected actor color
-            actor.GetProperty().SetColor(SELECTED_ACTOR_COLOR)
+        # Check if Ctrl is held down
+        ctrl_held = self.interactor.GetControlKey()
+
+        if actor:
+            if ctrl_held:
+                # Multiple selection mode
+                if actor in self.selected_actors:
+                    self.selected_actors.remove(actor)
+                    actor.GetProperty().SetColor(DEFAULT_ACTOR_COLOR)
+                else:
+                    self.selected_actors.add(actor)
+                    actor.GetProperty().SetColor(SELECTED_ACTOR_COLOR)
+            else:
+                # Single selection mode
+                if self.selected_actor:
+                    self.selected_actor.GetProperty().SetColor(self.original_color)
+                
+                self.original_color = actor.GetProperty().GetColor()
+                self.selected_actor = actor
+                actor.GetProperty().SetColor(SELECTED_ACTOR_COLOR)
+                self.selected_actors = {actor}  # Reset multiple selection
+
             self.vtkWidget.GetRenderWindow().Render()
-        
+
+        # Check if boundary node selection mode is active
+        if self.isBoundaryNodeSelectionMode:
+            for node_id, data in self.nodeMap.items():
+                actor_coords = data['coords']
+                picked_actor = data['actor']
+                
+                if actor == picked_actor:
+                    if picked_actor.GetProperty().GetColor() == (SELECTED_ACTOR_COLOR):  # Check if the node is already selected
+                        picked_actor.GetProperty().SetColor(DEFAULT_ACTOR_COLOR)
+                        self.selected_node_ids.remove(node_id)
+                    else:
+                        picked_actor.GetProperty().SetColor(SELECTED_ACTOR_COLOR) 
+                        self.selected_node_ids.add(node_id)
+                        self.select_node_in_list_widget(node_id)
+                        self.log_console.printInfo(f"Selected node {node_id} at {actor_coords}")
+                    self.vtkWidget.GetRenderWindow().Render()
+                    break
+
         # Call the original OnLeftButtonDown event handler to maintain default interaction behavior
         self.interactorStyle.OnLeftButtonDown()
-        
+
         if self.isPerformOperation[0]:
             operationDescription = self.isPerformOperation[1]
-            
+
             if not self.firstObjectToPerformOperation:
                 self.firstObjectToPerformOperation = self.selected_actor
                 self.statusBar.showMessage(f"With which object to perform {operationDescription}?")
@@ -970,21 +1003,26 @@ class GraphicalEditor(QFrame):
                 secondObjectToPerformOperation = self.selected_actor
                 if self.firstObjectToPerformOperation and secondObjectToPerformOperation:
                     operationType = self.isPerformOperation[1]
-                    
+
                     if operationType == 'subtract':
                         self.subtract_objects(self.firstObjectToPerformOperation, secondObjectToPerformOperation)
                     elif operationType == 'union':
                         self.combine_objects(self.firstObjectToPerformOperation, secondObjectToPerformOperation)
                     elif operationType == 'intersection':
                         self.intersect_objects(self.firstObjectToPerformOperation, secondObjectToPerformOperation)
-                        
                 else:
                     QMessageBox.warning(self, "Warning", "No objects have been selected for the operation.")
-                
+
                 self.firstObjectToPerformOperation = None
                 self.isPerformOperation = (False, None)
                 self.statusBar.clearMessage()
-                
+
+    def select_node_in_list_widget(self, node_id):
+        items = self.nodeListWidget.findItems(str(node_id), Qt.MatchExactly)
+        if items:
+            item = items[0]
+            item.setSelected(True)
+            
     
     def setup_interaction(self):
         self.selected_actor = None
@@ -1080,10 +1118,17 @@ class GraphicalEditor(QFrame):
             
     def deselect(self):
         try:
+            if self.selected_actors:
+                for actor in self.selected_actors:
+                    if actor in self.renderer.GetActors():
+                        actor.GetProperty().SetColor(DEFAULT_ACTOR_COLOR)
+            self.selected_actors.clear()
+            
             if self.selected_actor:
                 self.selected_actor.GetProperty().SetColor(DEFAULT_ACTOR_COLOR)
-                self.vtkWidget.GetRenderWindow().Render()
                 self.selected_actor = None
+                
+            self.vtkWidget.GetRenderWindow().Render()
         except Exception as _:
             return
 
@@ -1548,6 +1593,8 @@ class GraphicalEditor(QFrame):
         
     
     def reset_selection_nodes(self):
+        self.isBoundaryNodeSelectionMode = False
+        
         self.deselect()
         self.statusBar.clearMessage()
         self.nodeListWidget.setVisible(False)
@@ -1619,6 +1666,7 @@ class GraphicalEditor(QFrame):
             self.nodeListWidget.setVisible(True)
         
         try:
+            self.isBoundaryNodeSelectionMode = True
             self.statusBar.showMessage("Select boundary nodes:")
             self.initialize_node_map()
             self.populate_node_list()
@@ -1631,7 +1679,7 @@ class GraphicalEditor(QFrame):
             
     def on_node_selection_changed(self):
         selected_items = self.nodeListWidget.selectedItems()
-        self.selected_node_ids = [int(item.text()) for item in selected_items]
+        self.selected_node_ids = {int(item.text()) for item in selected_items}
 
         # Перекрасить все ноды в желтый цвет (unselected state)
         for node_id, data in self.nodeMap.items():
@@ -1642,7 +1690,7 @@ class GraphicalEditor(QFrame):
         for node_id in self.selected_node_ids:
             if node_id in self.nodeMap:
                 actor = self.nodeMap[node_id]['actor']
-                actor.GetProperty().SetColor(1, 0, 0)  # Red color for selected nodes
+                actor.GetProperty().SetColor(SELECTED_ACTOR_COLOR)
 
         self.vtkWidget.GetRenderWindow().Render()
 
