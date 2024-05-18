@@ -1,3 +1,6 @@
+#include <nlohmann/json.hpp>
+using json = nlohmann::json;
+
 #include "../include/FiniteElementMethod/MatrixEquationSolver.hpp"
 #include "../include/Utilities/Utilities.hpp"
 
@@ -271,6 +274,72 @@ Teuchos::RCP<Teuchos::ParameterList> MatrixEquationSolver::createSolverParams(st
         ERRMSG("Unknown error occurred while setting parameters for the solver.");
     }
     return params;
+}
+
+std::pair<std::string, Teuchos::RCP<Teuchos::ParameterList>> MatrixEquationSolver::parseSolverParamsFromJson(std::string_view filename)
+{
+    if (!std::filesystem::exists(filename))
+    {
+        throw std::runtime_error("File does not exist: " + std::string(filename));
+    }
+
+    if (std::filesystem::path(filename).extension() != ".json")
+    {
+        throw std::runtime_error("File is not a JSON file: " + std::string(filename));
+    }
+
+    std::ifstream file(filename.data());
+    if (!file.is_open())
+    {
+        throw std::runtime_error("Unable to open file: " + std::string(filename));
+    }
+
+    json j;
+    try
+    {
+        file >> j;
+    }
+    catch (json::parse_error const &e)
+    {
+        throw std::runtime_error("Failed to parse JSON file: " + std::string(filename) + ". Error: " + e.what());
+    }
+
+    Teuchos::RCP<Teuchos::ParameterList> params{Teuchos::rcp(new Teuchos::ParameterList())};
+    std::string solverName;
+
+    try
+    {
+        if (j.contains("solverName"))
+            solverName = j.at("solverName").get<std::string>();
+        if (j.contains("maxIterations"))
+            params->set("Maximum Iterations", std::stoi(j.at("maxIterations").get<std::string>()));
+        if (j.contains("convergenceTolerance"))
+            params->set("Convergence Tolerance", std::stod(j.at("convergenceTolerance").get<std::string>()));
+        if (j.contains("verbosity"))
+            params->set("Verbosity", std::stoi(j.at("verbosity").get<std::string>()));
+        if (j.contains("outputFrequency"))
+            params->set("Output Frequency", std::stoi(j.at("outputFrequency").get<std::string>()));
+        if (j.contains("numBlocks"))
+            params->set("Number of Blocks", std::stoi(j.at("numBlocks").get<std::string>()));
+        if (j.contains("blockSize"))
+            params->set("Block Size", std::stoi(j.at("blockSize").get<std::string>()));
+        if (j.contains("maxRestarts"))
+            params->set("Maximum Restarts", std::stoi(j.at("maxRestarts").get<std::string>()));
+        if (j.contains("flexibleGMRES"))
+            params->set("Flexible GMRES", j.at("flexibleGMRES").get<std::string>() == "true");
+        if (j.contains("orthogonalization"))
+            params->set("Orthogonalization", j.at("orthogonalization").get<std::string>());
+        if (j.contains("adaptiveBlockSize"))
+            params->set("Adaptive Block Size", j.at("adaptiveBlockSize").get<std::string>() == "true");
+        if (j.contains("convergenceTestFrequency"))
+            params->set("Convergence Test Frequency", std::stoi(j.at("convergenceTestFrequency").get<std::string>()));
+    }
+    catch (json::type_error const &e)
+    {
+        throw std::runtime_error("Type error in JSON file: " + std::string(filename) + ". Error: " + e.what());
+    }
+    std::filesystem::remove(filename);
+    return std::make_pair(solverName, params);
 }
 
 bool MatrixEquationSolver::solve(std::string_view solverName, Teuchos::RCP<Teuchos::ParameterList> solverParams)

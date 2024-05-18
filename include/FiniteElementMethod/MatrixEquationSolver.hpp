@@ -111,6 +111,19 @@ public:
         int convergenceTestFrequency = -1);
 
     /**
+     * @brief Parses a JSON file to extract solver parameters and configures a Teuchos::ParameterList.
+     *
+     * This function reads a JSON file, extracts solver parameters, and sets them in a Teuchos::ParameterList.
+     * It handles exceptions, checks for file existence, and validates the JSON format. 
+     * @warning: Deletes the temporary file after parsing.   
+     *
+     * @param filename The name of the JSON file containing solver parameters.
+     * @return A pair containing the solver name (std::string) and a `Teuchos::RCP<Teuchos::ParameterList>` with the solver parameters.
+     * @throws std::runtime_error if the file cannot be opened, does not exist, or is not a valid JSON file.
+     */
+    std::pair<std::string, Teuchos::RCP<Teuchos::ParameterList>> parseSolverParamsFromJson(std::string_view filename);
+
+    /**
      * @brief Solves the equation Ax=b.
      * @details This method initializes and configures the solver, sets up the linear problem, and solves it using the specified iterative method.
      * @param solverName Name of the iterative solver.
