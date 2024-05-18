@@ -1077,8 +1077,7 @@ class GraphicalEditor(QFrame):
         elif style == INTERACTOR_STYLE_TRACKBALL_ACTOR:
             self.interactorStyle = vtkInteractorStyleTrackballActor()
             self.picker = vtkCellPicker()  # Use single object picker
-            QMessageBox.warning(self, "Interactor Style Changed", "Be careful with arbitrary object transformation! If you want to set boundary conditions for this object, they will apply to the old coordinates of the nodes. Because the program does not provide for changes to key objects for which boundary conditions are set")
-            self.log_console.printWarning("Be careful with arbitrary object transformation! If you want to set boundary conditions for this object, they will apply to the old coordinates of the nodes. Because the program does not provide for changes to key objects for which boundary conditions are set")
+            self.log_console.printWarning("Interactor style changed: Be careful with arbitrary object transformation! If you want to set boundary conditions for this object, they will apply to the old coordinates of the nodes. Because the program does not provide for changes to key objects for which boundary conditions are set")
         elif style == INTERACTOR_STYLE_RUBBER_AND_PICK:
             self.interactorStyle = vtkInteractorStyleRubberBandPick()
             self.interactorStyle.AddObserver(vtkCommand.LeftButtonPressEvent, self.on_left_button_press)
