@@ -737,6 +737,15 @@ class CustomDoubleValidator(QDoubleValidator):
                 return (self.Invalid, input_str, pos)
         
         return (self.Intermediate, input_str, pos)
+    
+class Point:
+    def __init__(self, x, y, z):
+        self.x = x
+        self.y = y
+        self.z = z
+
+    def __repr__(self):
+        return f"Point(x={self.x}, y={self.y}, z={self.z})"
 
 def align_view_by_axis(axis: str, renderer: vtkRenderer, vtkWidget: QVTKRenderWindowInteractor):
     axis = axis.strip().lower()
