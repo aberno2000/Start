@@ -112,8 +112,8 @@ public:
     constexpr double getEnergy() const { return m_config.energy; }
     constexpr ParticleType getProjective() const { return m_config.projective; }
     constexpr ParticleType getGas() const { return m_config.gas; }
-    constexpr std::string getMeshFilename() const { return m_config.mshfilename; }
-    constexpr std::string getScatteringModel() const { return m_config.model; }
+    constexpr std::string_view getMeshFilename() const { return m_config.mshfilename.data(); }
+    constexpr std::string_view getScatteringModel() const { return m_config.model.data(); }
     constexpr int getStatusCode() const { return m_status_code; }
     constexpr bool isValid() const { return m_isValid; }
     constexpr bool isInvalid() const { return not m_isValid; }
