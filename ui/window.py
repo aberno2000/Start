@@ -41,13 +41,13 @@ class WindowApp(QMainWindow):
 
         # Create tab widget and tabs
         self.tab_widget = QTabWidget()
-        self.results_tab = ResultsTab()
         self.config_tab = ConfigTab(self.log_console)
         self.config_tab.requestToMoveToTheNextTab.connect(self.switch_tab)
         self.config_tab.requestToStartSimulation.connect(self.start_simulation)
         self.config_tab.selectBoundaryConditionsSignal.connect(self.handle_select_boundary_conditions)
         self.mesh_tab = GraphicalEditorTab(self.config_tab, self.log_console)
         self.geditor = self.mesh_tab.geditor
+        self.results_tab = ResultsTab(self.log_console)
 
         # Connecting signal to detect the selection of mesh file
         self.config_tab.meshFileSelected.connect(self.geditor.set_mesh_file)
