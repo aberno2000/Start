@@ -9,6 +9,7 @@
 #include "Geometry/Mesh.hpp"
 #include "ParticleInCell/Grid3D.hpp"
 #include "Particles/Particles.hpp"
+#include "Utilities/ConfigParser.hpp"
 
 static constexpr std::string_view const kdefault_temp_picfem_params_filename{"temp_picfem_params.json"};
 static constexpr std::string_view const kdefault_temp_solver_params_filename{"temp_solver_params.json"};
@@ -20,8 +21,7 @@ class ParticleTracker final
     using BoundaryNodes = std::vector<size_t>;
 
 private:
-    /* All neccessary data members from the mesh. */
-    std::string m_mesh_filename;                 ///< Mesh filename (must has .msh format).
+    /* All the neccessary data members from the mesh. */
     MeshTriangleParamVector _triangleMesh;       ///< Triangle mesh params acquired from the mesh file. Surface mesh.
     TriangleVector _triangles;                   ///< Triangles extracted from the triangle mesh params `_triangleMesh` (surface mesh). Need to initialize AABB tree.
     AABB_Tree_Triangle _surfaceMeshAABBtree;     ///< AABB tree for the surface mesh to effectively detect collisions with surface.
@@ -30,13 +30,18 @@ private:
     BoundaryNodes _boundaryNodes;                ///< Vector of the boundary nodes (All of them are unique).
     GMSHVolumeCreator vc;                        ///< Object of the volume creator that is RAII object that initializes and finalizes GMSH. Needed to initialize all necessary objects from the mesh.
 
-    /* All neccessary data members for the FEM. */
+    /* All the neccessary data members for the PIC and FEM. */
     static constexpr short const kdefault_polynomOrder{1}; ///< Polynom order. Responds for count of the basis functions.
-    short _desiredAccuracy{3};                             ///<  Desired accuracy of calculations (responds for the count of cubature points (Trilinos automatically chose them)).
+    util::PICFEMParameters _picfemparams;                  ///< Contains cubic 3D grid edge size as `.first` data member and desired calculation accuracy as `.second` data member.
+    util::BoundaryConditionsData _boundaryConditions;      ///< Boundary conditions data storage.
 
-    /* All neccessary data members for the simulation. */
-    ParticleVector m_particles;         ///< Projective particles.
-    std::set<int> _settledParticlesIds; ///< Set of the particle IDs that are been settled (need to avoid checking already settled particles).
+    /* All the neccessary data members for the simulation. */
+    ParticleVector m_particles;                        ///< Projective particles.
+    double _gasConcentration;                          ///< Gas concentration. Needed to use colide projectives with gas mechanism.
+    std::set<int> _settledParticlesIds;                ///< Set of the particle IDs that are been settled (need to avoid checking already settled particles).
+    std::map<size_t, int> _settledParticlesCounterMap; ///< Map to handle settled particles: (Triangle ID | Counter of settled particle in this triangle).
+
+    ConfigParser m_config; ///< `ConfigParser` object to get all the simulation physical paramters.
 
     /**
      * @brief Checks the validity of the provided mesh filename.
@@ -46,10 +51,9 @@ private:
      * and if the file has the correct `.msh` extension. If any of these conditions are not met,
      * an error message is logged and a `std::runtime_error` is thrown.
      *
-     * @param mesh_filename The filename of the mesh to be checked.
      * @throws std::runtime_error if the filename is empty, if the file does not exist, or if the file does not have a `.msh` extension.
      */
-    void checkMeshfilename(std::string_view mesh_filename) const;
+    void checkMeshfilename() const;
 
     /* Initializers for all the necessary objects. */
     void initializeSurfaceMesh();
@@ -57,10 +61,15 @@ private:
     void initializeVolumeMesh();
     void initializeNodeTetrahedronMap();
     void initializeBoundaryNodes();
-    void initializeParticles(ParticleType const &particleType, size_t count);
+    void loadPICFEMParameters();
+    void loadBoundaryConditions();
+    void initializeParticles();
 
     /// @brief Global initializator. Uses all the initializers above.
     void initialize();
+
+    /// @brief Clears out all the files that are generated from the UI side of the application.
+    void finalize() const;
 
     /**
      * @brief Checker for point inside the tetrahedron.
@@ -78,10 +87,16 @@ private:
      */
     size_t isRayIntersectTriangle(Ray const &ray, MeshTriangleParam const &triangle);
 
+    /// @brief Using HDF5Handler to update the mesh according to the settled particles.
+    void updateSurfaceMesh();
+
+    void processSegment();
+
 public:
-    ParticleTracker(std::string_view mesh_filename);
-    void startSimulation(ParticleType const &particleType, size_t count, double edgeSize,
-                         short desiredAccuracy, double time_step, double simulation_time);
+    ParticleTracker(std::string_view config_filename);
+    ~ParticleTracker() { finalize(); }
+
+    void startSimulation();
 };
 
 #endif // !PARTICLETRACKER_HPP

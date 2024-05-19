@@ -1,31 +1,28 @@
 #include "../include/ParticleTracker.hpp"
+#include "../include/DataHandling/HDF5Handler.hpp"
 
-static constexpr ParticleType k_gas{particle_types::Ar};
-static constexpr double k_gas_concentration{10e26};
-static constexpr std::string_view k_scattering_model{"HS"};
-
-void ParticleTracker::checkMeshfilename(std::string_view mesh_filename) const
+void ParticleTracker::checkMeshfilename() const
 {
-    if (mesh_filename == "")
+    if (m_config.getMeshFilename() == "")
     {
         ERRMSG("Can't open mesh file: Name of the file is empty");
         throw std::runtime_error("");
     }
 
-    if (!util::exists(mesh_filename))
+    if (!util::exists(m_config.getMeshFilename()))
     {
-        ERRMSG(util::stringify("Can't open mesh file: There is no such file with name: ", mesh_filename));
+        ERRMSG(util::stringify("Can't open mesh file: There is no such file with name: ", m_config.getMeshFilename()));
         throw std::runtime_error("");
     }
 
-    if (!mesh_filename.ends_with(".msh"))
+    if (!m_config.getMeshFilename().ends_with(".msh"))
     {
-        ERRMSG(util::stringify("Can't open mesh file: Format of the file must be .msh. Current filename: ", mesh_filename));
+        ERRMSG(util::stringify("Can't open mesh file: Format of the file must be .msh. Current filename: ", m_config.getMeshFilename()));
         throw std::runtime_error("");
     }
 }
 
-void ParticleTracker::initializeSurfaceMesh() { _triangleMesh = Mesh::getMeshParams(m_mesh_filename); }
+void ParticleTracker::initializeSurfaceMesh() { _triangleMesh = Mesh::getMeshParams(m_config.getMeshFilename()); }
 
 void ParticleTracker::initializeSurfaceMeshAABB()
 {
@@ -51,19 +48,20 @@ void ParticleTracker::initializeSurfaceMeshAABB()
     _surfaceMeshAABBtree = AABB_Tree_Triangle(std::cbegin(_triangles), std::cend(_triangles));
 }
 
-void ParticleTracker::initializeVolumeMesh() { _tetrahedronMesh = Mesh::getTetrahedronMeshParams(m_mesh_filename); }
+void ParticleTracker::initializeVolumeMesh() { _tetrahedronMesh = Mesh::getTetrahedronMeshParams(m_config.getMeshFilename()); }
 
-void ParticleTracker::initializeNodeTetrahedronMap() { _nodeTetraMap = Mesh::getNodeTetrahedronsMap(m_mesh_filename); }
+void ParticleTracker::initializeNodeTetrahedronMap() { _nodeTetraMap = Mesh::getNodeTetrahedronsMap(m_config.getMeshFilename()); }
 
-void ParticleTracker::initializeBoundaryNodes() { _boundaryNodes = Mesh::getTetrahedronMeshBoundaryNodes(m_mesh_filename); }
+void ParticleTracker::initializeBoundaryNodes() { _boundaryNodes = Mesh::getTetrahedronMeshBoundaryNodes(m_config.getMeshFilename()); }
 
-void ParticleTracker::initializeParticles(ParticleType const &particleType, size_t count)
+void ParticleTracker::loadPICFEMParameters() { _picfemparams = util::loadPICFEMParameters(kdefault_temp_picfem_params_filename); }
+
+void ParticleTracker::initializeParticles()
 {
-    m_particles = createParticlesWithVelocities(count, particleType,
-                                                100, 100, 100,
-                                                200, 200, 200,
-                                                -100, -100, -100,
-                                                100, 100, 100);
+    m_particles = createParticlesWithEnergy(m_config.getParticlesCount(),
+                                            m_config.getProjective(),
+                                            m_config.getEnergy(),
+                                            util::getParticleSourceCoordsAndDirection());
 }
 
 void ParticleTracker::initialize()
@@ -73,6 +71,16 @@ void ParticleTracker::initialize()
     initializeVolumeMesh();
     initializeNodeTetrahedronMap();
     initializeBoundaryNodes();
+    loadPICFEMParameters();
+    loadBoundaryConditions();
+}
+
+void ParticleTracker::finalize() const
+{
+    // Removing all the intermediate files after simulation finalization.
+    util::removeFile(kdefault_temp_boundary_conditions_filename);
+    util::removeFile(kdefault_temp_picfem_params_filename);
+    util::removeFile(kdefault_temp_solver_params_filename);
 }
 
 bool ParticleTracker::isPointInsideTetrahedron(Point const &point, MeshTetrahedronParam const &meshParam)
@@ -98,60 +106,67 @@ size_t ParticleTracker::isRayIntersectTriangle(Ray const &ray, MeshTriangleParam
                : -1ul;
 }
 
-ParticleTracker::ParticleTracker(std::string_view mesh_filename)
+void ParticleTracker::loadBoundaryConditions() { _boundaryConditions = util::loadBoundaryConditions(kdefault_temp_boundary_conditions_filename); }
+
+void ParticleTracker::updateSurfaceMesh()
+{
+    // Updating hdf5file to know how many particles settled on certain triangle from the surface mesh.
+    auto mapEnd{_settledParticlesCounterMap.cend()};
+    for (auto &meshParam : _triangleMesh)
+        if (auto it{_settledParticlesCounterMap.find(std::get<0>(meshParam))}; it != mapEnd)
+            std::get<3>(meshParam) = it->second;
+
+    std::string hdf5filename(std::string(m_config.getMeshFilename().substr(0ul, m_config.getMeshFilename().find("."))));
+    hdf5filename += ".hdf5";
+    HDF5Handler hdf5handler(hdf5filename);
+    hdf5handler.saveMeshToHDF5(_triangleMesh);
+}
+
+void ParticleTracker::processSegment()
+{
+    // TODO: Implement
+}
+
+ParticleTracker::ParticleTracker(std::string_view config_filename) : m_config(config_filename)
 {
     // Checking mesh filename on validity and assign it to the class member.
-    checkMeshfilename(mesh_filename);
-    m_mesh_filename = mesh_filename;
+    checkMeshfilename();
+
+    // Calculating and checking gas concentration.
+    _gasConcentration = util::calculateConcentration(config_filename);
+    if (_gasConcentration < constants::gasConcentrationMinimalValue)
+        WARNINGMSG(util::stringify("Something wrong with the concentration of the gas. Its value is ", _gasConcentration, ". Simulation might considerably slows down"));
 
     // Initializing all the objects from the mesh.
     initialize();
+
+    // Spawning particles.
+    initializeParticles();
 }
 
-void ParticleTracker::startSimulation(ParticleType const &particleType, size_t particleCount,
-                                      double edgeSize, short desiredAccuracy,
-                                      double time_step, double simulation_time)
+void ParticleTracker::startSimulation()
 {
-    if (desiredAccuracy <= 0)
-        throw std::runtime_error("Calculation accuracy can't be <= 0. Specified value is: " + std::to_string(desiredAccuracy));
-
-    _desiredAccuracy = desiredAccuracy;
-    initializeParticles(particleType, particleCount);
-
     // Creating cubic grid for the tetrahedron mesh.
-    Grid3D cubicGrid(_tetrahedronMesh, edgeSize);
+    Grid3D cubicGrid(_tetrahedronMesh, _picfemparams.first);
 
     /* Beginning of the FEM initialization. */
     // Assemblying global stiffness matrix from the mesh file.
-    GSMatrixAssemblier assemblier(m_mesh_filename, kdefault_polynomOrder, _desiredAccuracy);
+    GSMatrixAssemblier assemblier(m_config.getMeshFilename(), kdefault_polynomOrder, _picfemparams.second);
 
     // Setting boundary conditions.
-    // *Boundary conditions for box: 300x300x700, mesh size: 1.
     std::map<GlobalOrdinal, double> boundaryConditions;
-    std::vector<int> nonChangableNodes{2, 4, 6, 8, 28, 29, 30, 59, 60, 61, 50, 51, 52, 53, 54, 55,
-                                       215, 201, 206, 211, 203, 205, 207, 209, 204, 210, 214, 202, 208, 213, 212,
-                                       1, 3, 5, 7, 17, 18, 19, 39, 40, 41, 56, 57, 58, 62, 63, 64, 230,
-                                       216, 221, 226, 224, 218, 220, 222, 225, 229, 217, 228, 223, 219, 227};
-
-    for (size_t nodeId : {2, 4, 6, 8, 28, 29, 30, 59, 60, 61, 50, 51, 52, 53, 54, 55,
-                          215, 201, 206, 211, 203, 205, 207, 209, 204, 210, 214, 202, 208, 213, 212})
-        boundaryConditions[nodeId] = 0.0;
-    for (GlobalOrdinal nodeId : {1, 3, 5, 7, 17, 18, 19, 39, 40, 41, 56, 57, 58, 62, 63, 64, 230,
-                                 216, 221, 226, 224, 218, 220, 222, 225, 229, 217, 228, 223, 219, 227})
-        boundaryConditions[nodeId] = 1.0;
-
+    for (auto const &[nodeIds, value] : _boundaryConditions.second)
+        for (GlobalOrdinal nodeId : nodeIds)
+            boundaryConditions[nodeId] = value;
     assemblier.setBoundaryConditions(boundaryConditions);
-    assemblier.print(); // 3_opt. Printing the matrix.
 
     SolutionVector solutionVector(assemblier.rows(), kdefault_polynomOrder);
     solutionVector.clear();
     /* Ending of the FEM initialization. */
 
     // Tracking particles inside the tetrahedrons.
-    for (double t{}; t <= simulation_time; t += time_step)
+    for (double t{}; t <= m_config.getSimulationTime(); t += m_config.getTimeStep())
     {
-        std::cout << std::format("\033[1;34mTime {} s\n\033[0m", t);
-
         /* (Tetrahedron ID | Particles inside) */
         std::map<size_t, ParticleVector> PICtracker; // Map to managing in which tetrahedron how many and which particles are in the time moment `t`.
 
@@ -160,9 +175,6 @@ void ParticleTracker::startSimulation(ParticleType const &particleType, size_t p
 
         /* (Node ID | Charge in coulumbs) */
         std::map<GlobalOrdinal, double> nodeChargeDensityMap;
-
-        /* (Triangle ID | Counter of settled particle in this triangle) */
-        std::map<size_t, int> settledParticlesCounterMap;
 
         // For each time step managing movement of each particle.
         for (Particle const &particle : m_particles)
@@ -210,18 +222,16 @@ void ParticleTracker::startSimulation(ParticleType const &particleType, size_t p
 
         /* Remains FEM. */
         // Creating solution vector, filling it with the random values, and applying boundary conditions.
+        auto nonChangebleNodes{_boundaryConditions.first};
         for (auto const &[nodeId, nodeChargeDensity] : nodeChargeDensityMap)
-            if (std::ranges::find(nonChangableNodes, nodeId) == nonChangableNodes.cend())
+            if (std::ranges::find(nonChangebleNodes, nodeId) == nonChangebleNodes.cend())
                 boundaryConditions[nodeId] = nodeChargeDensity;
         solutionVector.setBoundaryConditions(boundaryConditions);
-        solutionVector.print(); // 4_opt. Printing the solution vector.
 
         // Solve the equation Ax=b.
         MatrixEquationSolver solver(assemblier, solutionVector);
         auto solverParams{solver.parseSolverParamsFromJson()};
         solver.solve(solverParams.first, solverParams.second);
-        std::cout << "Solution is:\n";
-        solver.printLHS();
 
         // Writing to electric and potential fields to files just ones.
         if (t == 0.0)
@@ -256,11 +266,11 @@ void ParticleTracker::startSimulation(ParticleType const &particleType, size_t p
 
             // Updating velocity according to the EM-field.
             if (electricFieldMap.find(containingTetrahedron) != electricFieldMap.cend())
-                particle.electroMagneticPush(magneticInduction, electricFieldMap.at(containingTetrahedron), time_step);
+                particle.electroMagneticPush(magneticInduction, electricFieldMap.at(containingTetrahedron), m_config.getTimeStep());
 
             // Updating positions for all the particles.
             Point prev(particle.getCentre()); // Saving previous particle position before updating the position.
-            particle.updatePosition(time_step);
+            particle.updatePosition(m_config.getTimeStep());
             Ray ray(prev, particle.getCentre());
 
             // Check ray on degeneracy.
@@ -268,7 +278,7 @@ void ParticleTracker::startSimulation(ParticleType const &particleType, size_t p
                 continue;
 
             /* Gas collision part. */
-            particle.colide(k_gas, k_gas_concentration, k_scattering_model, time_step); // Updating velocity according to gas collision.
+            particle.colide(m_config.getGas(), _gasConcentration, m_config.getScatteringModel(), m_config.getTimeStep()); // Updating velocity according to gas collision.
 
             // Check intersection of ray with mesh.
             auto intersection{_surfaceMeshAABBtree.any_intersection(ray)};
@@ -290,15 +300,12 @@ void ParticleTracker::startSimulation(ParticleType const &particleType, size_t p
                 size_t id{isRayIntersectTriangle(ray, *matchedIt)};
                 if (id != -1ul)
                 {
-                    ++settledParticlesCounterMap[id];              // Filling map to detect how much particles settled on certain triangle.
+                    ++_settledParticlesCounterMap[id];             // Filling map to detect how much particles settled on certain triangle.
                     _settledParticlesIds.insert(particle.getId()); // Remembering settled particle ID.
                 }
             }
         }
     }
 
-    // Removing all the intermediate files after simulation finalization.
-    util::removeFile(kdefault_temp_boundary_conditions_filename);
-    util::removeFile(kdefault_temp_picfem_params_filename);
-    util::removeFile(kdefault_temp_solver_params_filename);
+    updateSurfaceMesh();
 }
