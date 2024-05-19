@@ -10,7 +10,7 @@ from sys import exit
 from time import time
 from json import dump
 from PyQt5.QtCore import Qt, QProcess, pyqtSlot
-from PyQt5.QtGui import QColor
+from PyQt5.QtGui import QColor, QTextCharFormat
 from tabs.config_tab import ConfigTab
 from tabs.results_tab import ResultsTab
 from tabs.gedit_tab import GraphicalEditorTab
@@ -18,6 +18,7 @@ from logger.log_console import LogConsole
 from util import ShortcutsInfoDialog, is_file_valid
 from shutil import rmtree, copy
 from util.styles import *
+from util.converter import ansi_to_segments
 from util.util import DEFAULT_COUNT_OF_PROJECT_FILES
 
 class WindowApp(QMainWindow):    
@@ -94,13 +95,45 @@ class WindowApp(QMainWindow):
 
     
     def read_stderr(self):
-        errout = self.process.readAllStandardError().data().decode('utf-8').strip()
-        self.log_console.appendLog(errout)
-
+        errout = self.process.readAllStandardError().data().decode()
+        segments = ansi_to_segments(errout)
+        for segment, _ in segments:
+            self.insert_colored_text('', segment, 'red')
 
     def read_stdout(self):
-        out = self.process.readAllStandardOutput().data().decode('utf-8').strip()
-        self.log_console.appendLog(out)
+        out = self.process.readAllStandardOutput().data().decode()
+        segments = ansi_to_segments(out)
+        for segment, _ in segments:
+            self.insert_colored_text('', segment, 'white')
+
+
+    def insert_colored_text(self, prefix: str, message: str, color: str):
+        """
+        Inserts colored text followed by default-colored text into a QPlainTextEdit widget.
+
+        Parameters:
+        - prefix: str, the prefix text to insert in color.
+        - message: str, the message text to insert in default color.
+        - color: str, the name of the color to use for the prefix.
+        """
+        cursor = self.log_console.log_console.textCursor()
+        
+        # Insert colored prefix
+        prefix_format = QTextCharFormat()
+        prefix_format.setForeground(QColor(color))
+        cursor.mergeCharFormat(prefix_format)
+        cursor.insertText(prefix, prefix_format)
+
+        # Insert the message in specified color
+        message_format = QTextCharFormat()
+        message_format.setForeground(QColor(color))
+        cursor.setCharFormat(message_format)
+        cursor.insertText(message)
+
+        # Ensure the cursor is moved to the end and reset the format
+        cursor.movePosition(cursor.End)
+        self.log_console.log_console.setTextCursor(cursor)
+        self.log_console.log_console.setCurrentCharFormat(QTextCharFormat())
 
     
     def on_process_finished(self, exitCode, exitStatus):
@@ -117,7 +150,6 @@ class WindowApp(QMainWindow):
                 return
                 
             self.results_tab.update_plot(self.hdf5_filename)
-            self.log_console.appendLog('\n')
             self.log_console.printSuccess(f'The simulation has completed in {exec_time:.3f}s')
             
             # Moving to the results tab after finishing

@@ -2,17 +2,12 @@ from re import compile, split
 
 ANSI_COLOR_REGEX = compile(r'\033\[(\d+)(;\d+)*m')
 ANSI_TO_QCOLOR = {
-    '0': ('light gray', False),  # Reset to default
-    '1': ('', True),             # Bold text
-    '4': ('', True),             # Underline
-    '30': 'black',
     '31': 'red',
-    '32': 'green',
     '33': 'yellow',
-    '34': 'blue',
-    '35': 'magenta',
-    '36': 'cyan',
+    '32': 'green',
+    '35': 'purple',
     '37': 'white',
+    '0': 'light gray'
 }
 
 def is_real_number(value: str):
@@ -50,39 +45,30 @@ def is_mesh_dims(value: str):
 def ansi_to_segments(text: str):
     segments = []
     current_color = 'light gray'  # Default color
-    is_bold = False  # Track if bold text is needed
     buffer = ""
 
-    # Function to append text segments
     def append_segment(text, color):
         if text:  # Only append non-empty segments
-            segments.append((text.strip() + '\n', color))
+            segments.append((text, color))
 
     # Split the text by ANSI escape codes
     parts = split(r'(\033\[\d+(?:;\d+)*m)', text)
     for part in parts:
         if not part:  # Skip empty strings
             continue
-        # Check if the part is an ANSI escape code
         if part.startswith('\033['):
             codes = part[2:-1].split(';')  # Remove leading '\033[' and trailing 'm', then split
             for code in codes:
                 if code in ANSI_TO_QCOLOR:
-                    color_info = ANSI_TO_QCOLOR[code]
-                    if isinstance(color_info, tuple):
-                        color, is_bold = color_info
-                        if not color:  # If no color change, keep current color
-                            continue
-                    else:
-                        color = color_info
+                    current_color = ANSI_TO_QCOLOR[code]
                     append_segment(buffer, current_color)  # Append the current buffer with the current color
                     buffer = ""  # Reset buffer
-                    current_color = color  # Update current color
                     break  # Only apply the first matching color
         else:
             buffer += part  # Add text to the buffer
     append_segment(buffer, current_color)  # Append any remaining text
     return segments
+
 
 class Converter:
     @staticmethod

@@ -127,6 +127,9 @@ class LogConsole(QWidget):
         self.log_console.setCurrentCharFormat(QTextCharFormat())
 
         
+    def addNewLine(self):
+        self.appendLog('')
+        
     def appendLog(self, message):
         self.log_console.appendPlainText(str(message))
     

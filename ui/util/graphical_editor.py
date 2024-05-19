@@ -1446,7 +1446,7 @@ class GraphicalEditor(QFrame):
                 f.write(f"{base_coords[0]} {base_coords[1]} {base_coords[2]} {self.expansion_angle} {phi} {theta}")
             
             self.statusBar.showMessage("Successfully set particle source and calculated direction angles")
-            self.log_console.printInfo(f"Successfully written coordinates of the particle source:\nBase: {base_coords}\nExpansion angle θ: {self.expansion_angle} ({rad_to_degree(self.expansion_angle)}°)\nPolar (colatitude) angle θ: {theta} ({rad_to_degree(theta)}°)\nAzimuthal angle φ: {phi} ({rad_to_degree(phi)}°)")
+            self.log_console.printInfo(f"Successfully written coordinates of the particle source:\nBase: {base_coords}\nExpansion angle θ: {self.expansion_angle} ({rad_to_degree(self.expansion_angle)}°)\nPolar (colatitude) angle θ: {theta} ({rad_to_degree(theta)}°)\nAzimuthal angle φ: {phi} ({rad_to_degree(phi)}°)\n")
             
             self.resetParticleSourceArrow()
             return 1
