@@ -1,29 +1,44 @@
 from vtk import ( 
-    vtkAxesActor, vtkOrientationMarkerWidget, vtkRenderer
+    vtkAxesActor, vtkOrientationMarkerWidget, vtkRenderer,
+    vtkSphereSource, vtkPolyDataMapper, vtkActor,
+    vtkGenericDataObjectReader, vtkDataSetMapper
 )
 from PyQt5.QtWidgets import (
     QVBoxLayout, QHBoxLayout, QWidget, QPushButton, QSpacerItem, 
     QSizePolicy, QMenu, QAction, QFontDialog, QDialog, QLabel, 
-    QLineEdit, QMessageBox, QColorDialog
+    QLineEdit, QMessageBox, QColorDialog, QFileDialog
 )
-from PyQt5.QtCore import QSize
+import json
+from PyQt5.QtCore import QSize, QTimer
 from PyQt5.QtGui import QIcon
 from util.mesh_renderer import MeshRenderer
 from data.hdf5handler import HDF5Handler
 from vtkmodules.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 from vtkmodules.vtkInteractionStyle import vtkInteractorStyleTrackballCamera
-from util.util import align_view_by_axis
-from util.styles import DEFAULT_QLINEEDIT_STYLE
+from util.util import align_view_by_axis, Point
+from util.styles import DEFAULT_QLINEEDIT_STYLE, DEFAULT_ACTOR_COLOR
+from logger.log_console import LogConsole
 
 
 class ResultsTab(QWidget):
-    def __init__(self, parent=None):
+    def __init__(self, log_console: LogConsole, parent=None):
         super().__init__(parent)
         self.layout = QVBoxLayout()
         self.toolbarLayout = QHBoxLayout()
         
         self.setup_ui()
         self.setup_axes()
+        
+        self.log_console = log_console
+        
+        self.sphere_actors = []
+        self.animation_timer = QTimer(self)
+        self.animation_timer.timeout.connect(self.update_animation)
+        
+        self.current_iteration = 0
+        self.max_iterations = 0
+        self.repeat_count = 0
+        self.max_repeats = 10
         
 
     def setup_axes(self):
@@ -48,19 +63,67 @@ class ResultsTab(QWidget):
         self.interactor.SetInteractorStyle(self.interactorStyle)
         self.interactor.Initialize()
         
-        self.toolbarLayout.addWidget(self.scalarBarSettingsButton)
         self.layout.addLayout(self.toolbarLayout)
         self.layout.addWidget(self.vtkWidget)
         self.setLayout(self.layout)
         
     
-    def setup_toolbar(self):       
-        self.scalarBarSettingsButton = QPushButton()
-        self.scalarBarSettingsButton.clicked.connect(self.show_context_menu)
-        self.scalarBarSettingsButton.setIcon(QIcon("icons/settings.png"))
-        self.scalarBarSettingsButton.setIconSize(QSize(32, 32))
-        self.scalarBarSettingsButton.setFixedSize(QSize(32, 32))
-        self.scalarBarSettingsButton.setToolTip('Scalar bar settings')
+    def create_toolbar_button(self, icon_path, tooltip, callback, layout, icon_size=QSize(32, 32), button_size=QSize(32, 32)):
+        """
+        Create a toolbar button and add it to the specified layout.
+
+        :param icon_path: Path to the icon image.
+        :param tooltip: Tooltip text for the button.
+        :param callback: Function to connect to the button's clicked signal.
+        :param layout: Layout to add the button to.
+        :param icon_size: Size of the icon (QSize).
+        :param button_size: Size of the button (QSize).
+        :return: The created QPushButton instance.
+        """
+        button = QPushButton()
+        button.clicked.connect(callback)
+        button.setIcon(QIcon(icon_path))
+        button.setIconSize(icon_size)
+        button.setFixedSize(button_size)
+        button.setToolTip(tooltip)
+        layout.addWidget(button)
+        return button
+
+    def setup_toolbar(self):
+        self.addMeshedObjectButton = self.create_toolbar_button(
+            icon_path="icons/custom.png",
+            tooltip='Adds meshed object',
+            callback=self.add_meshed_object,
+            layout=self.toolbarLayout
+        )
+        
+        self.removeAllObjectsButton = self.create_toolbar_button(
+            icon_path="icons/eraser.png",
+            tooltip='Adds meshed object',
+            callback=self.remove_all_actors,
+            layout=self.toolbarLayout
+        )
+        
+        self.animationsButton = self.create_toolbar_button(
+            icon_path="icons/anim.png",
+            tooltip='Shows animation',
+            callback=self.show_animation,
+            layout=self.toolbarLayout
+        )
+        
+        self.animationClearButton = self.create_toolbar_button(
+            icon_path="icons/anim-remove.png",
+            tooltip='Removes all the objects from the previous animation',
+            callback=self.clear_animation,
+            layout=self.toolbarLayout
+        )
+        
+        self.scalarBarSettingsButton = self.create_toolbar_button(
+            icon_path="icons/settings.png",
+            tooltip='Scalar bar settings',
+            callback=self.show_context_menu,
+            layout=self.toolbarLayout
+        )
         
         self.spacer = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
         self.toolbarLayout.addSpacerItem(self.spacer)
@@ -81,9 +144,11 @@ class ResultsTab(QWidget):
         except Exception as e:
             QMessageBox.warning(self, "HDF5 Error", f"Something went wrong while hdf5 processing. Error: {e}")
         
+        self.reset_camera()
+    
+    def reset_camera(self):
         self.renderer.ResetCamera()
         self.vtkWidget.GetRenderWindow().Render()
-        
         
     def clear_plot(self):
         self.renderer.RemoveAllViewProps()
@@ -213,4 +278,166 @@ class ResultsTab(QWidget):
         self.mesh_renderer.setup_default_scalarbar_properties()
         self.apply_divs(str(self.mesh_renderer.default_num_labels))
         self.vtkWidget.GetRenderWindow().Render()
+        
+    
+    def create_sphere_actor(self, point):
+        sphere_source = vtkSphereSource()
+        sphere_source.SetCenter(point.x, point.y, point.z)
+        sphere_source.SetRadius(0.1)
+        
+        mapper = vtkPolyDataMapper()
+        mapper.SetInputConnection(sphere_source.GetOutputPort())
+        
+        actor = vtkActor()
+        actor.SetMapper(mapper)
+        actor.GetProperty().SetColor(1, 0, 0)
+        
+        return actor
+    
+    def animate_particle_movements(self, particles_movement):
+        self.particles_movement = particles_movement
+        self.current_iteration = 0
+        self.repeat_count = 0
+        
+        # Determine the maximum number of iterations
+        self.max_iterations = max(len(movements) for movements in particles_movement.values())
+        self.animation_timer.start(1000)  # Update every second
+        
+    
+    def update_animation(self):
+        if self.current_iteration >= self.max_iterations:
+            self.repeat_count += 1
+            if self.repeat_count >= self.max_repeats:
+                self.animation_timer.stop()
+                return
+            self.current_iteration = 0  # Reset iteration to start over
+
+        # Remove previous actors
+        for actor in self.sphere_actors:
+            self.renderer.RemoveActor(actor)
+        self.sphere_actors.clear()
+
+        # Add new actors for the current iteration
+        for _, movements in self.particles_movement.items():
+            if self.current_iteration < len(movements):
+                point = movements[self.current_iteration]
+                actor = self.create_sphere_actor(point)
+                self.renderer.AddActor(actor)
+                self.sphere_actors.append(actor)
+        
+        self.vtkWidget.GetRenderWindow().Render()
+        self.current_iteration += 1
+    
+    
+    def remove_all_actors(self):
+        self.particleSourceArrowActor = None
+        
+        actors = self.renderer.GetActors()
+        actors.InitTraversal()        
+        for _ in range(actors.GetNumberOfItems()):
+            actor = actors.GetNextActor()
+            self.renderer.RemoveActor(actor)
+        
+        self.vtkWidget.GetRenderWindow().Render()
+    
+    def clear_animation(self):
+        """
+        Clear all actors from the previous animation.
+        """
+        for actor in self.sphere_actors:
+            self.renderer.RemoveActor(actor)
+        self.sphere_actors.clear()
+        self.vtkWidget.GetRenderWindow().Render()
+    
+    
+    def load_particle_movements(self, filename="particles_movements.json"):
+        """
+        Load particle movements from a JSON file.
+
+        :param filename: Path to the JSON file.
+        :return: Dictionary with particle ID as keys and list of Point objects as values.
+        """
+        try:
+            with open(filename, 'r') as file:
+                data = json.load(file)
+
+            particles_movement = {}
+            for particle_id, movements in data.items():
+                particle_id = int(particle_id)
+                particles_movement[particle_id] = [Point(movement['x'], movement['y'], movement['z']) for movement in movements]
+
+            return particles_movement
+
+        except FileNotFoundError:
+            self.log_console.printError(f"The file {filename} was not found.")
+        except json.JSONDecodeError:
+            self.log_console.printError("Error: The file is not a valid JSON.")
+        except Exception as e:
+            self.log_console.printError(f"Unexpected error: {e}") 
+
+    def show_animation(self):
+        particles_movement = self.load_particle_movements()
+        if not particles_movement:
+            self.log_console.printError("There is nothing to show. Particles haven't been spawned or simulation hasn't been started")
+            return
+        self.animate_particle_movements(particles_movement)
+
+
+    def add_meshed_object(self):
+        """
+        Upload actor from .msh file and add it to the renderer.
+        """
+        options = QFileDialog.Options()
+        options |= QFileDialog.ReadOnly
+        file_path, _ = QFileDialog.getOpenFileName(self, "Select .msh file", "", "Mesh Files (*.msh);;All Files (*)", options=options)
+        
+        if not file_path:
+            self.log_console.printWarning("No file selected.")
+            return
+        
+        try:
+            mesh_actor = self.create_actor_from_msh(file_path)
+            if mesh_actor:
+                self.renderer.AddActor(mesh_actor)
+                mesh_actor.GetProperty().SetColor(DEFAULT_ACTOR_COLOR)
+                self.vtkWidget.GetRenderWindow().Render()
+                self.log_console.printInfo(f"Mesh loaded from {file_path}")
+                self.reset_camera()
+            else:
+                raise ValueError("Failed to create actor from the provided .msh file.")
+        
+        except FileNotFoundError:
+            self.log_console.printError(f"The file {file_path} was not found.")
+        except ValueError as ve:
+            self.log_console.printError(f"Error processing the .msh file: {ve}")
+        except Exception as e:
+            self.log_console.printError(f"Unexpected error: {e}")
+
+    
+    def create_actor_from_msh(self, msh_filename):
+        """
+        Create a VTK actor from a .msh file.
+        
+        :param msh_filename: Path to the .msh file.
+        :return: A VTK actor.
+        """
+        try:
+            vtk_filename = msh_filename.replace('.msh', '.vtk')
+        
+            reader = vtkGenericDataObjectReader()
+            reader.SetFileName(vtk_filename)
+            reader.Update()
             
+            if reader.IsFilePolyData():
+                mapper = vtkPolyDataMapper()
+            elif reader.IsFileUnstructuredGrid():
+                mapper = vtkDataSetMapper()
+            else:
+                return None
+            mapper.SetInputConnection(reader.GetOutputPort())
+
+            actor = vtkActor()
+            actor.SetMapper(mapper)
+            return actor
+        except Exception as e:
+            raise ValueError(f"Failed to create actor: {e}")
