@@ -5,7 +5,7 @@ from PyQt5.QtWidgets import (
     QProgressBar, QScrollArea, 
     QApplication, QColorDialog
 )
-import signal, os
+import signal, os, psutil
 from sys import exit
 from time import time
 from json import dump
@@ -95,16 +95,23 @@ class WindowApp(QMainWindow):
 
     
     def read_stderr(self):
-        errout = self.process.readAllStandardError().data().decode()
+        try:
+            errout = str(self.process.readAllStandardError().data().decode())
+        except UnicodeDecodeError:
+            errout = str(self.process.readAllStandardError().data())
         segments = ansi_to_segments(errout)
-        for segment, _ in segments:
-            self.insert_colored_text('', segment, 'red')
+        for segment, color in segments:
+            self.insert_colored_text('', segment, color)
 
     def read_stdout(self):
-        out = self.process.readAllStandardOutput().data().decode()
+        try:
+            out = str(self.process.readAllStandardOutput().data().decode())
+        except UnicodeDecodeError:
+            out = str(self.process.readAllStandardOutput().data())
         segments = ansi_to_segments(out)
-        for segment, _ in segments:
-            self.insert_colored_text('', segment, 'white')
+        for segment, color in segments:
+            self.insert_colored_text('', segment, color)
+
 
 
     def insert_colored_text(self, prefix: str, message: str, color: str):
@@ -468,6 +475,17 @@ class WindowApp(QMainWindow):
             
             if not self.process.waitForFinished(2000):
                 self.process.kill()
+                self.kill_application()
+                
+    
+    def kill_application(self):
+        for proc in psutil.process_iter(['pid', 'name']):
+            try:
+                if proc.info['name'].startswith('nia_start'):
+                    proc.kill()
+                    self.log_console.printInfo(f"Process {proc.info['name']} with PID {proc.info['pid']} killed")
+            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess) as e:
+                self.log_console.printError(f"An error occurred while attempting to kill the process: {e}")
         
         
     def switch_tab(self):
@@ -581,4 +599,4 @@ class WindowApp(QMainWindow):
         
 
     def exit(self):
-        exit(0)
+        exit(0)            
