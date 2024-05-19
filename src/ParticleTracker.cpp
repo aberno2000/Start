@@ -1,5 +1,8 @@
-#include "../include/ParticleTracker.hpp"
+#include <nlohmann/json.hpp>
+using json = nlohmann::json;
+
 #include "../include/DataHandling/HDF5Handler.hpp"
+#include "../include/ParticleTracker.hpp"
 
 void ParticleTracker::checkMeshfilename() const
 {
@@ -56,6 +59,8 @@ void ParticleTracker::initializeBoundaryNodes() { _boundaryNodes = Mesh::getTetr
 
 void ParticleTracker::loadPICFEMParameters() { _picfemparams = util::loadPICFEMParameters(kdefault_temp_picfem_params_filename); }
 
+void ParticleTracker::loadBoundaryConditions() { _boundaryConditions = util::loadBoundaryConditions(kdefault_temp_boundary_conditions_filename); }
+
 void ParticleTracker::initializeParticles()
 {
     m_particles = createParticlesWithEnergy(m_config.getParticlesCount(),
@@ -77,10 +82,11 @@ void ParticleTracker::initialize()
 
 void ParticleTracker::finalize() const
 {
+    // Saving all movements of all the particles (needed for create animation).
+    saveParticleMovements();
+
     // Removing all the intermediate files after simulation finalization.
-    util::removeFile(kdefault_temp_boundary_conditions_filename);
-    util::removeFile(kdefault_temp_picfem_params_filename);
-    util::removeFile(kdefault_temp_solver_params_filename);
+    removeTemporaryFiles();
 }
 
 bool ParticleTracker::isPointInsideTetrahedron(Point const &point, MeshTetrahedronParam const &meshParam)
@@ -106,7 +112,50 @@ size_t ParticleTracker::isRayIntersectTriangle(Ray const &ray, MeshTriangleParam
                : -1ul;
 }
 
-void ParticleTracker::loadBoundaryConditions() { _boundaryConditions = util::loadBoundaryConditions(kdefault_temp_boundary_conditions_filename); }
+void ParticleTracker::removeTemporaryFiles() const
+{
+    util::removeFile(kdefault_temp_boundary_conditions_filename);
+    util::removeFile(kdefault_temp_picfem_params_filename);
+    util::removeFile(kdefault_temp_solver_params_filename);
+}
+
+void ParticleTracker::saveParticleMovements() const
+{
+    try
+    {
+        if (m_particlesMovement.empty())
+        {
+            std::cerr << "Warning: Particle movements map is empty, no data to save." << std::endl;
+            return;
+        }
+
+        json j;
+        for (const auto &[id, movements] : m_particlesMovement)
+        {
+            json positions;
+            for (auto const &point : movements)
+                positions.push_back({{"x", point.x()}, {"y", point.y()}, {"z", point.z()}});
+            j[std::to_string(id)] = positions;
+        }
+
+        std::ofstream file("particles_movements.json");
+        if (file.is_open())
+        {
+            file << j.dump(4); // 4 spaces indentation for pretty printing
+            file.close();
+        }
+        else
+            throw std::ios_base::failure("Failed to open file for writing");
+    }
+    catch (std::ios_base::failure const &e)
+    {
+        std::cerr << "I/O error occurred: " << e.what() << std::endl;
+    }
+    catch (json::exception const &e)
+    {
+        std::cerr << "JSON error occurred: " << e.what();
+    }
+}
 
 void ParticleTracker::updateSurfaceMesh()
 {
@@ -269,6 +318,7 @@ void ParticleTracker::startSimulation()
                 particle.electroMagneticPush(magneticInduction, electricFieldMap.at(containingTetrahedron), m_config.getTimeStep());
 
             // Updating positions for all the particles.
+            m_particlesMovement[particle.getId()].emplace_back(particle.getCentre());
             Point prev(particle.getCentre()); // Saving previous particle position before updating the position.
             particle.updatePosition(m_config.getTimeStep());
             Ray ray(prev, particle.getCentre());

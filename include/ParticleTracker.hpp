@@ -43,6 +43,8 @@ private:
 
     ConfigParser m_config; ///< `ConfigParser` object to get all the simulation physical paramters.
 
+    std::map<size_t, std::vector<Point>> m_particlesMovement; ///< Map to store all the particle movements: (Particle ID | All positions).  
+
     /**
      * @brief Checks the validity of the provided mesh filename.
      *
@@ -86,6 +88,17 @@ private:
      * @return ID with what triangle ray intersects, otherwise max `size_t` value (-1ul).
      */
     size_t isRayIntersectTriangle(Ray const &ray, MeshTriangleParam const &triangle);
+
+    /// @brief Removes all the temporary files from system.
+    void removeTemporaryFiles() const;
+
+    /**
+     * @brief Saves the particle movements to a JSON file.
+     * 
+     * This function saves the contents of m_particlesMovement to a JSON file named "particles_movements.json".
+     * It handles exceptions and provides a warning message if the map is empty.
+     */
+    void saveParticleMovements() const;
 
     /// @brief Using HDF5Handler to update the mesh according to the settled particles.
     void updateSurfaceMesh();
