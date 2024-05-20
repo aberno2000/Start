@@ -531,7 +531,7 @@ class GraphicalEditor(QFrame):
             gmsh.option.setNumber("Mesh.MeshSizeMax", mesh_size)
             gmsh.option.setNumber("Mesh.MeshSizeMin", mesh_size)
             gmsh.model.occ.synchronize()
-            gmsh.model.mesh.generate(2)
+            gmsh.model.mesh.generate(3)
             msh_filename = DEFAULT_TEMP_MESH_FILE
             gmsh.write(msh_filename)
             gmsh.finalize()
@@ -634,7 +634,7 @@ class GraphicalEditor(QFrame):
             gmsh.option.setNumber("Mesh.MeshSizeMax", mesh_size)
             gmsh.option.setNumber("Mesh.MeshSizeMin", mesh_size)
             gmsh.model.occ.synchronize()
-            gmsh.model.mesh.generate(2)
+            gmsh.model.mesh.generate(3)
             msh_filename = DEFAULT_TEMP_MESH_FILE
             gmsh.write(msh_filename)
             gmsh.finalize()
