@@ -169,9 +169,8 @@ class WindowApp(QMainWindow):
             self.results_tab.clear_plot()
             
             QMessageBox.information(self,
-                                    "Uknnown Error",
-                                    f"Something went wrong at the start of the simulation. Maybe specified particle count is a small amount, try to increase this field. Current particle count is {self.config_tab.particles_count}. Or maybe your mesh is very small and you don't have anough space to start the simulation\n")
-            self.log_console.printError(f"Something went wrong at the start of the simulation. Maybe specified particle count is a small amount, try to increase this field. Current particle count is {self.config_tab.particles_count}. Or maybe your mesh is very small and you don't have anough space to strat the simulation")
+                                    "Error",
+                                    f"Something went wrong at the start of the simulation. Program stops the simulation. See log console to have details")
         else:
             self.results_tab.clear_plot()
             
