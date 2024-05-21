@@ -279,6 +279,7 @@ void ParticleTracker::startSimulation()
         MatrixEquationSolver solver(assemblier, solutionVector);
         auto solverParams{solver.parseSolverParamsFromJson()};
         solver.solve(solverParams.first, solverParams.second);
+        solver.calculateElectricField(); // Getting electric field for the each cell.
 
         // Writing to electric and potential fields to files just ones.
         if (t == 0.0)
@@ -291,8 +292,7 @@ void ParticleTracker::startSimulation()
         }
 
         // EM-pushgin particle with Boris Integrator.
-        MathVector magneticInduction{};  // For brevity assuming that induction vector B is 0.
-        solver.calculateElectricField(); // Getting electric field for the each cell.
+        MathVector magneticInduction{}; // For brevity assuming that induction vector B is 0.
         for (Particle &particle : m_particles)
         {
             // If set contains specified particle ID - skip checking this particle.
