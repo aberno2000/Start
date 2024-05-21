@@ -40,7 +40,7 @@ private:
      * @param tetrahedron `Tetrahedron_3` from CGAL.
      * @return `true` if point within the tetrahedron, otherwise `false`.
      */
-    bool isParticleInsideTetrahedron(Particle const &particle, MeshTetrahedronParam const &meshParam);
+    bool isParticleInsideTetrahedron(Particle const &particle, Tetrahedron const &tetrahedron);
 
     /**
      * @brief Updates particle positions and tracks their locations for a segment of the total simulation time.

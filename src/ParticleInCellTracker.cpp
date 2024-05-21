@@ -15,9 +15,9 @@ void ParticleInCellTracker::fillTimeMap()
             m_timeMap.insert({timeID++, entry.first});
 }
 
-bool ParticleInCellTracker::isParticleInsideTetrahedron(Particle const &particle, MeshTetrahedronParam const &meshParam)
+bool ParticleInCellTracker::isParticleInsideTetrahedron(Particle const &particle, Tetrahedron const &tetrahedron)
 {
-    CGAL::Oriented_side oriented_side{std::get<1>(meshParam).oriented_side(particle.getCentre())};
+    CGAL::Oriented_side oriented_side{tetrahedron.oriented_side(particle.getCentre())};
     if (oriented_side == CGAL::ON_POSITIVE_SIDE)
         return true;
     else if (oriented_side == CGAL::ON_NEGATIVE_SIDE)
@@ -39,10 +39,10 @@ void ParticleInCellTracker::processSegment(double start_time, double end_time)
             // Determine which tetrahedrons the particle may intersect based on its grid index
             auto meshParams{m_grid.getTetrahedronsByGridIndex(m_grid.getGridIndexByPosition(pt.getCentre()))};
             for (auto const &meshParam : meshParams) {
-                if (isParticleInsideTetrahedron(pt, meshParam))
+                if (isParticleInsideTetrahedron(pt, meshParam.tetrahedron))
                 {
                     std::lock_guard<std::mutex> lock(m_trackerMutex); // Protect access to tempTracker.
-                    tempTracker[std::get<0>(meshParam)].emplace_back(pt);
+                    tempTracker[meshParam.globalTetraId].emplace_back(pt);
                 }
             } });
 
@@ -88,8 +88,7 @@ void ParticleInCellTracker::calculateChargeDensityMap()
         {
             tempMap.insert({tetrId,
                             (std::accumulate(particles.cbegin(), particles.cend(), 0.0, [](double sum, auto const &particle)
-                                             { return sum + particle.getCharge(); })) /
-                                std::get<2>(m_grid.getTetrahedronMeshParamById(tetrId)) * 1e9}); // m³ to mm³.
+                                             { return sum + particle.getCharge(); })) / 1}); // Dummy volume - 1.
         }
         m_chargeDensityMap.insert({dt, tempMap});
     }
