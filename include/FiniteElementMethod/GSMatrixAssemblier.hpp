@@ -3,23 +3,27 @@
 
 /* ATTENTION: Works well only for the polynom order = 1. */
 
+#include "../DataHandling/VolumetricMeshData.hpp"
 #include "../Geometry/Mesh.hpp"
 #include "TrilinosTypes.hpp"
 
+/// @brief This class works only with `VolumetricMeshData` singleton object.
 class GSMatrixAssemblier final
 {
 private:
-    std::string_view m_meshfilename;                                                     ///< GMSH mesh file.
-    Commutator m_comm;                                                                   ///< Handles inter-process communication within a parallel computing environment. MPI communicator.
-    Teuchos::RCP<MapType> m_map;                                                         ///< A smart pointer managing the lifetime of a Map object, which defines the layout of distributed data across the processes in a parallel computation.
-    short m_polynomOrder{}, m_desiredAccuracy{};                                         ///< Polynom order and desired accuracy of calculations.
-    short _countCubPoints{}, _countBasisFunctions{}, _spaceDim{};                        ///< Private data members to store count of cubature points/cubature weights and count of basis functions.
-    size_t _countTetrahedra{};                                                           ///< Private data member - count of tetrahedra in specified mesh.
-    DynRankView _cubPoints, _cubWeights;                                                 ///< Storing cubature points and cubature weights in static data members because theay are initialized in ctor.
-    DynRankView m_basisFuncGrads;                                                        ///< Basis function gradients.
-    std::map<GlobalOrdinal, std::map<GlobalOrdinal, MathVector>> m_basisFuncGradientMap; ///< Basis function gradient map. Key - node ID, value - list of the basis function gradients for this node.
-    Teuchos::RCP<TpetraMatrixType> m_gsmatrix;                                           ///< Smart pointer on the global stiffness matrix.
-    std::map<size_t, double> m_tetraVolumesMap;                                          ///< Map for tetrahedron volumes. Key - tetrahedron ID. Value - volume of this tetrahedron.
+    static constexpr short const kdefault_polynom_order{1};
+    static constexpr short const kdefault_tetrahedron_vertices_count{4};
+    static constexpr short const kdefault_space_dim{3};
+
+    std::string m_mesh_filename; ///< Filename of the mesh.
+
+    Commutator m_comm;                         ///< Handles inter-process communication within a parallel computing environment. MPI communicator.
+    Teuchos::RCP<MapType> m_map;               ///< A smart pointer managing the lifetime of a Map object, which defines the layout of distributed data across the processes in a parallel computation.
+    Teuchos::RCP<TpetraMatrixType> m_gsmatrix; ///< Smart pointer on the global stiffness matrix.
+
+    short m_desiredAccuracy{};                       ///< Polynom order and desired accuracy of calculations.
+    short _countCubPoints{}, _countBasisFunctions{}; ///< Private data members to store count of cubature points/cubature weights and count of basis functions.
+    DynRankView _cubPoints, _cubWeights;             ///< Storing cubature points and cubature weights in static data members because theay are initialized in ctor.
 
     struct MatrixEntry
     {
@@ -40,94 +44,33 @@ private:
      */
     auto _getBasis() const;
 
-    /**
-     * @brief Constructs a cubature (numerical integration) factory for tetrahedral elements with specified accuracy.
-     * @details This function initializes a cubature factory capable of creating cubature rules that
-     *          are accurate to a specified polynomial degree. The cubature integrates polynomial
-     *          functions exactly up to the specified degree and is essential for accurately computing
-     *          integrals over tetrahedral finite elements.
-     * @return A cubature object created using the default cubature factory, capable of integrating up to the specified accuracy.
-     */
-    auto _getCubatureFactory();
-
     /// @brief Initializes cubature points and weights according to the mesh and polynomial order.
     void _initializeCubature();
 
     /**
-     * @brief Retrieves the vertices of a tetrahedron from given mesh parameters.
-     * @param meshParams The parameters defining the mesh.
-     * @return Dynamically ranked view of the vertices in the mesh.
+     * @brief Retrieves the vertices of all tetrahedrons in the mesh.
+     *
+     * This function extracts the coordinates of the vertices for each tetrahedron
+     * in the mesh and stores them in a multi-dimensional array (DynRankView).
+     * The dimensions of the array are [number of tetrahedrons] x [4 vertices] x [3 coordinates (x, y, z)].
+     *
+     * @return DynRankView A multi-dimensional array containing the vertices of all tetrahedrons.
+     *                     Each tetrahedron is represented by its four vertices, and each vertex has three coordinates (x, y, z).
+     * @throw std::runtime_error if an error occurs during the extraction of vertices.
      */
-    DynRankView _getTetrahedronVertices(MeshTetrahedronParamVector const &meshParams) const;
-
-    /**
-     * @brief Computes the tetrahedron basis function values for a given mesh parameter.
-     * @param meshParam The mesh parameter containing the geometry of a tetrahedron.
-     * @return Tetrahedron basis function values matrix.
-     */
-    DynRankView _computeTetrahedronBasisFunctionValues();
-
-    /**
-     * @brief Computes the tetrahedron transformed to physical frame basis function values for a given mesh parameter.
-     * @param meshParam The mesh parameter containing the geometry of a tetrahedron.
-     * @return Tetrahedron basis function values matrix, that are transformed to physical frame.
-     */
-    DynRankView _computeTetrahedronBasisFunctionValuesTransformed(MeshTetrahedronParamVector const &meshParams);
-
-    /**
-     * @brief Computes the tetrahedron basis function gradients for a given mesh parameter.
-     * @param meshParams The mesh parameter containing the geometry of a tetrahedron.
-     * @return Tetrahedron basis function gradients matrix.
-     */
-    DynRankView _computeTetrahedronBasisFunctionGradients();
-
-    /**
-     * @brief Computes the gradients of the tetrahedron basis functions transformed to the physical frame for a given mesh parameter.
-     * @details This function calculates the gradients of basis functions in the reference coordinate system and transforms them to the physical coordinate system based on the mesh parameters. This transformation is crucial for finite element calculations in the physical domain.
-     * @param meshParams The mesh parameter containing the geometry of a tetrahedron.
-     */
-    void _computeTetrahedronBasisFunctionGradientsTransformed(MeshTetrahedronParamVector const &meshParams);
-
-    /**
-     * @brief Computes the Jacobians for cells based on mesh parameters.
-     * @details Jacobians are calculated for transforming integral calculations from the reference element to the physical element. This is critical for accurate finite element integration over the actual geometry represented by the mesh.
-     * @param meshParams The mesh parameters defining the geometry of each cell.
-     * @return Dynamically ranked view of the Jacobians for each cell.
-     */
-    DynRankView _computeCellJacobians(MeshTetrahedronParamVector const &meshParams);
-
-    /**
-     * @brief Computes the inverse of the Jacobians for a set of cells.
-     * @details The inverse Jacobians are used for transforming gradients of basis functions from the physical domain back to the reference domain, which is essential for correct assembly of stiffness matrices.
-     * @param jacobians The Jacobians for which the inverses are to be computed.
-     * @return Dynamically ranked view of the inverse Jacobians.
-     */
-    DynRankView _computeInverseJacobians(DynRankView const &jacobians);
+    DynRankView _getTetrahedronVertices();
 
     /**
      * @brief Computes the local stiffness matrix for a given set of basis gradients and cubature weights.
-     * @param basisGradients The gradients of the basis functions.
      * @return The local stiffness matrix.
      */
-    DynRankView _computeLocalStiffnessMatrices(DynRankView const &basisGradients) const;
+    DynRankView _computeLocalStiffnessMatrices();
 
     /**
      * @brief Retrieves matrix entries from calculated local stiffness matrices.
-     * @param basisGradients Gradients of basis functions for stiffness calculations.
-     * @param globalNodeIndicesPerElement Global indices of nodes per element.
      * @return A vector of matrix entries, each containing global row, column, and value.
      */
-    std::vector<GSMatrixAssemblier::MatrixEntry> _getMatrixEntries(DynRankView const &basisGradients,
-                                                                   TetrahedronIndicesVector const &globalNodeIndicesPerElement);
-
-    /**
-     * @brief Assembles the global stiffness matrix using local stiffness matrices.
-     * @param basisGradients Gradients of basis functions used in the assembly.
-     * @param globalNodeIndicesPerElement Global indices of nodes per element.
-     * @return Smart pointer to the assembled global stiffness matrix.
-     */
-    void _assemblyGlobalStiffnessMatrixHelper(DynRankView const &basisGradients,
-                                              TetrahedronIndicesVector const &globalNodeIndicesPerElement);
+    std::vector<GSMatrixAssemblier::MatrixEntry> _getMatrixEntries();
 
     /**
      * @brief Sets boundary conditions for the node with specified node ID.
@@ -137,43 +80,24 @@ private:
      */
     void _setBoundaryConditionForNode(LocalOrdinal nodeID, Scalar value);
 
-public:
-    GSMatrixAssemblier(std::string_view mesh_filename, short polynomOrder = 1, short desiredCalculationAccuracy = 1);
-    ~GSMatrixAssemblier() {}
-
     /**
      * @brief Assemlies global stiffness matrix from the GMSH mesh file (.msh).
-     * @param mesh_filename Mesh filename.
      * @return Sparse matrix: global stiffness matrix of the tetrahedron mesh.
      */
-    void assembleGlobalStiffnessMatrix(std::string_view mesh_filename);
+    void _assembleGlobalStiffnessMatrix();
+
+public:
+    GSMatrixAssemblier(std::string_view mesh_filename, short desiredCalculationAccuracy);
+    ~GSMatrixAssemblier() {}
 
     /* === Getters for matrix params. === */
     constexpr Teuchos::RCP<TpetraMatrixType> const &getGlobalStiffnessMatrix() const { return m_gsmatrix; }
     size_t rows() const { return m_gsmatrix->getGlobalNumRows(); }
     size_t cols() const { return m_gsmatrix->getGlobalNumCols(); }
-    constexpr short getPolynomOrder() const { return m_polynomOrder; }
-    constexpr short getCalculationAccuracy() const { return m_desiredAccuracy; }
-    constexpr short getCountCubPoints() const { return _countCubPoints; }
-    constexpr short getCountBasisFuncs() const { return _countBasisFunctions; }
-    auto getBasisFuncGrads() const { return m_basisFuncGrads; }
-    constexpr auto const &getBasisFuncGradsMap() const { return m_basisFuncGradientMap; }
-    constexpr auto const &getTetrahedraVolumesMap() const { return m_tetraVolumesMap; }
-    auto getNodes() const { return Mesh::getTetrahedronNodeCoordinates(m_meshfilename); }
-    auto getNodeMap() const { return Mesh::getTetrahedronNodesMap(m_meshfilename); }
-    auto getTetrahedronCentres() const { return Mesh::getTetrahedronCenters(m_meshfilename); }
-    auto getTetrahedronsDataMap() const { return Mesh::getTetrahedronsDataMap(m_meshfilename); }
+    auto &getMeshComponents() { return VolumetricMeshData::getInstance(m_mesh_filename.data()); }
 
     /// @brief Checks is the global stiffness matrix empty or not.
     bool empty() const;
-
-    /**
-     * @brief Getter for value from global stiffness matrix.
-     * @param row Row in the sparse global stiffness matrix.
-     * @param col Column in the sparse global stiffness matrix.
-     * @return Value from [i][j] specified row and column.
-     */
-    Scalar getValueFromGSM(GlobalOrdinal row, GlobalOrdinal col) const;
 
     /**
      * @brief Sets the boundary conditions to the global stiffness matrix. Changes specified values from map.
