@@ -44,17 +44,6 @@ std::optional<AABB_Tree_Triangle> constructAABBTreeFromMeshParams(MeshTrianglePa
  */
 double calculateVolumeOfTetrahedron(Tetrahedron const &tetrahedron);
 
-struct TetrahedronData
-{
-    Tetrahedron tetrahedron;
-    std::map<size_t, Point> nodes;
-
-    TetrahedronData() = default;
-    TetrahedronData(Tetrahedron const &t) : tetrahedron(t), nodes() {}
-};
-using TetrahedronDataMap = std::map<size_t, TetrahedronData>;
-void printTetrahedronData(TetrahedronDataMap const &tetrahedronDataMap);
-
 /// @brief Represents GMSH mesh.
 class Mesh
 {
@@ -207,22 +196,6 @@ public:
      *         caught and should be handled to avoid crashes and ensure that the error is reported properly.
      */
     static std::map<size_t, std::array<double, 3>> getTetrahedronCenters(std::string_view msh_filename);
-
-    /**
-     * @brief Constructs a map of tetrahedrons data from a given mesh file.
-     *
-     * This function reads the specified Gmsh mesh file and constructs a map where each entry represents
-     * a tetrahedron. The key is the tetrahedron ID, and the value is a `TetrahedronData` structure
-     * containing the CGAL tetrahedron and a map of its nodes with their coordinates.
-     *
-     * @param msh_filename The name of the mesh file to read.
-     * @return A map containing the tetrahedron data, where the key is the tetrahedron ID and the value
-     * is a `TetrahedronData` structure with the tetrahedron and its nodes' coordinates.
-     *
-     * @throws std::runtime_error if there is an error opening or reading the mesh file.
-     * @throws std::out_of_range if there is an inconsistency in the node or element data.
-     */
-    static TetrahedronDataMap getTetrahedronsDataMap(std::string_view msh_filename);
 };
 
 #endif // !MESH_HPP

@@ -4,17 +4,6 @@
 #include "../include/Geometry/Mesh.hpp"
 #include "../include/Utilities/Utilities.hpp"
 
-void printTetrahedronData(TetrahedronDataMap const &tetrahedronDataMap)
-{
-    for (const auto &[tetraId, data] : tetrahedronDataMap)
-    {
-        std::cout << std::format("Tetrahedron[{}]\n", tetraId);
-        for (const auto &[nodeId, coords] : data.nodes)
-            std::cout << std::format("Node[{}]: ({:.5f}, {:.5f}, {:.5f})\n", nodeId, coords[0], coords[1], coords[2]);
-        std::endl(std::cout);
-    }
-}
-
 std::ostream &operator<<(std::ostream &os, MeshTriangleParam const &meshParam)
 {
     auto triangle{std::get<1>(meshParam)};
@@ -403,32 +392,4 @@ std::map<size_t, std::array<double, 3>> Mesh::getTetrahedronCenters(std::string_
     }
     WARNINGMSG("Returning an empty map for tetrahedron centers");
     return tetrahedronCenters;
-}
-
-TetrahedronDataMap Mesh::getTetrahedronsDataMap(std::string_view msh_filename)
-{
-    TetrahedronDataMap tetrahedronDataMap;
-
-    auto nodeCoords{getTetrahedronNodeCoordinates(msh_filename)}; // map<NodeID, array<double, 3>>
-    auto tetrahedronNodes{getTetrahedronNodesMap(msh_filename)};  // map<TetraID, vector<NodeID>>
-
-    for (auto const &[tetraId, nodeIds] : tetrahedronNodes)
-    {
-        std::vector<Point> vertices;
-        for (size_t nodeId : nodeIds)
-        {
-            auto coords{nodeCoords.at(nodeId)};
-            vertices.emplace_back(Point(coords[0], coords[1], coords[2]));
-        }
-
-        Tetrahedron tetrahedron(vertices[0], vertices[1], vertices[2], vertices[3]);
-        TetrahedronData data(tetrahedron);
-
-        for (size_t i{}; i < nodeIds.size(); ++i)
-            data.nodes[nodeIds[i]] = {vertices[i][0], vertices[i][1], vertices[i][2]};
-
-        tetrahedronDataMap[tetraId] = data;
-    }
-
-    return tetrahedronDataMap;
 }
