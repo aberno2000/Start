@@ -23,25 +23,11 @@ Scalar MatrixEquationSolver::getScalarFieldValueFromX(size_t nodeID) const
         throw std::runtime_error("Solution vector is not initialized");
 
     // 1. Calculating initial index for `nodeID` node.
-    short polynomOrder{m_assemblier.getPolynomOrder()};
-    size_t actualIndex{nodeID * polynomOrder};
-    if (actualIndex >= m_x->getLocalLength())
-        throw std::runtime_error(util::stringify("Node index ", actualIndex, " is out of range in the solution vector."));
+    if (nodeID >= m_x->getLocalLength())
+        throw std::runtime_error(util::stringify("Node index ", nodeID, " is out of range in the solution vector."));
 
     Teuchos::ArrayRCP<Scalar const> data{m_x->getData(0)};
-    Scalar value{};
-
-    // 2. Accumulating values for all DOFs.
-    if (polynomOrder == 1)
-        value = data[actualIndex];
-    if (polynomOrder > 1)
-    {
-        for (int i{}; i < polynomOrder; ++i)
-            value += data[actualIndex + i];
-        value /= polynomOrder;
-    }
-
-    return value;
+    return data[nodeID];
 }
 
 std::vector<Scalar> MatrixEquationSolver::getValuesFromX() const
@@ -53,70 +39,43 @@ std::vector<Scalar> MatrixEquationSolver::getValuesFromX() const
     return std::vector<Scalar>(data.begin(), data.end());
 }
 
-std::map<GlobalOrdinal, Scalar> MatrixEquationSolver::getNodePotentialMap() const
+void MatrixEquationSolver::fillNodesPotential()
 {
     if (m_x.is_null())
         throw std::runtime_error("Solution vector is not initialized");
 
-    std::map<GlobalOrdinal, Scalar> nodePotentialMap;
     GlobalOrdinal id{1};
     for (Scalar potential : getValuesFromX())
-        nodePotentialMap[id++] = potential;
-    return nodePotentialMap;
+        m_assemblier.getMeshComponents().assignPotential(id++, potential);
 }
 
-std::map<GlobalOrdinal, MathVector> MatrixEquationSolver::calculateElectricFieldMap() const
+void MatrixEquationSolver::calculateElectricField()
 {
     try
     {
-        std::map<GlobalOrdinal, MathVector> electricFieldMap;
-        auto basisFuncGradientsMap{m_assemblier.getBasisFuncGradsMap()};
-        if (basisFuncGradientsMap.empty())
-        {
-            WARNINGMSG("There is no basis function gradients");
-            return electricFieldMap;
-        }
-
-        auto nodePotentialsMap{getNodePotentialMap()};
-        if (nodePotentialsMap.empty())
-        {
-            WARNINGMSG("There are no potentials in nodes. Maybe you forget to calculate the matrix equation Ax=b");
-            return electricFieldMap;
-        }
-
-        auto tetraVolumesMap{m_assemblier.getTetrahedraVolumesMap()};
-        if (tetraVolumesMap.empty())
-        {
-            WARNINGMSG("Storage for the tetrahedron volumes is empty for some reason. It might lead to unexpected results");
-            return electricFieldMap;
-        }
+        // Filling node potentials before calculating the electric field in the cell.
+        fillNodesPotential();
 
         // We have map: (Tetrahedron ID | map<Node ID | Basis function gradient math vector (3 components)>).
         // To get electric field of the cell we just need to accumulate all the basis func grads for each node for each tetrahedron:
         // E_cell = -1/(6V)*Σ(φi⋅∇φi), where i - global index of the node.
-        for (const auto &[tetraId, nodeGradientMap] : basisFuncGradientsMap)
+        for (auto const &tetrahedronData : m_assemblier.getMeshComponents().getMeshComponents())
         {
             MathVector electricField{};
-            double volumeFactor{1.0 / (6.0 * tetraVolumesMap.at(tetraId))};
+            double volumeFactor{1.0 / (6.0 * tetrahedronData.tetrahedron.volume())};
 
-            // Accumulate the electric field contributions from each node
-            for (const auto &[nodeId, gradient] : nodeGradientMap)
+            for (auto const &node : tetrahedronData.nodes)
             {
-                if (nodePotentialsMap.find(nodeId) != nodePotentialsMap.end())
-                {
-                    double potentialInNode{nodePotentialsMap.at(nodeId)};
-                    electricField += gradient * potentialInNode;
-                }
+                if (node.potential && node.nablaPhi)
+                    electricField += MathVector(node.nablaPhi.value().x(), node.nablaPhi.value().y(), node.nablaPhi.value().z()) *
+                                     node.potential.value();
                 else
-                    WARNINGMSG("Node ID not found in potentials map");
+                    WARNINGMSG(util::stringify("Node potential or nablaPhi is not set for the ",
+                                               node.globalNodeId, " vertex of the ", tetrahedronData.globalTetraId, " tetrahedron"));
             }
             electricField *= -volumeFactor;
-            electricFieldMap[tetraId] = electricField;
+            m_assemblier.getMeshComponents().assignElectricField(tetrahedronData.globalTetraId, Point(electricField.getX(), electricField.getY(), electricField.getZ()));
         }
-
-        if (electricFieldMap.empty())
-            WARNINGMSG("Something went wrong: There is no electric field in the mesh")
-        return electricFieldMap;
     }
     catch (std::exception const &ex)
     {
@@ -126,11 +85,9 @@ std::map<GlobalOrdinal, MathVector> MatrixEquationSolver::calculateElectricField
     {
         ERRMSG("Unknown error was occured while writing results to the .pos file");
     }
-    WARNINGMSG("Returning empty electric field map");
-    return std::map<GlobalOrdinal, MathVector>();
 }
 
-void MatrixEquationSolver::writeElectricPotentialsToPosFile() const
+void MatrixEquationSolver::writeElectricPotentialsToPosFile()
 {
     if (m_x.is_null())
     {
@@ -142,11 +99,17 @@ void MatrixEquationSolver::writeElectricPotentialsToPosFile() const
     {
         std::ofstream posFile("electricPotential.pos");
         posFile << "View \"Scalar Field\" {\n";
-        auto nodes{m_assemblier.getNodes()};
-        for (auto const &[nodeID, coords] : nodes)
+        auto &meshData{m_assemblier.getMeshComponents().getMeshComponents()};
+        for (auto const &entry : meshData)
         {
-            double value{getScalarFieldValueFromX(nodeID - 1)};
-            posFile << std::format("SP({}, {}, {}){{{}}};\n", coords[0], coords[1], coords[2], value);
+            for (short i{}; i < 4; ++i)
+            {
+                auto node{entry.nodes.at(i)};
+                auto globalNodeId{entry.nodes.at(i).globalNodeId};
+
+                double value{getScalarFieldValueFromX(globalNodeId - 1)};
+                posFile << std::format("SP({}, {}, {}){{{}}};\n", node.nodeCoords.x(), node.nodeCoords.y(), node.nodeCoords.z(), value);
+            }
         }
         posFile << "};\n";
         posFile.close();
@@ -162,7 +125,7 @@ void MatrixEquationSolver::writeElectricPotentialsToPosFile() const
     }
 }
 
-void MatrixEquationSolver::writeElectricFieldVectorsToPosFile() const
+void MatrixEquationSolver::writeElectricFieldVectorsToPosFile()
 {
     if (m_x.is_null())
     {
@@ -170,33 +133,23 @@ void MatrixEquationSolver::writeElectricFieldVectorsToPosFile() const
         return;
     }
 
-    auto tetrahedronCentres{m_assemblier.getTetrahedronCentres()};
-    if (tetrahedronCentres.empty())
-    {
-        WARNINGMSG("There is nothing to show. Storage for the tetrahedron centres is empty.");
-        return;
-    }
-
-    auto electricFieldMap{calculateElectricFieldMap()};
-    if (electricFieldMap.empty())
-    {
-        WARNINGMSG("There is nothing to show. Storage for the electric field values is empty.");
-        return;
-    }
-
     try
     {
         std::ofstream posFile("electricField.pos");
         posFile << "View \"Vector Field\" {\n";
-        for (auto const &[tetraId, fieldVector] : electricFieldMap)
+        for (auto const &tetrahedron : m_assemblier.getMeshComponents().getMeshComponents())
         {
-            auto x{tetrahedronCentres.at(tetraId).at(0)},
-                y{tetrahedronCentres.at(tetraId).at(1)},
-                z{tetrahedronCentres.at(tetraId).at(2)};
+            if (!tetrahedron.electricField)
+                continue;
 
+            auto x{tetrahedron.getTetrahedronCenter().x()},
+                y{tetrahedron.getTetrahedronCenter().y()},
+                z{tetrahedron.getTetrahedronCenter().z()};
+
+            auto fieldVector{tetrahedron.electricField.value()};
             posFile << std::format("VP({}, {}, {}){{{}, {}, {}}};\n",
                                    x, y, z,
-                                   fieldVector.getX(), fieldVector.getY(), fieldVector.getZ());
+                                   fieldVector.x(), fieldVector.y(), fieldVector.z());
         }
 
         posFile << "};\n";
