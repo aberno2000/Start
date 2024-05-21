@@ -36,32 +36,17 @@ public:
     Scalar getScalarFieldValueFromX(size_t nodeID) const;
     std::vector<Scalar> getValuesFromX() const;
 
-    /**
-     * @brief Forms node potential map:
-     * Key   - node ID.
-     * Value - electrical potential in this node.
-     */
-    std::map<GlobalOrdinal, Scalar> getNodePotentialMap() const;
+    /// @brief Fills node potentials to the mesh data.
+    void fillNodesPotential();
 
-    /**
-     * @brief Calculates and returns a map of the cumulative electric field vectors for each tetrahedron.
-     *
-     * @details The result is a map where each key corresponds to a tetrahedron ID, and each value
-     *          is the cumulative electric field vector for that tetrahedron, representing the
-     *          aggregated influence of all its nodes' electric fields.
-     *
-     * @return std::map<GlobalOrdinal, MathVector> A map where each key is a tetrahedron ID and
-     *         each value is the corresponding cumulative electric field vector for that tetrahedron.
-     *         The electric field vector components are computed as the negative sums of the products
-     *         of potentials and their respective gradient vectors across all nodes within the tetrahedron.
-     */
-    std::map<GlobalOrdinal, MathVector> calculateElectricFieldMap() const;
+    /// @brief Calculates and fills mesh data storage of the cumulative electric field vectors for each tetrahedron.
+    void calculateElectricField();
 
     /// @brief Writes solution vector to the .pos file (GMSH format) to have the capability to view results of the solved equation Ax=b.
-    void writeElectricPotentialsToPosFile() const;
+    void writeElectricPotentialsToPosFile();
 
     /// @brief Writes solution vector to the .pos file (GMSH format) to have the capability to view results of the solved equation Ax=b.
-    void writeElectricFieldVectorsToPosFile() const;
+    void writeElectricFieldVectorsToPosFile();
 
     /**
      * @brief Creates and configures a parameter list for the specified iterative solver.
@@ -114,8 +99,8 @@ public:
      * @brief Parses a JSON file to extract solver parameters and configures a Teuchos::ParameterList.
      *
      * This function reads a JSON file, extracts solver parameters, and sets them in a Teuchos::ParameterList.
-     * It handles exceptions, checks for file existence, and validates the JSON format. 
-     * @warning: Deletes the temporary file after parsing.   
+     * It handles exceptions, checks for file existence, and validates the JSON format.
+     * @warning: Deletes the temporary file after parsing.
      *
      * @param filename The name of the JSON file containing solver parameters. By default uses filename that generates by UI side.
      * @return A pair containing the solver name (std::string) and a `Teuchos::RCP<Teuchos::ParameterList>` with the solver parameters.
