@@ -22,13 +22,11 @@ class ParticleTracker final
 
 private:
     /* All the neccessary data members from the mesh. */
-    MeshTriangleParamVector _triangleMesh;       ///< Triangle mesh params acquired from the mesh file. Surface mesh.
-    TriangleVector _triangles;                   ///< Triangles extracted from the triangle mesh params `_triangleMesh` (surface mesh). Need to initialize AABB tree.
-    AABB_Tree_Triangle _surfaceMeshAABBtree;     ///< AABB tree for the surface mesh to effectively detect collisions with surface.
-    MeshTetrahedronParamVector _tetrahedronMesh; ///< Tetrahedron mesh params acquired from the mesh file. Volume mesh.
-    NodeTetrahedronMap _nodeTetraMap;            ///< Map for the nodes and tetrahedrons - which tetrahedrons surround certain node. (Node ID | Tetrahedron IDs).
-    BoundaryNodes _boundaryNodes;                ///< Vector of the boundary nodes (All of them are unique).
-    GMSHVolumeCreator vc;                        ///< Object of the volume creator that is RAII object that initializes and finalizes GMSH. Needed to initialize all necessary objects from the mesh.
+    MeshTriangleParamVector _triangleMesh;   ///< Triangle mesh params acquired from the mesh file. Surface mesh.
+    TriangleVector _triangles;               ///< Triangles extracted from the triangle mesh params `_triangleMesh` (surface mesh). Need to initialize AABB tree.
+    AABB_Tree_Triangle _surfaceMeshAABBtree; ///< AABB tree for the surface mesh to effectively detect collisions with surface.
+    BoundaryNodes _boundaryNodes;            ///< Vector of the boundary nodes (All of them are unique).
+    GMSHVolumeCreator vc;                    ///< Object of the volume creator that is RAII object that initializes and finalizes GMSH. Needed to initialize all necessary objects from the mesh.
 
     /* All the neccessary data members for the PIC and FEM. */
     static constexpr short const kdefault_polynomOrder{1}; ///< Polynom order. Responds for count of the basis functions.
@@ -41,9 +39,8 @@ private:
     std::set<int> _settledParticlesIds;                ///< Set of the particle IDs that are been settled (need to avoid checking already settled particles).
     std::map<size_t, int> _settledParticlesCounterMap; ///< Map to handle settled particles: (Triangle ID | Counter of settled particle in this triangle).
 
-    ConfigParser m_config; ///< `ConfigParser` object to get all the simulation physical paramters.
-
-    std::map<size_t, std::vector<Point>> m_particlesMovement; ///< Map to store all the particle movements: (Particle ID | All positions).  
+    ConfigParser m_config;                                    ///< `ConfigParser` object to get all the simulation physical paramters.
+    std::map<size_t, std::vector<Point>> m_particlesMovement; ///< Map to store all the particle movements: (Particle ID | All positions).
 
     /**
      * @brief Checks the validity of the provided mesh filename.
@@ -60,8 +57,6 @@ private:
     /* Initializers for all the necessary objects. */
     void initializeSurfaceMesh();
     void initializeSurfaceMeshAABB();
-    void initializeVolumeMesh();
-    void initializeNodeTetrahedronMap();
     void initializeBoundaryNodes();
     void loadPICFEMParameters();
     void loadBoundaryConditions();
@@ -79,7 +74,7 @@ private:
      * @param tetrahedron `Tetrahedron_3` from CGAL.
      * @return `true` if point within the tetrahedron, otherwise `false`.
      */
-    bool isPointInsideTetrahedron(Point const &point, MeshTetrahedronParam const &meshParam);
+    bool isPointInsideTetrahedron(Point const &point, Tetrahedron const &tetrahedron);
 
     /**
      * @brief Checker for ray-triangle intersection.
@@ -94,7 +89,7 @@ private:
 
     /**
      * @brief Saves the particle movements to a JSON file.
-     * 
+     *
      * This function saves the contents of m_particlesMovement to a JSON file named "particles_movements.json".
      * It handles exceptions and provides a warning message if the map is empty.
      */
