@@ -5,16 +5,16 @@
 
 #include "../include/ParticleInCell/Grid3D.hpp"
 
-Grid3D::Grid3D(MeshTetrahedronParamVector const &meshParams, double edgeSize) : m_cubeEdgeSize(edgeSize)
+Grid3D::Grid3D(VolumetricMeshData const &meshData, double edgeSize)
+    : m_cubeEdgeSize(edgeSize), m_meshData(meshData)
 {
-    if (meshParams.empty())
+    if (m_meshData.empty())
         return;
-    m_meshParams = meshParams;
 
     // 1. Defining one common boundary box by merging all bboxes of tetrahedrons
-    m_commonBbox = std::get<1>(meshParams.front()).bbox();
-    for (auto const &[id, tetr, volume] : meshParams)
-        m_commonBbox += tetr.bbox();
+    m_commonBbox = m_meshData.getMeshComponents().front().tetrahedron.bbox();
+    for (const auto &tetrahedronData : m_meshData.getMeshComponents())
+        m_commonBbox += tetrahedronData.tetrahedron.bbox();
 
     // 2. Calculating divisions for each axis
     m_divisionsX = static_cast<short>(std::ceil((m_commonBbox.xmax() - m_commonBbox.xmin()) / m_cubeEdgeSize));
@@ -26,7 +26,7 @@ Grid3D::Grid3D(MeshTetrahedronParamVector const &meshParams, double edgeSize) : 
         throw std::runtime_error("The grid is too small, you risk to overflow your memory with it");
 
     // 4. Mapping each tetrahedron with cells
-    for (auto const &[id, tetra, volume] : meshParams)
+    for (const auto &tetrahedronData : m_meshData.getMeshComponents())
     {
         for (short x = 0; x < m_divisionsX; ++x)
             for (short y = 0; y < m_divisionsY; ++y)
@@ -40,8 +40,8 @@ Grid3D::Grid3D(MeshTetrahedronParamVector const &meshParams, double edgeSize) : 
                         m_commonBbox.ymin() + (y + 1) * edgeSize,
                         m_commonBbox.zmin() + (z + 1) * edgeSize);
 
-                    if (CGAL::do_overlap(cellBox, tetra.bbox()))
-                        m_tetrahedronCells[id].emplace_back(x, y, z);
+                    if (CGAL::do_overlap(cellBox, tetrahedronData.tetrahedron.bbox()))
+                        m_tetrahedronCells[tetrahedronData.globalTetraId].emplace_back(x, y, z);
                 }
     }
 }
@@ -65,6 +65,15 @@ GridIndex Grid3D::getGridIndexByPosition(Point const &point) const
         std::clamp(short((z - m_commonBbox.zmin()) / m_cubeEdgeSize), short(0), static_cast<short>(m_divisionsZ - 1))};
 }
 
+std::vector<VolumetricMeshData::TetrahedronData> Grid3D::getTetrahedronsByGridIndex(GridIndex const &index) const
+{
+    std::vector<VolumetricMeshData::TetrahedronData> meshParams;
+    for (auto const &[tetrId, cells] : m_tetrahedronCells)
+        if (std::ranges::find(cells.begin(), cells.end(), index) != cells.end())
+            meshParams.push_back(m_meshData.getMeshDataByTetrahedronId(tetrId).value());
+    return meshParams;
+}
+
 void Grid3D::printGrid() const
 {
     for (auto const &[id, cells] : m_tetrahedronCells)
@@ -74,27 +83,4 @@ void Grid3D::printGrid() const
             std::cout << std::format("[{}][{}][{}] ", x, y, z);
         std::cout << std::endl;
     }
-}
-
-MeshTetrahedronParam Grid3D::getTetrahedronMeshParamById(size_t tetrahedronId) const
-{
-    auto it{std::ranges::find_if(m_meshParams,
-                                 [tetrahedronId](MeshTetrahedronParam const &param)
-                                 {
-                                     return std::get<0>(param) == tetrahedronId;
-                                 })};
-
-    if (it != m_meshParams.cend())
-        return *it;
-
-    throw std::runtime_error("Tetrahedron ID not found: " + std::to_string(tetrahedronId));
-}
-
-MeshTetrahedronParamVector Grid3D::getTetrahedronsByGridIndex(GridIndex const &index) const
-{
-    MeshTetrahedronParamVector meshParams;
-    for (auto const &[tetrId, cells] : m_tetrahedronCells)
-        if (std::ranges::find(cells.begin(), cells.end(), index) != cells.end())
-            meshParams.emplace_back(getTetrahedronMeshParamById(tetrId));
-    return meshParams;
 }
