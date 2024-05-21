@@ -124,6 +124,7 @@ set(SOURCES
     src/SolutionVector.cpp
     src/Utilities.cpp
     src/VolumeCreator.cpp
+    src/VolumetricMeshData.cpp
 )
 include_directories(${CMAKE_SOURCE_DIR}/include)
 add_executable(nia_start ${SOURCES})
