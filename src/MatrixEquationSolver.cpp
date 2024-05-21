@@ -99,11 +99,17 @@ void MatrixEquationSolver::writeElectricPotentialsToPosFile()
     {
         std::ofstream posFile("electricPotential.pos");
         posFile << "View \"Scalar Field\" {\n";
-        auto &meshData{m_assemblier.getMeshComponents().getMeshComponents()};
-        for (auto const &entry : meshData)
+        for (auto const &entry : m_assemblier.getMeshComponents().getMeshComponents())
         {
             for (short i{}; i < 4; ++i)
             {
+                if (!entry.nodes.at(i).potential.has_value())
+                {
+                    WARNINGMSG(util::stringify("Electic potential for the tetrahedron ", entry.globalTetraId,
+                                               " and node ", entry.nodes.at(i).globalNodeId, " is empty"));
+                    continue;
+                }
+
                 auto node{entry.nodes.at(i)};
                 auto globalNodeId{entry.nodes.at(i).globalNodeId};
 
@@ -137,16 +143,19 @@ void MatrixEquationSolver::writeElectricFieldVectorsToPosFile()
     {
         std::ofstream posFile("electricField.pos");
         posFile << "View \"Vector Field\" {\n";
-        for (auto const &tetrahedron : m_assemblier.getMeshComponents().getMeshComponents())
+        for (auto const &entry : m_assemblier.getMeshComponents().getMeshComponents())
         {
-            if (!tetrahedron.electricField)
+            if (!entry.electricField.has_value())
+            {
+                WARNINGMSG(util::stringify("Electic field for the tetrahedron ", entry.globalTetraId, " is empty"));
                 continue;
+            }
 
-            auto x{tetrahedron.getTetrahedronCenter().x()},
-                y{tetrahedron.getTetrahedronCenter().y()},
-                z{tetrahedron.getTetrahedronCenter().z()};
+            auto x{entry.getTetrahedronCenter().x()},
+                y{entry.getTetrahedronCenter().y()},
+                z{entry.getTetrahedronCenter().z()};
 
-            auto fieldVector{tetrahedron.electricField.value()};
+            auto fieldVector{entry.electricField.value()};
             posFile << std::format("VP({}, {}, {}){{{}, {}, {}}};\n",
                                    x, y, z,
                                    fieldVector.x(), fieldVector.y(), fieldVector.z());
