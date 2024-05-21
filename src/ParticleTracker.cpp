@@ -51,10 +51,6 @@ void ParticleTracker::initializeSurfaceMeshAABB()
     _surfaceMeshAABBtree = AABB_Tree_Triangle(std::cbegin(_triangles), std::cend(_triangles));
 }
 
-void ParticleTracker::initializeVolumeMesh() { _tetrahedronMesh = Mesh::getTetrahedronMeshParams(m_config.getMeshFilename()); }
-
-void ParticleTracker::initializeNodeTetrahedronMap() { _nodeTetraMap = Mesh::getNodeTetrahedronsMap(m_config.getMeshFilename()); }
-
 void ParticleTracker::initializeBoundaryNodes() { _boundaryNodes = Mesh::getTetrahedronMeshBoundaryNodes(m_config.getMeshFilename()); }
 
 void ParticleTracker::loadPICFEMParameters() { _picfemparams = util::loadPICFEMParameters(kdefault_temp_picfem_params_filename); }
@@ -73,8 +69,6 @@ void ParticleTracker::initialize()
 {
     initializeSurfaceMesh();
     initializeSurfaceMeshAABB();
-    initializeVolumeMesh();
-    initializeNodeTetrahedronMap();
     initializeBoundaryNodes();
     loadPICFEMParameters();
     loadBoundaryConditions();
@@ -89,9 +83,9 @@ void ParticleTracker::finalize() const
     removeTemporaryFiles();
 }
 
-bool ParticleTracker::isPointInsideTetrahedron(Point const &point, MeshTetrahedronParam const &meshParam)
+bool ParticleTracker::isPointInsideTetrahedron(Point const &point, Tetrahedron const &tetrahedron)
 {
-    CGAL::Oriented_side oriented_side{std::get<1>(meshParam).oriented_side(point)};
+    CGAL::Oriented_side oriented_side{tetrahedron.oriented_side(point)};
     if (oriented_side == CGAL::ON_POSITIVE_SIDE)
         return true;
     else if (oriented_side == CGAL::ON_NEGATIVE_SIDE)
@@ -195,12 +189,12 @@ ParticleTracker::ParticleTracker(std::string_view config_filename) : m_config(co
 
 void ParticleTracker::startSimulation()
 {
-    // Creating cubic grid for the tetrahedron mesh.
-    Grid3D cubicGrid(_tetrahedronMesh, _picfemparams.first);
-
     /* Beginning of the FEM initialization. */
     // Assemblying global stiffness matrix from the mesh file.
-    GSMatrixAssemblier assemblier(m_config.getMeshFilename(), kdefault_polynomOrder, _picfemparams.second);
+    GSMatrixAssemblier assemblier(m_config.getMeshFilename(), _picfemparams.second);
+
+    // PIC: Creating cubic grid for the tetrahedron mesh.
+    Grid3D cubicGrid(assemblier.getMeshComponents(), _picfemparams.first);
 
     // Setting boundary conditions.
     std::map<GlobalOrdinal, double> boundaryConditions;
@@ -208,6 +202,7 @@ void ParticleTracker::startSimulation()
         for (GlobalOrdinal nodeId : nodeIds)
             boundaryConditions[nodeId] = value;
     assemblier.setBoundaryConditions(boundaryConditions);
+    assemblier.print();
 
     SolutionVector solutionVector(assemblier.rows(), kdefault_polynomOrder);
     solutionVector.clear();
@@ -225,14 +220,13 @@ void ParticleTracker::startSimulation()
         /* (Node ID | Charge in coulumbs) */
         std::map<GlobalOrdinal, double> nodeChargeDensityMap;
 
-        // For each time step managing movement of each particle.
         for (Particle const &particle : m_particles)
         {
             // Determine which tetrahedrons the particle may intersect based on its grid index.
             auto meshParams{cubicGrid.getTetrahedronsByGridIndex(cubicGrid.getGridIndexByPosition(particle.getCentre()))};
             for (auto const &meshParam : meshParams)
-                if (isPointInsideTetrahedron(particle.getCentre(), meshParam))
-                    PICtracker[std::get<0>(meshParam)].emplace_back(particle);
+                if (isPointInsideTetrahedron(particle.getCentre(), meshParam.tetrahedron))
+                    PICtracker[meshParam.globalTetraId].emplace_back(particle);
         }
 
         // Calculating charge density in each of the tetrahedron using `PICtracker`.
@@ -240,29 +234,33 @@ void ParticleTracker::startSimulation()
             tetrahedronChargeDensityMap.insert({tetrId,
                                                 (std::accumulate(particlesInside.cbegin(), particlesInside.cend(), 0.0, [](double sum, Particle const &particle)
                                                                  { return sum + particle.getCharge(); })) /
-                                                    (std::get<2>(cubicGrid.getTetrahedronMeshParamById(tetrId)))});
+                                                    assemblier.getMeshComponents().getMeshDataByTetrahedronId(tetrId).value().tetrahedron.volume()});
 
         // Go around each node and aggregate data from adjacent tetrahedra.
-        for (auto const &[nodeId, adjecentTetrahedrons] : _nodeTetraMap)
+        for (auto &tetrahedron : assemblier.getMeshComponents().getMeshComponents())
         {
-            double totalCharge{}, totalVolume{};
-
-            // Sum up the charge and volume for all tetrahedra of a given node.
-            for (auto const &tetrId : adjecentTetrahedrons)
+            for (auto &node : tetrahedron.nodes)
             {
-                if (tetrahedronChargeDensityMap.find(tetrId) != tetrahedronChargeDensityMap.end())
+                double totalCharge{}, totalVolume{};
+
+                // Sum up the charge and volume for all tetrahedra of a given node.
+                for (auto &adjTetrahedron : assemblier.getMeshComponents().getMeshComponents())
                 {
-                    double tetrahedronChargeDensity{tetrahedronChargeDensityMap.at(tetrId)},
-                        tetrahedronVolume{std::get<2>(cubicGrid.getTetrahedronMeshParamById(tetrId))};
+                    if (std::ranges::any_of(adjTetrahedron.nodes, [&node](auto const &adjNode)
+                                            { return adjNode.globalNodeId == node.globalNodeId; }))
+                    {
+                        double tetrahedronChargeDensity{adjTetrahedron.tetrahedron.volume()},
+                            tetrahedronVolume{adjTetrahedron.tetrahedron.volume()};
 
-                    totalCharge += tetrahedronChargeDensity * tetrahedronVolume;
-                    totalVolume += tetrahedronVolume;
+                        totalCharge += tetrahedronChargeDensity * tetrahedronVolume;
+                        totalVolume += tetrahedronVolume;
+                    }
                 }
-            }
 
-            // Calculate and store the charge density for the node.
-            if (totalVolume > 0)
-                nodeChargeDensityMap[nodeId] = totalCharge / totalVolume;
+                // Calculate and store the charge density for the node.
+                if (totalVolume > 0)
+                    nodeChargeDensityMap[node.globalNodeId] = totalCharge / totalVolume;
+            }
         }
 
         std::cout << "Charge density in nodes:\n";
@@ -293,8 +291,8 @@ void ParticleTracker::startSimulation()
         }
 
         // EM-pushgin particle with Boris Integrator.
-        MathVector magneticInduction{};                            // For brevity assuming that induction vector B is 0.
-        auto electricFieldMap{solver.calculateElectricFieldMap()}; // Getting electric field for the each cell.
+        MathVector magneticInduction{};  // For brevity assuming that induction vector B is 0.
+        solver.calculateElectricField(); // Getting electric field for the each cell.
         for (Particle &particle : m_particles)
         {
             // If set contains specified particle ID - skip checking this particle.
@@ -314,8 +312,11 @@ void ParticleTracker::startSimulation()
             }
 
             // Updating velocity according to the EM-field.
-            if (electricFieldMap.find(containingTetrahedron) != electricFieldMap.cend())
-                particle.electroMagneticPush(magneticInduction, electricFieldMap.at(containingTetrahedron), m_config.getTimeStep());
+            if (auto tetrahedron{assemblier.getMeshComponents().getMeshDataByTetrahedronId(containingTetrahedron)})
+                if (tetrahedron->electricField.has_value())
+                    particle.electroMagneticPush(magneticInduction,
+                                                 MathVector(tetrahedron->electricField->x(), tetrahedron->electricField->y(), tetrahedron->electricField->z()),
+                                                 m_config.getTimeStep());
 
             // Updating positions for all the particles.
             m_particlesMovement[particle.getId()].emplace_back(particle.getCentre());
