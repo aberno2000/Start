@@ -2,8 +2,8 @@
 #define GRID3D_HPP
 
 #include <CGAL/Bbox_3.h>
-#include <map>
 
+#include "../DataHandling/VolumetricMeshData.hpp"
 #include "../Geometry/Mesh.hpp"
 
 #define MAX_GRID_SIZE 0x7A1200 ///< Maximum allowed grid size to prevent memory overflow (default: 8'000'000).
@@ -27,15 +27,15 @@ private:
     double m_cubeEdgeSize{};                                     ///< Edge size of the cell.
     short m_divisionsX{}, m_divisionsY{}, m_divisionsZ{};        ///< Count of divisions by each axis.
     CGAL::Bbox_3 m_commonBbox;                                   ///< Common boundary box.
-    MeshTetrahedronParamVector m_meshParams;                     ///< Saving mesh params from ctor.
+    VolumetricMeshData const &m_meshData;                        ///< Reference to VolumetricMeshData.
 
 public:
     /**
      * @brief Ctor with params.
-     * @param tetrahedrons Tetrahedron mesh params.
+     * @param meshData Reference to VolumetricMeshData.
      * @param edgeSize Size of the cube edge.
      */
-    Grid3D(MeshTetrahedronParamVector const &meshParams, double edgeSize);
+    Grid3D(VolumetricMeshData const &meshData, double edgeSize);
 
     /**
      * @brief Getter for grid index by spatial position of some object.
@@ -53,6 +53,13 @@ public:
      */
     GridIndex getGridIndexByPosition(Point const &point) const;
 
+    /**
+     * @brief Retrieves the list of tetrahedrons that intersect a specific grid cell.
+     * @param index The index of the grid cell.
+     * @return A vector of tetrahedrons that intersect with the specified cell.
+     */
+    std::vector<VolumetricMeshData::TetrahedronData> getTetrahedronsByGridIndex(GridIndex const &index) const;
+
     /// @return The total number of cells.
     constexpr size_t size() const { return static_cast<size_t>(m_divisionsX * m_divisionsY * m_divisionsZ); }
 
@@ -61,20 +68,6 @@ public:
 
     /// @brief Prints a list of which tetrahedrons intersect with which grid cells.
     void printGrid() const;
-
-    /**
-     * @brief Retrieves the mesh parameters for a tetrahedron given its ID.
-     * @param tetrahedronId The ID of the tetrahedron.
-     * @return The mesh parameters for the specified tetrahedron.
-     */
-    MeshTetrahedronParam getTetrahedronMeshParamById(size_t tetrahedronId) const;
-
-    /**
-     * @brief Retrieves the list of tetrahedrons that intersect a specific grid cell.
-     * @param index The index of the grid cell.
-     * @return A vector of tetrahedrons that intersect with the specified cell.
-     */
-    MeshTetrahedronParamVector getTetrahedronsByGridIndex(GridIndex const &index) const;
 };
 
 #endif // !GRID3D_HPP
