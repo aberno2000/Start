@@ -73,7 +73,7 @@ void MatrixEquationSolver::calculateElectricField()
                     WARNINGMSG(util::stringify("Node potential or nablaPhi is not set for the ",
                                                node.globalNodeId, " vertex of the ", tetrahedronData.globalTetraId, " tetrahedron"));
             }
-            electricField *= -volumeFactor;
+            electricField *= volumeFactor;
             m_assemblier.getMeshComponents().assignElectricField(tetrahedronData.globalTetraId, Point(electricField.getX(), electricField.getY(), electricField.getZ()));
         }
     }
