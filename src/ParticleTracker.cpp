@@ -237,30 +237,26 @@ void ParticleTracker::startSimulation()
                                                     assemblier.getMeshComponents().getMeshDataByTetrahedronId(tetrId).value().tetrahedron.volume()});
 
         // Go around each node and aggregate data from adjacent tetrahedra.
-        for (auto &tetrahedron : assemblier.getMeshComponents().getMeshComponents())
+        for (auto const &[nodeId, adjecentTetrahedrons] : assemblier.getMeshComponents().getNodeTetrahedronsMap())
         {
-            for (auto &node : tetrahedron.nodes)
+            double totalCharge{}, totalVolume{};
+
+            // Sum up the charge and volume for all tetrahedra of a given node.
+            for (auto const &tetrId : adjecentTetrahedrons)
             {
-                double totalCharge{}, totalVolume{};
-
-                // Sum up the charge and volume for all tetrahedra of a given node.
-                for (auto &adjTetrahedron : assemblier.getMeshComponents().getMeshComponents())
+                if (tetrahedronChargeDensityMap.find(tetrId) != tetrahedronChargeDensityMap.end())
                 {
-                    if (std::ranges::any_of(adjTetrahedron.nodes, [&node](auto const &adjNode)
-                                            { return adjNode.globalNodeId == node.globalNodeId; }))
-                    {
-                        double tetrahedronChargeDensity{adjTetrahedron.tetrahedron.volume()},
-                            tetrahedronVolume{adjTetrahedron.tetrahedron.volume()};
+                    double tetrahedronChargeDensity{tetrahedronChargeDensityMap.at(tetrId)},
+                        tetrahedronVolume{assemblier.getMeshComponents().getMeshDataByTetrahedronId(tetrId)->tetrahedron.volume()};
 
-                        totalCharge += tetrahedronChargeDensity * tetrahedronVolume;
-                        totalVolume += tetrahedronVolume;
-                    }
+                    totalCharge += tetrahedronChargeDensity * tetrahedronVolume;
+                    totalVolume += tetrahedronVolume;
                 }
-
-                // Calculate and store the charge density for the node.
-                if (totalVolume > 0)
-                    nodeChargeDensityMap[node.globalNodeId] = totalCharge / totalVolume;
             }
+
+            // Calculate and store the charge density for the node.
+            if (totalVolume > 0)
+                nodeChargeDensityMap[nodeId] = totalCharge / totalVolume;
         }
 
         std::cout << "Charge density in nodes:\n";
@@ -274,6 +270,7 @@ void ParticleTracker::startSimulation()
             if (std::ranges::find(nonChangebleNodes, nodeId) == nonChangebleNodes.cend())
                 boundaryConditions[nodeId] = nodeChargeDensity;
         solutionVector.setBoundaryConditions(boundaryConditions);
+        solutionVector.print();
 
         // Solve the equation Ax=b.
         MatrixEquationSolver solver(assemblier, solutionVector);
