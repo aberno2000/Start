@@ -119,9 +119,7 @@ DynRankView GSMatrixAssemblier::_computeLocalStiffnessMatrices()
         // 2. Computing cell jacobians, inversed jacobians and jacobian determinants to get cell measure.
         DynRankView jacobians("jacobians", getMeshComponents().size(), _countCubPoints, kdefault_space_dim, kdefault_space_dim);
         Kokkos::deep_copy(jacobians, 0.0);
-        auto vertices{_getTetrahedronVertices()};
-        auto cellTopology{_getTetrahedronCellTopology()};
-        Intrepid2::CellTools<DeviceType>::setJacobian(jacobians, _cubPoints, vertices, cellTopology);
+        Intrepid2::CellTools<DeviceType>::setJacobian(jacobians, _cubPoints, _getTetrahedronVertices(), _getTetrahedronCellTopology());
 
         DynRankView invJacobians("invJacobians", getMeshComponents().size(), _countCubPoints, kdefault_space_dim, kdefault_space_dim);
         Kokkos::deep_copy(invJacobians, 0.0);
