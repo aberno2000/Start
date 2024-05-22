@@ -88,6 +88,13 @@ public:
     /// @brief Checks and returns result of the checking if there is no tetrahedra in the mesh.
     constexpr bool empty() const { return m_meshComponents.empty(); }
 
+    /// @brief Returns total volume of the mesh.
+    constexpr double volume() const
+    {
+        return std::accumulate(m_meshComponents.cbegin(), m_meshComponents.cend(), 0.0, [](double sum, auto const &meshData)
+                               { return sum + meshData.tetrahedron.volume(); });
+    }
+
     /**
      * @brief Retrieves the mesh data for a specific tetrahedron by its global ID.
      *
@@ -121,6 +128,37 @@ public:
      * @param electricField The electric field vector.
      */
     void assignElectricField(size_t tetrahedronId, Point const &electricField);
+
+    /**
+     * @brief Gets ID of tetrahedrons and corresponding IDs of elements within.
+     * @return Map with key = tetrahedron's ID, value = list of nodes inside.
+     */
+    std::map<size_t, std::vector<size_t>> getTetrahedronNodesMap();
+
+    /**
+     * @brief Map for global mesh nodes with all neighbour tetrahedrons.
+     * @return Map with key = node ID, value = list of neighbour tetrahedrons to this node.
+     */
+    std::map<size_t, std::vector<size_t>> getNodeTetrahedronsMap();
+
+    /**
+     * @brief Calculates the geometric centers of all tetrahedrons in a given mesh.
+     *
+     * @details This function opens a mesh file in Gmsh format specified by `msh_filename` and computes
+     *          the geometric centers of each tetrahedron. The center of a tetrahedron is calculated as
+     *          the arithmetic mean of its vertices' coordinates. These centers are often used for
+     *          various geometric and physical calculations, such as finding the centroid of mass in
+     *          finite element analysis or for visualizing properties that vary across the mesh volume.
+     *
+     * @return std::map<size_t, CGAL::Point_3> A map where each key is a tetrahedron ID and
+     *         the value is an array representing the XYZ coordinates of its geometric center. This map
+     *         provides a convenient way to access the center of each tetrahedron by its identifier.
+     *
+     * @throws std::exception Propagates any exceptions thrown by file handling or the Gmsh API, which
+     *         might occur during file opening, reading, or processing. These exceptions are typically
+     *         caught and should be handled to avoid crashes and ensure that the error is reported properly.
+     */
+    std::map<size_t, Point> getTetrahedronCenters();
 };
 
 #endif // !VOLUMETRICMESHDATA_HPP

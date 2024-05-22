@@ -168,3 +168,41 @@ void VolumetricMeshData::assignElectricField(size_t tetrahedronId, Point const &
         it->electricField = electricField;
     }
 }
+
+std::map<size_t, std::vector<size_t>> VolumetricMeshData::getTetrahedronNodesMap()
+{
+    std::map<size_t, std::vector<size_t>> tetrahedronNodesMap;
+
+    for (auto const &meshData : m_meshComponents)
+        for (short i{}; i < 4; ++i)
+            tetrahedronNodesMap[meshData.globalTetraId].emplace_back(meshData.nodes.at(i).globalNodeId);
+
+    if (tetrahedronNodesMap.empty())
+        WARNINGMSG("Tetrahedron - nodes map is empty");
+    return tetrahedronNodesMap;
+}
+
+std::map<size_t, std::vector<size_t>> VolumetricMeshData::getNodeTetrahedronsMap()
+{
+    std::map<size_t, std::vector<size_t>> nodeTetrahedronsMap;
+
+    for (auto const &meshData : m_meshComponents)
+        for (short i{}; i < 4; ++i)
+            nodeTetrahedronsMap[meshData.nodes.at(i).globalNodeId].emplace_back(meshData.globalTetraId);
+
+    if (nodeTetrahedronsMap.empty())
+        WARNINGMSG("Node - tetrahedrons map is empty");
+    return nodeTetrahedronsMap;
+}
+
+std::map<size_t, Point> VolumetricMeshData::getTetrahedronCenters()
+{
+    std::map<size_t, Point> tetraCentres;
+
+    for (auto const &meshData : m_meshComponents)
+        tetraCentres[meshData.globalTetraId] = meshData.getTetrahedronCenter();
+
+    if (tetraCentres.empty())
+        WARNINGMSG("Tetrahedron centres map is empty");
+    return tetraCentres;
+}
