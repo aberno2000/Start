@@ -161,7 +161,7 @@ void ParticleTracker::startSimulation()
 {
     /* Beginning of the FEM initialization. */
     // Assemblying global stiffness matrix from the mesh file.
-    GSMatrixAssemblier assemblier(m_config.getMeshFilename(), m_config.getDesiredCalculationAccuracy(), m_config.getNullBoundaryNodes());
+    GSMatrixAssemblier assemblier(m_config.getMeshFilename(), m_config.getDesiredCalculationAccuracy());
 
     // PIC: Creating cubic grid for the tetrahedron mesh.
     Grid3D cubicGrid(assemblier.getMeshComponents(), m_config.getEdgeSize());
