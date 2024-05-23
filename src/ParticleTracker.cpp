@@ -51,12 +51,6 @@ void ParticleTracker::initializeSurfaceMeshAABB()
     _surfaceMeshAABBtree = AABB_Tree_Triangle(std::cbegin(_triangles), std::cend(_triangles));
 }
 
-void ParticleTracker::initializeBoundaryNodes() { _boundaryNodes = Mesh::getTetrahedronMeshBoundaryNodes(m_config.getMeshFilename()); }
-
-void ParticleTracker::loadPICFEMParameters() { _picfemparams = util::loadPICFEMParameters(kdefault_temp_picfem_params_filename); }
-
-void ParticleTracker::loadBoundaryConditions() { _boundaryConditions = util::loadBoundaryConditions(kdefault_temp_boundary_conditions_filename); }
-
 void ParticleTracker::initializeParticles()
 {
     m_particles = createParticlesWithEnergy(m_config.getParticlesCount(),
@@ -69,18 +63,6 @@ void ParticleTracker::initialize()
 {
     initializeSurfaceMesh();
     initializeSurfaceMeshAABB();
-    initializeBoundaryNodes();
-    loadPICFEMParameters();
-    loadBoundaryConditions();
-}
-
-void ParticleTracker::finalize() const
-{
-    // Saving all movements of all the particles (needed for create animation).
-    saveParticleMovements();
-
-    // Removing all the intermediate files after simulation finalization.
-    removeTemporaryFiles();
 }
 
 bool ParticleTracker::isPointInsideTetrahedron(Point const &point, Tetrahedron const &tetrahedron)
@@ -104,13 +86,6 @@ size_t ParticleTracker::isRayIntersectTriangle(Ray const &ray, MeshTriangleParam
     return (RayTriangleIntersection::isIntersectTriangle(ray, std::get<1>(triangle)))
                ? std::get<0>(triangle)
                : -1ul;
-}
-
-void ParticleTracker::removeTemporaryFiles() const
-{
-    util::removeFile(kdefault_temp_boundary_conditions_filename);
-    util::removeFile(kdefault_temp_picfem_params_filename);
-    util::removeFile(kdefault_temp_solver_params_filename);
 }
 
 void ParticleTracker::saveParticleMovements() const
@@ -165,11 +140,6 @@ void ParticleTracker::updateSurfaceMesh()
     hdf5handler.saveMeshToHDF5(_triangleMesh);
 }
 
-void ParticleTracker::processSegment()
-{
-    // TODO: Implement
-}
-
 ParticleTracker::ParticleTracker(std::string_view config_filename) : m_config(config_filename)
 {
     // Checking mesh filename on validity and assign it to the class member.
@@ -191,18 +161,18 @@ void ParticleTracker::startSimulation()
 {
     /* Beginning of the FEM initialization. */
     // Assemblying global stiffness matrix from the mesh file.
-    GSMatrixAssemblier assemblier(m_config.getMeshFilename(), _picfemparams.second);
+    GSMatrixAssemblier assemblier(m_config.getMeshFilename(), m_config.getDesiredCalculationAccuracy(), m_config.getNullBoundaryNodes());
 
     // PIC: Creating cubic grid for the tetrahedron mesh.
-    Grid3D cubicGrid(assemblier.getMeshComponents(), _picfemparams.first);
+    Grid3D cubicGrid(assemblier.getMeshComponents(), m_config.getEdgeSize());
 
     // Setting boundary conditions.
     std::map<GlobalOrdinal, double> boundaryConditions;
-    for (auto const &[nodeIds, value] : _boundaryConditions.second)
+    for (auto const &[nodeIds, value] : m_config.getBoundaryConditions())
         for (GlobalOrdinal nodeId : nodeIds)
             boundaryConditions[nodeId] = value;
     assemblier.setBoundaryConditions(boundaryConditions);
-    assemblier.print();
+    // assemblier.print();
 
     SolutionVector solutionVector(assemblier.rows(), kdefault_polynomOrder);
     solutionVector.clear();
@@ -265,17 +235,20 @@ void ParticleTracker::startSimulation()
 
         /* Remains FEM. */
         // Creating solution vector, filling it with the random values, and applying boundary conditions.
-        auto nonChangebleNodes{_boundaryConditions.first};
+        auto nonChangebleNodes{m_config.getNonChangeableNodes()};
         for (auto const &[nodeId, nodeChargeDensity] : nodeChargeDensityMap)
             if (std::ranges::find(nonChangebleNodes, nodeId) == nonChangebleNodes.cend())
                 boundaryConditions[nodeId] = nodeChargeDensity;
         solutionVector.setBoundaryConditions(boundaryConditions);
-        solutionVector.print();
+        // solutionVector.print();
 
         // Solve the equation Ax=b.
         MatrixEquationSolver solver(assemblier, solutionVector);
-        auto solverParams{solver.parseSolverParamsFromJson()};
-        solver.solve(solverParams.first, solverParams.second);
+        auto solverParams{solver.createSolverParams(m_config.getSolverName(), m_config.getMaxIterations(), m_config.getConvergenceTolerance(),
+                                                    m_config.getVerbosity(), m_config.getOutputFrequency(), m_config.getNumBlocks(), m_config.getBlockSize(),
+                                                    m_config.getMaxRestarts(), m_config.getFlexibleGMRES(), m_config.getOrthogonalization(),
+                                                    m_config.getAdaptiveBlockSize(), m_config.getConvergenceTestFrequency())};
+        solver.solve(m_config.getSolverName(), solverParams);
         solver.calculateElectricField(); // Getting electric field for the each cell.
 
         // Writing to electric and potential fields to files just ones.
