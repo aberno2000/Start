@@ -4,25 +4,30 @@
 #include <sstream>
 #include <string>
 
-#include "../include/Geometry/Mesh.hpp"
 #include "../include/Utilities/ConfigParser.hpp"
 
 using json = nlohmann::json;
-
-void ConfigParser::clearConfig()
+/**
+ * @brief Checks if a required parameter exists in the JSON object.
+ *
+ * @param j The JSON object to check.
+ * @param param The parameter name to check for.
+ * @throw std::runtime_error if the parameter does not exist.
+ */
+void checkParameterExists(json const &j, std::string_view param)
 {
-    m_config = config_data_t{};
-    m_isValid = false;
+    if (!j.contains(param.data()))
+        throw std::runtime_error("Missing required parameter: " + std::string(param) + ". Example: \"" + std::string(param) + "\": <value>");
 }
 
-int ConfigParser::getConfigData(std::string_view config)
+void ConfigParser::getConfigData(std::string_view config)
 {
     if (config.empty())
-        return EMPTY_STR;
+        throw std::runtime_error("Configuration file path is empty.");
 
     std::ifstream ifs(config.data());
-    if (ifs.bad())
-        return BAD_FILE;
+    if (!ifs)
+        throw std::runtime_error("Failed to open configuration file: " + std::string(config));
 
     json configJson;
     try
@@ -31,12 +36,25 @@ int ConfigParser::getConfigData(std::string_view config)
     }
     catch (json::exception const &e)
     {
-        std::cerr << "Error parsing config JSON: " << e.what() << std::endl;
-        return JSON_BAD_PARSE;
+        throw std::runtime_error("Error parsing config JSON: " + std::string(e.what()));
     }
 
     try
     {
+        // Check for all required parameters in the JSON file
+        checkParameterExists(configJson, "Mesh File");
+        checkParameterExists(configJson, "Count");
+        checkParameterExists(configJson, "Threads");
+        checkParameterExists(configJson, "Time Step");
+        checkParameterExists(configJson, "Simulation Time");
+        checkParameterExists(configJson, "T");
+        checkParameterExists(configJson, "P");
+        checkParameterExists(configJson, "Particles");
+        checkParameterExists(configJson, "Energy");
+        checkParameterExists(configJson, "Model");
+        checkParameterExists(configJson, "EdgeSize");
+        checkParameterExists(configJson, "DesiredAccuracy");
+
         m_config.mshfilename = configJson.at("Mesh File").get<std::string>();
         m_config.particles_count = configJson.at("Count").get<size_t>();
         m_config.num_threads = configJson.at("Threads").get<unsigned int>();
@@ -44,71 +62,59 @@ int ConfigParser::getConfigData(std::string_view config)
         m_config.simtime = configJson.at("Simulation Time").get<double>();
         m_config.temperature = configJson.at("T").get<double>();
         m_config.pressure = configJson.at("P").get<double>();
-        m_config.volume = configJson.at("V").get<double>();
 
-        // String that needs special handling
-        std::string projective(configJson.at("Particles").at(0)),
-            gas(configJson.at("Particles").at(1));
+        if (configJson.at("Particles").size() < 2)
+        {
+            throw std::runtime_error("Parameter 'Particles' must contain at least two values. Example: \"Particles\": [\"type1\", \"type2\"]");
+        }
+        std::string projective{configJson.at("Particles").at(0)},
+            gas{configJson.at("Particles").at(1)};
+
         m_config.projective = util::getParticleTypeFromStrRepresentation(projective);
         m_config.gas = util::getParticleTypeFromStrRepresentation(gas);
 
         m_config.energy = configJson.at("Energy").get<double>();
         m_config.model = configJson.at("Model").get<std::string>();
+
+        m_config.edgeSize = std::stod(configJson.at("EdgeSize").get<std::string>());
+        m_config.desiredAccuracy = std::stoi(configJson.at("DesiredAccuracy").get<std::string>());
+
+        // Iterative solver parameters.
+        if (configJson.contains("solverName"))
+            m_config.solverName = configJson.at("solverName").get<std::string>();
+        if (configJson.contains("maxIterations"))
+            m_config.maxIterations = std::stoi(configJson.at("maxIterations").get<std::string>());
+        if (configJson.contains("convergenceTolerance"))
+            m_config.convergenceTolerance = std::stod(configJson.at("convergenceTolerance").get<std::string>());
+        if (configJson.contains("verbosity"))
+            m_config.verbosity = std::stoi(configJson.at("verbosity").get<std::string>());
+        if (configJson.contains("outputFrequency"))
+            m_config.outputFrequency = std::stoi(configJson.at("outputFrequency").get<std::string>());
+        if (configJson.contains("numBlocks"))
+            m_config.numBlocks = std::stoi(configJson.at("numBlocks").get<std::string>());
+        if (configJson.contains("blockSize"))
+            m_config.blockSize = std::stoi(configJson.at("blockSize").get<std::string>());
+        if (configJson.contains("maxRestarts"))
+            m_config.maxRestarts = std::stoi(configJson.at("maxRestarts").get<std::string>());
+        if (configJson.contains("flexibleGMRES"))
+            m_config.flexibleGMRES = configJson.at("flexibleGMRES").get<std::string>() == "true";
+        if (configJson.contains("orthogonalization"))
+            m_config.orthogonalization = configJson.at("orthogonalization").get<std::string>();
+        if (configJson.contains("adaptiveBlockSize"))
+            m_config.adaptiveBlockSize = configJson.at("adaptiveBlockSize").get<std::string>() == "true";
+        if (configJson.contains("convergenceTestFrequency"))
+            m_config.convergenceTestFrequency = std::stoi(configJson.at("convergenceTestFrequency").get<std::string>());
     }
     catch (json::exception const &e)
     {
-        std::cerr << "Error parsing config JSON: " << e.what() << std::endl;
-        return JSON_BAD_PARAM;
+        throw std::runtime_error("Error parsing config JSON: " + std::string(e.what()));
     }
     catch (std::exception const &e)
     {
-        std::cerr << "General error: " << e.what() << std::endl;
-        return JSON_BAD_PARAM;
+        throw std::runtime_error("General error: " + std::string(e.what()));
     }
     catch (...)
     {
-        std::cerr << "Smth wrong when assign data from the config\n";
-        return EXIT_FAILURE;
+        throw std::runtime_error("Something went wrong when assigning data from the config.");
     }
-
-    m_isValid = true;
-
-    if (m_config.mshfilename.empty() || !util::exists(m_config.mshfilename))
-        return BAD_MSHFILE;
-    if (m_config.particles_count == 0ul)
-        return BAD_PARTICLE_COUNT;
-    if (m_config.num_threads == 0)
-        return BAD_THREAD_COUNT;
-    if (m_config.time_step == 0)
-        return BAD_TIME_STEP;
-    if (m_config.simtime == 0)
-        return BAD_SIMTIME;
-    if (m_config.temperature <= 0.0)
-        return BAD_TEMPERATURE;
-    if (m_config.pressure < 0.0)
-        return BAD_PRESSURE;
-    if (m_config.volume <= 0.0)
-        return BAD_VOLUME;
-    if (m_config.projective == Unknown || m_config.gas == Unknown)
-        return UNKNOWN_PARTICLES;
-    if (m_config.projective < 3 || m_config.gas > 2)
-        return BAD_PARTICLES_FORMAT;
-    if (m_config.energy <= 0.0)
-        return BAD_ENERGY;
-    if (m_config.model != "HS" && m_config.model != "VHS" && m_config.model != "VSS")
-        return BAD_MODEL;
-
-    m_isValid = true;
-
-    ifs.close();
-    return STATUS_OK;
 }
-
-ConfigParser::ConfigParser(std::string_view config)
-{
-    m_status_code = getConfigData(config);
-    if (m_status_code != STATUS_OK)
-        std::cerr << "Error occured! Code: " << STATUS_TO_STR(m_status_code) << '\n';
-}
-
-ConfigParser::~ConfigParser() { clearConfig(); }

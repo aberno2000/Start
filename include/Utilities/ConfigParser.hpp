@@ -23,83 +23,56 @@ private:
      */
     struct config_data_t
     {
+        /* Simulation params. */
         size_t particles_count{};   ///< Count of the particles in simulation.
         unsigned int num_threads{}; ///< Count of threads to processing.
         double time_step{};         ///< Simulation time step [s].
         double simtime{};           ///< Total simulation time [s].
         double temperature{};       ///< Ambient temperature in Kelvin [K].
         double pressure{};          ///< Ambient pressure in Pascals [Pa].
-        double volume{};            ///< Volume in cubic meters [m^3].
         double energy{};            ///< Energy in electronvolts [eV].
         ParticleType projective{};  ///< Projective particle type, e.g., Au.
         ParticleType gas{};         ///< Gas particle type, e.g., N.
         std::string mshfilename;    ///< Filename of the mesh file.
         std::string model;          ///< Scattering model, e.g., HS/VHS/VSS.
-    } m_config;                     ///< Instance of config_data_t to store configuration.
 
-    bool m_isValid{};    ///< Flag indicating if the configuration is valid.
-    int m_status_code{}; ///< Status code for check the error.
+        /* PIC and FEM params. */
+        double edgeSize{};       ///< Edge size of the cubic grid that uses in PIC.
+        short desiredAccuracy{}; ///< Calculation accuracy that uses in FEM to define coutn of cubature points for the linear tetrahedron.
+
+        /* Iterative solver parameters. */
+        std::string solverName;         ///< Name of the iterative solver.
+        int maxIterations{};            ///< Maximum number of iterations for the solver.
+        double convergenceTolerance{};  ///< Convergence tolerance for the solver.
+        int verbosity{};                ///< Verbosity level of the solver.
+        int outputFrequency{};          ///< Frequency of output during the solver execution.
+        int numBlocks{};                ///< Number of blocks for the solver.
+        int blockSize{};                ///< Block size for the solver.
+        int maxRestarts{};              ///< Maximum number of restarts for the solver.
+        bool flexibleGMRES{};           ///< Flag for flexible GMRES.
+        std::string orthogonalization;  ///< Type of orthogonalization used in the solver.
+        bool adaptiveBlockSize{};       ///< Flag for adaptive block size.
+        int convergenceTestFrequency{}; ///< Frequency of convergence test during the solver execution.
+    } m_config;                         ///< Instance of config_data_t to store configuration.
 
     /// @brief Clearing out all values from the `m_config`.
-    void clearConfig();
+    constexpr void clearConfig() { m_config = config_data_t{}; }
 
     /**
      * @brief Helper method to get all params from the configuration file.
      * @param config Name of the configuration file.
-     *
-     * @details Configuration file:
-     * Count: <value>.
-     * Threads: <value>.
-     * Time step: <value> (Time in [s]).
-     * Simulation Time: <value> (Time in [s]).
-     * T: <value> (Temperature in [K]).
-     * P: <value> (Preassure in [Pa]).
-     * V: <value>/<string> (Volume in [m^3]/name of the file with tetrahedron mesh from GMSH).
-     * Particles: <projective> <target>: (particle) (gas): Example: Al Ar.
-     * Energy: <value> [eV].
-     * Model: HS/VHS/VSS.
-     *
-     * @example
-     * Count: 10000
-     * Threads: 2
-     * Time Step: 0.002
-     * Simulation Time: 2
-     * T: 300
-     * P: 10000
-     * V: 95.42
-     * Particles: Al Ar
-     * Energy: 25
-     * Model: HS
-     *
-     * @return Concentration calculated from the specified conditions in [N] (count of particles in V).
-     * `EMPTY_STR` constant (=0) if `config` is empty.
-     * `BAD_FILE` constant (=-1) if something wrong with the file.
-     * `BAD_PARTICLES_FORMAT` constant (=-2) if particles format is incorrect.
-     * `UNKNOWN_PARTICLES` constant (=-3) if input particles aren't correspond to known.
-     * `BAD_MODEL` constant (=-4) if model is unknown.
-     * `BAD_ENERGY` constant (=-5) if energy is equals to `0` or negative.
-     * `BAD_TEMPERATURE` constant (=-6) if temperature is equals to `0` or negative.
-     * `BAD_PRESSURE` constant (=-7) if pressure is negative.
-     * `BAD_VOLUME` constant (=-8) if volume is <= 0.
-     * `BAD_SIMTIME` constant (=-9) if count contains not only digits.
-     * `BAD_TIME_STEP` constant (=-10) if count contains not only digits.
-     * `BAD_THREAD_COUNT` constant (=-11) if count contains not only digits.
-     * `BAD_PARTICLE_COUNT` constant (=-12) if count contains not only digits.
-     * `JSON_BAD_PARAM` constant (=-13) if some parameter failed to assign to the config.
-     * `JSON_BAD_PARSE` constant (=-14) if JSON failed to parse the configuration file.
-     * `BAD_MSHFILE` constant (=-15) if mesh file not specified or doesn't exist in specified path.
      */
-    int getConfigData(std::string_view config);
+    void getConfigData(std::string_view config);
 
 public:
     /**
      * @brief Automatically fills configuration from the file.
      * @param config Configuration filename.
      */
-    ConfigParser(std::string_view config);
+    ConfigParser(std::string_view config) { getConfigData(config); }
 
     /// @brief Dtor. Clears out all the data members.
-    ~ConfigParser();
+    ~ConfigParser() { clearConfig(); }
 
     /* $$$ Getters for all data members from the `config_data_t` structure. $$$ */
     constexpr unsigned int getNumThreads() const { return m_config.num_threads; }
@@ -108,15 +81,25 @@ public:
     constexpr double getSimulationTime() const { return m_config.simtime; }
     constexpr double getTemperature() const { return m_config.temperature; }
     constexpr double getPressure() const { return m_config.pressure; }
-    constexpr double getVolume() const { return m_config.volume; }
     constexpr double getEnergy() const { return m_config.energy; }
     constexpr ParticleType getProjective() const { return m_config.projective; }
     constexpr ParticleType getGas() const { return m_config.gas; }
     constexpr std::string_view getMeshFilename() const { return m_config.mshfilename.data(); }
     constexpr std::string_view getScatteringModel() const { return m_config.model.data(); }
-    constexpr int getStatusCode() const { return m_status_code; }
-    constexpr bool isValid() const { return m_isValid; }
-    constexpr bool isInvalid() const { return not m_isValid; }
+    constexpr double getEdgeSize() const { return m_config.edgeSize; }
+    constexpr short getDesiredCalculationAccuracy() const { return m_config.desiredAccuracy; }
+    constexpr std::string_view getSolverName() const { return m_config.solverName; }
+    constexpr int getMaxIterations() const { return m_config.maxIterations; }
+    constexpr double getConvergenceTolerance() const { return m_config.convergenceTolerance; }
+    constexpr int getVerbosity() const { return m_config.verbosity; }
+    constexpr int getOutputFrequency() const { return m_config.outputFrequency; }
+    constexpr int getNumBlocks() const { return m_config.numBlocks; }
+    constexpr int getBlockSize() const { return m_config.blockSize; }
+    constexpr int getMaxRestarts() const { return m_config.maxRestarts; }
+    constexpr bool getFlexibleGMRES() const { return m_config.flexibleGMRES; }
+    constexpr std::string_view getOrthogonalization() const { return m_config.orthogonalization; }
+    constexpr bool getAdaptiveBlockSize() const { return m_config.adaptiveBlockSize; }
+    constexpr int getConvergenceTestFrequency() const { return m_config.convergenceTestFrequency; }
 };
 
 #endif // !CONFIGPARSER_HPP

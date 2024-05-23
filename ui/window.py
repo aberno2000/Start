@@ -435,6 +435,9 @@ class WindowApp(QMainWindow):
             self.config_tab.save_config_to_file_with_filename(self.config_tab.config_file_path)
         
         config_content = self.config_tab.validate_input()
+        config_content.update(self.config_tab.save_solver_params_to_dict())
+        config_content.update(self.config_tab.save_picfem_params_to_dict())
+        
         if config_content is None:
             return
         if not config_content:

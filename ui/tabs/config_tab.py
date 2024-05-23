@@ -86,34 +86,6 @@ class ConfigTab(QWidget):
         self.validate_input_with_highlight()
         self.save_solver_params_to_json(DEFAULT_TEMP_SOLVER_PARAMS_FILE)
         self.save_picfem_params_to_json(DEFAULT_TEMP_PICFEM_PARAMS_FILE)
-        
-    
-    def save_solver_params_to_json(self, filename: str):
-        params = {}
-        for key, (input_field, units_combobox) in self.solver_parameters.items():
-            if isinstance(input_field, QLineEdit):
-                params[key] = input_field.text()
-            elif isinstance(input_field, QComboBox):
-                params[key] = input_field.currentText()
-
-        params["solverName"] = self.solver_selection.currentText()
-        with open(filename, 'w') as file:
-            dump(params, file, indent=4)
-    
-    
-    def save_picfem_params_to_json(self, filename: str):
-        params = {}
-        
-        # If empty - setting values by default
-        if not self.pic_input.text():
-            self.pic_input.setText("5")
-        if not self.fem_input.text():
-            self.fem_input.setText("3")
-        
-        params["EdgeSize"] = self.pic_input.text()
-        params["DesiredAccuracy"] = self.fem_input.text()
-        with open(filename, 'w') as file:
-            dump(params, file, indent=4)
     
         
     def setup_mesh_group(self):
@@ -818,44 +790,58 @@ class ConfigTab(QWidget):
                                  f"An error occurred while applying the configuration: Exception: {e}")
             return None
 
+    def save_solver_params_to_dict(self):
+        solver_params = {}
+        for key, (input_field, units_combobox) in self.solver_parameters.items():
+            if isinstance(input_field, QLineEdit):
+                solver_params[key] = input_field.text()
+            elif isinstance(input_field, QComboBox):
+                solver_params[key] = input_field.currentText()
+        solver_params["solverName"] = self.solver_selection.currentText()
+        return solver_params
 
-    def save_additional_params(self):
-        self.save_solver_params_to_json(DEFAULT_TEMP_SOLVER_PARAMS_FILE)
-        self.save_picfem_params_to_json(DEFAULT_TEMP_PICFEM_PARAMS_FILE)
+    def save_picfem_params_to_dict(self):
+        picfem_params = {}
         
+        # If empty - setting values by default
+        if not self.pic_input.text():
+            self.pic_input.setText("5")
+        if not self.fem_input.text():
+            self.fem_input.setText("3")
         
-    def remove_additional_params_files(self):
-        remove(DEFAULT_TEMP_SOLVER_PARAMS_FILE)
-        remove(DEFAULT_TEMP_PICFEM_PARAMS_FILE)
-
+        picfem_params["EdgeSize"] = self.pic_input.text()
+        picfem_params["DesiredAccuracy"] = self.fem_input.text()
+        return picfem_params
+            
 
     def save_config_to_file_with_filename(self, configFile):
         if not is_file_valid(self.mesh_file) or not is_path_accessable(self.mesh_file):
-            QMessageBox.warning(self, "File Error", f"Mesh file '{self.mesh_file}' can't be selected. Check path or existance of it")
+            QMessageBox.warning(self, "File Error", f"Mesh file '{self.mesh_file}' can't be selected. Check path or existence of it")
             return
         
         config_content = self.validate_input()
         if not config_content:
-            QMessageBox.critical(
-                self, "Error", f"Failed to save configuration")
+            QMessageBox.critical(self, "Error", "Failed to save configuration")
             return
         
-        self.save_additional_params()
-    
-        if configFile:
-            try:
-                with open(configFile, "w") as file:
-                    dump(config_content, file, indent=4)  # Serialize dict to JSON
-                self.log_console.logSignal.emit(f'Successfully saved data to new config: {configFile}\n')
-            except Exception as e:
-                self.log_console.logSignal.emit(f'Error: Failed to save configuration to {configFile}: Exception: {e}\n')
-                self.remove_additional_params_files()
+        try:
+            # Combine all parameter dictionaries into one
+            config_content.update(self.save_solver_params_to_dict())
+            config_content.update(self.save_picfem_params_to_dict())
+            
+            # Save to the specified file
+            with open(configFile, "w") as file:
+                dump(config_content, file, indent=4)  # Serialize dict to JSON
+            
+            self.log_console.logSignal.emit(f'Successfully saved data to new config: {configFile}\n')
+        except Exception as e:
+            self.log_console.logSignal.emit(f'Error: Failed to save configuration to {configFile}: Exception: {e}\n')
+
 
     def save_config_to_file(self):
         config_content = self.validate_input()
         if not config_content:
-            QMessageBox.critical(
-                self, "Error", f"Failed to save configuration")
+            QMessageBox.critical(self, "Error", "Failed to save configuration")
             return
 
         # Ask the user where to save the file
@@ -877,19 +863,22 @@ class ConfigTab(QWidget):
         if not self.config_file_path.endswith('.json'):
             self.config_file_path += '.json'
         
-        self.save_additional_params()
-        
         if self.config_file_path:
             try:
+                # Combine all parameter dictionaries into one
+                config_content.update(self.save_solver_params_to_dict())
+                config_content.update(self.save_picfem_params_to_dict())
+                
+                # Save to the specified file
                 with open(self.config_file_path, "w") as file:
                     dump(config_content, file, indent=4)  # Serialize dict to JSON
+                
                 QMessageBox.information(self, "Success", f"Configuration saved to {self.config_file_path}")
                 self.log_console.logSignal.emit(f'Successfully saved data to new config: {self.config_file_path}\n')
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Failed to save configuration: Exception: {e}")
                 self.log_console.logSignal.emit(f'Error: Failed to save configuration to {self.config_file_path}: Exception: {e}\n')
-                self.remove_additional_params_files()
-    
+
     
     def upload_mesh_file_with_filename(self, meshfilename):
         if meshfilename:
