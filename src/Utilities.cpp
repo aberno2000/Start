@@ -122,12 +122,9 @@ std::string util::getParticleType(ParticleType ptype)
 double util::calculateConcentration(std::string_view config)
 {
     ConfigParser parser(config);
-    if (parser.isInvalid())
-        return -1.0;
 
-    // n = PV/RT * N_Avogadro
-    return parser.getPressure() * parser.getVolume() * constants::physical_constants::N_av /
-           (parser.getTemperature() * constants::physical_constants::R);
+    // PV = nRT: https://en.wikipedia.org/wiki/Ideal_gas_law.
+    return parser.getPressure() / (constants::physical_constants::R * parser.getTemperature());
 }
 
 bool util::exists(std::string_view filename)
