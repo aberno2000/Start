@@ -199,9 +199,6 @@ class ConfigTab(QWidget):
         # Pressure with units
         self.pressure_input, self.pressure_units, self.pressure_converted = self.create_simulation_field("Pressure:", QLineEdit, ["mPa", "Pa", "kPa", "psi"], "Pa", "0.0")
 
-        # Volume with units
-        self.volume_input, self.volume_units, self.volume_converted = self.create_simulation_field("Volume:", QLineEdit, ["mm³", "cm³", "m³"], "m³", "0.0 m³")
-
         # Energy with units
         self.energy_input, self.energy_units, self.energy_converted = self.create_simulation_field("Energy:", QLineEdit, ["eV", "keV", "J", "kJ", "cal"], "eV", "0.0")
 
@@ -218,6 +215,7 @@ class ConfigTab(QWidget):
         
         # Add PIC and FEM fields
         self.pic_input = QLineEdit()
+        self.pic_input.setText("5")
         self.pic_input.setFixedWidth(DEFAULT_LINE_EDIT_WIDTH)
         self.pic_input.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
         self.pic_input.setValidator(CustomDoubleValidator(0.1, 1000.0, 3))
@@ -239,6 +237,7 @@ class ConfigTab(QWidget):
         pic_layout.addRow(QLabel("Cubic grid size:"), h_layout)
 
         self.fem_input = QLineEdit()
+        self.fem_input.setText("3")
         self.fem_input.setFixedWidth(DEFAULT_LINE_EDIT_WIDTH)
         self.fem_input.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
         self.fem_input.setValidator(QIntValidator(1, 100))
@@ -371,9 +370,6 @@ class ConfigTab(QWidget):
         self.pressure_input.textChanged.connect(self.update_converted_values)
         self.pressure_units.currentIndexChanged.connect(
             self.update_converted_values)
-        self.volume_input.textChanged.connect(self.update_converted_values)
-        self.volume_units.currentIndexChanged.connect(
-            self.update_converted_values)
         self.energy_input.textChanged.connect(self.update_converted_values)
         self.energy_units.currentIndexChanged.connect(
             self.update_converted_values)
@@ -387,8 +383,6 @@ class ConfigTab(QWidget):
             f"{self.converter.to_kelvin(self.temperature_input.text(), self.temperature_units.currentText())} K")
         self.pressure_converted.setText(
             f"{self.converter.to_pascal(self.pressure_input.text(), self.pressure_units.currentText())} Pa")
-        self.volume_converted.setText(
-            f"{self.converter.to_cubic_meters(self.volume_input.text(), self.volume_units.currentText())} m³")
         self.energy_converted.setText(
             f"{self.converter.to_joules(self.energy_input.text(), self.energy_units.currentText())} J")
 
@@ -481,7 +475,6 @@ class ConfigTab(QWidget):
                 "Simulation Time": float(self.simulation_time),
                 "T": float(self.temperature),
                 "P": float(self.pressure),
-                "V": float(self.volume),
                 "Particles": [
                     self.projective_input.currentText(),
                     self.gas_input.currentText()
@@ -510,9 +503,6 @@ class ConfigTab(QWidget):
         self.pressure = self.converter.to_pascal(
             self.pressure_input.text(), self.pressure_units.currentText()
         )
-        self.volume = self.converter.to_cubic_meters(
-            self.volume_input.text(), self.volume_units.currentText()
-        )
         self.energy = self.converter.to_joules(
             self.energy_input.text(), self.energy_units.currentText()
         )
@@ -533,8 +523,6 @@ class ConfigTab(QWidget):
             empty_fields.append("Temperature")
         if not self.pressure:
             empty_fields.append("Pressure")
-        if not self.volume:
-            empty_fields.append("Volume")
         if not self.energy:
             empty_fields.append("Energy")
 
@@ -618,7 +606,6 @@ class ConfigTab(QWidget):
         self.simulation_time_input.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
         self.temperature_input.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
         self.pressure_input.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
-        self.volume_input.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
         self.energy_input.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
     
     
@@ -652,13 +639,6 @@ class ConfigTab(QWidget):
         if pressure_value is None or pressure_value < 0 or pressure_value > MAX_PRESSURE or not self.pressure_input.text():
             self.highlight_invalid(self.pressure_input)
             self.invalid_fields.append('Pressure')
-            valid = False
-
-        # Volume validation
-        volume_value = self.converter.to_cubic_meters(self.volume_input.text(), self.volume_units.currentText())
-        if volume_value is None or not self.volume_input.text():
-            self.highlight_invalid(self.volume_input)
-            self.invalid_fields.append('Volume')
             valid = False
 
         # Energy validation
@@ -740,7 +720,6 @@ class ConfigTab(QWidget):
             self.simulation_time = float(config.get('Simulation Time', ''))
             self.temperature = float(config.get('T', ''))
             self.pressure = float(config.get('P', ''))
-            self.volume = float(config.get('V', ''))
             self.energy = float(config.get('Energy', ''))
             
             config = self.check_validity_of_params()
@@ -754,7 +733,6 @@ class ConfigTab(QWidget):
             self.simulation_time_input.setText(str(config.get('Simulation Time', '')))
             self.temperature_input.setText(str(config.get('T', '')))
             self.pressure_input.setText(str(config.get('P', '')))
-            self.volume_input.setText(str(config.get('V', '')))
             self.energy_input.setText(str(config.get('Energy', '')))
 
             particles = config.get('Particles', [])
@@ -777,7 +755,6 @@ class ConfigTab(QWidget):
             self.simulation_time_units.setCurrentIndex(3)
             self.temperature_units.setCurrentIndex(0)
             self.pressure_units.setCurrentIndex(1)
-            self.volume_units.setCurrentIndex(2)
             self.energy_units.setCurrentIndex(2)
 
         except Exception as e:
@@ -797,12 +774,6 @@ class ConfigTab(QWidget):
 
     def save_picfem_params_to_dict(self):
         picfem_params = {}
-        
-        # If empty - setting values by default
-        if not self.pic_input.text():
-            self.pic_input.setText("5")
-        if not self.fem_input.text():
-            self.fem_input.setText("3")
         
         picfem_params["EdgeSize"] = self.pic_input.text()
         picfem_params["DesiredAccuracy"] = self.fem_input.text()
