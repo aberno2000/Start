@@ -172,7 +172,6 @@ void ParticleTracker::startSimulation()
         for (GlobalOrdinal nodeId : nodeIds)
             boundaryConditions[nodeId] = value;
     assemblier.setBoundaryConditions(boundaryConditions);
-    // assemblier.print();
 
     SolutionVector solutionVector(assemblier.rows(), kdefault_polynomOrder);
     solutionVector.clear();
@@ -229,10 +228,6 @@ void ParticleTracker::startSimulation()
                 nodeChargeDensityMap[nodeId] = totalCharge / totalVolume;
         }
 
-        std::cout << "Charge density in nodes:\n";
-        for (auto const &[nodeId, chargeDensity] : nodeChargeDensityMap)
-            std::cout << std::format("Node[{}] : {} C/m³\n", nodeId, chargeDensity);
-
         /* Remains FEM. */
         // Creating solution vector, filling it with the random values, and applying boundary conditions.
         auto nonChangebleNodes{m_config.getNonChangeableNodes()};
@@ -240,7 +235,6 @@ void ParticleTracker::startSimulation()
             if (std::ranges::find(nonChangebleNodes, nodeId) == nonChangebleNodes.cend())
                 boundaryConditions[nodeId] = nodeChargeDensity;
         solutionVector.setBoundaryConditions(boundaryConditions);
-        // solutionVector.print();
 
         // Solve the equation Ax=b.
         MatrixEquationSolver solver(assemblier, solutionVector);
