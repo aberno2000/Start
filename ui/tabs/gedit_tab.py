@@ -21,7 +21,7 @@ class GraphicalEditorTab(QWidget):
 
     def setup_ui(self):
         # Initialize a placeholder for the graphical editor
-        self.geditor = GraphicalEditor(self.log_console)
+        self.geditor = GraphicalEditor(self.log_console, self.config_tab)
         
         # Initialize an empty QTreeView
         self.treeView = self.geditor.treeView

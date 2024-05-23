@@ -6,7 +6,6 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtGui import QIntValidator, QRegExpValidator
 import gmsh
-from os import remove
 from os.path import dirname
 from PyQt5 import QtCore
 from PyQt5.QtCore import QSize, pyqtSignal, QRegExp
@@ -18,9 +17,7 @@ from util.mesh_dialog import MeshDialog
 from util import is_file_valid
 from util.util import(
     is_path_accessable, CustomDoubleValidator,
-    DEFAULT_TEMP_CONFIG_FILE,
-    DEFAULT_TEMP_SOLVER_PARAMS_FILE,
-    DEFAULT_TEMP_PICFEM_PARAMS_FILE
+    DEFAULT_TEMP_CONFIG_FILE
 )
 from util.styles import(
     DEFAULT_QLINEEDIT_STYLE, DEFAULT_COMBOBOX_STYLE,
@@ -84,9 +81,7 @@ class ConfigTab(QWidget):
     
     def next_button_on_clicked(self):
         self.validate_input_with_highlight()
-        self.save_solver_params_to_json(DEFAULT_TEMP_SOLVER_PARAMS_FILE)
-        self.save_picfem_params_to_json(DEFAULT_TEMP_PICFEM_PARAMS_FILE)
-    
+        self.save_config_to_file()
         
     def setup_mesh_group(self):
         self.mesh_file_label = QLabel("No file selected")
@@ -812,9 +807,32 @@ class ConfigTab(QWidget):
         picfem_params["EdgeSize"] = self.pic_input.text()
         picfem_params["DesiredAccuracy"] = self.fem_input.text()
         return picfem_params
-            
+    
+    
+    def save_boundary_conditions_to_dict(self, config_file_path: str):
+        boundary_conditions = {}
+        try:
+            with open(config_file_path, 'r') as file:
+                data = load(file)
+                if "Boundary Conditions" in data:
+                    boundary_conditions = data["Boundary Conditions"]
+        except FileNotFoundError:
+            pass
+        except JSONDecodeError as e:
+            QMessageBox.critical(self, "Error", f"Error parsing JSON file '{config_file_path}': {e}")
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"An error occurred while reading the configuration file '{config_file_path}': {e}")
 
-    def save_config_to_file_with_filename(self, configFile):
+        return boundary_conditions
+    
+    def combine_all_settings(self, config_content, config_file_path: str):
+        config_content.update(self.save_solver_params_to_dict())
+        config_content.update(self.save_picfem_params_to_dict())
+        boundary_conditions = self.save_boundary_conditions_to_dict(config_file_path)
+        if boundary_conditions:
+            config_content["Boundary Conditions"] = boundary_conditions
+
+    def save_config_to_file_with_filename(self, configFile: str):
         if not is_file_valid(self.mesh_file) or not is_path_accessable(self.mesh_file):
             QMessageBox.warning(self, "File Error", f"Mesh file '{self.mesh_file}' can't be selected. Check path or existence of it")
             return
@@ -826,8 +844,7 @@ class ConfigTab(QWidget):
         
         try:
             # Combine all parameter dictionaries into one
-            config_content.update(self.save_solver_params_to_dict())
-            config_content.update(self.save_picfem_params_to_dict())
+            self.combine_all_settings(config_content=config_content, config_file_path=configFile)
             
             # Save to the specified file
             with open(configFile, "w") as file:
@@ -836,7 +853,7 @@ class ConfigTab(QWidget):
             self.log_console.logSignal.emit(f'Successfully saved data to new config: {configFile}\n')
         except Exception as e:
             self.log_console.logSignal.emit(f'Error: Failed to save configuration to {configFile}: Exception: {e}\n')
-
+            
 
     def save_config_to_file(self):
         config_content = self.validate_input()
@@ -866,8 +883,7 @@ class ConfigTab(QWidget):
         if self.config_file_path:
             try:
                 # Combine all parameter dictionaries into one
-                config_content.update(self.save_solver_params_to_dict())
-                config_content.update(self.save_picfem_params_to_dict())
+                self.combine_all_settings(config_content=config_content, config_file_path=self.config_file_path)
                 
                 # Save to the specified file
                 with open(self.config_file_path, "w") as file:

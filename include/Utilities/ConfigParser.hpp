@@ -53,10 +53,16 @@ private:
         std::string orthogonalization;  ///< Type of orthogonalization used in the solver.
         bool adaptiveBlockSize{};       ///< Flag for adaptive block size.
         int convergenceTestFrequency{}; ///< Frequency of convergence test during the solver execution.
-    } m_config;                         ///< Instance of config_data_t to store configuration.
+
+        /* Boundary conditions. */
+        std::vector<std::pair<std::vector<size_t>, double>> boundaryConditions; ///< Boundary conditions data.
+        std::unordered_map<size_t, std::vector<double>> nodeValues;             ///< Node values.
+        std::vector<size_t> nonChangeableNodes;                                 ///< Non-changeable nodes.
+
+    } m_config; ///< Instance of config_data_t to store configuration.
 
     /// @brief Clearing out all values from the `m_config`.
-    constexpr void clearConfig() { m_config = config_data_t{}; }
+    void clearConfig() { m_config = config_data_t{}; }
 
     /**
      * @brief Helper method to get all params from the configuration file.
@@ -100,6 +106,8 @@ public:
     constexpr std::string_view getOrthogonalization() const { return m_config.orthogonalization; }
     constexpr bool getAdaptiveBlockSize() const { return m_config.adaptiveBlockSize; }
     constexpr int getConvergenceTestFrequency() const { return m_config.convergenceTestFrequency; }
+    constexpr std::vector<std::pair<std::vector<size_t>, double>> const &getBoundaryConditions() const { return m_config.boundaryConditions; }
+    constexpr std::vector<size_t> const &getNonChangeableNodes() const { return m_config.nonChangeableNodes; }
 };
 
 #endif // !CONFIGPARSER_HPP

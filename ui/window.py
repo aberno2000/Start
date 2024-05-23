@@ -5,10 +5,9 @@ from PyQt5.QtWidgets import (
     QProgressBar, QScrollArea, 
     QApplication, QColorDialog
 )
-import signal, os, psutil
+import signal, os, psutil, json
 from sys import exit
 from time import time
-from json import dump
 from PyQt5.QtCore import Qt, QProcess, pyqtSlot
 from PyQt5.QtGui import QColor, QTextCharFormat
 from tabs.config_tab import ConfigTab
@@ -165,6 +164,8 @@ class WindowApp(QMainWindow):
                                     "Process Finished",
                                     f"The simulation has completed in {exec_time:.3f}s\n\nScalar bar:\nLeft side - particles count.\nRight side - normalized value.\n\n*Normalized Value = (Scalar Value - Range Min) / (Range Max - Range Min)")
             
+            # Removing boundary conditions after finishing the simulation
+            self.remove_boundary_conditions()
         elif exitStatus == QProcess.CrashExit and exitCode == 11:
             self.results_tab.clear_plot()
             
@@ -435,8 +436,7 @@ class WindowApp(QMainWindow):
             self.config_tab.save_config_to_file_with_filename(self.config_tab.config_file_path)
         
         config_content = self.config_tab.validate_input()
-        config_content.update(self.config_tab.save_solver_params_to_dict())
-        config_content.update(self.config_tab.save_picfem_params_to_dict())
+        self.config_tab.combine_all_settings(config_content=config_content, config_file_path=self.config_tab.config_file_path)
         
         if config_content is None:
             return
@@ -454,9 +454,9 @@ class WindowApp(QMainWindow):
                 return
         
         # Rewrite configs if they have been changed
-        try:            
+        try:
             with open(self.config_tab.config_file_path, "w") as file:
-                dump(config_content, file, indent=4)  # Serialize dict to JSON
+                json.dump(config_content, file, indent=4)  # Serialize dict to JSON
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to save configuration: Exception: {e}")
             return
@@ -469,7 +469,29 @@ class WindowApp(QMainWindow):
         # Measure execution time
         self.run_cpp(args)
         self.progress_bar.setRange(0, 100)
-        
+    
+    def remove_boundary_conditions(self):
+        try:
+            with open(self.config_tab.config_file_path, 'r') as file:
+                data = json.load(file)
+        except FileNotFoundError:
+            QMessageBox.warning(self, "File Error", f"Configuration file '{self.config_tab.config_file_path}' not found.")
+            return
+        except json.JSONDecodeError as e:
+            QMessageBox.critical(self, "Error", f"Error parsing JSON file '{self.config_tab.config_file_path}': {e}")
+            return
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"An error occurred while reading the configuration file '{self.config_tab.config_file_path}': {e}")
+            return
+
+        if "Boundary Conditions" in data:
+            del data["Boundary Conditions"]
+
+        try:
+            with open(self.config_tab.config_file_path, 'w') as file:
+                json.dump(data, file, indent=4)
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Failed to save configuration: {e}")
         
     def stop_simulation(self):
         if self.process.state() == QProcess.Running:

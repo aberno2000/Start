@@ -104,6 +104,84 @@ void ConfigParser::getConfigData(std::string_view config)
             m_config.adaptiveBlockSize = configJson.at("adaptiveBlockSize").get<std::string>() == "true";
         if (configJson.contains("convergenceTestFrequency"))
             m_config.convergenceTestFrequency = std::stoi(configJson.at("convergenceTestFrequency").get<std::string>());
+
+        // Boundary conditions.
+        if (configJson.contains("Boundary Conditions"))
+        {
+            json boundaryConditionsJson = configJson.at("Boundary Conditions");
+            for (auto const &[key, value] : boundaryConditionsJson.items())
+            {
+                std::vector<size_t> nodes;
+                std::string nodesStr(key);
+                size_t pos{};
+                std::string token;
+                while ((pos = nodesStr.find(',')) != std::string::npos)
+                {
+                    token = nodesStr.substr(0ul, pos);
+                    try
+                    {
+                        size_t nodeId{std::stoul(token)};
+                        nodes.emplace_back(nodeId);
+                        m_config.nonChangeableNodes.emplace_back(nodeId);
+                        m_config.nodeValues[nodeId].emplace_back(value.get<double>());
+                    }
+                    catch (std::invalid_argument const &e)
+                    {
+                        throw std::runtime_error("Invalid node ID: " + token + ". Error: " + e.what());
+                    }
+                    catch (std::out_of_range const &e)
+                    {
+                        throw std::runtime_error("Node ID out of range: " + token + ". Error: " + e.what());
+                    }
+                    nodesStr.erase(0ul, pos + 1ul);
+                }
+                if (!nodesStr.empty())
+                {
+                    try
+                    {
+                        size_t nodeId{std::stoul(nodesStr)};
+                        nodes.emplace_back(nodeId);
+                        m_config.nonChangeableNodes.emplace_back(nodeId);
+                        m_config.nodeValues[nodeId].emplace_back(value.get<double>());
+                    }
+                    catch (std::invalid_argument const &e)
+                    {
+                        throw std::runtime_error("Invalid node ID: " + nodesStr + ". Error: " + e.what());
+                    }
+                    catch (std::out_of_range const &e)
+                    {
+                        throw std::runtime_error("Node ID out of range: " + nodesStr + ". Error: " + e.what());
+                    }
+                }
+
+                double val{};
+                try
+                {
+                    val = value.get<double>();
+                }
+                catch (json::type_error const &e)
+                {
+                    throw std::runtime_error("Invalid value for node IDs: " + key + ". Error: " + e.what());
+                }
+
+                m_config.boundaryConditions.emplace_back(nodes, val);
+            }
+
+            // Check for duplicate nodes.
+            for (auto const &[nodeId, values] : m_config.nodeValues)
+            {
+                if (values.size() > 1)
+                {
+                    std::cerr << "Node ID " << nodeId << " has multiple values assigned: ";
+                    for (double val : values)
+                        std::cerr << val << ' ';
+                    std::cerr << std::endl;
+
+                    ifs.close();
+                    throw std::runtime_error("Duplicate node values found. Temporary file with boundary conditions has been deleted.");
+                }
+            }
+        }
     }
     catch (json::exception const &e)
     {
