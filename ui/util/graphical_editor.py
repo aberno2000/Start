@@ -1565,6 +1565,7 @@ class GraphicalEditor(QFrame):
             
             self.statusBar.showMessage("Successfully set particle source and calculated direction angles")
             self.log_console.printInfo(f"Successfully written coordinates of the particle source:\nBase: {base_coords}\nExpansion angle θ: {self.expansion_angle} ({rad_to_degree(self.expansion_angle)}°)\nPolar (colatitude) angle θ: {theta} ({rad_to_degree(theta)}°)\nAzimuthal angle φ: {phi} ({rad_to_degree(phi)}°)\n")
+            self.log_console.addNewLine()
             
             self.resetParticleSourceArrow()
             return 1
@@ -1607,7 +1608,7 @@ class GraphicalEditor(QFrame):
         try:
             theta, phi = calculate_thetaPhi(base_coords, tip_coords)
         except Exception as e:
-            self.log_console.printError(f"An error occured when calculating polar (colatitude) θ and azimuthal φ: {e}")
+            self.log_console.printError(f"An error occured when calculating polar (colatitude) θ and azimuthal φ: {e}\n")
             QMessageBox.warning(self, "Invalid Angles", f"An error occured when calculating polar (colatitude) θ and azimuthal φ: {e}")
             return None
         
@@ -1628,11 +1629,11 @@ class GraphicalEditor(QFrame):
                 
                 if thetaMax > pi / 2.:
                     self.log_console.printWarning(f"The θ angle exceeds 90°, so some particles can distribute in the opposite direction\nθ = {thetaMax} ({thetaMax * 180. / pi}°)")    
-                self.log_console.printInfo(f"Successfully assigned values to the expansion angle and calculated φ angle\nθ = {thetaMax} ({thetaMax * 180. / pi}°)\nφ = {phi} ({phi * 180. / pi}°)")
+                self.log_console.printInfo(f"Successfully assigned values to the expansion angle and calculated φ angle\nθ = {thetaMax} ({thetaMax * 180. / pi}°)\nφ = {phi} ({phi * 180. / pi}°)\n")
             
             except Exception as e:
                 QMessageBox.critical(self, "Scattering angles", f"Exception while assigning expansion angle θ: {e}")
-                self.log_console.printError(f"Exception while assigning expansion angle θ: {e}")
+                self.log_console.printError(f"Exception while assigning expansion angle θ: {e}\n")
                 return
 
             self.expansion_angle = thetaMax
