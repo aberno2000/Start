@@ -95,6 +95,7 @@ public:
     size_t rows() const { return m_gsmatrix->getGlobalNumRows(); }
     size_t cols() const { return m_gsmatrix->getGlobalNumCols(); }
     auto &getMeshComponents() { return VolumetricMeshData::getInstance(m_mesh_filename.data()); }
+    auto const &getMeshComponents() const { return VolumetricMeshData::getInstance(m_mesh_filename.data()); }
 
     /// @brief Checks is the global stiffness matrix empty or not.
     bool empty() const;
