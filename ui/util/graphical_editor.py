@@ -39,10 +39,10 @@ from util.util import(
     get_polydata_from_actor, write_vtk_polydata_to_file, 
     convert_vtkUnstructuredGrid_to_vtkPolyData, extract_transform_from_actor,
     calculate_thetaPhi, rad_to_degree,
-    DEFAULT_TEMP_MESH_FILE, DEFAULT_TEMP_FILE_FOR_PARTICLE_SOURCE_AND_THETA,
-    DEFAULT_FILE_FOR_BOUNDARY_CONDITIONS
+    DEFAULT_TEMP_MESH_FILE, DEFAULT_TEMP_FILE_FOR_PARTICLE_SOURCE_AND_THETA
 )
 from .mesh_dialog import MeshDialog
+from tabs.gedit_tab import ConfigTab
 from .styles import DEFAULT_ACTOR_COLOR, SELECTED_ACTOR_COLOR, ARROW_ACTOR_COLOR
 from logger.log_console import LogConsole
 
@@ -71,8 +71,10 @@ def get_action(id: int, data, actor: vtkActor, isDifficultObj: bool = False, fig
 
 
 class GraphicalEditor(QFrame):    
-    def __init__(self, log_console: LogConsole, parent=None):
+    def __init__(self, log_console: LogConsole, config_tab: ConfigTab, parent=None):
         super().__init__(parent)
+        self.config_tab = config_tab
+        
         self.treeView = QTreeView()
         self.model = QStandardItemModel()
         self.model.setHorizontalHeaderLabels(['Mesh Tree'])
@@ -575,6 +577,122 @@ class GraphicalEditor(QFrame):
 
 
     def create_box(self):
+        # def create_box_with_gmsh(mesh_size: float):
+        #     gmsh.initialize()
+        #     gmsh.model.add('custom_box')
+        #     gmsh.model.occ.add_cylinder(x, y, z, length, width, height, 1)
+        #     gmsh.option.setNumber("Mesh.MeshSizeMax", mesh_size)
+        #     gmsh.option.setNumber("Mesh.MeshSizeMin", mesh_size)
+        #     gmsh.model.occ.synchronize()
+        #     gmsh.model.mesh.generate(3)
+            
+        #     all_node_tags, all_node_coords, _ = gmsh.model.mesh.getNodes()
+        #     node_coords_map = {tag: (all_node_coords[i * 3], all_node_coords[i * 3 + 1], all_node_coords[i * 3 + 2]) 
+        #                     for i, tag in enumerate(all_node_tags)} 
+            
+        #     # Получение всех поверхностей
+        #     surfaces = gmsh.model.getEntities(dim=2)
+            
+        #     # Создание мапы для поверхностей, треугольников и их узлов с координатами
+        #     surface_map = {}
+            
+        #     for dim, tag in surfaces:
+        #         # Получение треугольников для текущей поверхности
+        #         element_types, element_tags, node_tags = gmsh.model.mesh.getElements(dim, tag)
+                
+        #         triangles = []
+        #         for elem_type, elem_tags, elem_node_tags in zip(element_types, element_tags, node_tags):
+        #             if elem_type == 2:  # Тип 2 для треугольников
+        #                 for i in range(len(elem_tags)):
+        #                     node_indices = elem_node_tags[i * 3:(i + 1) * 3]
+        #                     triangle = [
+        #                         (node_indices[0], node_coords_map[node_indices[0]]),
+        #                         (node_indices[1], node_coords_map[node_indices[1]]),
+        #                         (node_indices[2], node_coords_map[node_indices[2]])
+        #                     ]
+        #                     triangles.append((elem_tags[i], triangle))
+                
+        #         surface_map[tag] = triangles
+            
+        #     # Вывод мапы в нужном формате
+        #     for surface_tag, triangles in surface_map.items():
+        #         print(f'Surface[{surface_tag}]:')
+        #         for triangle_tag, nodes in triangles:
+        #             node_str = ', '.join([f'{node}: {coords}' for node, coords in nodes])
+        #             print(f'    Triangle[{triangle_tag}]: [{node_str}]')
+            
+        #     all_node_tags, all_node_coords, _ = gmsh.model.mesh.getNodes()
+        #     node_coords_map = {tag: (all_node_coords[i * 3], all_node_coords[i * 3 + 1], all_node_coords[i * 3 + 2]) 
+        #                     for i, tag in enumerate(all_node_tags)}
+            
+        #     triangle_tags, node_tags = gmsh.model.mesh.getElementsByType(elementType=2)
+        #     triangle_map = {}
+            
+        #     for i in range(len(triangle_tags)):
+        #         node_indices = node_tags[i * 3:(i + 1) * 3]
+        #         triangle_map[triangle_tags[i]] = [(node, node_coords_map[node]) for node in node_indices]
+            
+        #     for triangle_tag, nodes in triangle_map.items():
+        #         node_str = ', '.join([f'{node}: {coords}' for node, coords in nodes])
+        #         print(f'Triangle[{triangle_tag}]: [{node_str}]')
+            
+        #     surfaces = gmsh.model.getEntities(dim=2)
+        #     surface_nodes = {}
+            
+        #     surface_node_tags, surface_node_coords, _ = gmsh.model.mesh.getNodes(dim=2)
+        #     node_coords_map = {tag: (surface_node_coords[i * 3], surface_node_coords[i * 3 + 1], surface_node_coords[i * 3 + 2]) 
+        #                     for i, tag in enumerate(surface_node_tags)}
+            
+        #     for dim, tag in surfaces:
+        #         _, _, node_tags = gmsh.model.mesh.getElements(dim, tag)
+        #         surface_node_tags = node_tags[0]  # Get the node tags for the surface
+                
+        #         node_map = {node: node_coords_map[node] for node in surface_node_tags if node in node_coords_map}
+        #         surface_nodes[tag] = {'nodes': node_map}
+
+        #     for tag, data in surface_nodes.items():
+        #         print(f'Tag: {tag}, Data: {data}\n')
+
+        #     msh_filename = DEFAULT_TEMP_MESH_FILE
+        #     gmsh.write(msh_filename)
+        #     gmsh.finalize()
+        #     return msh_filename, surface_nodes, node_coords_map
+        
+        # dialog = BoxDialog(self)
+        # if dialog.exec_() == QDialog.Accepted and dialog.getValues() is not None:
+        #     values, mesh_size, checked = dialog.getValues()
+        #     x, y, z, length, width, height = values
+            
+        #     box_data_str = []
+        #     box_data_str.append(f'Primary Point: ({x}, {y}, {z})')
+        #     box_data_str.append(f'Length: {length}')
+        #     box_data_str.append(f'Width: {width}')
+        #     box_data_str.append(f'Height: {height}')
+            
+        #     if checked:
+        #         msh_filename, surface_nodes, node_coords_map = create_box_with_gmsh(mesh_size)
+        #         convert_msh_to_vtk(msh_filename)
+        #         self.add_actor(self.create_actor_for_surface(surface_nodes, node_coords_map))
+        #     else:
+        #         boxSource = vtkCubeSource()
+        #         boxSource.SetBounds(x - length / 2., x + length / 2., 
+        #                             y - width / 2., y + width / 2., 
+        #                             z - height / 2., z + height / 2.)
+        #         boxSource.Update()
+                
+        #         mapper = vtkPolyDataMapper()
+        #         mapper.SetInputConnection(boxSource.GetOutputPort())
+                
+        #         actor = vtkActor()
+        #         actor.SetMapper(mapper)
+        #         actor.GetProperty().SetColor(DEFAULT_ACTOR_COLOR)
+                
+        #     self.add_actor(actor)
+            
+        #     box_str = 'Box'
+        #     tmp = '\n'.join(box_data_str)
+        #     self.update_tree_model(box_str, tmp, actor)
+        #     self.log_console.printInfo(f'Successfully created box:\n{tmp}')
         def create_box_with_gmsh(mesh_size: float):
             gmsh.initialize()
             gmsh.model.add('custom_box')
@@ -1627,16 +1745,28 @@ class GraphicalEditor(QFrame):
 
     def saveBoundaryConditions(self, node_ids, value):
         try:
-            with open(DEFAULT_FILE_FOR_BOUNDARY_CONDITIONS, 'r') as file:
+            with open(self.config_tab.config_file_path, 'r') as file:
                 data = json.load(file)
         except FileNotFoundError:
             data = {}
+        except json.JSONDecodeError as e:
+            QMessageBox.critical(self, "Error", f"Error parsing JSON file '{self.config_tab.config_file_path}': {e}")
+            return
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"An error occurred while reading the configuration file '{self.config_tab.config_file_path}': {e}")
+            return
+
+        if "Boundary Conditions" not in data:
+            data["Boundary Conditions"] = {}
 
         node_key = ','.join(map(str, node_ids))
-        data[node_key] = value
+        data["Boundary Conditions"][node_key] = value
 
-        with open(DEFAULT_FILE_FOR_BOUNDARY_CONDITIONS, 'w') as file:
-            json.dump(data, file, indent=4)
+        try:
+            with open(self.config_tab.config_file_path, 'w') as file:
+                json.dump(data, file, indent=4)
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Failed to save configuration: {e}")
 
     def activate_selection_boundary_conditions_mode(self):
         if not self.selected_actor:
