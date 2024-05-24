@@ -1,8 +1,8 @@
 #ifndef PARTICLETRACKER_HPP
 #define PARTICLETRACKER_HPP
 
+#include <barrier>
 #include <mutex>
-#include <set>
 
 #include "FiniteElementMethod/MatrixEquationSolver.hpp"
 #include "Generators/VolumeCreator.hpp"
@@ -15,6 +15,13 @@ class ParticleTracker final
 {
 private:
     static constexpr short const kdefault_polynomOrder{1}; ///< Polynom order. Responds for count of the basis functions.
+
+    std::once_flag m_solve_once_flag;               ///< Matrix equation must be solved only one time.
+    static std::mutex m_PICTracker_mutex;           ///< Mutex for synchronizing access to the particles in tetrahedrons.
+    static std::mutex m_nodeChargeDensityMap_mutex; ///< Mutex for synchronizing access to the charge densities in nodes.
+    static std::mutex m_particlesMovement_mutex;    ///< Mutex for synchronizing access to particle movements.
+    static std::mutex m_settledParticles_mutex;     ///< Mutex for synchronizing access to settled particle IDs.
+    static std::atomic_flag m_stop_processing;      ///< Flag-checker for condition (counter >= size of particles).
 
     /* All the neccessary data members from the mesh. */
     MeshTriangleParamVector _triangleMesh;   ///< Triangle mesh params acquired from the mesh file. Surface mesh.
@@ -81,8 +88,32 @@ private:
     /// @brief Using HDF5Handler to update the mesh according to the settled particles.
     void updateSurfaceMesh();
 
-    /// TODO: Implement.
-    // void processSegment(...);
+    void processPIC(size_t start_index, size_t end_index,
+                    Grid3D const &cubicGrid, GSMatrixAssemblier &assemblier,
+                    std::map<size_t, ParticleVector> &globalPICtracker,
+                    std::map<GlobalOrdinal, double> &nodeChargeDensityMap);
+    void solveEquation(std::map<GlobalOrdinal, double> &nodeChargeDensityMap,
+                       GSMatrixAssemblier &assemblier, SolutionVector &solutionVector,
+                       std::map<GlobalOrdinal, double> &boundaryConditions, double time);
+    void processSurfaceCollisionTracker(size_t start_index, size_t end_index,
+                                        Grid3D const &cubicGrid, GSMatrixAssemblier const &assemblier,
+                                        std::map<size_t, ParticleVector> const &PICtracker);
+
+    /**
+     * @brief Processes a segment of the particle collection to detect collisions.
+     *
+     * @details This method runs in multiple threads, each processing a specified range of particles.
+     *          It updates particle positions and detects collisions with mesh elements,
+     *          recording collision counts.
+     *
+     * @param start_index The starting index in the particle vector for this segment.
+     * @param end_index The ending index in the particle vector for this segment.
+     * TODO:
+     */
+    void processSegment(size_t start_index, size_t end_index,
+                        Grid3D const &cubicGrid, GSMatrixAssemblier &assemblier, SolutionVector &solutionVector,
+                        std::map<GlobalOrdinal, double> &boundaryConditions, std::map<GlobalOrdinal, double> &nodeChargeDensityMap,
+                        std::barrier<> &barrier);
 
 public:
     ParticleTracker(std::string_view config_filename);
