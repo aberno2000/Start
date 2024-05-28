@@ -13,10 +13,6 @@ class GraphicalEditorTab(QWidget):
         self.config_tab = config_tab
         self.log_console = log_console
         self.setup_ui()
-        
-        self.object_idx = self.geditor.object_idx
-        self.undo_stack = self.geditor.undo_stack
-        self.redo_stack = self.geditor.redo_stack
 
 
     def setup_ui(self):

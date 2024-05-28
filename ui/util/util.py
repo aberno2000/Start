@@ -4,21 +4,22 @@ from os import remove
 from vtk import (
     vtkRenderer, vtkPolyData, vtkPolyDataWriter, vtkAppendPolyData,
     vtkPolyDataReader, vtkPolyDataMapper, vtkActor, vtkPolyDataWriter,
-    vtkUnstructuredGrid, vtkGeometryFilter, vtkTransform
+    vtkUnstructuredGrid, vtkGeometryFilter, vtkTransform, vtkCellArray,
+    vtkTriangle, vtkPoints, vtkDelaunay2D, vtkPolyLine, vtkVertexGlyphFilter
 )
-from PyQt5.QtCore import Qt, QSize
+from PyQt5.QtCore import QSize
 from PyQt5.QtWidgets import (
     QDialog, QFormLayout, QLineEdit, QDialogButtonBox, 
     QVBoxLayout, QMessageBox, QPushButton, QTableWidget,
     QTableWidgetItem, QSizePolicy, QLabel, QHBoxLayout,
-    QWidget, QScrollArea, QCheckBox, QComboBox
+    QWidget, QScrollArea, QComboBox, QTreeView
 )
-from PyQt5.QtGui import QDoubleValidator
+from PyQt5.QtGui import QDoubleValidator, QStandardItemModel, QStandardItem
 from .converter import is_positive_real_number, is_real_number
 from os.path import exists, isfile
 from vtkmodules.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 from json import dump, load
-from .styles import DEFAULT_QLINEEDIT_STYLE
+from .styles import DEFAULT_QLINEEDIT_STYLE, DEFAULT_ACTOR_COLOR
 
 DEFAULT_TEMP_MESH_FILE = 'temp.msh'
 DEFAULT_TEMP_VTK_FILE = 'temp.vtk'
@@ -295,14 +296,10 @@ class SurfaceDialog(QDialog):
         self.mainLayout.addWidget(self.scrollArea)
         self.mainLayout.addWidget(self.addButton)
         
-        self.meshCheckBox = QCheckBox("Mesh object")
-        self.meshCheckBox.setChecked(True)
-        self.meshCheckBox.stateChanged.connect(self.toggleMeshSizeInput)
         self.meshSizeInput = QLineEdit("1.0")
         self.meshSizeInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
         self.meshSizeLabel = QLabel("Mesh size:")
         meshLayout = QHBoxLayout()
-        meshLayout.addWidget(self.meshCheckBox)
         meshLayout.addWidget(self.meshSizeLabel)
         meshLayout.addWidget(self.meshSizeInput)
         self.mainLayout.addLayout(meshLayout)
@@ -313,12 +310,7 @@ class SurfaceDialog(QDialog):
 
         # Add dialog buttons to the main layout
         self.mainLayout.addWidget(self.buttons)
-    
-    def toggleMeshSizeInput(self, state):
-        isVisible = state == Qt.Checked
-        self.meshSizeInput.setHidden(not isVisible)
-        self.meshSizeLabel.setHidden(not isVisible)
-        self.meshSizeInput.setEnabled(state == Qt.Checked)
+        
 
     def add_point_fields(self):
         point_number = len(self.inputs) // 3 + 1
@@ -356,19 +348,17 @@ class SurfaceDialog(QDialog):
         values = [float(field.text()) for field in self.inputs]
         
         mesh_size = 1.0
-        if self.meshCheckBox.isChecked():
-            if not is_real_number(self.meshSizeInput.text()):
-                QMessageBox.warning(self, "Invalid input", "Mesh size must be floating point number.")
-                return None
-            mesh_size = float(self.meshSizeInput.text())
+        if not is_real_number(self.meshSizeInput.text()):
+            QMessageBox.warning(self, "Invalid input", "Mesh size must be floating point number.")
+            return None
+        mesh_size = float(self.meshSizeInput.text())
             
-        return values, mesh_size, self.meshCheckBox.isChecked()
+        return values, mesh_size
 
 
 class SphereDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
-        
         self.setWindowTitle("Create Sphere")
         
         # Create layout
@@ -382,30 +372,21 @@ class SphereDialog(QDialog):
         self.yInput = QLineEdit("0.0")
         self.zInput = QLineEdit("0.0")
         self.radiusInput = QLineEdit("5.0")
+        self.meshSizeInput = QLineEdit("1.0")
         
         self.xInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
         self.yInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
         self.zInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
         self.radiusInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
+        self.meshSizeInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
         
         formLayout.addRow("Center X:", self.xInput)
         formLayout.addRow("Center Y:", self.yInput)
         formLayout.addRow("Center Z:", self.zInput)
         formLayout.addRow("Radius:", self.radiusInput)
+        formLayout.addRow("Mesh size:", self.meshSizeInput)
         
         layout.addLayout(formLayout)
-        
-        self.meshCheckBox = QCheckBox("Mesh object")
-        self.meshCheckBox.setChecked(True)
-        self.meshCheckBox.stateChanged.connect(self.toggleMeshSizeInput)
-        self.meshSizeInput = QLineEdit("1.0")
-        self.meshSizeInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
-        self.meshSizeLabel = QLabel("Mesh size:")
-        meshLayout = QHBoxLayout()
-        meshLayout.addWidget(self.meshCheckBox)
-        meshLayout.addWidget(self.meshSizeLabel)
-        meshLayout.addWidget(self.meshSizeInput)
-        layout.addLayout(meshLayout)
         
         # Dialog buttons
         self.buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self)
@@ -413,12 +394,6 @@ class SphereDialog(QDialog):
         self.buttons.rejected.connect(self.reject)
         
         layout.addWidget(self.buttons)
-        
-    def toggleMeshSizeInput(self, state):
-        isVisible = state == Qt.Checked
-        self.meshSizeInput.setEnabled(state == Qt.Checked)
-        self.meshSizeLabel.setHidden(not isVisible)
-        self.meshSizeInput.setHidden(not isVisible)
         
     def getValues(self):        
         if not is_real_number(self.xInput.text()):
@@ -436,13 +411,12 @@ class SphereDialog(QDialog):
         values = float(self.xInput.text()), float(self.yInput.text()), float(self.zInput.text()), float(self.radiusInput.text())
         
         mesh_size = 0.0
-        if self.meshCheckBox.isChecked():
-            if not is_real_number(self.meshSizeInput.text()):
-                QMessageBox.warning(self, "Invalid input", "Mesh size must be floating point number.")
-                return None
-            mesh_size = float(self.meshSizeInput.text())
+        if not is_real_number(self.meshSizeInput.text()):
+            QMessageBox.warning(self, "Invalid input", "Mesh size must be floating point number.")
+            return None
+        mesh_size = float(self.meshSizeInput.text())
         
-        return values, mesh_size, self.meshCheckBox.isChecked()
+        return values, mesh_size
 
 
 class BoxDialog(QDialog):
@@ -459,6 +433,7 @@ class BoxDialog(QDialog):
         self.lengthInput = QLineEdit("5.0")
         self.widthInput = QLineEdit("5.0")
         self.heightInput = QLineEdit("5.0")
+        self.meshSizeInput = QLineEdit("1.0")
         
         self.xInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
         self.yInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
@@ -466,6 +441,7 @@ class BoxDialog(QDialog):
         self.lengthInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
         self.widthInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
         self.heightInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
+        self.meshSizeInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
         
         formLayout.addRow("Center X:", self.xInput)
         formLayout.addRow("Center Y:", self.yInput)
@@ -473,32 +449,15 @@ class BoxDialog(QDialog):
         formLayout.addRow("Length:", self.lengthInput)
         formLayout.addRow("Width:", self.widthInput)
         formLayout.addRow("Height:", self.heightInput)
+        formLayout.addRow("Mesh size:", self.meshSizeInput)
         
         layout.addLayout(formLayout)
-        
-        self.meshCheckBox = QCheckBox("Mesh object")
-        self.meshCheckBox.setChecked(True)
-        self.meshCheckBox.stateChanged.connect(self.toggleMeshSizeInput)
-        self.meshSizeInput = QLineEdit("1.0")
-        self.meshSizeInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
-        self.meshSizeLabel = QLabel("Mesh size:")
-        meshLayout = QHBoxLayout()
-        meshLayout.addWidget(self.meshCheckBox)
-        meshLayout.addWidget(self.meshSizeLabel)
-        meshLayout.addWidget(self.meshSizeInput)
-        layout.addLayout(meshLayout)
         
         self.buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self)
         self.buttons.accepted.connect(self.accept)
         self.buttons.rejected.connect(self.reject)
         
         layout.addWidget(self.buttons)
-        
-    def toggleMeshSizeInput(self, state):
-        isVisible = state == Qt.Checked
-        self.meshSizeInput.setEnabled(state == Qt.Checked)
-        self.meshSizeLabel.setHidden(not isVisible)
-        self.meshSizeInput.setHidden(not isVisible)
     
     def getValues(self):
         if not is_real_number(self.xInput.text()):
@@ -523,13 +482,12 @@ class BoxDialog(QDialog):
                 float(self.lengthInput.text()), float(self.widthInput.text()), float(self.heightInput.text()))
         
         mesh_size = 1.0
-        if self.meshCheckBox.isChecked():
-            if not is_real_number(self.meshSizeInput.text()):
-                QMessageBox.warning(self, "Invalid input", "Mesh size must be floating point number.")
-                return None
-            mesh_size = float(self.meshSizeInput.text())
+        if not is_real_number(self.meshSizeInput.text()):
+            QMessageBox.warning(self, "Invalid input", "Mesh size must be floating point number.")
+            return None
+        mesh_size = float(self.meshSizeInput.text())
 
-        return values, mesh_size, self.meshCheckBox.isChecked()
+        return values, mesh_size
 
 
 class CylinderDialog(QDialog):
@@ -547,6 +505,7 @@ class CylinderDialog(QDialog):
         self.dxInput = QLineEdit("5.0")
         self.dyInput = QLineEdit("5.0")
         self.dzInput = QLineEdit("5.0")
+        self.meshSizeInput = QLineEdit("1.0")
         
         self.xInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
         self.yInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
@@ -555,6 +514,7 @@ class CylinderDialog(QDialog):
         self.dxInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
         self.dyInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
         self.dzInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
+        self.meshSizeInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
         
         formLayout.addRow("Base center X:", self.xInput)
         formLayout.addRow("Base center Y:", self.yInput)
@@ -562,33 +522,16 @@ class CylinderDialog(QDialog):
         formLayout.addRow("Radius:", self.radiusInput)
         formLayout.addRow("Top center X:", self.dxInput)
         formLayout.addRow("Top center Y:", self.dyInput)
-        formLayout.addRow("Top center Z:", self.dzInput)        
+        formLayout.addRow("Top center Z:", self.dzInput)
+        formLayout.addRow("Mesh size:", self.meshSizeInput)   
         
         layout.addLayout(formLayout)
-        
-        self.meshCheckBox = QCheckBox("Mesh object")
-        self.meshCheckBox.setChecked(True)
-        self.meshCheckBox.stateChanged.connect(self.toggleMeshParamsInput)
-        self.meshSizeInput = QLineEdit("1.0")
-        self.meshSizeInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
-        meshLayout = QHBoxLayout()
-        meshLayout.addWidget(self.meshCheckBox)
-        self.meshSizeLabel = QLabel("Mesh size:")
-        meshLayout.addWidget(self.meshSizeLabel)
-        meshLayout.addWidget(self.meshSizeInput)
-        layout.addLayout(meshLayout)
         
         self.buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self)
         self.buttons.accepted.connect(self.accept)
         self.buttons.rejected.connect(self.reject)
         
         layout.addWidget(self.buttons)
-        
-    def toggleMeshParamsInput(self, state):
-        isVisible = state == Qt.Checked
-        self.meshSizeInput.setEnabled(state == Qt.Checked)
-        self.meshSizeLabel.setHidden(not isVisible)
-        self.meshSizeInput.setHidden(not isVisible)
     
     def getValues(self):
         if not is_real_number(self.xInput.text()):
@@ -616,13 +559,12 @@ class CylinderDialog(QDialog):
                 float(self.radiusInput.text()), float(self.dxInput.text()), float(self.dyInput.text()), float(self.dzInput.text()))
         
         mesh_size = 1.0
-        if self.meshCheckBox.isChecked():
-            if not is_real_number(self.meshSizeInput.text()):
-                QMessageBox.warning(self, "Invalid input", "Mesh size must be floating point number.")
-                return None
-            mesh_size = float(self.meshSizeInput.text())
-            
-        return values, mesh_size, self.meshCheckBox.isChecked()
+        if not is_real_number(self.meshSizeInput.text()):
+            QMessageBox.warning(self, "Invalid input", "Mesh size must be floating point number.")
+            return None
+        mesh_size = float(self.meshSizeInput.text())
+        
+        return values, mesh_size
 
 class ShortcutsInfoDialog(QDialog):
     def __init__(self, shortcuts, parent=None):
@@ -743,6 +685,43 @@ class Point:
 
     def __repr__(self):
         return f"Point(x={self.x}, y={self.y}, z={self.z})"
+
+class ActionHistory:
+    def __init__(self):
+        self.id = 0           # Counter for the current ID of objects
+        self.undo_stack = []  # Stack to keep track of undo actions
+        self.redo_stack = []  # Stack to keep track of redo actions
+
+    def add_action(self, object_on_stack):
+        """
+        Add a new action to the history. This clears the redo stack.
+        """
+        self.undo_stack.append(object_on_stack)
+
+    def undo(self):
+        """
+        Undo the last action.
+        Returns the row_id and actors for the undone action.
+        """
+        if not self.undo_stack:
+            return None
+        object_on_stack = self.undo_stack.pop()
+        self.redo_stack.append(object_on_stack)
+        self.id -= 1
+        return object_on_stack
+
+    def redo(self):
+        """
+        Redo the last undone action.
+        Returns the row_id and actors for the redone action.
+        """
+        if not self.redo_stack:
+            return None
+        object_on_stack = self.redo_stack.pop()
+        self.undo_stack.append(object_on_stack)
+        self.id += 1
+        return object_on_stack
+
 
 def align_view_by_axis(axis: str, renderer: vtkRenderer, vtkWidget: QVTKRenderWindowInteractor):
     axis = axis.strip().lower()
@@ -934,6 +913,11 @@ def convert_vtkUnstructuredGrid_to_vtkPolyData(data):
         return data
     else:
         return None
+
+def convert_unstructured_grid_to_polydata(data):
+    converted_part_1 = get_polydata_from_actor(data)
+    converted_part_2 = convert_vtkUnstructuredGrid_to_vtkPolyData(converted_part_1)
+    return converted_part_2
     
 def remove_temp_files_helper(filename: str):
     try:
@@ -1007,3 +991,518 @@ def transform_coordinates(points, matrix):
         transformed_point = transform.TransformPoint(point[0], point[1], point[2])
         transformed_points.append(transformed_point)
     return transformed_points
+
+
+def getObjectMapForPoint(mesh_filename: str = None) -> dict:
+    """
+    Extracts the point data from Gmsh and returns it in a structured format.
+
+    Parameters:
+    mesh_filename (str): The filename of the Gmsh mesh file to read.
+
+    Returns:
+    dict: A dictionary representing the point in the object map format.
+    """
+    if mesh_filename:
+        gmsh.open(mesh_filename)
+
+    gmsh.model.occ.synchronize()
+
+    # Getting all the nodes and their coordinates
+    all_node_tags, all_node_coords, _ = gmsh.model.mesh.getNodes()
+    point_map = {}
+    
+    for i, tag in enumerate(all_node_tags):
+        coords = (all_node_coords[i * 3], all_node_coords[i * 3 + 1], all_node_coords[i * 3 + 2])
+        point_map[f'Point[{tag}]'] = coords
+    
+    return point_map
+
+
+def getObjectMapForLine(mesh_filename: str = None) -> dict:
+    """
+    Extracts the line data from Gmsh and returns it in a structured format.
+
+    Parameters:
+    mesh_filename (str): The filename of the Gmsh mesh file to read.
+
+    Returns:
+    dict: A dictionary representing the line in the object map format.
+    """
+    if mesh_filename:
+        gmsh.open(mesh_filename)
+    
+    gmsh.model.occ.synchronize()
+    
+    # Getting all the nodes and their coordinates
+    all_node_tags, all_node_coords, _ = gmsh.model.mesh.getNodes()
+    node_coords_map = {tag: (all_node_coords[i * 3], all_node_coords[i * 3 + 1], all_node_coords[i * 3 + 2]) 
+                       for i, tag in enumerate(all_node_tags)}
+    
+    # Getting all the lines
+    lines = gmsh.model.getEntities(dim=1)
+    line_map = {}
+
+    for line_dim, line_tag in lines:
+        # Getting the nodes for the current line
+        element_types, element_tags, node_tags = gmsh.model.mesh.getElements(line_dim, line_tag)
+
+        for elem_type, elem_tags, elem_node_tags in zip(element_types, element_tags, node_tags):
+            if elem_type == 1:  # 1st type for lines
+                for i in range(len(elem_tags)):
+                    node_indices = elem_node_tags[i * 2:(i + 1) * 2]
+                    line = [
+                        (node_indices[0], node_coords_map[node_indices[0]]),
+                        (node_indices[1], node_coords_map[node_indices[1]])
+                    ]
+                    line_map[f'Line[{elem_tags[i]}]'] = line
+    return line_map
+
+
+
+def getObjectMapForSurface(mesh_filename: str = None) -> dict:
+    """
+    Generate a mapping of surfaces, triangles, and their nodes with coordinates from a Gmsh mesh file.
+
+    Parameters:
+    mesh_filename (str): The filename of the Gmsh mesh file to read.
+
+    Returns:
+    dict: A dictionary where the keys are surface tags. Each surface tag maps to a list of tuples,
+          each containing a triangle tag and a list of node tags with their coordinates.
+    """
+    if mesh_filename:
+        gmsh.open(mesh_filename)
+    
+    # Getting all the nodes and their coordinates
+    all_node_tags, all_node_coords, _ = gmsh.model.mesh.getNodes()
+    node_coords_map = {tag: (all_node_coords[i * 3], all_node_coords[i * 3 + 1], all_node_coords[i * 3 + 2]) 
+                    for i, tag in enumerate(all_node_tags)}
+
+    # Getting all the surfaces
+    surfaces = gmsh.model.getEntities(dim=2)
+    surface_map = {}
+
+    for surf_dim, surf_tag in surfaces:
+        # Getting triangles for the current surface
+        element_types, element_tags, node_tags = gmsh.model.mesh.getElements(surf_dim, surf_tag)
+
+        triangles = []
+        for elem_type, elem_tags, elem_node_tags in zip(element_types, element_tags, node_tags):
+            if elem_type == 2:  # 2nd type for the triangles
+                for i in range(len(elem_tags)):
+                    node_indices = elem_node_tags[i * 3:(i + 1) * 3]
+                    triangle = [
+                        (node_indices[0], node_coords_map[node_indices[0]]),
+                        (node_indices[1], node_coords_map[node_indices[1]]),
+                        (node_indices[2], node_coords_map[node_indices[2]])
+                    ]
+                    triangles.append((elem_tags[i], triangle))
+        surface_map[surf_tag] = triangles
+    return surface_map
+
+
+def getObjectMap(mesh_filename: str = None) -> dict:
+    """
+    Generate a mapping of volumes, surfaces, triangles, and their nodes with coordinates from a Gmsh mesh file.
+
+    Parameters:
+    mesh_filename (str): The filename of the Gmsh mesh file to read.
+
+    Returns:
+    dict: A dictionary where the keys are volume tags (or surface tags if no volumes are present),
+          and the values are dictionaries of surface tags. Each surface tag maps to a list of tuples,
+          each containing a triangle tag and a list of node tags with their coordinates.
+    """
+    if mesh_filename:
+        gmsh.open(mesh_filename)
+        
+    # Getting all the nodes and their coordinates
+    all_node_tags, all_node_coords, _ = gmsh.model.mesh.getNodes()
+    node_coords_map = {tag: (all_node_coords[i * 3], all_node_coords[i * 3 + 1], all_node_coords[i * 3 + 2]) 
+                    for i, tag in enumerate(all_node_tags)}
+
+    # Getting all the volumes
+    volumes = gmsh.model.getEntities(dim=3)
+    object_map = {}
+
+    entities = volumes if volumes else gmsh.model.getEntities(dim=2)
+
+    for dim, tag in entities:
+        # Getting surfaces for the current volume or directly the surfaces
+        surfaces = gmsh.model.getBoundary([(dim, tag)], oriented=False, recursive=False) if volumes else [(dim, tag)]
+
+        surface_map = {}
+        for surf_dim, surf_tag in surfaces:
+            # Getting triangles for the current surface
+            element_types, element_tags, node_tags = gmsh.model.mesh.getElements(surf_dim, surf_tag)
+
+            triangles = []
+            for elem_type, elem_tags, elem_node_tags in zip(element_types, element_tags, node_tags):
+                if elem_type == 2:  # 2nd type for the triangles
+                    for i in range(len(elem_tags)):
+                        node_indices = elem_node_tags[i * 3:(i + 1) * 3]
+                        triangle = [
+                            (node_indices[0], node_coords_map[node_indices[0]]),
+                            (node_indices[1], node_coords_map[node_indices[1]]),
+                            (node_indices[2], node_coords_map[node_indices[2]])
+                        ]
+                        triangles.append((elem_tags[i], triangle))
+            surface_map[surf_tag] = triangles
+        object_map[tag] = surface_map
+    return object_map
+
+
+def createActorsFromObjectMap(object_map: dict, type: str) -> list:
+    """
+    Create VTK actors for each surface, volume, or line in the object map.
+
+    Parameters:
+    object_map (dict): The object map generated by the getObjectMap function, which contains volumes,
+                       surfaces, triangles, and their nodes with coordinates.
+    type (str): The type of the object, which can be 'volume', 'surface', or 'line'.
+
+    Returns:
+    list: List of the VTK actors.
+    """
+    actors = []
+
+    if type == 'volume':
+        for _, surfaces in object_map.items():
+            for surface_tag, triangles in surfaces.items():
+                points = vtkPoints()
+                triangles_array = vtkCellArray()
+
+                # Dictionary to map node tags to point IDs in vtkPoints
+                point_id_map = {}
+
+                for triangle_tag, nodes in triangles:
+                    point_ids = []
+                    for node_tag, coords in nodes:
+                        if node_tag not in point_id_map:
+                            point_id = points.InsertNextPoint(coords)
+                            point_id_map[node_tag] = point_id
+                        else:
+                            point_id = point_id_map[node_tag]
+                        point_ids.append(point_id)
+
+                    # Create a VTK triangle and add it to the vtkCellArray
+                    triangle = vtkTriangle()
+                    for i, point_id in enumerate(point_ids):
+                        triangle.GetPointIds().SetId(i, point_id)
+                    triangles_array.InsertNextCell(triangle)
+
+                poly_data = vtkPolyData()
+                poly_data.SetPoints(points)
+                poly_data.SetPolys(triangles_array)
+                mapper = vtkPolyDataMapper()
+                mapper.SetInputData(poly_data)
+
+                # Create a vtkActor to represent the surface in the scene
+                actor = vtkActor()
+                actor.SetMapper(mapper)
+                actor.GetProperty().SetColor(DEFAULT_ACTOR_COLOR)
+
+                # Add the actor to the list
+                actors.append(actor)
+    
+    elif type == 'surface':
+        for surface_tag, triangles in object_map.items():
+            points = vtkPoints()
+            triangles_array = vtkCellArray()
+
+            # Dictionary to map node tags to point IDs in vtkPoints
+            point_id_map = {}
+
+            for triangle_tag, nodes in triangles:
+                point_ids = []
+                for node_tag, coords in nodes:
+                    if node_tag not in point_id_map:
+                        point_id = points.InsertNextPoint(coords)
+                        point_id_map[node_tag] = point_id
+                    else:
+                        point_id = point_id_map[node_tag]
+                    point_ids.append(point_id)
+
+                # Create a VTK triangle and add it to the vtkCellArray
+                triangle = vtkTriangle()
+                for i, point_id in enumerate(point_ids):
+                    triangle.GetPointIds().SetId(i, point_id)
+                triangles_array.InsertNextCell(triangle)
+
+            poly_data = vtkPolyData()
+            poly_data.SetPoints(points)
+            poly_data.SetPolys(triangles_array)
+            mapper = vtkPolyDataMapper()
+            mapper.SetInputData(poly_data)
+
+            # Create a vtkActor to represent the surface in the scene
+            actor = vtkActor()
+            actor.SetMapper(mapper)
+            actor.GetProperty().SetColor(DEFAULT_ACTOR_COLOR)
+
+            # Add the actor to the list
+            actors.append(actor)
+    
+    elif type == 'line':
+        for line_tag, points in object_map.items():
+            vtk_points = vtkPoints()
+            poly_line = vtkPolyLine()
+            poly_line.GetPointIds().SetNumberOfIds(len(points))
+            
+            # Dictionary to map node tags to point IDs in vtkPoints
+            point_id_map = {}
+
+            for i, (node_tag, coords) in enumerate(points):
+                if node_tag not in point_id_map:
+                    point_id = vtk_points.InsertNextPoint(coords)
+                    point_id_map[node_tag] = point_id
+                else:
+                    point_id = point_id_map[node_tag]
+
+                poly_line.GetPointIds().SetId(i, point_id)
+
+            lines_array = vtkCellArray()
+            lines_array.InsertNextCell(poly_line)
+
+            poly_data = vtkPolyData()
+            poly_data.SetPoints(vtk_points)
+            poly_data.SetLines(lines_array)
+            mapper = vtkPolyDataMapper()
+            mapper.SetInputData(poly_data)
+
+            # Create a vtkActor to represent the line in the scene
+            actor = vtkActor()
+            actor.SetMapper(mapper)
+            actor.GetProperty().SetColor(DEFAULT_ACTOR_COLOR)
+
+            # Add the actor to the list
+            actors.append(actor)
+
+    elif type == 'point':
+        for point_tag, coords in object_map.items():
+            vtk_points = vtkPoints()
+            vtk_points.InsertNextPoint(coords)
+            
+            poly_data = vtkPolyData()
+            poly_data.SetPoints(vtk_points)
+
+            glyph_filter = vtkVertexGlyphFilter()
+            glyph_filter.SetInputData(poly_data)
+            glyph_filter.Update()
+
+            mapper = vtkPolyDataMapper()
+            mapper.SetInputConnection(glyph_filter.GetOutputPort())
+
+            actor = vtkActor()
+            actor.SetMapper(mapper)
+            actor.GetProperty().SetPointSize(5)
+            actor.GetProperty().SetColor(DEFAULT_ACTOR_COLOR)
+
+            actors.append(actor)
+
+    return actors
+
+
+
+def populateTreeView(object_map: dict, object_idx: int, tree_model: QStandardItemModel, tree_view: QTreeView, type: str) -> int:
+    """
+    Populate the tree model with the hierarchical structure of the object map.
+
+    Parameters:
+    object_map (dict): The object map generated by the getObjectMap function, which contains volumes,
+                       surfaces, triangles, and their nodes with coordinates.
+    object_idx (int): Index of the object.
+    tree_model (QStandardItemModel): The QStandardItemModel where the hierarchical data will be inserted.
+    tree_view (QTreeView): The QTreeView where the tree model will be displayed.
+    type (str): The type of the object, which can be 'volume', 'surface', or 'line'.
+    
+    Returns:
+    int: The row index of the volume or surface item.
+    """
+    rows = []
+    root_row_index = -1
+
+    if type == 'line':
+        # Case when object_map contains lines directly
+        for line_tag, points in object_map.items():
+            # Add the line node to the tree model
+            line_item = QStandardItem(f'{line_tag}')
+            tree_model.appendRow(line_item)
+            
+            # Get the index of the line item
+            line_index = tree_model.indexFromItem(line_item)
+            root_row_index = line_index.row()
+            rows.append(root_row_index)
+            
+            for point_idx, (point_tag, coords) in enumerate(points, start=1):
+                # Add the point node to the tree model under the line node
+                point_str = f'Point[{point_tag}]: {coords}'
+                point_item = QStandardItem(point_str)
+                line_item.appendRow(point_item)
+    
+    elif type == 'volume':
+        # Case when object_map contains volumes
+        for _, surfaces in object_map.items():
+            # Add the volume node to the tree model
+            volume_item = QStandardItem(f'Volume[{object_idx}]')
+            tree_model.appendRow(volume_item)
+            
+            # Get the index of the volume item
+            volume_index = tree_model.indexFromItem(volume_item)
+            root_row_index = volume_index.row()
+            
+            for surface_tag, triangles in surfaces.items():
+                # Add the surface node to the tree model under the volume node
+                surface_item = QStandardItem(f'Surface[{surface_tag}]')
+                volume_item.appendRow(surface_item)
+                
+                for triangle_tag, nodes in triangles:
+                    # Add the triangle node to the tree model under the surface node
+                    triangle_item = QStandardItem(f'Triangle[{triangle_tag}]')
+                    surface_item.appendRow(triangle_item)
+                    
+                    # Generate lines for the triangle
+                    lines = [
+                        (nodes[0], nodes[1]),
+                        (nodes[1], nodes[2]),
+                        (nodes[2], nodes[0])
+                    ]
+                    
+                    for line_idx, (start, end) in enumerate(lines, start=1):
+                        # Add the line node under the triangle node
+                        line_item = QStandardItem(f'Line[{line_idx}]')
+                        triangle_item.appendRow(line_item)
+                        
+                        # Add the point data under the line node
+                        start_str = f'Point[{start[0]}]: {start[1]}'
+                        end_str = f'Point[{end[0]}]: {end[1]}'
+                        start_item = QStandardItem(start_str)
+                        end_item = QStandardItem(end_str)
+                        line_item.appendRow(start_item)
+                        line_item.appendRow(end_item)
+
+    elif type == 'surface':
+        # Case when object_map contains surfaces directly
+        for surface_tag, triangles in object_map.items():
+            # Add the surface node to the tree model
+            surface_item = QStandardItem(f'Surface[{surface_tag}]')
+            tree_model.appendRow(surface_item)
+            
+            # Get the index of the surface item
+            surface_index = tree_model.indexFromItem(surface_item)
+            root_row_index = surface_index.row()
+            
+            for triangle_tag, nodes in triangles:
+                # Add the triangle node to the tree model under the surface node
+                triangle_item = QStandardItem(f'Triangle[{triangle_tag}]')
+                surface_item.appendRow(triangle_item)
+                
+                # Generate lines for the triangle
+                lines = [
+                    (nodes[0], nodes[1]),
+                    (nodes[1], nodes[2]),
+                    (nodes[2], nodes[0])
+                ]
+                
+                for line_idx, (start, end) in enumerate(lines, start=1):
+                    # Add the line node under the triangle node
+                    line_item = QStandardItem(f'Line[{line_idx}]')
+                    triangle_item.appendRow(line_item)
+                    
+                    # Add the point data under the line node
+                    start_str = f'Point[{start[0]}]: {start[1]}'
+                    end_str = f'Point[{end[0]}]: {end[1]}'
+                    start_item = QStandardItem(start_str)
+                    end_item = QStandardItem(end_str)
+                    line_item.appendRow(start_item)
+                    line_item.appendRow(end_item)
+                    
+    elif type == 'point':
+        for point_tag, coords in object_map.items():
+            point_item = QStandardItem(f'{point_tag}: {coords}')
+            tree_model.appendRow(point_item)
+            point_index = tree_model.indexFromItem(point_item)
+            root_row_index = point_index.row()
+
+    tree_view.setModel(tree_model)
+    if type != 'line':
+        return root_row_index
+    else:
+        return rows
+
+
+def can_create_surface(point_data):
+    """
+    Check if a surface can be created from the given set of points using VTK.
+
+    Parameters:
+    point_data (list of tuples): List of (x, y, z) coordinates of the points.
+
+    Returns:
+    bool: True if the surface can be created, False otherwise.
+    """    
+    # Create a vtkPoints object and add the points
+    points = vtkPoints()
+    for x, y, z in point_data:
+        points.InsertNextPoint(x, y, z)
+    
+    # Create a polydata object and set the points
+    poly_data = vtkPolyData()
+    poly_data.SetPoints(points)
+
+    # Create a Delaunay2D object and set the input
+    delaunay = vtkDelaunay2D()
+    delaunay.SetInputData(poly_data)
+    
+    # Try to create the surface
+    delaunay.Update()
+    
+    # Check if the surface was created
+    output = delaunay.GetOutput()
+    if output.GetNumberOfCells() > 0:
+        return True
+    else:
+        return False
+
+
+def can_create_line(point_data):
+    """
+    Check if a line can be created from the given set of points using VTK.
+
+    Parameters:
+    point_data (list of tuples): List of (x, y, z) coordinates of the points.
+
+    Returns:
+    bool: True if the line can be created, False otherwise.
+    """
+    # Check if all points are the same
+    if all(point == point_data[0] for point in point_data):
+        return False
+    
+    # Create a vtkPoints object and add the points
+    points = vtkPoints()
+    for x, y, z in point_data:
+        points.InsertNextPoint(x, y, z)
+    
+    # Create a polyline object
+    line = vtkPolyLine()
+    line.GetPointIds().SetNumberOfIds(len(point_data))
+    
+    for i in range(len(point_data)):
+        line.GetPointIds().SetId(i, i)
+    
+    # Create a vtkCellArray and add the line to it
+    lines = vtkCellArray()
+    lines.InsertNextCell(line)
+    
+    # Create a polydata object and set the points and lines
+    poly_data = vtkPolyData()
+    poly_data.SetPoints(points)
+    poly_data.SetLines(lines)
+    
+    # Check if the line was created
+    if poly_data.GetNumberOfLines() > 0:
+        return True
+    else:
+        return False

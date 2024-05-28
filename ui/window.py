@@ -22,7 +22,7 @@ from util.util import DEFAULT_COUNT_OF_PROJECT_FILES
 
 class WindowApp(QMainWindow):    
     def __init__(self):
-        super().__init__()        
+        super().__init__()
         self.process = QProcess(self)
         self.process.readyReadStandardError.connect(self.read_stderr)
         self.process.readyReadStandardOutput.connect(self.read_stdout)
@@ -91,7 +91,7 @@ class WindowApp(QMainWindow):
         # Setting by default axes alignment by center
         self.geditor.align_view_by_axis('center')
         self.results_tab.align_view_by_axis('center')
-
+        
     
     def read_stderr(self):
         try:
@@ -101,6 +101,7 @@ class WindowApp(QMainWindow):
         segments = ansi_to_segments(errout)
         for segment, color in segments:
             self.insert_colored_text('', segment, color)
+
 
     def read_stdout(self):
         try:
@@ -558,9 +559,9 @@ class WindowApp(QMainWindow):
             
         # History bindings
         elif event.modifiers() & Qt.ControlModifier and event.key() == Qt.Key_Z:
-            self.geditor.undo_action_tree_view()
+            self.geditor.global_undo()
         elif event.modifiers() & Qt.ControlModifier and event.key() == Qt.Key_Y:
-            self.geditor.redo_action_tree_view()
+            self.geditor.global_redo()
         else:
             super().keyPressEvent(event)
         
