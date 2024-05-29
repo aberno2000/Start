@@ -1,6 +1,5 @@
 import gmsh, json
 from numpy import cross
-from os import rename
 from os.path import isfile, exists
 from vtkmodules.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 from vtkmodules.vtkInteractionStyle import(
@@ -51,6 +50,7 @@ INTERACTOR_STYLE_RUBBER_AND_PICK = 'rubber_and_pick'
 
 
 ACTION_ACTOR_CREATING = 'create_actor'
+ACTION_ACTOR_TRANSFORMATION = 'transform'
 
 
 class GraphicalEditor(QFrame):    
@@ -58,6 +58,7 @@ class GraphicalEditor(QFrame):
         super().__init__(parent)
         self.config_tab = config_tab
         
+        self.tree_item_actor_map = {}
         self.treeView = QTreeView()
         self.model = QStandardItemModel()
         self.model.setHorizontalHeaderLabels(['Mesh Tree'])
@@ -103,8 +104,13 @@ class GraphicalEditor(QFrame):
     def initialize_tree(self):
         self.model = QStandardItemModel()
         self.model.setHorizontalHeaderLabels(['Mesh Tree'])
-        self.treeView.setModel(self.model)
+        self.setTreeViewModel(self.model)
         
+
+    def setTreeViewModel(self):
+        self.treeView.setModel(self.model)
+        self.treeView.selectionModel().selectionChanged.connect(self.on_tree_selection_changed)
+
 
     def initialize_node_map(self):
         gmsh.initialize()
@@ -591,8 +597,17 @@ class GraphicalEditor(QFrame):
         self.vtkWidget.GetRenderWindow().Render()
     
     
-    def remove_object_with_restore(self, actor: vtkActor):
-        # TODO: fix
+    def remove_objects_with_restore(self, actors: list):
+        # TODO: implement
+        if actors:
+            # Saving previous actors:
+            prev_state = actors
+            self.objectsHistory.add_action((prev_state, ))
+            
+            for actor in actors:
+                pass
+                
+        
         if actor in self.renderer.GetActors():
             # Getting current added object
             action = self.undo_stack.pop()
@@ -666,6 +681,8 @@ class GraphicalEditor(QFrame):
         
         if action == ACTION_ACTOR_CREATING:
             self.undo_object_creating()
+        elif action == ACTION_ACTOR_TRANSFORMATION:
+            self.undo_transform()
         # TODO: Make other actions
     
     
@@ -677,58 +694,122 @@ class GraphicalEditor(QFrame):
         
         if action == ACTION_ACTOR_CREATING:
             self.redo_object_creating()
+        elif action == ACTION_ACTOR_TRANSFORMATION:
+            self.redo_transform()
         # TODO: Make other actions
+        
     
-    
+    def undo_transform(self):
+        # TODO: implement
+        pass
+
+    def redo_transform(self):
+        # TODO: implement
+        pass
+
+        
     def undo_object_creating(self):
         res = self.objectsHistory.undo()
         if not res:
             return
-        row, actors, object_map, type = res
+        row, actors, object_map, objType = res
         
         self.remove_actors(actors)
         
-        if type != 'line':
-            self.remove_row_from_tree_upd(row)
+        if objType != 'line':
+            self.remove_row_from_tree(row)
         else:
-            self.remove_rows_from_tree_upd(row)
+            self.remove_rows_from_tree(row)
     
 
     def redo_object_creating(self):
         res = self.objectsHistory.redo()
         if not res:
             return
-        row, actors, object_map, type = res
+        row, actors, object_map, objType = res
         
         self.add_actors(actors)
-        self.populate_tree_upd(object_map, type)
+        self.populate_tree(object_map, objType)
     
     
-    def remove_row_from_tree_upd(self, row):
+    def remove_row_from_tree(self, row):
         self.model.removeRow(row)
-        self.treeView.setModel(self.model)
+        self.setTreeViewModel()
     
-    
-    def remove_rows_from_tree_upd(self, rows):
+    def remove_rows_from_tree(self, rows):
         row = rows[0]
         for _ in range(len(rows)):
             self.model.removeRow(row)
-        self.treeView.setModel(self.model)
-        
+        self.setTreeViewModel()
     
-    def populate_tree_upd(self, objectMap: dict, type: str) -> list:
-        row = populateTreeView(objectMap, self.objectsHistory.id, self.model, self.treeView, type)
-        actors = createActorsFromObjectMap(objectMap, type)
+    def fill_row_actor_map(self, row, actors, objType: str):
+        if objType == 'volume':
+            volume_index = row
+            self.tree_item_actor_map[volume_index] = []
+            for i, actor in enumerate(actors):
+                surface_index = volume_index + i + 1
+                self.tree_item_actor_map[surface_index] = [actor]
+                self.tree_item_actor_map[volume_index].append(actor)
+        elif objType == 'line':
+            for i, r in enumerate(row):
+                self.tree_item_actor_map[r] = [actors[i]]
+        else:
+            self.tree_item_actor_map[row] = actors
+    
+    
+    def populate_tree(self, objectMap: dict, objType: str) -> list:
+        row = populateTreeView(objectMap, self.objectsHistory.id, self.model, self.treeView, objType)
+        self.treeView.selectionModel().selectionChanged.connect(self.on_tree_selection_changed)
+        actors = createActorsFromObjectMap(objectMap, objType)
+        
+        self.fill_row_actor_map(row, actors, objType)
+        
         return row, actors
     
     
-    def add_actors_and_populate_tree_view(self, objectMap: dict, type: str):
+    def add_actors_and_populate_tree_view(self, objectMap: dict, objType: str):
         self.objectsHistory.id += 1
-        row, actors = self.populate_tree_upd(objectMap, type)
-        self.add_actors(actors)
-        self.objectsHistory.add_action((row, actors, objectMap, type))
+        row, actors = self.populate_tree(objectMap, objType)
+        self.add_actors(actors)        
+        self.objectsHistory.add_action((row, actors, objectMap, objType))
         self.global_undo_stack.append(ACTION_ACTOR_CREATING)
+        
     
+    def highlight_actor(self, actor: vtkActor):
+        actor.GetProperty().SetColor(SELECTED_ACTOR_COLOR)
+        self.vtkWidget.GetRenderWindow().Render()
+
+
+    def unhighlight_actor(self, actor: vtkActor):
+        actor.GetProperty().SetColor(DEFAULT_ACTOR_COLOR)
+        self.vtkWidget.GetRenderWindow().Render()
+
+    
+    def on_tree_selection_changed(self):
+        selected_indexes = self.treeView.selectedIndexes()
+        if not selected_indexes:
+            return
+        
+        selected_row = selected_indexes[0].row()
+        selected_item = self.tree_item_actor_map[selected_row] if selected_row in self.tree_item_actor_map else None
+
+        # Unhighlight previously selected actors
+        for actor in self.selected_actors:
+            self.unhighlight_actor(actor)
+        
+        self.selected_actors.clear()
+
+        # Highlight selected actors
+        if selected_item:
+            if isinstance(selected_item, list):
+                for actor in selected_item:
+                    self.highlight_actor(actor)
+                    self.selected_actors.add(actor)
+            else:
+                self.highlight_actor(selected_item)
+                self.selected_actors.add(selected_item)
+
+
     
     def retrieve_mesh_filename(self) -> str:
         """
@@ -811,28 +892,11 @@ class GraphicalEditor(QFrame):
         self.picker.Pick(click_pos[0], click_pos[1], 0, self.renderer)
 
         actor = self.picker.GetActor()
-
-        # Check if Ctrl is held down
-        ctrl_held = self.interactor.GetControlKey()
-
         if actor:
-            if ctrl_held:
-                # Multiple selection mode
-                if actor in self.selected_actors:
-                    self.selected_actors.remove(actor)
-                    actor.GetProperty().SetColor(DEFAULT_ACTOR_COLOR)
-                else:
-                    self.selected_actors.add(actor)
-                    actor.GetProperty().SetColor(SELECTED_ACTOR_COLOR)
-            else:
-                # Single selection mode
-                if self.selected_actor:
-                    self.selected_actor.GetProperty().SetColor(self.original_color)
-                
-                self.original_color = actor.GetProperty().GetColor()
-                self.selected_actor = actor
-                actor.GetProperty().SetColor(SELECTED_ACTOR_COLOR)
-                self.selected_actors = {actor}  # Reset multiple selection
+            self.original_color = actor.GetProperty().GetColor()
+            self.selected_actor = actor
+            actor.GetProperty().SetColor(SELECTED_ACTOR_COLOR)
+            self.selected_actors = {actor}  # Reset multiple selection
 
             self.vtkWidget.GetRenderWindow().Render()
 
@@ -861,10 +925,10 @@ class GraphicalEditor(QFrame):
             operationDescription = self.isPerformOperation[1]
 
             if not self.firstObjectToPerformOperation:
-                self.firstObjectToPerformOperation = self.selected_actor
+                self.firstObjectToPerformOperation = self.selected_actors[0]
                 self.statusBar.showMessage(f"With which object to perform {operationDescription}?")
             else:
-                secondObjectToPerformOperation = self.selected_actor
+                secondObjectToPerformOperation = self.selected_actors[0]
                 if self.firstObjectToPerformOperation and secondObjectToPerformOperation:
                     operationType = self.isPerformOperation[1]
 
@@ -889,7 +953,6 @@ class GraphicalEditor(QFrame):
             
     
     def setup_interaction(self):
-        self.selected_actor = None
         self.original_color = None
         self.change_interactor(INTERACTOR_STYLE_TRACKBALL_CAMERA)
         self.interactor.AddObserver(vtkCommand.KeyPressEvent, self.on_key_press)
@@ -907,7 +970,7 @@ class GraphicalEditor(QFrame):
 
         actor = self.picker.GetActor()
         if actor:
-            self.selected_actor = actor
+            self.selected_actors[0] = actor
             self.original_color = actor.GetProperty().GetColor()
             self.context_menu()
     
@@ -919,13 +982,12 @@ class GraphicalEditor(QFrame):
             self.deselect()
             
         if key == 'Delete' or key == 'BackSpace':
-            if self.selected_actor:
-                self.remove_object_with_restore(self.selected_actor)
-                self.selected_actor = None
+            if self.selected_actors:
+                self.remove_objects_with_restore(self.selected_actors)
 
         # C - controlling the object.
         if key == 'c' or key == 'C':
-            if self.selected_actor:
+            if self.selected_actors:
                 self.change_interactor(INTERACTOR_STYLE_TRACKBALL_ACTOR)
 
         self.interactorStyle.OnKeyPress()
@@ -954,11 +1016,11 @@ class GraphicalEditor(QFrame):
         self.interactor.Start()
     
     def context_menu(self):
-        if self.selected_actor:
+        if self.selected_actors[0]:
             menu = QMenu(self)
 
             move_action = QAction('Move', self)
-            move_action.triggered.connect(self.move_actor)
+            move_action.triggered.connect(self.move_actors)
             menu.addAction(move_action)
 
             change_angle_action = QAction('Rotate', self)
@@ -970,42 +1032,44 @@ class GraphicalEditor(QFrame):
             menu.addAction(adjust_size_action)
             
             remove_object_action = QAction('Remove', self)
-            remove_object_action.triggered.connect(lambda: self.permanently_remove_actor(self.selected_actor))
+            remove_object_action.triggered.connect(lambda: self.permanently_remove_actor(self.selected_actors[0]))
             menu.addAction(remove_object_action)
             
             colorize_object_action = QAction('Colorize', self)
-            colorize_object_action.triggered.connect(lambda: self.colorize_actor(self.selected_actor))
+            colorize_object_action.triggered.connect(lambda: self.colorize_actor(self.selected_actors[0]))
             menu.addAction(colorize_object_action)
 
             menu.exec_(QCursor.pos())
-            
+    
+    
     def deselect(self):
         try:
-            if self.selected_actors:
-                for actor in self.selected_actors:
-                    if actor in self.renderer.GetActors():
-                        actor.GetProperty().SetColor(DEFAULT_ACTOR_COLOR)
+            for actor in self.renderer.GetActors():
+                actor.GetProperty().SetColor(DEFAULT_ACTOR_COLOR)
+            
             self.selected_actors.clear()
             
-            if self.selected_actor:
-                self.selected_actor.GetProperty().SetColor(DEFAULT_ACTOR_COLOR)
-                self.selected_actor = None
-                
             self.vtkWidget.GetRenderWindow().Render()
         except Exception as _:
             return
 
-    def move_actor(self):
-        if self.selected_actor:
+
+    def move_actors(self):
+        if self.selected_actors:
+            for actor in self.selected_actors:
+                self.move_actor(actor)
+
+    def move_actor(self, actor: vtkActor):        
+        if actor:
             dialog = MoveActorDialog(self)
             if dialog.exec_() == QDialog.Accepted:
                 offsets = dialog.getValues()
                 if offsets:
                     x_offset, y_offset, z_offset = offsets
-                    position = self.selected_actor.GetPosition()
+                    position = actor.GetPosition()
                     new_position = (position[0] + x_offset, position[1] + y_offset, position[2] + z_offset)
                     
-                    polydata = convert_unstructured_grid_to_polydata(self.selected_actor)
+                    polydata = convert_unstructured_grid_to_polydata(actor)
                     if not polydata:
                         return
                     
@@ -1018,32 +1082,32 @@ class GraphicalEditor(QFrame):
                     polydata.Modified()
                     
                     # Moving actor on the scene
-                    self.selected_actor.SetPosition(new_position)
+                    actor.SetPosition(new_position)
                     self.vtkWidget.GetRenderWindow().Render()
                     
                     self.deselect()
 
 
-    def adjust_actor_size(self):
-        if self.selected_actor:
+    def adjust_actor_size(self, actor: vtkActor):
+        if actor:
             scale_factor, ok = QInputDialog.getDouble(self, "Adjust size", "Scale:", 1.0, 0.01, 100.0, 2)
             if ok:
-                self.selected_actor.SetScale(scale_factor, scale_factor, scale_factor)
+                actor.SetScale(scale_factor, scale_factor, scale_factor)
                 self.vtkWidget.GetRenderWindow().Render()
                 
                 self.deselect()
 
     
-    def change_actor_angle(self):
-        if self.selected_actor:
+    def change_actor_angle(self, actor: vtkActor):
+        if actor:
             dialog = AngleDialog(self)
             if dialog.exec_() == QDialog.Accepted:
                 angles = dialog.getValues()
                 if angles:
                     angle_x, angle_y, angle_z = angles
-                    self.selected_actor.RotateX(angle_x)
-                    self.selected_actor.RotateY(angle_y)
-                    self.selected_actor.RotateZ(angle_z)
+                    actor.RotateX(angle_x)
+                    actor.RotateY(angle_y)
+                    actor.RotateZ(angle_z)
                     self.vtkWidget.GetRenderWindow().Render()
                     
                     self.deselect()
@@ -1097,7 +1161,7 @@ class GraphicalEditor(QFrame):
     
     
     def cross_section_button_clicked(self):
-        if not self.selected_actor:
+        if not self.selected_actors[0]:
             QMessageBox.warning(self, "Warning", "You need to select object first")
             return
         
@@ -1193,7 +1257,7 @@ class GraphicalEditor(QFrame):
         self.perform_cut(plane)
         
     def perform_cut(self, plane):
-        polydata = convert_unstructured_grid_to_polydata(self.selected_actor)
+        polydata = convert_unstructured_grid_to_polydata(self.selected_actors[0])
         if not polydata:
             QMessageBox.warning(self, "Error", "Selected object is not suitable for cross-section.")
             return
@@ -1223,7 +1287,7 @@ class GraphicalEditor(QFrame):
         actor2.GetProperty().SetColor(0.8, 0.3, 0.3)
 
         # Removing actor and corresponding row in a tree view
-        self.remove_actor(self.selected_actor)
+        self.remove_actor(self.selected_actors[0])
         self.remove_row_from_tree_view()
         
         # Adding 2 new objects
@@ -1457,7 +1521,7 @@ class GraphicalEditor(QFrame):
             QMessageBox.critical(self, "Error", f"Failed to save configuration: {e}")
 
     def activate_selection_boundary_conditions_mode(self):
-        if not self.selected_actor:
+        if not self.selected_actors[0]:
             QMessageBox.warning(self, "Set Boundary Conditions", "To begin with setting boundary conditions you'll need to select object")
             self.log_console.printWarning("To begin with setting boundary conditions you'll need to select object")
             return
