@@ -109,6 +109,7 @@ class GraphicalEditor(QFrame):
 
     def setTreeViewModel(self):
         self.treeView.setModel(self.model)
+        self.treeView.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self.treeView.selectionModel().selectionChanged.connect(self.on_tree_selection_changed)
 
 
@@ -759,6 +760,7 @@ class GraphicalEditor(QFrame):
     
     def populate_tree(self, objectMap: dict, objType: str) -> list:
         row = populateTreeView(objectMap, self.objectsHistory.id, self.model, self.treeView, objType)
+        self.treeView.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self.treeView.selectionModel().selectionChanged.connect(self.on_tree_selection_changed)
         actors = createActorsFromObjectMap(objectMap, objType)
         
