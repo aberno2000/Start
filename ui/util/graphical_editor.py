@@ -9,7 +9,7 @@ from vtkmodules.vtkInteractionStyle import(
 )
 from vtkmodules.vtkFiltersGeneral import vtkBooleanOperationPolyDataFilter
 from PyQt5.QtGui import QIcon
-from PyQt5.QtCore import QSize, Qt, pyqtSlot
+from PyQt5.QtCore import QSize, Qt, pyqtSlot, QItemSelectionModel
 from vtk import(
     vtkRenderer, vtkPoints, vtkPolyData, vtkPolyLine, vtkCellArray, vtkPolyDataMapper, 
     vtkActor, vtkSphereSource, vtkAxesActor, vtkOrientationMarkerWidget, 
@@ -22,7 +22,7 @@ from PyQt5.QtWidgets import(
     QPushButton, QDialog, QSpacerItem, QColorDialog,
     QSizePolicy, QMessageBox, QFileDialog,
     QMenu, QAction, QInputDialog, QStatusBar,
-    QListWidget, QListWidgetItem, QAbstractItemView
+    QListWidget, QListWidgetItem, QAbstractItemView,
 )
 from PyQt5.QtGui import QCursor, QStandardItemModel
 from .util import(
@@ -748,7 +748,7 @@ class GraphicalEditor(QFrame):
             volume_index = row
             self.tree_item_actor_map[volume_index] = []
             for i, actor in enumerate(actors):
-                surface_index = volume_index + i + 1
+                surface_index = volume_index + i
                 actor_color = actor.GetProperty().GetColor()
                 self.tree_item_actor_map[surface_index] = [(surface_index, actor, actor_color)]
                 self.tree_item_actor_map[volume_index].append((surface_index, actor, actor_color))
@@ -795,25 +795,33 @@ class GraphicalEditor(QFrame):
         if not selected_indexes:
             return
         
-        selected_row = selected_indexes[0].row()
-        selected_item = self.tree_item_actor_map[selected_row] if selected_row in self.tree_item_actor_map else None
-
-        # Unhighlight previously selected actors
         for actor in self.selected_actors:
             self.unhighlight_actor(actor)
         
         self.selected_actors.clear()
 
-        # Highlight selected actors
-        if selected_item:
-            if isinstance(selected_item, list):
-                for actor in selected_item:
-                    self.highlight_actor(actor)
-                    self.selected_actors.add(actor)
+        for index in selected_indexes:
+            selected_row = index.row()
+            parent_index = index.parent().row()
+            
+            selected_item = None
+            if parent_index == -1:
+                selected_item = self.tree_item_actor_map.get(selected_row, None)
             else:
-                self.highlight_actor(selected_item)
-                self.selected_actors.add(selected_item)
-
+                parent_item = self.tree_item_actor_map.get(parent_index, [])
+                for item in parent_item:
+                    if item[0] == selected_row:
+                        selected_item = item[1]
+                        break
+            
+            if selected_item:
+                if isinstance(selected_item, list):
+                    for _, actor, _ in selected_item:
+                        self.highlight_actor(actor)
+                        self.selected_actors.add(actor)
+                else:
+                    self.highlight_actor(selected_item)
+                    self.selected_actors.add(selected_item)
 
     
     def retrieve_mesh_filename(self) -> str:
@@ -898,12 +906,32 @@ class GraphicalEditor(QFrame):
 
         actor = self.picker.GetActor()
         if actor:
-            self.original_color = actor.GetProperty().GetColor()
-            self.selected_actor = actor
-            actor.GetProperty().SetColor(SELECTED_ACTOR_COLOR)
-            self.selected_actors = {actor}  # Reset multiple selection
+            if not (self.interactor.GetControlKey() or self.interactor.GetShiftKey()):
+                # Reset selection of all previous actors and tree view items
+                for selected_actor in self.selected_actors:
+                    self.unhighlight_actor(selected_actor)
+                self.treeView.clearSelection()
+                self.selected_actors.clear()
 
+            parent_row = next(iter(self.tree_item_actor_map))
+            rows_to_select = []
+
+            # Find the corresponding child rows
+            for internal_row, mapped_actor, color in self.tree_item_actor_map[parent_row]:
+                if actor == mapped_actor:
+                    rows_to_select.append(internal_row)
+                    break
+
+            # Select child rows
+            for row in rows_to_select:
+                child_index = self.model.index(row, 0, self.model.index(parent_row, 0))
+                if child_index.isValid():
+                    self.treeView.selectionModel().select(child_index, QItemSelectionModel.Select | QItemSelectionModel.Rows)
+
+            self.selected_actors.add(actor)
+            actor.GetProperty().SetColor(SELECTED_ACTOR_COLOR)
             self.vtkWidget.GetRenderWindow().Render()
+
 
         # Check if boundary node selection mode is active
         if self.isBoundaryNodeSelectionMode:
@@ -949,6 +977,7 @@ class GraphicalEditor(QFrame):
                 self.firstObjectToPerformOperation = None
                 self.isPerformOperation = (False, None)
                 self.statusBar.clearMessage()
+
 
     def select_node_in_list_widget(self, node_id):
         items = self.nodeListWidget.findItems(str(node_id), Qt.MatchExactly)
