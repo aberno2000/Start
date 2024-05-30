@@ -33,9 +33,9 @@ from .util import(
 )
 from util.util import(
     align_view_by_axis, save_scene, load_scene, convert_unstructured_grid_to_polydata,
-    can_create_line, getObjectMapForPoint, extract_transform_from_actor, calculate_thetaPhi, 
+    can_create_line, extract_transform_from_actor, calculate_thetaPhi, 
     rad_to_degree, getObjectMap, createActorsFromObjectMap, populateTreeView, 
-    getObjectMapForSurface, can_create_surface, getObjectMapForLine,
+    can_create_surface, formActorNodesDictionary,
     ActionHistory,
     DEFAULT_TEMP_MESH_FILE, DEFAULT_TEMP_FILE_FOR_PARTICLE_SOURCE_AND_THETA
 )
@@ -59,6 +59,7 @@ class GraphicalEditor(QFrame):
         self.config_tab = config_tab
         
         self.tree_item_actor_map = {}
+        self.actor_nodes_map = {}
         self.treeView = QTreeView()
         self.model = QStandardItemModel()
         self.model.setHorizontalHeaderLabels(['Mesh Tree'])
@@ -226,8 +227,9 @@ class GraphicalEditor(QFrame):
         self.unionObjectsButton = self.create_button('icons/union.png', 'Combine (union) objects')
         self.intersectObjectsButton = self.create_button('icons/intersection.png', 'Intersection of two objects')
         self.crossSectionButton = self.create_button('icons/cross-section.png', 'Cross section of the object')
-        self.directParticleButton = self.create_button('icons/particle-source-direction.png', 'Set particle source and direction of this source')
         self.setBoundaryConditionsButton = self.create_button('icons/boundary-conditions.png', 'Turning on mode to select boundary nodes')
+        self.setBoundaryConditionsSurfaceButton = self.create_button('icons/boundary-conditions-surface.png', 'Turning on mode to select boundary nodes on surface')
+        self.directParticleButton = self.create_button('icons/particle-source-direction.png', 'Set particle source and direction of this source')
         
         self.spacer = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
         self.toolbarLayout.addSpacerItem(self.spacer)
@@ -249,8 +251,9 @@ class GraphicalEditor(QFrame):
         self.unionObjectsButton.clicked.connect(self.combine_button_clicked)
         self.intersectObjectsButton.clicked.connect(self.intersection_button_clicked)
         self.crossSectionButton.clicked.connect(self.cross_section_button_clicked)
-        self.directParticleButton.clicked.connect(self.activate_particle_direction_mode)
         self.setBoundaryConditionsButton.clicked.connect(self.activate_selection_boundary_conditions_mode)
+        self.setBoundaryConditionsSurfaceButton.clicked.connect(self.activate_selection_boundary_conditions_mode_for_surface)
+        self.directParticleButton.clicked.connect(self.activate_particle_direction_mode)
 
     def setup_ui(self):
         self.vtkWidget = QVTKRenderWindowInteractor(self)
@@ -271,7 +274,7 @@ class GraphicalEditor(QFrame):
             gmsh.model.geo.addPoint(x, y, z, meshSize=mesh_size, tag=1)
             gmsh.model.geo.synchronize()
             gmsh.model.mesh.generate(3)
-            pointMap = getObjectMapForPoint()
+            pointMap = getObjectMap(obj_type='point')
             gmsh.write(filename)
             gmsh.finalize()
             return pointMap
@@ -302,7 +305,7 @@ class GraphicalEditor(QFrame):
 
             gmsh.model.geo.synchronize()
             gmsh.model.mesh.generate(3)
-            lineMap = getObjectMapForLine()
+            lineMap = getObjectMap(obj_type='line')
             gmsh.write(filename)
             gmsh.finalize()
             return lineMap
@@ -354,11 +357,11 @@ class GraphicalEditor(QFrame):
             gmsh.model.geo.addPlaneSurface([loop])
             gmsh.model.geo.synchronize()
             gmsh.model.mesh.generate(3)
-            surfaceMap = getObjectMapForSurface()
+            surfaceMap = getObjectMap(obj_type='surface')
             gmsh.write(filename)     
             gmsh.finalize()
             return surfaceMap
-    
+
         dialog = SurfaceDialog(self)
         if dialog.exec_() == QDialog.Accepted:
             values, mesh_size = dialog.getValues()
@@ -759,6 +762,15 @@ class GraphicalEditor(QFrame):
         else:
             actor_color = actors[0].GetProperty().GetColor()
             self.tree_item_actor_map[row] = [(row, actors[0], actor_color)]
+            
+            
+    def fill_actor_nodes_map(self, objectMap: dict, objType: str):
+        # Ensure the dictionary exists
+        if not hasattr(self, 'actor_nodes_map'):
+            self.actor_nodes_map = {}
+        
+        # Update the actor_nodes_map with the new data
+        self.actor_nodes_map.update(formActorNodesDictionary(objectMap, self.tree_item_actor_map, objType))
     
     
     def populate_tree(self, objectMap: dict, objType: str) -> list:
@@ -768,6 +780,7 @@ class GraphicalEditor(QFrame):
         actors = createActorsFromObjectMap(objectMap, objType)
         
         self.fill_row_actor_map(row, actors, objType)
+        self.fill_actor_nodes_map(objectMap, objType)
         
         return row, actors
     
@@ -1004,7 +1017,7 @@ class GraphicalEditor(QFrame):
 
         actor = self.picker.GetActor()
         if actor:
-            self.selected_actors[0] = actor
+            self.selected_actors.add(actor)
             self.original_color = actor.GetProperty().GetColor()
             self.context_menu()
     
@@ -1050,11 +1063,11 @@ class GraphicalEditor(QFrame):
         self.interactor.Start()
     
     def context_menu(self):
-        if self.selected_actors[0]:
+        for actor in self.selected_actors:
             menu = QMenu(self)
 
             move_action = QAction('Move', self)
-            move_action.triggered.connect(self.move_actors)
+            move_action.triggered.connect(lambda: self.move_actor(actor))
             menu.addAction(move_action)
 
             change_angle_action = QAction('Rotate', self)
@@ -1087,11 +1100,6 @@ class GraphicalEditor(QFrame):
         except Exception as _:
             return
 
-
-    def move_actors(self):
-        if self.selected_actors:
-            for actor in self.selected_actors:
-                self.move_actor(actor)
 
     def move_actor(self, actor: vtkActor):        
         if actor:
@@ -1609,4 +1617,7 @@ class GraphicalEditor(QFrame):
 
         self.vtkWidget.GetRenderWindow().Render()
 
+
+    def activate_selection_boundary_conditions_mode_for_surface(self):
+        pass
 

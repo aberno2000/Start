@@ -993,41 +993,16 @@ def transform_coordinates(points, matrix):
     return transformed_points
 
 
-def getObjectMapForPoint(mesh_filename: str = None) -> dict:
+def getObjectMap(mesh_filename: str = None, obj_type: str = 'volume') -> dict:
     """
-    Extracts the point data from Gmsh and returns it in a structured format.
+    Extracts the data from Gmsh and returns it in a structured format.
 
     Parameters:
     mesh_filename (str): The filename of the Gmsh mesh file to read.
+    obj_type (str): The type of object to extract ('point', 'line', 'surface', 'volume').
 
     Returns:
-    dict: A dictionary representing the point in the object map format.
-    """
-    if mesh_filename:
-        gmsh.open(mesh_filename)
-
-    gmsh.model.occ.synchronize()
-
-    # Getting all the nodes and their coordinates
-    all_node_tags, all_node_coords, _ = gmsh.model.mesh.getNodes()
-    point_map = {}
-    
-    for i, tag in enumerate(all_node_tags):
-        coords = (all_node_coords[i * 3], all_node_coords[i * 3 + 1], all_node_coords[i * 3 + 2])
-        point_map[f'Point[{tag}]'] = coords
-    
-    return point_map
-
-
-def getObjectMapForLine(mesh_filename: str = None) -> dict:
-    """
-    Extracts the line data from Gmsh and returns it in a structured format.
-
-    Parameters:
-    mesh_filename (str): The filename of the Gmsh mesh file to read.
-
-    Returns:
-    dict: A dictionary representing the line in the object map format.
+    dict: A dictionary representing the object map.
     """
     if mesh_filename:
         gmsh.open(mesh_filename)
@@ -1039,102 +1014,33 @@ def getObjectMapForLine(mesh_filename: str = None) -> dict:
     node_coords_map = {tag: (all_node_coords[i * 3], all_node_coords[i * 3 + 1], all_node_coords[i * 3 + 2]) 
                        for i, tag in enumerate(all_node_tags)}
     
-    # Getting all the lines
-    lines = gmsh.model.getEntities(dim=1)
-    line_map = {}
-
-    for line_dim, line_tag in lines:
-        # Getting the nodes for the current line
-        element_types, element_tags, node_tags = gmsh.model.mesh.getElements(line_dim, line_tag)
-
-        for elem_type, elem_tags, elem_node_tags in zip(element_types, element_tags, node_tags):
-            if elem_type == 1:  # 1st type for lines
-                for i in range(len(elem_tags)):
-                    node_indices = elem_node_tags[i * 2:(i + 1) * 2]
-                    line = [
-                        (node_indices[0], node_coords_map[node_indices[0]]),
-                        (node_indices[1], node_coords_map[node_indices[1]])
-                    ]
-                    line_map[f'Line[{elem_tags[i]}]'] = line
-    return line_map
-
-
-
-def getObjectMapForSurface(mesh_filename: str = None) -> dict:
-    """
-    Generate a mapping of surfaces, triangles, and their nodes with coordinates from a Gmsh mesh file.
-
-    Parameters:
-    mesh_filename (str): The filename of the Gmsh mesh file to read.
-
-    Returns:
-    dict: A dictionary where the keys are surface tags. Each surface tag maps to a list of tuples,
-          each containing a triangle tag and a list of node tags with their coordinates.
-    """
-    if mesh_filename:
-        gmsh.open(mesh_filename)
+    if obj_type == 'point':
+        point_map = {f'Point[{tag}]': coords for tag, coords in node_coords_map.items()}
+        return point_map
     
-    # Getting all the nodes and their coordinates
-    all_node_tags, all_node_coords, _ = gmsh.model.mesh.getNodes()
-    node_coords_map = {tag: (all_node_coords[i * 3], all_node_coords[i * 3 + 1], all_node_coords[i * 3 + 2]) 
-                    for i, tag in enumerate(all_node_tags)}
+    if obj_type == 'line':
+        lines = gmsh.model.getEntities(dim=1)
+        line_map = {}
 
-    # Getting all the surfaces
-    surfaces = gmsh.model.getEntities(dim=2)
-    surface_map = {}
+        for line_dim, line_tag in lines:
+            element_types, element_tags, node_tags = gmsh.model.mesh.getElements(line_dim, line_tag)
 
-    for surf_dim, surf_tag in surfaces:
-        # Getting triangles for the current surface
-        element_types, element_tags, node_tags = gmsh.model.mesh.getElements(surf_dim, surf_tag)
-
-        triangles = []
-        for elem_type, elem_tags, elem_node_tags in zip(element_types, element_tags, node_tags):
-            if elem_type == 2:  # 2nd type for the triangles
-                for i in range(len(elem_tags)):
-                    node_indices = elem_node_tags[i * 3:(i + 1) * 3]
-                    triangle = [
-                        (node_indices[0], node_coords_map[node_indices[0]]),
-                        (node_indices[1], node_coords_map[node_indices[1]]),
-                        (node_indices[2], node_coords_map[node_indices[2]])
-                    ]
-                    triangles.append((elem_tags[i], triangle))
-        surface_map[surf_tag] = triangles
-    return surface_map
-
-
-def getObjectMap(mesh_filename: str = None) -> dict:
-    """
-    Generate a mapping of volumes, surfaces, triangles, and their nodes with coordinates from a Gmsh mesh file.
-
-    Parameters:
-    mesh_filename (str): The filename of the Gmsh mesh file to read.
-
-    Returns:
-    dict: A dictionary where the keys are volume tags (or surface tags if no volumes are present),
-          and the values are dictionaries of surface tags. Each surface tag maps to a list of tuples,
-          each containing a triangle tag and a list of node tags with their coordinates.
-    """
-    if mesh_filename:
-        gmsh.open(mesh_filename)
-        
-    # Getting all the nodes and their coordinates
-    all_node_tags, all_node_coords, _ = gmsh.model.mesh.getNodes()
-    node_coords_map = {tag: (all_node_coords[i * 3], all_node_coords[i * 3 + 1], all_node_coords[i * 3 + 2]) 
-                    for i, tag in enumerate(all_node_tags)}
-
-    # Getting all the volumes
-    volumes = gmsh.model.getEntities(dim=3)
-    object_map = {}
-
-    entities = volumes if volumes else gmsh.model.getEntities(dim=2)
-
-    for dim, tag in entities:
-        # Getting surfaces for the current volume or directly the surfaces
-        surfaces = gmsh.model.getBoundary([(dim, tag)], oriented=False, recursive=False) if volumes else [(dim, tag)]
-
+            for elem_type, elem_tags, elem_node_tags in zip(element_types, element_tags, node_tags):
+                if elem_type == 1:  # 1st type for lines
+                    for i in range(len(elem_tags)):
+                        node_indices = elem_node_tags[i * 2:(i + 1) * 2]
+                        line = [
+                            (node_indices[0], node_coords_map[node_indices[0]]),
+                            (node_indices[1], node_coords_map[node_indices[1]])
+                        ]
+                        line_map[f'Line[{elem_tags[i]}]'] = line
+        return line_map
+    
+    if obj_type == 'surface':
+        surfaces = gmsh.model.getEntities(dim=2)
         surface_map = {}
+
         for surf_dim, surf_tag in surfaces:
-            # Getting triangles for the current surface
             element_types, element_tags, node_tags = gmsh.model.mesh.getElements(surf_dim, surf_tag)
 
             triangles = []
@@ -1149,8 +1055,35 @@ def getObjectMap(mesh_filename: str = None) -> dict:
                         ]
                         triangles.append((elem_tags[i], triangle))
             surface_map[surf_tag] = triangles
-        object_map[tag] = surface_map
-    return object_map
+        return surface_map
+    
+    if obj_type == 'volume':
+        volumes = gmsh.model.getEntities(dim=3)
+        object_map = {}
+
+        entities = volumes if volumes else gmsh.model.getEntities(dim=2)
+
+        for dim, tag in entities:
+            surfaces = gmsh.model.getBoundary([(dim, tag)], oriented=False, recursive=False) if volumes else [(dim, tag)]
+
+            surface_map = {}
+            for surf_dim, surf_tag in surfaces:
+                element_types, element_tags, node_tags = gmsh.model.mesh.getElements(surf_dim, surf_tag)
+
+                triangles = []
+                for elem_type, elem_tags, elem_node_tags in zip(element_types, element_tags, node_tags):
+                    if elem_type == 2:  # 2nd type for the triangles
+                        for i in range(len(elem_tags)):
+                            node_indices = elem_node_tags[i * 3:(i + 1) * 3]
+                            triangle = [
+                                (node_indices[0], node_coords_map[node_indices[0]]),
+                                (node_indices[1], node_coords_map[node_indices[1]]),
+                                (node_indices[2], node_coords_map[node_indices[2]])
+                            ]
+                            triangles.append((elem_tags[i], triangle))
+                surface_map[surf_tag] = triangles
+            object_map[tag] = surface_map
+        return object_map
 
 
 def createActorsFromObjectMap(object_map: dict, objType: str) -> list:
@@ -1525,3 +1458,39 @@ def print_tree_structure(self, tree_view: QTreeView):
 
     root_index = model.index(0, 0, QModelIndex())
     iterate(root_index, 0)
+    
+
+def formActorNodesDictionary(objectMap: dict, tree_item_actor_map: dict, objType: str):
+    actor_nodes_dict = {}
+
+    # Iterate through the tree item actor map
+    for parent_key, value in tree_item_actor_map.items():
+        if isinstance(value, list):
+            for internal_row, actor, color in value:
+                if actor not in actor_nodes_dict:
+                    actor_nodes_dict[actor] = set()
+
+                # Depending on the objType, extract the nodes from the objectMap
+                if objType == 'volume':
+                    for volume_tag, surfaces in objectMap.items():
+                        for surface_tag, triangles in surfaces.items():
+                            if surface_tag - 1 == internal_row:
+                                for triangle_tag, nodes in triangles:
+                                    for node in nodes:
+                                        actor_nodes_dict[actor].add(node[0])
+                elif objType == 'surface':
+                    for surface_tag, triangles in objectMap.items():
+                        if surface_tag - 1 == internal_row:
+                            for triangle_tag, nodes in triangles:
+                                for node in nodes:
+                                    actor_nodes_dict[actor].add(node[0])
+                elif objType == 'line':
+                    for line_tag, line_nodes in objectMap.items():
+                        if internal_row == int(line_tag.split('[')[1][:-1]):
+                            for node in line_nodes:
+                                actor_nodes_dict[actor].add(node[0])
+                elif objType == 'point':
+                    if f'Point[{internal_row}]' in objectMap:
+                        actor_nodes_dict[actor].add(internal_row)
+
+    return actor_nodes_dict
