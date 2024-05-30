@@ -749,13 +749,16 @@ class GraphicalEditor(QFrame):
             self.tree_item_actor_map[volume_index] = []
             for i, actor in enumerate(actors):
                 surface_index = volume_index + i + 1
-                self.tree_item_actor_map[surface_index] = [actor]
-                self.tree_item_actor_map[volume_index].append(actor)
+                actor_color = actor.GetProperty().GetColor()
+                self.tree_item_actor_map[surface_index] = [(surface_index, actor, actor_color)]
+                self.tree_item_actor_map[volume_index].append((surface_index, actor, actor_color))
         elif objType == 'line':
             for i, r in enumerate(row):
-                self.tree_item_actor_map[r] = [actors[i]]
+                actor_color = actors[i].GetProperty().GetColor()
+                self.tree_item_actor_map[r] = [(r, actors[i], actor_color)]
         else:
-            self.tree_item_actor_map[row] = actors
+            actor_color = actors[0].GetProperty().GetColor()
+            self.tree_item_actor_map[row] = [(row, actors[0], actor_color)]
     
     
     def populate_tree(self, objectMap: dict, objType: str) -> list:
