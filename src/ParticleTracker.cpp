@@ -233,11 +233,8 @@ void ParticleTracker::solveEquation(std::map<GlobalOrdinal, double> &nodeChargeD
         solver->solve(m_config.getSolverName(), solverParams);
         solver->calculateElectricField(); // Getting electric field for the each cell.
 
-        if (time == m_config.getSimulationTime())
-        {
-            solver->writeElectricPotentialsToPosFile();
-            solver->writeElectricFieldVectorsToPosFile();
-        }
+        solver->writeElectricPotentialsToPosFile();
+        solver->writeElectricFieldVectorsToPosFile();
     }
 }
 
