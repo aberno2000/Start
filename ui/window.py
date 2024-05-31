@@ -564,6 +564,11 @@ class WindowApp(QMainWindow):
             self.geditor.global_redo()
         else:
             super().keyPressEvent(event)
+            
+        # Delegate the event to the log console first
+        if event.key() == Qt.Key_F and event.modifiers() == Qt.ControlModifier:
+            self.log_console.keyPressEvent(event)
+            return
         
     
     def run_cpp(self, args: str) -> None:
@@ -606,6 +611,7 @@ class WindowApp(QMainWindow):
             ("About", "F1", "Shows information about the application."),
             ("Undo", "Ctrl+Z", "Reverses the most recent action, allowing you to step back through your changes one at a time."),
             ("Redo", "Ctrl+Y", "Reapplies actions that were previously undone using the Undo function, letting you move forward after reversing changes."),
+            ("Search", "Ctrl+F", "Toggles on search mode within the log console."),
             ("Align by X axis", "Ctrl+Shift+X", "Make an alignment by X axis."),
             ("Align by Y axis", "Ctrl+Shift+Y", "Make an alignment by Y axis."),
             ("Align by Z axis", "Ctrl+Shift+Z", "Make an alignment by Z axis."),

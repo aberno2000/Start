@@ -1,11 +1,11 @@
-import tempfile
+import tempfile, re
 from PyQt5.QtWidgets import (
-    QVBoxLayout, QPlainTextEdit,
-    QWidget, QDockWidget,
-    QApplication
+    QVBoxLayout, QPlainTextEdit, QTextEdit,
+    QWidget, QDockWidget, QHBoxLayout,
+    QApplication, QPushButton, QLineEdit,
 )
 from PyQt5.QtCore import Qt, pyqtSignal, QTimer
-from PyQt5.QtGui import QTextCharFormat, QTextCursor, QColor
+from PyQt5.QtGui import QTextCharFormat, QTextCursor, QColor, QTextDocument
 from util import is_file_valid
 from logger.cli_history import CommandLineHistory
 from vtk import vtkLogger
@@ -37,12 +37,38 @@ class LogConsole(QWidget):
         self.log_console = QPlainTextEdit()
         self.log_console.setReadOnly(True)  # Make the console read-only
         
+        font = self.log_console.font()
+        font.setPointSize(12)
+        self.log_console.setFont(font)
+        
         self.command_input = CommandLineHistory()
         self.command_input.setPlaceholderText('Enter command...')
         self.command_input.returnPressed.connect(self.handle_command)
         
         self.layout.addWidget(self.log_console)
         self.layout.addWidget(self.command_input)
+        
+        # Add search bar
+        search_layout = QHBoxLayout()
+        self.search_input = QLineEdit()
+        self.search_input.setPlaceholderText('Search...')
+        self.search_input.textChanged.connect(self.search_text_in_log)  # Connect to real-time search
+        
+        self.search_prev_button = QPushButton('Previous')
+        self.search_prev_button.clicked.connect(self.search_prev)
+        
+        self.search_next_button = QPushButton('Next')
+        self.search_next_button.clicked.connect(self.search_next)
+        
+        search_layout.addWidget(self.search_input)
+        search_layout.addWidget(self.search_prev_button)
+        search_layout.addWidget(self.search_next_button)
+        
+        self.search_container = QWidget()
+        self.search_container.setLayout(search_layout)
+        self.search_container.setVisible(False)  # Initially hidden
+        
+        self.layout.addWidget(self.search_container)
         
         container = QWidget()
         container.setLayout(self.layout)
@@ -52,7 +78,16 @@ class LogConsole(QWidget):
         self.log_dock_widget.setWidget(container)
         self.log_dock_widget.setAllowedAreas(Qt.BottomDockWidgetArea)
         self.log_dock_widget.setVisible(True)
-        
+
+
+    def toggle_search(self):
+        if self.search_container.isVisible():
+            self.search_container.setVisible(False)
+        else:
+            self.search_container.setVisible(True)
+            self.search_input.setFocus()
+
+
     
     def setup_vtk_logger(self):
         self.log_file_path = tempfile.mktemp()  # Create a temporary file
@@ -151,7 +186,6 @@ class LogConsole(QWidget):
     
     def printInfo(self, message):
         self.appendLog("Info: " + str(message))
-        self.addNewLine()
         
     def getAllLogs(self) -> str:
         return self.log_console.toPlainText()        
@@ -235,3 +269,73 @@ class LogConsole(QWidget):
         else:
             self.appendLog(f"Unknown command: {command}")
         self.command_input.clear()
+
+
+    def search_text_in_log(self):
+        search_text = self.search_input.text()
+        self.highlight_search_results(search_text)
+
+
+    def highlight_search_results(self, search_text):
+        # Clear existing extra selections
+        extra_selections = []
+        
+        if search_text:
+            cursor = self.log_console.textCursor()
+            cursor.beginEditBlock()
+            
+            # Move cursor to the beginning
+            cursor.movePosition(QTextCursor.Start)
+            
+            # Set up the format for highlighting
+            format = QTextCharFormat()
+            format.setBackground(QColor("purple"))
+            
+            # Find and highlight all occurrences
+            while True:
+                cursor = self.log_console.document().find(search_text, cursor)
+                if cursor.isNull():
+                    break
+                selection = QTextEdit.ExtraSelection()
+                selection.cursor = cursor
+                selection.format = format
+                extra_selections.append(selection)
+            
+            cursor.endEditBlock()
+        
+        # Apply the extra selections to the log console
+        self.log_console.setExtraSelections(extra_selections)
+
+
+    def search_next(self):
+        cursor = self.log_console.textCursor()
+        document = self.log_console.document()
+        found = document.find(self.search_input.text(), cursor)
+        if not found.isNull():
+            self.log_console.setTextCursor(found)
+        else:
+            self.log_console.moveCursor(QTextCursor.Start)
+            found = document.find(self.search_input.text(), self.log_console.textCursor())
+            if not found.isNull():
+                self.log_console.setTextCursor(found)
+
+    def search_prev(self):
+        cursor = self.log_console.textCursor()
+        document = self.log_console.document()
+        found = document.find(self.search_input.text(), cursor, QTextDocument.FindBackward)
+        if not found.isNull():
+            self.log_console.setTextCursor(found)
+        else:
+            self.log_console.moveCursor(QTextCursor.End)
+            found = document.find(self.search_input.text(), self.log_console.textCursor(), QTextDocument.FindBackward)
+            if not found.isNull():
+                self.log_console.setTextCursor(found)
+                
+    
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key_F and event.modifiers() == Qt.ControlModifier:
+            self.toggle_search()
+        else:
+            super().keyPressEvent(event)
+
+
