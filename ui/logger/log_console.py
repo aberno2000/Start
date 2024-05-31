@@ -135,18 +135,23 @@ class LogConsole(QWidget):
     
     def printSuccess(self, message):
         self.insert_colored_text("Successfully: ", message, "green")
+        self.addNewLine()
         
     def printError(self, message):
         self.insert_colored_text("Error: ", message, "red")
+        self.addNewLine()
 
     def printInternalError(self, message):
         self.insert_colored_text("Internal error: ", message, "purple")
+        self.addNewLine()
 
     def printWarning(self, message):
         self.insert_colored_text("Warning: ", message, "yellow")
+        self.addNewLine()
     
     def printInfo(self, message):
         self.appendLog("Info: " + str(message))
+        self.addNewLine()
         
     def getAllLogs(self) -> str:
         return self.log_console.toPlainText()        
