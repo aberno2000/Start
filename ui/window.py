@@ -49,7 +49,7 @@ class WindowApp(QMainWindow):
         self.results_tab = ResultsTab(self.log_console)
 
         # Connecting signal to detect the selection of mesh file
-        self.config_tab.meshFileSelected.connect(self.geditor.set_mesh_file)
+        self.config_tab.meshFileSelected.connect(self.geditor.upload_mesh_file)
         
         # Connecting signal to tun the simulation from the CLI
         self.log_console.runSimulationSignal.connect(self.start_simulation_from_CLI)

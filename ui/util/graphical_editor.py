@@ -35,7 +35,7 @@ from util.util import(
     align_view_by_axis, save_scene, load_scene, convert_unstructured_grid_to_polydata,
     can_create_line, extract_transform_from_actor, calculate_thetaPhi, 
     rad_to_degree, getObjectMap, createActorsFromObjectMap, populateTreeView, 
-    can_create_surface, formActorNodesDictionary,
+    can_create_surface, formActorNodesDictionary, get_cur_datetime, convert_msh_to_vtk,
     ActionHistory,
     DEFAULT_TEMP_MESH_FILE, DEFAULT_TEMP_FILE_FOR_PARTICLE_SOURCE_AND_THETA
 )
@@ -105,7 +105,7 @@ class GraphicalEditor(QFrame):
     def initialize_tree(self):
         self.model = QStandardItemModel()
         self.model.setHorizontalHeaderLabels(['Mesh Tree'])
-        self.setTreeViewModel(self.model)
+        self.setTreeViewModel()
         
 
     def setTreeViewModel(self):
@@ -160,11 +160,14 @@ class GraphicalEditor(QFrame):
         self.vtkWidget.GetRenderWindow().Render()
     
     
-    def set_mesh_file(self, file_path):        
+    def upload_mesh_file(self, file_path):        
         if exists(file_path) and isfile(file_path):
             self.mesh_file = file_path
-            self.actor_from_mesh = self.get_actor_from_mesh(self.mesh_file)
             self.initialize_tree()
+            gmsh.initialize()
+            objectMap = getObjectMap(self.mesh_file)
+            gmsh.finalize()
+            self.add_actors_and_populate_tree_view(objectMap)
             self.initialize_node_map()
         else:
             QMessageBox.warning(self, "Warning", f"Unable to open file {file_path}")
@@ -275,6 +278,7 @@ class GraphicalEditor(QFrame):
             gmsh.model.geo.synchronize()
             gmsh.model.mesh.generate(3)
             pointMap = getObjectMap(obj_type='point')
+            filename = filename.replace('.msh', get_cur_datetime() + '.msh')
             gmsh.write(filename)
             gmsh.finalize()
             return pointMap
@@ -306,6 +310,7 @@ class GraphicalEditor(QFrame):
             gmsh.model.geo.synchronize()
             gmsh.model.mesh.generate(3)
             lineMap = getObjectMap(obj_type='line')
+            filename = filename.replace('.msh', get_cur_datetime() + '.msh')
             gmsh.write(filename)
             gmsh.finalize()
             return lineMap
@@ -358,7 +363,8 @@ class GraphicalEditor(QFrame):
             gmsh.model.geo.synchronize()
             gmsh.model.mesh.generate(3)
             surfaceMap = getObjectMap(obj_type='surface')
-            gmsh.write(filename)     
+            filename = filename.replace('.msh', get_cur_datetime() + '.msh')
+            gmsh.write(filename)
             gmsh.finalize()
             return surfaceMap
 
@@ -408,6 +414,7 @@ class GraphicalEditor(QFrame):
             gmsh.model.occ.synchronize()
             gmsh.model.mesh.generate(3)
             sphereMap = getObjectMap()
+            filename = filename.replace('.msh', get_cur_datetime() + '.msh')
             gmsh.write(filename)
             gmsh.finalize()
             return sphereMap
@@ -441,6 +448,7 @@ class GraphicalEditor(QFrame):
             gmsh.model.occ.synchronize()
             gmsh.model.mesh.generate(3)
             boxMap = getObjectMap()
+            filename = filename.replace('.msh', get_cur_datetime() + '.msh')
             gmsh.write(filename)
             gmsh.finalize()
             return boxMap
@@ -475,6 +483,7 @@ class GraphicalEditor(QFrame):
             gmsh.model.occ.synchronize()
             gmsh.model.mesh.generate(3)
             cylinderMap = getObjectMap()
+            filename = filename.replace('.msh', get_cur_datetime() + '.msh')
             gmsh.write(filename)
             gmsh.finalize()
             return cylinderMap
@@ -648,15 +657,29 @@ class GraphicalEditor(QFrame):
                 self.vtkWidget.GetRenderWindow().Render()
     
     
-    def colorize_actor(self, actor: vtkActor):
-        actorColor = QColorDialog.getColor()
-        if actorColor.isValid():
-            actor.GetProperty().SetColor(actorColor.redF(), actorColor.greenF(), actorColor.blueF())
-            self.renderer.ResetCamera()
-            self.vtkWidget.GetRenderWindow().Render()
-        else:
-            return
-
+    def colorize_actor(self, actors: list):
+        for actor in actors:
+            if actor and isinstance(actor, vtkActor):
+                actorColor = QColorDialog.getColor()
+                if actorColor.isValid():
+                    r, g, b = actorColor.redF(), actorColor.greenF(), actorColor.blueF()
+                    actor.GetProperty().SetColor(r, g, b)
+                    
+                    for key, items in self.tree_item_actor_map.items():
+                        if isinstance(items, list):
+                            for i, (index, mapped_actor, _) in enumerate(items):
+                                if actor == mapped_actor:
+                                    self.tree_item_actor_map[key][i] = (index, actor, (r, g, b))
+                        elif isinstance(items, tuple) and len(items) == 3:
+                            index, mapped_actor, _ = items
+                            if actor == mapped_actor:
+                                self.tree_item_actor_map[key] = (index, actor, (r, g, b))
+                    
+                    self.renderer.ResetCamera()
+                    self.vtkWidget.GetRenderWindow().Render()
+                else:
+                    return
+                
 
     def remove_all_actors(self):
         self.particleSourceArrowActor = None
@@ -735,16 +758,14 @@ class GraphicalEditor(QFrame):
         self.add_actors(actors)
         self.populate_tree(object_map, objType)
     
-    
     def remove_row_from_tree(self, row):
         self.model.removeRow(row)
-        self.setTreeViewModel()
+    
     
     def remove_rows_from_tree(self, rows):
         row = rows[0]
         for _ in range(len(rows)):
             self.model.removeRow(row)
-        self.setTreeViewModel()
     
     def fill_row_actor_map(self, row, actors, objType: str):
         if objType == 'volume':
@@ -785,22 +806,36 @@ class GraphicalEditor(QFrame):
         return row, actors
     
     
-    def add_actors_and_populate_tree_view(self, objectMap: dict, objType: str):
+    def add_actors_and_populate_tree_view(self, objectMap: dict, objType: str = 'volume'):
         self.objectsHistory.id += 1
         row, actors = self.populate_tree(objectMap, objType)
-        self.add_actors(actors)        
+        self.add_actors(actors)
         self.objectsHistory.add_action((row, actors, objectMap, objType))
         self.global_undo_stack.append(ACTION_ACTOR_CREATING)
         
     
-    def highlight_actor(self, actor: vtkActor):
-        actor.GetProperty().SetColor(SELECTED_ACTOR_COLOR)
+    def restore_actor_colors(self):
+        try:
+            for items in self.tree_item_actor_map.values():
+                if isinstance(items, list):
+                    for index, actor, color in items:
+                        actor.GetProperty().SetColor(color)
+                elif isinstance(items, tuple) and len(items) == 3:
+                    index, actor, color = items
+                    actor.GetProperty().SetColor(color)
+            self.vtkWidget.GetRenderWindow().Render()
+        except Exception as e:
+            self.log_console.printError(f"Error in restore_actor_colors: {e}")
+    
+    
+    def highlight_actors(self, actors):
+        for actor in actors:
+            actor.GetProperty().SetColor(SELECTED_ACTOR_COLOR)
         self.vtkWidget.GetRenderWindow().Render()
 
 
-    def unhighlight_actor(self, actor: vtkActor):
-        actor.GetProperty().SetColor(DEFAULT_ACTOR_COLOR)
-        self.vtkWidget.GetRenderWindow().Render()
+    def unhighlight_actors(self, actors):
+        self.restore_actor_colors()
 
     
     def on_tree_selection_changed(self):
@@ -808,9 +843,7 @@ class GraphicalEditor(QFrame):
         if not selected_indexes:
             return
         
-        for actor in self.selected_actors:
-            self.unhighlight_actor(actor)
-        
+        self.unhighlight_actors(self.selected_actors)
         self.selected_actors.clear()
 
         for index in selected_indexes:
@@ -829,11 +862,13 @@ class GraphicalEditor(QFrame):
             
             if selected_item:
                 if isinstance(selected_item, list):
+                    actors = [actor for _, actor, _ in selected_item]
+                    self.highlight_actors(actors)
+                    
                     for _, actor, _ in selected_item:
-                        self.highlight_actor(actor)
                         self.selected_actors.add(actor)
                 else:
-                    self.highlight_actor(selected_item)
+                    self.highlight_actors([selected_item])
                     self.selected_actors.add(selected_item)
 
     
@@ -921,8 +956,7 @@ class GraphicalEditor(QFrame):
         if actor:
             if not (self.interactor.GetControlKey() or self.interactor.GetShiftKey()):
                 # Reset selection of all previous actors and tree view items
-                for selected_actor in self.selected_actors:
-                    self.unhighlight_actor(selected_actor)
+                self.unhighlight_actors(self.selected_actors)
                 self.treeView.clearSelection()
                 self.selected_actors.clear()
 
@@ -1083,7 +1117,7 @@ class GraphicalEditor(QFrame):
             menu.addAction(remove_object_action)
             
             colorize_object_action = QAction('Colorize', self)
-            colorize_object_action.triggered.connect(lambda: self.colorize_actor(self.selected_actors[0]))
+            colorize_object_action.triggered.connect(lambda: self.colorize_actor(self.selected_actors))
             menu.addAction(colorize_object_action)
 
             menu.exec_(QCursor.pos())
@@ -1092,10 +1126,21 @@ class GraphicalEditor(QFrame):
     def deselect(self):
         try:
             for actor in self.renderer.GetActors():
-                actor.GetProperty().SetColor(DEFAULT_ACTOR_COLOR)
+                original_color = None
+                for items in self.tree_item_actor_map.values():
+                    for _, mapped_actor, color in items:
+                        if actor == mapped_actor:
+                            original_color = color
+                            break
+                        if original_color:
+                            break
+                
+                if original_color:
+                    actor.GetProperty().SetColor(original_color)
+                else:                
+                    actor.GetProperty().SetColor(DEFAULT_ACTOR_COLOR)
             
             self.selected_actors.clear()
-            
             self.vtkWidget.GetRenderWindow().Render()
         except Exception as _:
             return
@@ -1330,11 +1375,8 @@ class GraphicalEditor(QFrame):
 
         # Removing actor and corresponding row in a tree view
         self.remove_actor(self.selected_actors[0])
-        self.remove_row_from_tree_view()
         
         # Adding 2 new objects
-        self.add_actor_and_row(actor1)
-        self.add_actor_and_row(actor2)
         
         self.log_console.printInfo("Successfully created a cross-section")
     
@@ -1563,7 +1605,7 @@ class GraphicalEditor(QFrame):
             QMessageBox.critical(self, "Error", f"Failed to save configuration: {e}")
 
     def activate_selection_boundary_conditions_mode(self):
-        if not self.selected_actors[0]:
+        if not self.selected_actors:
             QMessageBox.warning(self, "Set Boundary Conditions", "To begin with setting boundary conditions you'll need to select object")
             self.log_console.printWarning("To begin with setting boundary conditions you'll need to select object")
             return
@@ -1593,7 +1635,6 @@ class GraphicalEditor(QFrame):
         try:
             self.isBoundaryNodeSelectionMode = True
             self.statusBar.showMessage("Select boundary nodes:")
-            self.initialize_node_map()
             self.populate_node_list()
             self.add_actors_from_node_list()
         except Exception as e:
@@ -1619,5 +1660,18 @@ class GraphicalEditor(QFrame):
 
 
     def activate_selection_boundary_conditions_mode_for_surface(self):
-        pass
-
+        if not self.selected_actors:
+            QMessageBox.information(self, "Set Boundary Conditions", "There is no selected surfaces to apply boundary conditions on them")
+            return
+    
+        value, ok = QInputDialog.getDouble(self, "Set Boundary Value", "Enter value:", decimals=3)
+        if not ok:
+            QMessageBox.warning(self, "Set Boundary Conditions Value", f"Failed to apply value {value}, retry please")
+            return
+        
+        for actor in self.selected_actors:
+            if actor in self.actor_nodes_map:
+                nodes = self.actor_nodes_map[actor]
+                self.saveBoundaryConditions(nodes, value)
+                self.log_console.printInfo(f"Object: {hex(id(actor))}, Nodes: {nodes}, Value: {value}")
+        self.deselect()

@@ -1,5 +1,6 @@
 import gmsh, tempfile
 from math import pi
+from datetime import datetime
 from os import remove
 from vtk import (
     vtkRenderer, vtkPolyData, vtkPolyDataWriter, vtkAppendPolyData,
@@ -1494,3 +1495,7 @@ def formActorNodesDictionary(objectMap: dict, tree_item_actor_map: dict, objType
                         actor_nodes_dict[actor].add(internal_row)
 
     return actor_nodes_dict
+
+
+def get_cur_datetime() -> str:
+    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")

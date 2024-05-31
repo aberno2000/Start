@@ -904,7 +904,7 @@ class ConfigTab(QWidget):
         self.log_console.logSignal.emit(f'Uploaded mesh: {self.mesh_file}\n')
                 
     
-    def upload_mesh_file(self):       
+    def upload_mesh_file(self):
         # Open a file dialog when the button is clicked and filter for .msh files
         options = QFileDialog.Options()
         options |= QFileDialog.DontUseNativeDialog
@@ -918,9 +918,7 @@ class ConfigTab(QWidget):
         if fileName:
             self.mesh_file = fileName
             self.mesh_file_label.setText(f"Selected: {fileName}")
-            QMessageBox.information(
-                self, "Mesh File Selected", f"File: {self.mesh_file}"
-            )
+            QMessageBox.information(self, "Mesh File Selected", f"File: {self.mesh_file}")
 
         if fileName.endswith('.stp'):
             # Show dialog for user input
@@ -946,8 +944,10 @@ class ConfigTab(QWidget):
             self.mesh_file.replace('.stp', '.msh')
         if self.config_file_path.endswith('.vtk'):
             self.mesh_file.replace('.vtk', '.msh')
-        self.meshFileSelected.emit(self.mesh_file)
-        self.log_console.logSignal.emit(f'Uploaded mesh: {self.mesh_file}\n')
+        
+        if self.mesh_file:
+            self.meshFileSelected.emit(self.mesh_file)
+            self.log_console.logSignal.emit(f'Uploaded mesh: {self.mesh_file}\n')
         
         return 1
 
