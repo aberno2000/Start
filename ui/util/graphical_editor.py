@@ -30,7 +30,8 @@ from .util import(
     PointDialog, LineDialog, SurfaceDialog, 
     SphereDialog, BoxDialog, CylinderDialog,
     AngleDialog, MoveActorDialog, AxisSelectionDialog,
-    ExpansionAngleDialog, pi
+    ExpansionAngleDialog, ParticleSourceDialog, 
+    pi
 )
 from util.util import(
     align_view_by_axis, save_scene, load_scene, convert_unstructured_grid_to_polydata,
@@ -38,7 +39,7 @@ from util.util import(
     rad_to_degree, getObjectMap, createActorsFromObjectMap, populateTreeView, 
     can_create_surface, formActorNodesDictionary, get_cur_datetime,
     ActionHistory,
-    DEFAULT_TEMP_MESH_FILE, DEFAULT_TEMP_FILE_FOR_PARTICLE_SOURCE_AND_THETA
+    DEFAULT_TEMP_MESH_FILE
 )
 from .mesh_dialog import MeshDialog
 from tabs.gedit_tab import ConfigTab
@@ -1384,7 +1385,7 @@ class GraphicalEditor(QFrame):
         
         self.log_console.printInfo("Successfully created a cross-section")
     
-    
+
     def writeParticleSouceAndDirectionToFile(self):
         try:
             base_coords = self.getParticleSourceBaseCoords()
@@ -1398,34 +1399,54 @@ class GraphicalEditor(QFrame):
             if self.getParticleSourceDirection() is None:
                 return
             theta, phi = self.getParticleSourceDirection()
-            
+
             config_file = self.config_tab.config_file_path
             if not config_file:
-                QMessageBox.warning(self, "Saving Particle Source as Point", "Can't save pointed particle source, first u need to choose configuration file, then set the source")
+                QMessageBox.warning(self, "Saving Particle Source as Point", "Can't save pointed particle source, first you need to choose a configuration file, then set the source")
                 return
-            
+
             # Read the existing configuration file
             with open(config_file, 'r') as file:
                 config_data = json.load(file)
 
-            # Add ParticleSourcePoint information to the configuration
-            config_data["ParticleSourcePoint"] = {
+            # Check for existing sources and ask user if they want to remove them
+            sources_to_remove = []
+            if "ParticleSourcePoint" in config_data:
+                sources_to_remove.append("ParticleSourcePoint")
+            if "ParticleSourceSurface" in config_data:
+                sources_to_remove.append("ParticleSourceSurface")
+
+            if sources_to_remove:
+                reply = QMessageBox.question(self, "Remove Existing Sources",
+                                            f"The configuration file contains existing sources: {', '.join(sources_to_remove)}. Do you want to remove them?",
+                                            QMessageBox.Yes | QMessageBox.No)
+                if reply == QMessageBox.Yes:
+                    for source in sources_to_remove:
+                        del config_data[source]
+
+            # Prepare new ParticleSourcePoint entry
+            if "ParticleSourcePoint" not in config_data:
+                config_data["ParticleSourcePoint"] = {}
+
+            new_point_index = str(len(config_data["ParticleSourcePoint"]) + 1)
+            config_data["ParticleSourcePoint"][new_point_index] = {
                 "phi": phi,
                 "theta": theta,
                 "expansionAngle": self.expansion_angle,
                 "BaseCoordinates": [base_coords[0], base_coords[1], base_coords[2]]
             }
 
+            # Write the updated configuration back to the file
             with open(config_file, 'w') as file:
                 json.dump(config_data, file, indent=4)
-            
+
             self.statusBar.showMessage("Successfully set particle source and calculated direction angles")
             self.log_console.printInfo(f"Successfully written coordinates of the particle source:\n"
-                                            f"Base: {base_coords}\n"
-                                            f"Expansion angle θ: {self.expansion_angle} ({rad_to_degree(self.expansion_angle)}°)\n"
-                                            f"Polar (colatitude) angle θ: {theta} ({rad_to_degree(theta)}°)\n"
-                                            f"Azimuthal angle φ: {phi} ({rad_to_degree(phi)}°)\n")
-            
+                                    f"Base: {base_coords}\n"
+                                    f"Expansion angle θ: {self.expansion_angle} ({rad_to_degree(self.expansion_angle)}°)\n"
+                                    f"Polar (colatitude) angle θ: {theta} ({rad_to_degree(theta)}°)\n"
+                                    f"Azimuthal angle φ: {phi} ({rad_to_degree(phi)}°)\n")
+
             self.resetParticleSourceArrow()
             return 1
 
@@ -1699,6 +1720,58 @@ class GraphicalEditor(QFrame):
                 self.log_console.printInfo(f"Object: {hex(id(actor))}, Nodes: {nodes}, Value: {value}")
         self.deselect()
 
+    
+    def update_config_with_particle_source(self, particle_params, surface_and_normals_dict):
+        config_file = self.config_tab.config_file_path
+        if not config_file:
+            QMessageBox.warning(self, "Configuration File", "No configuration file selected.")
+            return
+
+        # Read the existing configuration file
+        with open(config_file, 'r') as file:
+            config_data = json.load(file)
+
+        # Check for existing sources
+        sources_to_remove = []
+        if "ParticleSourcePoint" in config_data:
+            sources_to_remove.append("ParticleSourcePoint")
+        if "ParticleSourceSurface" in config_data:
+            sources_to_remove.append("ParticleSourceSurface")
+
+        # Ask user if they want to remove existing sources
+        if sources_to_remove:
+            reply = QMessageBox.question(self, "Remove Existing Sources",
+                                        f"The configuration file contains existing sources: {', '.join(sources_to_remove)}. Do you want to remove them?",
+                                        QMessageBox.Yes | QMessageBox.No)
+            if reply == QMessageBox.Yes:
+                for source in sources_to_remove:
+                    del config_data[source]
+
+        # Prepare new ParticleSourceSurface entry
+        if "ParticleSourceSurface" not in config_data:
+            config_data["ParticleSourceSurface"] = {}
+
+        new_surface_index = str(len(config_data["ParticleSourceSurface"]) + 1)
+        config_data["ParticleSourceSurface"][new_surface_index] = {
+            "Type": particle_params["particle_type"],
+            "Count": particle_params["num_particles"],
+            "Energy": particle_params["energy"],
+            "BaseCoordinates": {}
+        }
+
+        # Add cell center coordinates and normals to the entry
+        for arrow_address, values in surface_and_normals_dict.items():
+            cell_center = values['cell_center']
+            normal = values['normal']
+            coord_key = f"{cell_center[0]:.2f}, {cell_center[1]:.2f}, {cell_center[2]:.2f}"
+            config_data["ParticleSourceSurface"][new_surface_index]["BaseCoordinates"][coord_key] = normal
+
+        # Write the updated configuration back to the file
+        with open(config_file, 'w') as file:
+            json.dump(config_data, file, indent=4)
+
+        self.log_console.printInfo(f"Particle source surface added to configuration file: {config_file}")
+
 
     def set_particle_source_as_surface(self):
         if not self.selected_actors:
@@ -1707,7 +1780,47 @@ class GraphicalEditor(QFrame):
             return
 
         selected_actor = list(self.selected_actors)[0]
-        poly_data = selected_actor.GetMapper().GetInput()
+        surface_and_normals_dict = self.select_surface_and_normals(selected_actor)
+        
+        dialog = ParticleSourceDialog(self)
+        if dialog.exec_() == QDialog.Accepted:
+            particle_params = dialog.get_values()
+            particle_type = particle_params["particle_type"]
+            energy = particle_params["energy"]
+            num_particles = particle_params["num_particles"]
+
+            self.log_console.printInfo(f"Particle Type: {particle_type}")
+            self.log_console.printInfo(f"Energy: {energy} eV")
+            self.log_console.printInfo(f"Number of Particles: {num_particles}")
+        
+        self.update_config_with_particle_source(particle_params, surface_and_normals_dict)
+
+    def confirm_normal_orientation(self, orientation):
+        return QMessageBox.question(
+            self, 
+            "Normal Orientation", 
+            f"Do you want to set normals {orientation}?", 
+            QMessageBox.Yes | QMessageBox.No
+        ) == QMessageBox.Yes
+
+    def add_arrows(self, arrows):
+        for arrow_actor, _, _ in arrows:
+            self.renderer.AddActor(arrow_actor)
+        self.vtkWidget.GetRenderWindow().Render()
+
+    def remove_arrows(self, arrows):
+        for arrow_actor, _, _ in arrows:
+            self.renderer.RemoveActor(arrow_actor)
+        self.vtkWidget.GetRenderWindow().Render()
+
+    def populate_data(self, arrows, data):
+        for arrow_actor, cell_center, normal in arrows:
+            actor_address = hex(id(arrow_actor))
+            data[actor_address] = {"cell_center": cell_center, "normal": normal}
+
+
+    def select_surface_and_normals(self, actor: vtkActor):
+        poly_data = actor.GetMapper().GetInput()
         normals = self.calculate_normals(poly_data)
 
         if not normals:
@@ -1748,6 +1861,7 @@ class GraphicalEditor(QFrame):
         self.remove_arrows(arrows_inside)
 
         surface_address = next(iter(data))
+        self.log_console.printInfo(f"Selected surface <{surface_address}> with {num_cells} cells inside:")
         for arrow_address, values in data.items():
             cellCentre = values['cell_center']
             normal = values['normal']
@@ -1755,33 +1869,7 @@ class GraphicalEditor(QFrame):
             surface_address = next(iter(data))
         
         self.deselect()
-
-    def confirm_normal_orientation(self, orientation):
-        return QMessageBox.question(
-            self, 
-            "Normal Orientation", 
-            f"Do you want to set normals {orientation}?", 
-            QMessageBox.Yes | QMessageBox.No
-        ) == QMessageBox.Yes
-
-    def add_arrows(self, arrows):
-        for arrow_actor, _, _ in arrows:
-            self.renderer.AddActor(arrow_actor)
-        self.vtkWidget.GetRenderWindow().Render()
-
-    def remove_arrows(self, arrows):
-        for arrow_actor, _, _ in arrows:
-            self.renderer.RemoveActor(arrow_actor)
-        self.vtkWidget.GetRenderWindow().Render()
-
-    def populate_data(self, arrows, data):
-        for arrow_actor, cell_center, normal in arrows:
-            actor_address = hex(id(arrow_actor))
-            data[actor_address] = {"cell_center": cell_center, "normal": normal}
-
-
-    def select_normals(self):
-        pass
+        return data
 
 
     def calculate_normals(self, poly_data):

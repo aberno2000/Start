@@ -65,7 +65,7 @@ void ParticleTracker::initializeParticles()
     }
     else if (!m_config.isParticleSourceSurface())
     {
-        // TODO: Implement particle source as
+        // TODO: Implement particle source as surface
     }
     else
         throw std::runtime_error("Particle source not defined or defined unknown type of it");

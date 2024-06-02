@@ -15,7 +15,7 @@ from PyQt5.QtWidgets import (
     QTableWidgetItem, QSizePolicy, QLabel, QHBoxLayout,
     QWidget, QScrollArea, QComboBox, QTreeView
 )
-from PyQt5.QtGui import QDoubleValidator, QStandardItemModel, QStandardItem
+from PyQt5.QtGui import QIntValidator, QDoubleValidator, QStandardItemModel, QStandardItem
 from .converter import is_positive_real_number, is_real_number
 from os.path import exists, isfile
 from vtkmodules.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
@@ -26,7 +26,6 @@ DEFAULT_TEMP_MESH_FILE = 'temp.msh'
 DEFAULT_TEMP_VTK_FILE = 'temp.vtk'
 DEFAULT_TEMP_HDF5_FILE = 'temp.hdf5'
 DEFAULT_TEMP_CONFIG_FILE = 'temp_config.json'
-DEFAULT_TEMP_FILE_FOR_PARTICLE_SOURCE_AND_THETA = 'sourceAndDirection.txt'
 
 DEFAULT_COUNT_OF_PROJECT_FILES = 3
 
@@ -722,6 +721,47 @@ class ActionHistory:
         self.undo_stack.append(object_on_stack)
         self.id += 1
         return object_on_stack
+    
+
+class ParticleSourceDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        self.setWindowTitle("Set Particle Source Parameters")
+
+        layout = QFormLayout(self)
+
+        # Particle type
+        self.particle_type_combo = QComboBox()
+        self.particle_type_combo.addItems(["Ti", "Al", "Sn", "W", "Au", "Cu", "Ni", "Ag"])
+        layout.addRow("Particle Type:", self.particle_type_combo)
+
+        # Energy
+        self.energy_input = QLineEdit()
+        self.energy_input.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
+        energy_validator = QDoubleValidator(0.0, 10000.0, 2, self)  # Range of the energy in [eV]
+        self.energy_input.setValidator(energy_validator)
+        layout.addRow("Energy (eV):", self.energy_input)
+
+        # Number of particles
+        self.num_particles_input = QLineEdit()
+        self.num_particles_input.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
+        num_particles_validator = QIntValidator(1, 1000000000, self) # Range of particle count
+        self.num_particles_input.setValidator(num_particles_validator)
+        layout.addRow("Number of Particles:", self.num_particles_input)
+
+        # Dialog buttons
+        self.button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self)
+        self.button_box.accepted.connect(self.accept)
+        self.button_box.rejected.connect(self.reject)
+        layout.addRow(self.button_box)
+
+    def get_values(self):
+        return {
+            "particle_type": self.particle_type_combo.currentText(),
+            "energy": float(self.energy_input.text()),
+            "num_particles": int(self.num_particles_input.text())
+        }
 
 
 def align_view_by_axis(axis: str, renderer: vtkRenderer, vtkWidget: QVTKRenderWindowInteractor):

@@ -7,13 +7,7 @@
 #include "../include/Utilities/ConfigParser.hpp"
 
 using json = nlohmann::json;
-/**
- * @brief Checks if a required parameter exists in the JSON object.
- *
- * @param j The JSON object to check.
- * @param param The parameter name to check for.
- * @throw std::runtime_error if the parameter does not exist.
- */
+
 void checkParameterExists(json const &j, std::string_view param)
 {
     if (!j.contains(param.data()))
@@ -78,22 +72,40 @@ void ConfigParser::getConfigData(std::string_view config)
 
         if (configJson.contains("ParticleSourcePoint"))
         {
-            json particleSource = configJson.at("ParticleSourcePoint");
-            checkParameterExists(particleSource, "phi");
-            checkParameterExists(particleSource, "theta");
-            checkParameterExists(particleSource, "expansionAngle");
-            checkParameterExists(particleSource, "BaseCoordinates");
+            for (auto &[key, particleSource] : configJson.at("ParticleSourcePoint").items())
+            {
+                checkParameterExists(particleSource, "phi");
+                checkParameterExists(particleSource, "theta");
+                checkParameterExists(particleSource, "expansionAngle");
+                checkParameterExists(particleSource, "BaseCoordinates");
 
-            m_config.phi = particleSource.at("phi").get<double>();
-            m_config.theta = particleSource.at("theta").get<double>();
-            m_config.expansionAngle = particleSource.at("expansionAngle").get<double>();
-            m_config.baseCoordinates = particleSource.at("BaseCoordinates").get<std::vector<double>>();
-            m_config.isPointSource = true;
+                ParticleSourcePoint sourcePoint;
+                sourcePoint.phi = particleSource.at("phi").get<double>();
+                sourcePoint.theta = particleSource.at("theta").get<double>();
+                sourcePoint.expansionAngle = particleSource.at("expansionAngle").get<double>();
+                sourcePoint.baseCoordinates = particleSource.at("BaseCoordinates").get<std::vector<double>>();
+
+                m_config.particleSourcePoints.push_back(sourcePoint);
+            }
         }
 
         if (configJson.contains("ParticleSourceSurface"))
         {
-            // TODO: Implement when surface source will be implemented.
+            for (auto &[key, particleSource] : configJson.at("ParticleSourceSurface").items())
+            {
+                checkParameterExists(particleSource, "Type");
+                checkParameterExists(particleSource, "Count");
+                checkParameterExists(particleSource, "Energy");
+                checkParameterExists(particleSource, "BaseCoordinates");
+
+                ParticleSourceSurface sourceSurface;
+                sourceSurface.type = particleSource.at("Type").get<std::string>();
+                sourceSurface.count = particleSource.at("Count").get<int>();
+                sourceSurface.energy = particleSource.at("Energy").get<double>();
+                sourceSurface.baseCoordinates = particleSource.at("BaseCoordinates").get<std::unordered_map<std::string, std::vector<double>>>();
+
+                m_config.particleSourceSurfaces.push_back(sourceSurface);
+            }
         }
 
         m_config.edgeSize = std::stod(configJson.at("EdgeSize").get<std::string>());
