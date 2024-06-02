@@ -48,10 +48,27 @@ void ParticleTracker::initializeSurfaceMeshAABB()
 
 void ParticleTracker::initializeParticles()
 {
-    m_particles = createParticlesWithEnergy(m_config.getParticlesCount(),
-                                            m_config.getProjective(),
-                                            m_config.getEnergy(),
-                                            util::getParticleSourceCoordsAndDirection());
+    if (m_config.isParticleSourcePoint())
+    {
+        std::array<double, 6> particleSourceCoordsAndDirection;
+        particleSourceCoordsAndDirection[0] = m_config.getBaseCoordinates().at(0);
+        particleSourceCoordsAndDirection[1] = m_config.getBaseCoordinates().at(1);
+        particleSourceCoordsAndDirection[2] = m_config.getBaseCoordinates().at(2);
+        particleSourceCoordsAndDirection[3] = m_config.getExpansionAngle();
+        particleSourceCoordsAndDirection[4] = m_config.getPhi();
+        particleSourceCoordsAndDirection[5] = m_config.getTheta();
+
+        m_particles = createParticlesWithEnergy(m_config.getParticlesCount(),
+                                                m_config.getProjective(),
+                                                m_config.getEnergy(),
+                                                particleSourceCoordsAndDirection);
+    }
+    else if (!m_config.isParticleSourceSurface())
+    {
+        // TODO: Implement particle source as
+    }
+    else
+        throw std::runtime_error("Particle source not defined or defined unknown type of it");
 }
 
 void ParticleTracker::initialize()

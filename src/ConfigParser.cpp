@@ -76,6 +76,26 @@ void ConfigParser::getConfigData(std::string_view config)
         m_config.energy = configJson.at("Energy").get<double>();
         m_config.model = configJson.at("Model").get<std::string>();
 
+        if (configJson.contains("ParticleSourcePoint"))
+        {
+            json particleSource = configJson.at("ParticleSourcePoint");
+            checkParameterExists(particleSource, "phi");
+            checkParameterExists(particleSource, "theta");
+            checkParameterExists(particleSource, "expansionAngle");
+            checkParameterExists(particleSource, "BaseCoordinates");
+
+            m_config.phi = particleSource.at("phi").get<double>();
+            m_config.theta = particleSource.at("theta").get<double>();
+            m_config.expansionAngle = particleSource.at("expansionAngle").get<double>();
+            m_config.baseCoordinates = particleSource.at("BaseCoordinates").get<std::vector<double>>();
+            m_config.isPointSource = true;
+        }
+
+        if (configJson.contains("ParticleSourceSurface"))
+        {
+            // TODO: Implement when surface source will be implemented.
+        }
+
         m_config.edgeSize = std::stod(configJson.at("EdgeSize").get<std::string>());
         m_config.desiredAccuracy = std::stoi(configJson.at("DesiredAccuracy").get<std::string>());
 

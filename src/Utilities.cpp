@@ -159,39 +159,3 @@ void util::checkRestrictions(double time_step, size_t particles_count, std::stri
         std::exit(EXIT_FAILURE);
     }
 }
-
-std::array<double, 6> util::getParticleSourceCoordsAndDirection()
-{
-    std::string path("sourceAndDirection.txt");
-    std::ifstream ifs(path);
-    if (!ifs.is_open())
-    {
-        ERRMSG("Can't read coordinates of the particle source");
-        std::exit(EXIT_FAILURE);
-    }
-
-    std::array<double, 6> result;
-    for (short i{}; i < 6; ++i)
-    {
-        if (!(ifs >> result[i]))
-        {
-            if (i != 3)
-                ERRMSG("Failed to read coordinate #" + std::to_string(i + 1) + " from the particle source");
-            if (i == 3)
-                ERRMSG("Failed to read expansion angle θ");
-            if (i == 4)
-                ERRMSG("Failed to read angle φ");
-            if (i == 5)
-                ERRMSG("Failed to read angle θ");
-
-            ifs.close();                   // Ensure the file is closed before exiting.
-            std::filesystem::remove(path); // Remove the file for clean-up.
-            std::exit(EXIT_FAILURE);
-        }
-    }
-
-    ifs.close();
-    std::filesystem::remove(path); // Remove the file after successful reading
-
-    return result;
-}

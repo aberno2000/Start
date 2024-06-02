@@ -2,6 +2,7 @@ import gmsh, json
 from numpy import cross
 from os.path import isfile, exists
 from vtkmodules.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
+from vtkmodules.vtkCommonCore import vtkMath
 from vtkmodules.vtkInteractionStyle import(
     vtkInteractorStyleTrackballCamera, 
     vtkInteractorStyleTrackballActor, 
@@ -15,7 +16,7 @@ from vtk import(
     vtkActor, vtkSphereSource, vtkAxesActor, vtkOrientationMarkerWidget, 
     vtkGenericDataObjectReader, vtkDataSetMapper, vtkCellPicker, 
     vtkCleanPolyData, vtkPlane, vtkClipPolyData, vtkTransform, vtkTransformPolyDataFilter, 
-    vtkArrowSource, vtkCommand
+    vtkArrowSource, vtkCommand, vtkPolyDataNormals
 )
 from PyQt5.QtWidgets import(
     QFrame, QVBoxLayout, QHBoxLayout, QTreeView,
@@ -35,7 +36,7 @@ from util.util import(
     align_view_by_axis, save_scene, load_scene, convert_unstructured_grid_to_polydata,
     can_create_line, extract_transform_from_actor, calculate_thetaPhi, 
     rad_to_degree, getObjectMap, createActorsFromObjectMap, populateTreeView, 
-    can_create_surface, formActorNodesDictionary, get_cur_datetime, convert_msh_to_vtk,
+    can_create_surface, formActorNodesDictionary, get_cur_datetime,
     ActionHistory,
     DEFAULT_TEMP_MESH_FILE, DEFAULT_TEMP_FILE_FOR_PARTICLE_SOURCE_AND_THETA
 )
@@ -232,6 +233,7 @@ class GraphicalEditor(QFrame):
         self.crossSectionButton = self.create_button('icons/cross-section.png', 'Cross section of the object')
         self.setBoundaryConditionsButton = self.create_button('icons/boundary-conditions.png', 'Turning on mode to select boundary nodes')
         self.setBoundaryConditionsSurfaceButton = self.create_button('icons/boundary-conditions-surface.png', 'Turning on mode to select boundary nodes on surface')
+        self.setParticleSourceAsSurfaceButton = self.create_button('icons/surface-particle-source.png', 'Set particle source as surface')
         self.directParticleButton = self.create_button('icons/particle-source-direction.png', 'Set particle source and direction of this source')
         
         self.spacer = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
@@ -256,6 +258,7 @@ class GraphicalEditor(QFrame):
         self.crossSectionButton.clicked.connect(self.cross_section_button_clicked)
         self.setBoundaryConditionsButton.clicked.connect(self.activate_selection_boundary_conditions_mode)
         self.setBoundaryConditionsSurfaceButton.clicked.connect(self.activate_selection_boundary_conditions_mode_for_surface)
+        self.setParticleSourceAsSurfaceButton.clicked.connect(self.set_particle_source_as_surface)
         self.directParticleButton.clicked.connect(self.activate_particle_direction_mode)
 
     def setup_ui(self):
@@ -294,7 +297,6 @@ class GraphicalEditor(QFrame):
             self.add_actors_and_populate_tree_view(pointMap, 'point')
             
             self.log_console.printInfo(f'Successfully created point: ({x}, {y}, {z})')
-            self.log_console.addNewLine()
             
             
     def create_line(self):
@@ -347,7 +349,7 @@ class GraphicalEditor(QFrame):
                 self.add_actors_and_populate_tree_view(lineMap, 'line')
                 
                 self.log_console.printInfo(f'Successfully created line:\n{tmp}')
-                self.log_console.addNewLine()
+                
 
     
     def create_surface(self):
@@ -401,7 +403,7 @@ class GraphicalEditor(QFrame):
                 self.add_actors_and_populate_tree_view(surfaceMap, 'surface')
                 
                 self.log_console.printInfo(f'Successfully created surface:\n{tmp}')
-                self.log_console.addNewLine()
+                
 
     
     def create_sphere(self):
@@ -436,7 +438,7 @@ class GraphicalEditor(QFrame):
             self.add_actors_and_populate_tree_view(sphereMap, 'volume')
             
             self.log_console.printInfo(f'Successfully created sphere:\n{tmp}')
-            self.log_console.addNewLine()
+            
 
 
     def create_box(self):
@@ -470,7 +472,7 @@ class GraphicalEditor(QFrame):
             self.add_actors_and_populate_tree_view(boxMap, 'volume')
             
             self.log_console.printInfo(f'Successfully created box:\n{tmp}')
-            self.log_console.addNewLine()
+            
 
 
     def create_cylinder(self):
@@ -505,7 +507,7 @@ class GraphicalEditor(QFrame):
             self.add_actors_and_populate_tree_view(cylinderMap, 'volume')
             
             self.log_console.printInfo(f'Successfully created cylinder:\n{tmp}')
-            self.log_console.addNewLine()
+            
     
     
     def upload_custom(self):
@@ -758,6 +760,7 @@ class GraphicalEditor(QFrame):
         self.add_actors(actors)
         self.populate_tree(object_map, objType)
     
+    
     def remove_row_from_tree(self, row):
         self.model.removeRow(row)
     
@@ -766,6 +769,7 @@ class GraphicalEditor(QFrame):
         row = rows[0]
         for _ in range(len(rows)):
             self.model.removeRow(row)
+    
     
     def fill_row_actor_map(self, row, actors, objType: str):
         if objType == 'volume':
@@ -1394,21 +1398,40 @@ class GraphicalEditor(QFrame):
             if self.getParticleSourceDirection() is None:
                 return
             theta, phi = self.getParticleSourceDirection()
+            
+            config_file = self.config_tab.config_file_path
+            if not config_file:
+                QMessageBox.warning(self, "Saving Particle Source as Point", "Can't save pointed particle source, first u need to choose configuration file, then set the source")
+                return
+            
+            # Read the existing configuration file
+            with open(config_file, 'r') as file:
+                config_data = json.load(file)
 
-            with open(DEFAULT_TEMP_FILE_FOR_PARTICLE_SOURCE_AND_THETA, "w") as f:
-                f.write(f"{base_coords[0]} {base_coords[1]} {base_coords[2]} {self.expansion_angle} {phi} {theta}")
+            # Add ParticleSourcePoint information to the configuration
+            config_data["ParticleSourcePoint"] = {
+                "phi": phi,
+                "theta": theta,
+                "expansionAngle": self.expansion_angle,
+                "BaseCoordinates": [base_coords[0], base_coords[1], base_coords[2]]
+            }
+
+            with open(config_file, 'w') as file:
+                json.dump(config_data, file, indent=4)
             
             self.statusBar.showMessage("Successfully set particle source and calculated direction angles")
-            self.log_console.printInfo(f"Successfully written coordinates of the particle source:\nBase: {base_coords}\nExpansion angle θ: {self.expansion_angle} ({rad_to_degree(self.expansion_angle)}°)\nPolar (colatitude) angle θ: {theta} ({rad_to_degree(theta)}°)\nAzimuthal angle φ: {phi} ({rad_to_degree(phi)}°)\n")
-            self.log_console.addNewLine()
+            self.log_console.printInfo(f"Successfully written coordinates of the particle source:\n"
+                                            f"Base: {base_coords}\n"
+                                            f"Expansion angle θ: {self.expansion_angle} ({rad_to_degree(self.expansion_angle)}°)\n"
+                                            f"Polar (colatitude) angle θ: {theta} ({rad_to_degree(theta)}°)\n"
+                                            f"Azimuthal angle φ: {phi} ({rad_to_degree(phi)}°)\n")
             
             self.resetParticleSourceArrow()
             return 1
 
         except Exception as e:
-            error_message = f"Error defining particle source. {e}"
-            self.log_console.printError(error_message)
-            QMessageBox.warning(self, "Particle Source", error_message)
+            self.log_console.printError(f"Error defining particle source. {e}")
+            QMessageBox.warning(self, "Particle Source", f"Error defining particle source. {e}")
             return None
 
         
@@ -1675,3 +1698,149 @@ class GraphicalEditor(QFrame):
                 self.saveBoundaryConditions(nodes, value)
                 self.log_console.printInfo(f"Object: {hex(id(actor))}, Nodes: {nodes}, Value: {value}")
         self.deselect()
+
+
+    def set_particle_source_as_surface(self):
+        if not self.selected_actors:
+            self.log_console.printWarning("There is no selected surfaces to apply boundary conditions on them")
+            QMessageBox.information(self, "Set Boundary Conditions", "There is no selected surfaces to apply boundary conditions on them")
+            return
+
+        selected_actor = list(self.selected_actors)[0]
+        poly_data = selected_actor.GetMapper().GetInput()
+        normals = self.calculate_normals(poly_data)
+
+        if not normals:
+            self.log_console.printWarning("No normals found for the selected surface")
+            QMessageBox.warning(self, "Normals Calculation", "No normals found for the selected surface")
+            return
+
+        num_cells = poly_data.GetNumberOfCells()
+        arrows_outside = []
+        arrows_inside = []
+        data = {}
+
+        for i in range(num_cells):
+            normal = normals.GetTuple(i)
+            rev_normal = tuple(-n if n != 0 else 0.0 for n in normal)
+            cell = poly_data.GetCell(i)
+            cell_center = self.calculate_cell_center(cell)
+
+            arrow_outside = self.create_arrow_actor(cell_center, normal)
+            arrow_inside = self.create_arrow_actor(cell_center, rev_normal)
+            
+            arrows_outside.append((arrow_outside, cell_center, normal))
+            arrows_inside.append((arrow_inside, cell_center, rev_normal))
+        self.add_arrows(arrows_outside)
+        
+        if not self.confirm_normal_orientation("outside"):
+            self.remove_arrows(arrows_outside)
+            self.add_arrows(arrows_inside)
+            if not self.confirm_normal_orientation("inside"):
+                self.remove_arrows(arrows_inside)
+                return
+            else:
+                self.populate_data(arrows_inside, data)
+        else:
+            self.populate_data(arrows_outside, data)
+            
+        self.remove_arrows(arrows_outside)
+        self.remove_arrows(arrows_inside)
+
+        surface_address = next(iter(data))
+        for arrow_address, values in data.items():
+            cellCentre = values['cell_center']
+            normal = values['normal']
+            self.log_console.printInfo(f"<{surface_address}> | <{arrow_address}>: [{cellCentre[0]:.2f}, {cellCentre[1]:.2f}, {cellCentre[2]:.2f}] - ({normal[0]:.2f}, {normal[1]:.2f}, {normal[2]:.2f})")
+            surface_address = next(iter(data))
+        
+        self.deselect()
+
+    def confirm_normal_orientation(self, orientation):
+        return QMessageBox.question(
+            self, 
+            "Normal Orientation", 
+            f"Do you want to set normals {orientation}?", 
+            QMessageBox.Yes | QMessageBox.No
+        ) == QMessageBox.Yes
+
+    def add_arrows(self, arrows):
+        for arrow_actor, _, _ in arrows:
+            self.renderer.AddActor(arrow_actor)
+        self.vtkWidget.GetRenderWindow().Render()
+
+    def remove_arrows(self, arrows):
+        for arrow_actor, _, _ in arrows:
+            self.renderer.RemoveActor(arrow_actor)
+        self.vtkWidget.GetRenderWindow().Render()
+
+    def populate_data(self, arrows, data):
+        for arrow_actor, cell_center, normal in arrows:
+            actor_address = hex(id(arrow_actor))
+            data[actor_address] = {"cell_center": cell_center, "normal": normal}
+
+
+    def select_normals(self):
+        pass
+
+
+    def calculate_normals(self, poly_data):
+        normals_filter = vtkPolyDataNormals()
+        normals_filter.SetInputData(poly_data)
+        normals_filter.ComputePointNormalsOff()
+        normals_filter.ComputeCellNormalsOn()
+        normals_filter.Update()
+
+        return normals_filter.GetOutput().GetCellData().GetNormals()
+
+
+    def calculate_cell_center(self, cell):
+        cell_center = [0.0, 0.0, 0.0]
+        points = cell.GetPoints()
+        num_points = points.GetNumberOfPoints()
+        for j in range(num_points):
+            point = points.GetPoint(j)
+            cell_center[0] += point[0]
+            cell_center[1] += point[1]
+            cell_center[2] += point[2]
+        return [coord / num_points for coord in cell_center]
+    
+    
+    def create_arrow_actor(self, position, direction):
+        arrow_source = vtkArrowSource()
+        arrow_source.SetTipLength(0.2)
+        arrow_source.SetShaftRadius(0.02)
+        arrow_source.SetTipResolution(100)
+
+        transform = vtkTransform()
+        transform.Translate(position)
+
+        direction_list = list(direction)
+        norm = vtkMath.Norm(direction_list)
+        if norm > 0:
+            vtkMath.Normalize(direction_list)
+            x_axis = [1, 0, 0]
+            angle = vtkMath.AngleBetweenVectors(x_axis, direction_list)
+            
+            if direction == [-1.0, 0.0, 0.0] or direction == [1.0, 0.0, 0.0]:
+                rotation_axis = [0.0, 1.0, 0.0]
+            else:
+                rotation_axis = [0.0, 0.0, 0.0]
+                vtkMath.Cross(x_axis, direction_list, rotation_axis)
+                if vtkMath.Norm(rotation_axis) == 0:
+                    rotation_axis = [0.0, 1.0, 0.0]
+            transform.RotateWXYZ(vtkMath.DegreesFromRadians(angle), *rotation_axis)
+
+        transform_filter = vtkTransformPolyDataFilter()
+        transform_filter.SetInputConnection(arrow_source.GetOutputPort())
+        transform_filter.SetTransform(transform)
+        transform_filter.Update()
+
+        mapper = vtkPolyDataMapper()
+        mapper.SetInputConnection(transform_filter.GetOutputPort())
+
+        arrow_actor = vtkActor()
+        arrow_actor.SetMapper(mapper)
+        arrow_actor.GetProperty().SetColor(ARROW_ACTOR_COLOR)
+
+        return arrow_actor

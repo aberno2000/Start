@@ -142,9 +142,6 @@ namespace util
 
     /// @brief Cheks restrictions for the certain simulation parameters, if something wrong - exits from the program.
     void checkRestrictions(double time_step, size_t particles_count, std::string_view mshfilename);
-
-    /// @brief Gets particle source coordinates from the file that generates with Python code. Removes this file after getting copy of the data.
-    std::array<double, 6> getParticleSourceCoordsAndDirection();
 }
 
 #endif // !UTILITIES_HPP

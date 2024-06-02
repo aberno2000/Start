@@ -36,6 +36,14 @@ private:
         std::string mshfilename;    ///< Filename of the mesh file.
         std::string model;          ///< Scattering model, e.g., HS/VHS/VSS.
 
+        /* Particle source params. */
+        bool isPointSource{};                ///< Flag to check if particle source presented as point. If true - point.
+        bool isSurfaceSource{};             ///< Flag to check if particle source presented as surface. If true - surface.
+        double phi{};                        ///< Azimuthal angle φ.
+        double theta{};                      ///< Polar (colatitude) angle θ.
+        double expansionAngle{};             ///< Expansion angle θ.
+        std::vector<double> baseCoordinates; ///< Base coordinates [x, y, z].
+
         /* PIC and FEM params. */
         double edgeSize{};       ///< Edge size of the cubic grid that uses in PIC.
         short desiredAccuracy{}; ///< Calculation accuracy that uses in FEM to define coutn of cubature points for the linear tetrahedron.
@@ -92,6 +100,12 @@ public:
     constexpr ParticleType getGas() const { return m_config.gas; }
     constexpr std::string_view getMeshFilename() const { return m_config.mshfilename.data(); }
     constexpr std::string_view getScatteringModel() const { return m_config.model.data(); }
+    constexpr bool isParticleSourcePoint() const { return m_config.isPointSource; }
+    constexpr bool isParticleSourceSurface() const { return m_config.isSurfaceSource; }
+    constexpr double getPhi() const { return m_config.phi; }
+    constexpr double getTheta() const { return m_config.theta; }
+    constexpr double getExpansionAngle() const { return m_config.expansionAngle; }
+    constexpr std::vector<double> const &getBaseCoordinates() const { return m_config.baseCoordinates; }
     constexpr double getEdgeSize() const { return m_config.edgeSize; }
     constexpr short getDesiredCalculationAccuracy() const { return m_config.desiredAccuracy; }
     constexpr std::string_view getSolverName() const { return m_config.solverName; }
