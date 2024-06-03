@@ -445,10 +445,6 @@ ParticleVector createParticlesFromSurfaceSource(std::vector<surface_source_t> co
                     iss.ignore();
             }
 
-            std::cout << std::format("Cell centre: {} {} {}\tNormal: {} {} {}\n",
-                                     cell_centre.at(0), cell_centre.at(1), cell_centre.at(2),
-                                     normal.at(0), normal.at(1), normal.at(2));
-
             for (size_t i{}; i < cell_particle_count[cell_index]; ++i)
             {
                 // Calculate theta and phi based on the normal.

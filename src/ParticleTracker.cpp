@@ -59,9 +59,6 @@ void ParticleTracker::initializeParticles()
         auto tmp{createParticlesFromSurfaceSource(m_config.getParticleSourceSurfaces())};
         if (!tmp.empty())
             m_particles.insert(m_particles.end(), std::ranges::begin(tmp), std::ranges::end(tmp));
-
-        for (auto const &p : m_particles)
-            std::cout << p;
     }
 
     if (m_particles.empty())
