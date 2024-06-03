@@ -32,14 +32,14 @@ class ResultsTab(QWidget):
         
         self.log_console = log_console
         
-        self.sphere_actors = []
+        self.particle_actors = {}
         self.animation_timer = QTimer(self)
         self.animation_timer.timeout.connect(self.update_animation)
         
         self.current_iteration = 0
         self.max_iterations = 0
         self.repeat_count = 0
-        self.max_repeats = 10
+        self.max_repeats = 3
         
 
     def setup_axes(self):
@@ -115,7 +115,7 @@ class ResultsTab(QWidget):
         self.animationClearButton = self.create_toolbar_button(
             icon_path="icons/anim-remove.png",
             tooltip='Removes all the objects from the previous animation',
-            callback=self.clear_animation,
+            callback=self.stop_animation,
             layout=self.toolbarLayout
         )
         
@@ -308,11 +308,12 @@ class ResultsTab(QWidget):
         self.particles_movement = particles_movement
         self.current_iteration = 0
         self.repeat_count = 0
+        self.settled_actors = {} 
         
         # Determine the maximum number of iterations
         self.max_iterations = max(len(movements) for movements in particles_movement.values())
         self.animation_timer.start(1000)  # Update every second
-        
+
     
     def update_animation(self):
         if self.current_iteration >= self.max_iterations:
@@ -320,25 +321,28 @@ class ResultsTab(QWidget):
             if self.repeat_count >= self.max_repeats:
                 self.animation_timer.stop()
                 return
-            self.current_iteration = 0  # Reset iteration to start over
-
-        # Remove previous actors
-        for actor in self.sphere_actors:
-            self.renderer.RemoveActor(actor)
-        self.sphere_actors.clear()
-
+            self.current_iteration = 0       # Reset iteration to start over
+            self.remove_all_particles()      # Clear all particles and stop the animation
+        self.remove_all_particles()
+        
         # Collect points for the current iteration
         points = []
-        for _, movements in self.particles_movement.items():
+        for particle_id, movements in self.particles_movement.items():
             if self.current_iteration < len(movements):
                 points.append(movements[self.current_iteration])
+            else:
+                # If particle has settled, ensure it has an actor
+                if particle_id not in self.settled_actors:
+                    actor = self.create_particle_actor([movements[-1]])
+                    self.renderer.AddActor(actor)
+                    self.settled_actors[particle_id] = actor
 
-        # Add new actor for the current iteration
+        # Add new actors for the current iteration
         if points:
             actor = self.create_particle_actor(points)
             self.renderer.AddActor(actor)
-            self.sphere_actors.append(actor)
-        
+            self.particle_actors[self.current_iteration] = actor
+
         self.vtkWidget.GetRenderWindow().Render()
         self.current_iteration += 1
     
@@ -353,16 +357,32 @@ class ResultsTab(QWidget):
             self.renderer.RemoveActor(actor)
         
         self.vtkWidget.GetRenderWindow().Render()
-    
-    def clear_animation(self):
+        
+        
+    def remove_all_particles(self):
         """
         Clear all actors from the previous animation.
         """
-        for actor in self.sphere_actors:
-            self.renderer.RemoveActor(actor)
-        self.sphere_actors.clear()
+        # Clear all actors from the renderer
+        for actor in self.particle_actors.values():
+            if actor and actor in self.renderer.GetActors():
+                self.renderer.RemoveActor(actor)
+        self.particle_actors.clear()
+
+        # Also clear settled actors if necessary
+        for actor in self.settled_actors.values():
+            if actor and actor in self.renderer.GetActors():
+                self.renderer.RemoveActor(actor)
+        self.settled_actors.clear()
+
         self.vtkWidget.GetRenderWindow().Render()
+        
     
+    def stop_animation(self):
+        # Stop the animation timer
+        self.animation_timer.stop()
+        self.remove_all_particles()
+            
     
     def load_particle_movements(self, filename="particles_movements.json"):
         """

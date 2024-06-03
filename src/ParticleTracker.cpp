@@ -262,8 +262,10 @@ void ParticleTracker::processSurfaceCollisionTracker(size_t start_index, size_t 
                   {
                       {
                           std::lock_guard<std::mutex> lock(m_settledParticles_mutex);
-                          if (_settledParticlesIds.find(particle.getId()) != _settledParticlesIds.cend())
+                          if (_settledParticlesIds.find(particle.getId()) != _settledParticlesIds.end())
                               return;
+                          else
+                              m_particlesMovement[particle.getId()].emplace_back(particle.getCentre());
                       }
 
                       size_t containingTetrahedron{};
@@ -282,12 +284,6 @@ void ParticleTracker::processSurfaceCollisionTracker(size_t start_index, size_t 
                               particle.electroMagneticPush(magneticInduction,
                                                            MathVector(tetrahedron->electricField->x(), tetrahedron->electricField->y(), tetrahedron->electricField->z()),
                                                            m_config.getTimeStep());
-
-                    {
-                        std::lock_guard<std::mutex> lock(m_particlesMovement_mutex);
-                        if (_settledParticlesIds.find(particle.getId()) == _settledParticlesIds.end())
-                            m_particlesMovement[particle.getId()].emplace_back(particle.getCentre());
-                    }
 
                       Point prev(particle.getCentre());
                       particle.updatePosition(m_config.getTimeStep());
