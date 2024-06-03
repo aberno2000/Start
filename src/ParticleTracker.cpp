@@ -100,7 +100,7 @@ void ParticleTracker::saveParticleMovements() const
     {
         if (m_particlesMovement.empty())
         {
-            std::cerr << "Warning: Particle movements map is empty, no data to save." << std::endl;
+            WARNINGMSG("Warning: Particle movements map is empty, no data to save");
             return;
         }
 
@@ -113,7 +113,8 @@ void ParticleTracker::saveParticleMovements() const
             j[std::to_string(id)] = positions;
         }
 
-        std::ofstream file("particles_movements.json");
+        std::string filepath("particles_movements.json");
+        std::ofstream file(filepath);
         if (file.is_open())
         {
             file << j.dump(4); // 4 spaces indentation for pretty printing
@@ -121,14 +122,16 @@ void ParticleTracker::saveParticleMovements() const
         }
         else
             throw std::ios_base::failure("Failed to open file for writing");
+
+        LOGMSG(util::stringify("Successfully written particle movements to the file ", filepath));
     }
     catch (std::ios_base::failure const &e)
     {
-        std::cerr << "I/O error occurred: " << e.what() << std::endl;
+        ERRMSG(util::stringify("I/O error occurred: ", e.what()));
     }
     catch (json::exception const &e)
     {
-        std::cerr << "JSON error occurred: " << e.what();
+        ERRMSG(util::stringify("JSON error occurred: ", e.what()));
     }
 }
 
@@ -280,6 +283,12 @@ void ParticleTracker::processSurfaceCollisionTracker(size_t start_index, size_t 
                                                            MathVector(tetrahedron->electricField->x(), tetrahedron->electricField->y(), tetrahedron->electricField->z()),
                                                            m_config.getTimeStep());
 
+                    {
+                        std::lock_guard<std::mutex> lock(m_particlesMovement_mutex);
+                        if (_settledParticlesIds.find(particle.getId()) == _settledParticlesIds.end())
+                            m_particlesMovement[particle.getId()].emplace_back(particle.getCentre());
+                    }
+
                       Point prev(particle.getCentre());
                       particle.updatePosition(m_config.getTimeStep());
                       Ray ray(prev, particle.getCentre());
@@ -317,13 +326,10 @@ void ParticleTracker::processSurfaceCollisionTracker(size_t start_index, size_t 
                                   m_stop_processing.test_and_set();
                                   return;
                               }
-                          }
-                      }
 
-                      {
-                          std::lock_guard<std::mutex> lock(m_particlesMovement_mutex);
-                          if (_settledParticlesIds.find(particle.getId()) == _settledParticlesIds.cend())
-                              m_particlesMovement[particle.getId()].emplace_back(particle.getCentre());
+                              auto intersection_point{RayTriangleIntersection::getIntersectionPoint(ray, triangle)};
+                              m_particlesMovement[particle.getId()].emplace_back(*intersection_point);
+                          }
                       }
                   });
 }
@@ -423,4 +429,5 @@ void ParticleTracker::startSimulation()
         f.get();
 
     updateSurfaceMesh();
+    saveParticleMovements();
 }

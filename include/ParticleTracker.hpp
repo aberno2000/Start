@@ -58,9 +58,6 @@ private:
     /// @brief Global initializator. Uses all the initializers above.
     void initialize();
 
-    /// @brief Clears out all the files that are generated from the UI side of the application.
-    void finalize() const { saveParticleMovements(); }
-
     /**
      * @brief Saves the particle movements to a JSON file.
      *
@@ -117,7 +114,6 @@ private:
 
 public:
     ParticleTracker(std::string_view config_filename);
-    ~ParticleTracker() { finalize(); }
 
     void startSimulation();
 };
