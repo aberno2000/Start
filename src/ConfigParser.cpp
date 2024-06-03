@@ -37,53 +37,45 @@ void ConfigParser::getConfigData(std::string_view config)
     {
         // Check for all required parameters in the JSON file
         checkParameterExists(configJson, "Mesh File");
-        checkParameterExists(configJson, "Count");
         checkParameterExists(configJson, "Threads");
         checkParameterExists(configJson, "Time Step");
         checkParameterExists(configJson, "Simulation Time");
         checkParameterExists(configJson, "T");
         checkParameterExists(configJson, "P");
-        checkParameterExists(configJson, "Particles");
-        checkParameterExists(configJson, "Energy");
+        checkParameterExists(configJson, "Gas");
         checkParameterExists(configJson, "Model");
         checkParameterExists(configJson, "EdgeSize");
         checkParameterExists(configJson, "DesiredAccuracy");
 
         m_config.mshfilename = configJson.at("Mesh File").get<std::string>();
-        m_config.particles_count = configJson.at("Count").get<size_t>();
         m_config.num_threads = configJson.at("Threads").get<unsigned int>();
         m_config.time_step = configJson.at("Time Step").get<double>();
         m_config.simtime = configJson.at("Simulation Time").get<double>();
         m_config.temperature = configJson.at("T").get<double>();
         m_config.pressure = configJson.at("P").get<double>();
-
-        if (configJson.at("Particles").size() < 2)
-        {
-            throw std::runtime_error("Parameter 'Particles' must contain at least two values. Example: \"Particles\": [\"type1\", \"type2\"]");
-        }
-        std::string projective{configJson.at("Particles").at(0)},
-            gas{configJson.at("Particles").at(1)};
-
-        m_config.projective = util::getParticleTypeFromStrRepresentation(projective);
-        m_config.gas = util::getParticleTypeFromStrRepresentation(gas);
-
-        m_config.energy = configJson.at("Energy").get<double>();
+        m_config.gas = util::getParticleTypeFromStrRepresentation(configJson.at("Gas").get<std::string>());
         m_config.model = configJson.at("Model").get<std::string>();
 
         if (configJson.contains("ParticleSourcePoint"))
         {
             for (auto &[key, particleSource] : configJson.at("ParticleSourcePoint").items())
             {
+                checkParameterExists(particleSource, "Type");
+                checkParameterExists(particleSource, "Count");
+                checkParameterExists(particleSource, "Energy");
                 checkParameterExists(particleSource, "phi");
                 checkParameterExists(particleSource, "theta");
                 checkParameterExists(particleSource, "expansionAngle");
                 checkParameterExists(particleSource, "BaseCoordinates");
 
-                ParticleSourcePoint sourcePoint;
+                point_source_t sourcePoint;
+                sourcePoint.type = particleSource.at("Type").get<std::string>();
+                sourcePoint.count = particleSource.at("Count").get<size_t>();
+                sourcePoint.energy = particleSource.at("Energy").get<double>();
                 sourcePoint.phi = particleSource.at("phi").get<double>();
                 sourcePoint.theta = particleSource.at("theta").get<double>();
                 sourcePoint.expansionAngle = particleSource.at("expansionAngle").get<double>();
-                sourcePoint.baseCoordinates = particleSource.at("BaseCoordinates").get<std::vector<double>>();
+                sourcePoint.baseCoordinates = particleSource.at("BaseCoordinates").get<std::array<double, 3ul>>();
 
                 m_config.particleSourcePoints.push_back(sourcePoint);
             }
@@ -98,7 +90,7 @@ void ConfigParser::getConfigData(std::string_view config)
                 checkParameterExists(particleSource, "Energy");
                 checkParameterExists(particleSource, "BaseCoordinates");
 
-                ParticleSourceSurface sourceSurface;
+                surface_source_t sourceSurface;
                 sourceSurface.type = particleSource.at("Type").get<std::string>();
                 sourceSurface.count = particleSource.at("Count").get<int>();
                 sourceSurface.energy = particleSource.at("Energy").get<double>();

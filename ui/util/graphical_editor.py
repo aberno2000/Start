@@ -31,6 +31,7 @@ from .util import(
     SphereDialog, BoxDialog, CylinderDialog,
     AngleDialog, MoveActorDialog, AxisSelectionDialog,
     ExpansionAngleDialog, ParticleSourceDialog, 
+    ParticleSourceTypeDialog,
     pi
 )
 from util.util import(
@@ -234,8 +235,7 @@ class GraphicalEditor(QFrame):
         self.crossSectionButton = self.create_button('icons/cross-section.png', 'Cross section of the object')
         self.setBoundaryConditionsButton = self.create_button('icons/boundary-conditions.png', 'Turning on mode to select boundary nodes')
         self.setBoundaryConditionsSurfaceButton = self.create_button('icons/boundary-conditions-surface.png', 'Turning on mode to select boundary nodes on surface')
-        self.setParticleSourceAsSurfaceButton = self.create_button('icons/surface-particle-source.png', 'Set particle source as surface')
-        self.directParticleButton = self.create_button('icons/particle-source-direction.png', 'Set particle source and direction of this source')
+        self.setParticleSourceButton = self.create_button('icons/particle-source.png', 'Set particle source as surface')
         
         self.spacer = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
         self.toolbarLayout.addSpacerItem(self.spacer)
@@ -259,8 +259,7 @@ class GraphicalEditor(QFrame):
         self.crossSectionButton.clicked.connect(self.cross_section_button_clicked)
         self.setBoundaryConditionsButton.clicked.connect(self.activate_selection_boundary_conditions_mode)
         self.setBoundaryConditionsSurfaceButton.clicked.connect(self.activate_selection_boundary_conditions_mode_for_surface)
-        self.setParticleSourceAsSurfaceButton.clicked.connect(self.set_particle_source_as_surface)
-        self.directParticleButton.clicked.connect(self.activate_particle_direction_mode)
+        self.setParticleSourceButton.clicked.connect(self.set_particle_source)
 
     def setup_ui(self):
         self.vtkWidget = QVTKRenderWindowInteractor(self)
@@ -1386,7 +1385,7 @@ class GraphicalEditor(QFrame):
         self.log_console.printInfo("Successfully created a cross-section")
     
 
-    def writeParticleSouceAndDirectionToFile(self):
+    def savePointParticleSourceToConfig(self):
         try:
             base_coords = self.getParticleSourceBaseCoords()
             if base_coords is None:
@@ -1423,6 +1422,13 @@ class GraphicalEditor(QFrame):
                 if reply == QMessageBox.Yes:
                     for source in sources_to_remove:
                         del config_data[source]
+            
+            dialog = ParticleSourceDialog(self)
+            if dialog.exec_() == QDialog.Accepted:
+                particle_params = dialog.get_values()
+                particle_type = particle_params["particle_type"]
+                energy = particle_params["energy"]
+                num_particles = particle_params["num_particles"]
 
             # Prepare new ParticleSourcePoint entry
             if "ParticleSourcePoint" not in config_data:
@@ -1430,6 +1436,9 @@ class GraphicalEditor(QFrame):
 
             new_point_index = str(len(config_data["ParticleSourcePoint"]) + 1)
             config_data["ParticleSourcePoint"][new_point_index] = {
+                "Type": particle_type,
+                "Count": num_particles,
+                "Energy": energy,
                 "phi": phi,
                 "theta": theta,
                 "expansionAngle": self.expansion_angle,
@@ -1440,12 +1449,16 @@ class GraphicalEditor(QFrame):
             with open(config_file, 'w') as file:
                 json.dump(config_data, file, indent=4)
 
-            self.statusBar.showMessage("Successfully set particle source and calculated direction angles")
+            self.statusBar.showMessage("Successfully set particle source as point source and calculated direction angles")
             self.log_console.printInfo(f"Successfully written coordinates of the particle source:\n"
                                     f"Base: {base_coords}\n"
                                     f"Expansion angle θ: {self.expansion_angle} ({rad_to_degree(self.expansion_angle)}°)\n"
                                     f"Polar (colatitude) angle θ: {theta} ({rad_to_degree(theta)}°)\n"
-                                    f"Azimuthal angle φ: {phi} ({rad_to_degree(phi)}°)\n")
+                                    f"Azimuthal angle φ: {phi} ({rad_to_degree(phi)}°)\n"
+                                    f"Particle Type: {particle_type}\n"
+                                    f"Energy: {energy} eV\n"
+                                    f"Number of Particles: {num_particles}")
+            self.log_console.addNewLine()
 
             self.resetParticleSourceArrow()
             return 1
@@ -1493,7 +1506,7 @@ class GraphicalEditor(QFrame):
         
         return theta, phi
     
-    def activate_particle_direction_mode(self):
+    def set_particle_source_as_point(self):
         if not self.particleSourceArrowActor:
             self.particleSourceArrowActor = self.create_direction_arrow()
         
@@ -1509,6 +1522,8 @@ class GraphicalEditor(QFrame):
                 if thetaMax > pi / 2.:
                     self.log_console.printWarning(f"The θ angle exceeds 90°, so some particles can distribute in the opposite direction\nθ = {thetaMax} ({thetaMax * 180. / pi}°)")    
                 self.log_console.printInfo(f"Successfully assigned values to the expansion angle and calculated φ angle\nθ = {thetaMax} ({thetaMax * 180. / pi}°)\nφ = {phi} ({phi * 180. / pi}°)\n")
+            
+                self.savePointParticleSourceToConfig()
             
             except Exception as e:
                 QMessageBox.critical(self, "Scattering angles", f"Exception while assigning expansion angle θ: {e}")
@@ -1773,6 +1788,17 @@ class GraphicalEditor(QFrame):
         self.log_console.printInfo(f"Particle source surface added to configuration file: {config_file}")
 
 
+    def set_particle_source(self):
+        dialog = ParticleSourceTypeDialog(self)
+        if dialog.exec_() == QDialog.Accepted:
+            selected_source_type = dialog.getSelectedSourceType()
+
+            if selected_source_type == "Point Source with Conical Distribution":
+                self.set_particle_source_as_point()
+            elif selected_source_type == "Surface Source":
+                self.set_particle_source_as_surface()
+
+
     def set_particle_source_as_surface(self):
         if not self.selected_actors:
             self.log_console.printWarning("There is no selected surfaces to apply boundary conditions on them")
@@ -1781,17 +1807,23 @@ class GraphicalEditor(QFrame):
 
         selected_actor = list(self.selected_actors)[0]
         surface_and_normals_dict = self.select_surface_and_normals(selected_actor)
+        if not surface_and_normals_dict:
+            return
         
         dialog = ParticleSourceDialog(self)
         if dialog.exec_() == QDialog.Accepted:
-            particle_params = dialog.get_values()
+            particle_params = dialog.getValues()
             particle_type = particle_params["particle_type"]
             energy = particle_params["energy"]
             num_particles = particle_params["num_particles"]
-
-            self.log_console.printInfo(f"Particle Type: {particle_type}")
-            self.log_console.printInfo(f"Energy: {energy} eV")
-            self.log_console.printInfo(f"Number of Particles: {num_particles}")
+            
+            self.log_console.printInfo("Particle source set as surface source\n"
+                                       f"Particle Type: {particle_type}\n"
+                                       f"Energy: {energy} eV\n"
+                                       f"Number of Particles: {num_particles}")
+            self.log_console.addNewLine()
+        else:
+            return
         
         self.update_config_with_particle_source(particle_params, surface_and_normals_dict)
 

@@ -43,10 +43,10 @@ public:
     void calculateElectricField();
 
     /// @brief Writes solution vector to the .pos file (GMSH format) to have the capability to view results of the solved equation Ax=b.
-    void writeElectricPotentialsToPosFile();
+    void writeElectricPotentialsToPosFile(double time = -1);
 
     /// @brief Writes solution vector to the .pos file (GMSH format) to have the capability to view results of the solved equation Ax=b.
-    void writeElectricFieldVectorsToPosFile();
+    void writeElectricFieldVectorsToPosFile(double time = -1);
 
     /**
      * @brief Creates and configures a parameter list for the specified iterative solver.

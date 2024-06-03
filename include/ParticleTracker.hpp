@@ -8,7 +8,7 @@
 #include "Generators/VolumeCreator.hpp"
 #include "Geometry/Mesh.hpp"
 #include "ParticleInCell/Grid3D.hpp"
-#include "Particles/Particles.hpp"
+#include "Particles/Particle.hpp"
 #include "Utilities/ConfigParser.hpp"
 
 class ParticleTracker final
@@ -97,7 +97,7 @@ private:
                        std::map<GlobalOrdinal, double> &boundaryConditions, double time);
     void processSurfaceCollisionTracker(size_t start_index, size_t end_index,
                                         Grid3D const &cubicGrid, GSMatrixAssemblier const &assemblier,
-                                        std::map<size_t, ParticleVector> const &PICtracker);
+                                        std::map<size_t, ParticleVector> const &PICtracker, double t);
 
     /**
      * @brief Processes a segment of the particle collection to detect collisions.

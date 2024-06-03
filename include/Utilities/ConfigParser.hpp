@@ -6,29 +6,33 @@
 
 #include "Utilities.hpp"
 
-/**
- * @brief Class for parsing and storing configuration data.
- * @details This class is responsible for parsing configuration data from a given file
- *          and storing it in a structured format. It supports retrieving various
- *          parameters related to ambient conditions, particle types, and scattering model.
- */
-class ConfigParser final
+namespace ConfigParserTypes
 {
-private:
-    struct ParticleSourcePoint
+    /**
+     * @brief Structure to hold data for a point particle source.
+     * @details This structure contains parameters defining a point particle source, including angles and coordinates.
+     */
+    struct point_source_t
     {
-        double phi;
-        double theta;
-        double expansionAngle;
-        std::vector<double> baseCoordinates;
+        std::string type;                        ///< Type of the particle (e.g., Ti, Al, Sn).
+        size_t count{};                          ///< Number of particles.
+        double energy{};                         ///< Energy of the particles in electronvolts (eV).
+        double phi{};                            ///< Azimuthal angle φ.
+        double theta{};                          ///< Polar (colatitude) angle θ.
+        double expansionAngle{};                 ///< Expansion angle θ.
+        std::array<double, 3ul> baseCoordinates; ///< Base coordinates [x, y, z].
     };
 
-    struct ParticleSourceSurface
+    /**
+     * @brief Structure to hold data for a surface particle source.
+     * @details This structure contains parameters defining a surface particle source, including type, count, energy, and coordinates.
+     */
+    struct surface_source_t
     {
-        std::string type;
-        int count;
-        double energy;
-        std::unordered_map<std::string, std::vector<double>> baseCoordinates;
+        std::string type;                                                       ///< Type of the particle (e.g., Ti, Al, Sn).
+        int count{};                                                            ///< Number of particles.
+        double energy{};                                                        ///< Energy of the particles in electronvolts [eV].
+        std::unordered_map<std::string, std::vector<double>> baseCoordinates{}; ///< Map of base coordinates and normals.
     };
 
     /**
@@ -40,21 +44,18 @@ private:
     struct config_data_t
     {
         /* Simulation params. */
-        size_t particles_count{};   ///< Count of the particles in simulation.
         unsigned int num_threads{}; ///< Count of threads to processing.
         double time_step{};         ///< Simulation time step [s].
         double simtime{};           ///< Total simulation time [s].
         double temperature{};       ///< Ambient temperature in Kelvin [K].
         double pressure{};          ///< Ambient pressure in Pascals [Pa].
-        double energy{};            ///< Energy in electronvolts [eV].
-        ParticleType projective{};  ///< Projective particle type, e.g., Au.
         ParticleType gas{};         ///< Gas particle type, e.g., N.
         std::string mshfilename;    ///< Filename of the mesh file.
         std::string model;          ///< Scattering model, e.g., HS/VHS/VSS.
 
         /* Particle source params. */
-        std::vector<ParticleSourcePoint> particleSourcePoints;     ///< Vector of point particle sources.
-        std::vector<ParticleSourceSurface> particleSourceSurfaces; ///< Vector of surface particle sources.
+        std::vector<point_source_t> particleSourcePoints;     ///< Vector of point particle sources.
+        std::vector<surface_source_t> particleSourceSurfaces; ///< Vector of surface particle sources.
 
         /* PIC and FEM params. */
         double edgeSize{};       ///< Edge size of the cubic grid that uses in PIC.
@@ -78,8 +79,23 @@ private:
         std::vector<std::pair<std::vector<size_t>, double>> boundaryConditions; ///< Boundary conditions data.
         std::unordered_map<size_t, std::vector<double>> nodeValues;             ///< Node values.
         std::vector<size_t> nonChangeableNodes;                                 ///< Non-changeable nodes.
+    };
+}
 
-    } m_config; ///< Instance of config_data_t to store configuration.
+using config_data_t = ConfigParserTypes::config_data_t;
+using point_source_t = ConfigParserTypes::point_source_t;
+using surface_source_t = ConfigParserTypes::surface_source_t;
+
+/**
+ * @brief Class for parsing and storing configuration data.
+ * @details This class is responsible for parsing configuration data from a given file
+ *          and storing it in a structured format. It supports retrieving various
+ *          parameters related to ambient conditions, particle types, and scattering model.
+ */
+class ConfigParser final
+{
+private:
+    config_data_t m_config; ///< Instance of config_data_t to store configuration.
 
     /// @brief Clearing out all values from the `m_config`.
     void clearConfig() { m_config = config_data_t{}; }
@@ -102,18 +118,17 @@ public:
 
     /* $$$ Getters for all data members from the `config_data_t` structure. $$$ */
     constexpr unsigned int getNumThreads() const { return m_config.num_threads; }
-    constexpr size_t getParticlesCount() const { return m_config.particles_count; }
     constexpr double getTimeStep() const { return m_config.time_step; }
     constexpr double getSimulationTime() const { return m_config.simtime; }
     constexpr double getTemperature() const { return m_config.temperature; }
     constexpr double getPressure() const { return m_config.pressure; }
-    constexpr double getEnergy() const { return m_config.energy; }
-    constexpr ParticleType getProjective() const { return m_config.projective; }
     constexpr ParticleType getGas() const { return m_config.gas; }
     constexpr std::string_view getMeshFilename() const { return m_config.mshfilename.data(); }
     constexpr std::string_view getScatteringModel() const { return m_config.model.data(); }
-    constexpr std::vector<ParticleSourcePoint> const &getParticleSourcePoints() const { return m_config.particleSourcePoints; }
-    constexpr std::vector<ParticleSourceSurface> const &getParticleSourceSurfaces() const { return m_config.particleSourceSurfaces; }
+    constexpr std::vector<point_source_t> const &getParticleSourcePoints() const { return m_config.particleSourcePoints; }
+    constexpr std::vector<surface_source_t> const &getParticleSourceSurfaces() const { return m_config.particleSourceSurfaces; }
+    constexpr bool isParticleSourcePoint() const { return !m_config.particleSourcePoints.empty(); }
+    constexpr bool isParticleSourceSurface() const { return !m_config.particleSourceSurfaces.empty(); }
     constexpr double getEdgeSize() const { return m_config.edgeSize; }
     constexpr short getDesiredCalculationAccuracy() const { return m_config.desiredAccuracy; }
     constexpr std::string_view getSolverName() const { return m_config.solverName; }

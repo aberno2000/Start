@@ -94,21 +94,14 @@ class ConfigTab(QWidget):
         button_layout.addWidget(self.mesh_file_label)
         self.layout.addLayout(button_layout)
 
-    def setup_particles_group(self):      
+    def setup_particles_group(self):
         particles_group_box = QGroupBox("Particles")
         particles_layout = QFormLayout()
 
-        self.particles_count_input = QLineEdit()
-        self.particles_count_input.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
-        particles_layout.addRow(QLabel("Count:"), self.particles_count_input)
-
         self.projective_input = QComboBox()
         self.gas_input = QComboBox()
-        projective_particles = ["Ti", "Al", "Sn", "W", "Au", "Cu", "Ni", "Ag"]
         gas_particles = ["Ar", "Ne", "He"]
-        self.projective_input.addItems(projective_particles)
         self.gas_input.addItems(gas_particles)
-        particles_layout.addRow(QLabel("Projective:"), self.projective_input)
         particles_layout.addRow(QLabel("Gas:"), self.gas_input)
 
         particles_group_box.setLayout(particles_layout)
@@ -194,13 +187,10 @@ class ConfigTab(QWidget):
         self.simulation_time_input, self.simulation_time_units, self.simulation_time_converted = self.create_simulation_field("Simulation Time:", QLineEdit, ["ns", "μs", "ms", "s", "min"], "s", "0.0")
 
         # Temperature with units
-        self.temperature_input, self.temperature_units, self.temperature_converted = self.create_simulation_field("Temperature:", QLineEdit, ["K", "F", "C"], "K", "0.0 K")
+        self.temperature_input, self.temperature_units, self.temperature_converted = self.create_simulation_field("Temperature:", QLineEdit, ["K", "F", "C"], "K", "0.0")
 
         # Pressure with units
         self.pressure_input, self.pressure_units, self.pressure_converted = self.create_simulation_field("Pressure:", QLineEdit, ["mPa", "Pa", "kPa", "psi"], "Pa", "0.0")
-
-        # Energy with units
-        self.energy_input, self.energy_units, self.energy_converted = self.create_simulation_field("Energy:", QLineEdit, ["eV", "keV", "J", "kJ", "cal"], "eV", "0.0")
 
         simulation_group_box.setLayout(self.simulation_layout)
         
@@ -370,9 +360,6 @@ class ConfigTab(QWidget):
         self.pressure_input.textChanged.connect(self.update_converted_values)
         self.pressure_units.currentIndexChanged.connect(
             self.update_converted_values)
-        self.energy_input.textChanged.connect(self.update_converted_values)
-        self.energy_units.currentIndexChanged.connect(
-            self.update_converted_values)
 
     def update_converted_values(self):
         self.time_step_converted.setText(
@@ -383,8 +370,6 @@ class ConfigTab(QWidget):
             f"{self.converter.to_kelvin(self.temperature_input.text(), self.temperature_units.currentText())} K")
         self.pressure_converted.setText(
             f"{self.converter.to_pascal(self.pressure_input.text(), self.pressure_units.currentText())} Pa")
-        self.energy_converted.setText(
-            f"{self.converter.to_joules(self.energy_input.text(), self.energy_units.currentText())} J")
 
     def update_solver_parameters(self):
         solver = self.solver_selection.currentText()
@@ -441,10 +426,6 @@ class ConfigTab(QWidget):
             QMessageBox.warning(self, "Invalid thread count",
                                 f"Thread count can't be {self.thread_count} (less or equal 0). Your system has {get_thread_count()} threads.")
             return None
-    
-        if not str(self.particles_count) or int(self.particles_count) <= 0:
-            QMessageBox.warning(self, "Invalid particle count", f"It doesn't make sense to run the simulation with {self.particles_count} particles.")
-            return None
         
         if not (
             is_positive_real_number(self.time_step)
@@ -469,17 +450,12 @@ class ConfigTab(QWidget):
         try:
             config = {
                 "Mesh File": self.mesh_file,
-                "Count": int(self.particles_count),
                 "Threads": int(self.thread_count),
                 "Time Step": float(self.time_step),
                 "Simulation Time": float(self.simulation_time),
                 "T": float(self.temperature),
                 "P": float(self.pressure),
-                "Particles": [
-                    self.projective_input.currentText(),
-                    self.gas_input.currentText()
-                ],
-                "Energy": float(self.energy),
+                "Gas": self.gas_input.currentText(),
                 "Model": self.model_input.currentText(),
             }
         except ValueError as e:
@@ -490,7 +466,6 @@ class ConfigTab(QWidget):
 
     def validate_input(self):     
         self.thread_count = self.thread_count_input.text()
-        self.particles_count = self.particles_count_input.text()
         self.time_step = self.converter.to_seconds(
             self.time_step_input.text(), self.time_step_units.currentText()
         )
@@ -503,9 +478,6 @@ class ConfigTab(QWidget):
         self.pressure = self.converter.to_pascal(
             self.pressure_input.text(), self.pressure_units.currentText()
         )
-        self.energy = self.converter.to_joules(
-            self.energy_input.text(), self.energy_units.currentText()
-        )
 
         if self.time_step > self.simulation_time:
             QMessageBox.warning(self, "Invalid Time",
@@ -513,8 +485,6 @@ class ConfigTab(QWidget):
             return None
 
         empty_fields = []
-        if not self.particles_count or int(self.particles_count) <= 0:
-            empty_fields.append("Particles Count")
         if not self.time_step:
             empty_fields.append("Time Step")
         if not self.simulation_time:
@@ -523,8 +493,6 @@ class ConfigTab(QWidget):
             empty_fields.append("Temperature")
         if not self.pressure:
             empty_fields.append("Pressure")
-        if not self.energy:
-            empty_fields.append("Energy")
 
         # If there are any empty fields, alert the user and abort the save
         if empty_fields:
@@ -551,13 +519,6 @@ class ConfigTab(QWidget):
         if not thread_count.isdigit() or int(thread_count) < 1 or int(thread_count) > get_thread_count():
             self.highlight_invalid(self.thread_count_input)
             self.invalid_fields.append('Thread Count')
-            all_valid = False
-
-        # Validate particles count input
-        particles_count = self.particles_count_input.text()
-        if not particles_count.isdigit() or int(particles_count) <= 0:
-            self.highlight_invalid(self.particles_count_input)
-            self.invalid_fields.append('Particle Count')
             all_valid = False
 
         # Validate numeric inputs
@@ -601,12 +562,10 @@ class ConfigTab(QWidget):
             
     def reset_input_styles(self):
         self.thread_count_input.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
-        self.particles_count_input.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
         self.time_step_input.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
         self.simulation_time_input.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
         self.temperature_input.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
         self.pressure_input.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
-        self.energy_input.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
     
     
     def validate_and_convert_numbers(self):        
@@ -639,13 +598,6 @@ class ConfigTab(QWidget):
         if pressure_value is None or pressure_value < 0 or pressure_value > MAX_PRESSURE or not self.pressure_input.text():
             self.highlight_invalid(self.pressure_input)
             self.invalid_fields.append('Pressure')
-            valid = False
-
-        # Energy validation
-        energy_value = self.converter.to_joules(self.energy_input.text(), self.energy_units.currentText())
-        if energy_value is None or not self.energy_input.text():
-            self.highlight_invalid(self.energy_input)
-            self.invalid_fields.append('Energy')
             valid = False
 
         return valid
@@ -714,36 +666,26 @@ class ConfigTab(QWidget):
     def apply_config(self, config):
         try:
             self.mesh_file = config.get('Mesh File', '')
-            self.particles_count = int(config.get('Count', ''))
             self.thread_count = int(config.get('Threads', ''))
             self.time_step = float(config.get('Time Step', ''))
             self.simulation_time = float(config.get('Simulation Time', ''))
             self.temperature = float(config.get('T', ''))
             self.pressure = float(config.get('P', ''))
-            self.energy = float(config.get('Energy', ''))
             
             config = self.check_validity_of_params()
             if not config:
                 return None
             
             self.mesh_file_label.setText(f"Selected: {self.mesh_file}")
-            self.particles_count_input.setText(str(config.get('Count', '')))
             self.thread_count_input.setText(str(config.get('Threads', '')))
             self.time_step_input.setText(str(config.get('Time Step', '')))
             self.simulation_time_input.setText(str(config.get('Simulation Time', '')))
             self.temperature_input.setText(str(config.get('T', '')))
             self.pressure_input.setText(str(config.get('P', '')))
-            self.energy_input.setText(str(config.get('Energy', '')))
 
-            particles = config.get('Particles', [])
-            if len(particles) == 2:                
-                projective_text, gas_text = particles
-                projective_index = self.projective_input.findText(
-                    projective_text, QtCore.Qt.MatchFixedString)
-                gas_index = self.gas_input.findText(
-                    gas_text, QtCore.Qt.MatchFixedString)
-                self.projective_input.setCurrentIndex(projective_index)
-                self.gas_input.setCurrentIndex(gas_index)
+            gas_text = config.get("Gas")
+            gas_index = self.gas_input.findText(gas_text, QtCore.Qt.MatchFixedString)
+            self.gas_input.setCurrentIndex(gas_index)
 
             model_index = self.model_input.findText(
                 config.get('Model', ''), QtCore.Qt.MatchFixedString)
@@ -755,7 +697,6 @@ class ConfigTab(QWidget):
             self.simulation_time_units.setCurrentIndex(3)
             self.temperature_units.setCurrentIndex(0)
             self.pressure_units.setCurrentIndex(1)
-            self.energy_units.setCurrentIndex(2)
 
         except Exception as e:
             QMessageBox.critical(self, "Error Applying Configuration",
@@ -795,13 +736,43 @@ class ConfigTab(QWidget):
             QMessageBox.critical(self, "Error", f"An error occurred while reading the configuration file '{config_file_path}': {e}")
 
         return boundary_conditions
+
     
     def combine_all_settings(self, config_content, config_file_path: str):
         config_content.update(self.save_solver_params_to_dict())
         config_content.update(self.save_picfem_params_to_dict())
+    
         boundary_conditions = self.save_boundary_conditions_to_dict(config_file_path)
         if boundary_conditions:
             config_content["Boundary Conditions"] = boundary_conditions
+
+
+    def check_and_save_sources(self, config_file_path):
+        sources = {}
+        try:
+            with open(config_file_path, 'r') as file:
+                data = load(file)
+
+                if "ParticleSourcePoint" in data:
+                    sources["ParticleSourcePoint"] = data["ParticleSourcePoint"]
+                if "ParticleSourceSurface" in data:
+                    sources["ParticleSourceSurface"] = data["ParticleSourceSurface"]
+
+                if not sources:
+                    QMessageBox.warning(self, "Warning", "No particle source defined in the configuration file.")
+                    return None
+        except FileNotFoundError:
+            QMessageBox.warning(self, "Warning", f"Configuration file not found: {config_file_path}")
+            return None
+        except JSONDecodeError as e:
+            QMessageBox.critical(self, "Error", f"Error parsing JSON file '{config_file_path}': {e}")
+            return None
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"An error occurred while reading the configuration file '{config_file_path}': {e}")
+            return None
+
+        return sources
+
 
     def save_config_to_file_with_filename(self, configFile: str):
         if not is_file_valid(self.mesh_file) or not is_path_accessable(self.mesh_file):
@@ -816,6 +787,15 @@ class ConfigTab(QWidget):
         try:
             # Combine all parameter dictionaries into one
             self.combine_all_settings(config_content=config_content, config_file_path=configFile)
+            
+            # Check and save existing sources
+            sources = self.check_and_save_sources(configFile)
+            if sources is None:
+                QMessageBox.warning(self, "Particle Sources", f'Warning: No particle source defined in the configuration file: {self.config_file_path}\n')
+                self.log_console.printWarning(f'Warning: No particle source defined in the configuration file: {self.config_file_path}\n')
+                return
+            
+            config_content.update(sources)
             
             # Save to the specified file
             with open(configFile, "w") as file:
@@ -855,6 +835,15 @@ class ConfigTab(QWidget):
             try:
                 # Combine all parameter dictionaries into one
                 self.combine_all_settings(config_content=config_content, config_file_path=self.config_file_path)
+                
+                # Check and save existing sources
+                sources = self.check_and_save_sources(self.config_file_path)
+                if sources is None:
+                    QMessageBox.warning(self, "Particle Sources", f'Warning: No particle source defined in the configuration file: {self.config_file_path}\n')
+                    self.log_console.printWarning(f'Warning: No particle source defined in the configuration file: {self.config_file_path}\n')
+                    return
+                
+                config_content.update(sources)
                 
                 # Save to the specified file
                 with open(self.config_file_path, "w") as file:

@@ -436,28 +436,51 @@ class WindowApp(QMainWindow):
         else:
             self.config_tab.save_config_to_file_with_filename(self.config_tab.config_file_path)
         
-        config_content = self.config_tab.validate_input()
-        self.config_tab.combine_all_settings(config_content=config_content, config_file_path=self.config_tab.config_file_path)
-        
-        if config_content is None:
-            return
-        if not config_content:
-            # Prompt the user to select a configuration file
-            options = QFileDialog.Options()
-            options |= QFileDialog.DontUseNativeDialog
-            self.config_tab.config_file_path, _ = QFileDialog.getOpenFileName(
-                self, "Select Configuration File", "", "JSON Files (*.json);;All Files (*)", options=options)
-
-            # If user cancels or selects no file
-            if not self.config_tab.config_file_path:
-                QMessageBox.warning(self, "No Configuration File Selected",
-                                    "Simulation aborted because no configuration file was selected.")
-                return
-        
-        # Rewrite configs if they have been changed
         try:
-            with open(self.config_tab.config_file_path, "w") as file:
-                json.dump(config_content, file, indent=4)  # Serialize dict to JSON
+            # Load the existing configuration file to check for changes
+            try:
+                with open(self.config_tab.config_file_path, 'r') as file:
+                    existing_config = json.load(file)
+            except (FileNotFoundError, json.JSONDecodeError) as e:
+                QMessageBox.critical(self, "Error", f"Error reading the configuration file: {e}")
+                return
+
+            # Check for changes in specific parameters
+            params_to_check = {
+                "Mesh File": self.config_tab.mesh_file,
+                "Gas": self.config_tab.gas_input.currentText(),
+                "Model": self.config_tab.model_input.currentText(),
+                "Threads": int(self.config_tab.thread_count_input.text()),
+                "Time Step": float(self.config_tab.time_step_input.text()),
+                "Simulation Time": float(self.config_tab.simulation_time_input.text()),
+                "T": float(self.config_tab.temperature_input.text()),
+                "P": float(self.config_tab.pressure_input.text()),
+                "EdgeSize": self.config_tab.pic_input.text(),
+                "DesiredAccuracy": self.config_tab.fem_input.text()
+            }
+
+            solver_params = self.config_tab.save_solver_params_to_dict()
+
+            # Check if any of the parameters have changed
+            has_changes = False
+            for key, value in params_to_check.items():
+                if str(existing_config.get(key, None)) != str(value):
+                    existing_config[key] = value
+                    has_changes = True
+
+            for key, value in solver_params.items():
+                if str(existing_config.get(key, None)) != str(value):
+                    existing_config[key] = value
+                    has_changes = True
+
+            # Update configuration file if there are changes
+            if has_changes:
+                try:
+                    with open(self.config_tab.config_file_path, "w") as file:
+                        json.dump(existing_config, file, indent=4)  # Serialize dict to JSON
+                except Exception as e:
+                    QMessageBox.critical(self, "Error", f"Failed to save configuration: Exception: {e}")
+                    return           
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to save configuration: Exception: {e}")
             return
@@ -574,9 +597,6 @@ class WindowApp(QMainWindow):
     def run_cpp(self, args: str) -> None:
         self.progress_bar.setHidden(False)
         self.start_time = time()
-
-        if self.geditor.writeParticleSouceAndDirectionToFile() is None:
-            return
         
         # Checking OS
         if os.name == 'nt':

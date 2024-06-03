@@ -87,7 +87,7 @@ void MatrixEquationSolver::calculateElectricField()
     }
 }
 
-void MatrixEquationSolver::writeElectricPotentialsToPosFile()
+void MatrixEquationSolver::writeElectricPotentialsToPosFile(double time)
 {
     if (m_x.is_null())
     {
@@ -97,7 +97,10 @@ void MatrixEquationSolver::writeElectricPotentialsToPosFile()
 
     try
     {
-        std::ofstream posFile("electricPotential.pos");
+        std::string filepath;
+        filepath = (time == -1) ? "electricPotential.pos" : std::format("electricPotential_time_{}.pos", time);
+        std::ofstream posFile(filepath);
+
         posFile << "View \"Scalar Field\" {\n";
         for (auto const &entry : m_assemblier.getMeshComponents().getMeshComponents())
         {
@@ -131,7 +134,7 @@ void MatrixEquationSolver::writeElectricPotentialsToPosFile()
     }
 }
 
-void MatrixEquationSolver::writeElectricFieldVectorsToPosFile()
+void MatrixEquationSolver::writeElectricFieldVectorsToPosFile(double time)
 {
     if (m_x.is_null())
     {
@@ -141,7 +144,10 @@ void MatrixEquationSolver::writeElectricFieldVectorsToPosFile()
 
     try
     {
-        std::ofstream posFile("electricField.pos");
+        std::string filepath;
+        filepath = (time == -1) ? "electricPotential.pos" : std::format("electricPotential_time_{}.pos", time);
+        std::ofstream posFile(filepath);
+        
         posFile << "View \"Vector Field\" {\n";
         for (auto const &entry : m_assemblier.getMeshComponents().getMeshComponents())
         {

@@ -50,25 +50,22 @@ void ParticleTracker::initializeParticles()
 {
     if (m_config.isParticleSourcePoint())
     {
-        std::array<double, 6> particleSourceCoordsAndDirection;
-        particleSourceCoordsAndDirection[0] = m_config.getBaseCoordinates().at(0);
-        particleSourceCoordsAndDirection[1] = m_config.getBaseCoordinates().at(1);
-        particleSourceCoordsAndDirection[2] = m_config.getBaseCoordinates().at(2);
-        particleSourceCoordsAndDirection[3] = m_config.getExpansionAngle();
-        particleSourceCoordsAndDirection[4] = m_config.getPhi();
-        particleSourceCoordsAndDirection[5] = m_config.getTheta();
-
-        m_particles = createParticlesWithEnergy(m_config.getParticlesCount(),
-                                                m_config.getProjective(),
-                                                m_config.getEnergy(),
-                                                particleSourceCoordsAndDirection);
+        auto tmp{createParticlesFromPointSource(m_config.getParticleSourcePoints())};
+        if (!tmp.empty())
+            m_particles.insert(m_particles.end(), std::ranges::begin(tmp), std::ranges::end(tmp));
     }
-    else if (!m_config.isParticleSourceSurface())
+    if (m_config.isParticleSourceSurface())
     {
-        // TODO: Implement particle source as surface
+        auto tmp{createParticlesFromSurfaceSource(m_config.getParticleSourceSurfaces())};
+        if (!tmp.empty())
+            m_particles.insert(m_particles.end(), std::ranges::begin(tmp), std::ranges::end(tmp));
+
+        for (auto const &p : m_particles)
+            std::cout << p;
     }
-    else
-        throw std::runtime_error("Particle source not defined or defined unknown type of it");
+
+    if (m_particles.empty())
+        throw std::runtime_error("Particles are uninitialized, check your configuration file");
 }
 
 void ParticleTracker::initialize()
@@ -250,79 +247,83 @@ void ParticleTracker::solveEquation(std::map<GlobalOrdinal, double> &nodeChargeD
         solver->solve(m_config.getSolverName(), solverParams);
         solver->calculateElectricField(); // Getting electric field for the each cell.
 
-        solver->writeElectricPotentialsToPosFile();
-        solver->writeElectricFieldVectorsToPosFile();
+        solver->writeElectricPotentialsToPosFile(time);
+        solver->writeElectricFieldVectorsToPosFile(time);
     }
 }
 
 void ParticleTracker::processSurfaceCollisionTracker(size_t start_index, size_t end_index,
                                                      Grid3D const &cubicGrid, GSMatrixAssemblier const &assemblier,
-                                                     std::map<size_t, ParticleVector> const &PICtracker)
+                                                     std::map<size_t, ParticleVector> const &PICtracker, double t)
 {
     MathVector magneticInduction{}; // For brevity assuming that induction vector B is 0.
     std::for_each(m_particles.begin() + start_index, m_particles.begin() + end_index,
-                  [this, cubicGrid, PICtracker, assemblier, magneticInduction](auto &particle)
+                  [this, cubicGrid, PICtracker, assemblier, magneticInduction, t](auto &particle)
                   {
-        if (_settledParticlesIds.find(particle.getId()) != _settledParticlesIds.cend())
-            return;
+                      if (_settledParticlesIds.find(particle.getId()) != _settledParticlesIds.cend())
+                          return;
 
-        size_t containingTetrahedron{};
-        for (auto const &[tetraId, particlesInside] : PICtracker)
-        {
-            if (std::ranges::find_if(particlesInside, [particle](Particle const &storedParticle)
-                                     { return particle.getId() == storedParticle.getId(); }) != particlesInside.cend())
-            {
-                containingTetrahedron = tetraId;
-                break;
-            }
-        }
+                      size_t containingTetrahedron{};
+                      for (auto const &[tetraId, particlesInside] : PICtracker)
+                      {
+                          if (std::ranges::find_if(particlesInside, [particle](Particle const &storedParticle)
+                                                   { return particle.getId() == storedParticle.getId(); }) != particlesInside.cend())
+                          {
+                              containingTetrahedron = tetraId;
+                              break;
+                          }
+                      }
 
-        if (auto tetrahedron{assemblier.getMeshComponents().getMeshDataByTetrahedronId(containingTetrahedron)})
-            if (tetrahedron->electricField.has_value())
-                particle.electroMagneticPush(magneticInduction,
-                                        MathVector(tetrahedron->electricField->x(), tetrahedron->electricField->y(), tetrahedron->electricField->z()),
-                                        m_config.getTimeStep());
-        {
-            std::lock_guard<std::mutex> lock(m_particlesMovement_mutex);
-            m_particlesMovement[particle.getId()].emplace_back(particle.getCentre());
-        }
-        
+                      if (auto tetrahedron{assemblier.getMeshComponents().getMeshDataByTetrahedronId(containingTetrahedron)})
+                          if (tetrahedron->electricField.has_value())
+                              particle.electroMagneticPush(magneticInduction,
+                                                           MathVector(tetrahedron->electricField->x(), tetrahedron->electricField->y(), tetrahedron->electricField->z()),
+                                                           m_config.getTimeStep());
+                      {
+                          std::lock_guard<std::mutex> lock(m_particlesMovement_mutex);
+                          m_particlesMovement[particle.getId()].emplace_back(particle.getCentre());
+                      }
 
-        Point prev(particle.getCentre());
-        particle.updatePosition(m_config.getTimeStep());
-        Ray ray(prev, particle.getCentre());
+                      Point prev(particle.getCentre());
+                      particle.updatePosition(m_config.getTimeStep());
+                      Ray ray(prev, particle.getCentre());
 
-        if (ray.is_degenerate())
-            return;
+                      if (ray.is_degenerate())
+                          return;
 
-        particle.colide(m_config.getGas(), _gasConcentration, m_config.getScatteringModel(), m_config.getTimeStep());
+                      particle.colide(m_config.getGas(), _gasConcentration, m_config.getScatteringModel(), m_config.getTimeStep());
 
-        auto intersection{_surfaceMeshAABBtree.any_intersection(ray)};
-        if (!intersection)
-            return;
+                      // There is no need to check particle collision with surface mesh in initial time moment of the simulation (when t = 0).
+                      if (t != 0.0)
+                      {
+                          auto intersection{_surfaceMeshAABBtree.any_intersection(ray)};
+                          if (!intersection)
+                              return;
 
-        auto triangle{boost::get<Triangle>(*intersection->second)};
-        if (triangle.is_degenerate())
-            return;
+                          auto triangle{boost::get<Triangle>(*intersection->second)};
+                          if (triangle.is_degenerate())
+                              return;
 
-        auto matchedIt{std::ranges::find_if(_triangleMesh, [triangle](auto const &el)
-                                            { return triangle == std::get<1>(el); })};
-        if (matchedIt != _triangleMesh.cend())
-        {
-            size_t id{isRayIntersectTriangle(ray, *matchedIt)};
-            if (id != -1ul)
-            {
-                std::lock_guard<std::mutex> lock(m_settledParticles_mutex);
-                ++_settledParticlesCounterMap[id];
-                _settledParticlesIds.insert(particle.getId());
+                          auto matchedIt{std::ranges::find_if(_triangleMesh, [triangle](auto const &el)
+                                                              { return triangle == std::get<1>(el); })};
+                          if (matchedIt != _triangleMesh.cend())
+                          {
+                              size_t id{isRayIntersectTriangle(ray, *matchedIt)};
+                              if (id != -1ul)
+                              {
+                                  std::lock_guard<std::mutex> lock(m_settledParticles_mutex);
+                                  ++_settledParticlesCounterMap[id];
+                                  _settledParticlesIds.insert(particle.getId());
 
-                if (_settledParticlesIds.size() >= m_particles.size())
-                {
-                    m_stop_processing.test_and_set();
-                    return;
-                }
-            }
-        } });
+                                  if (_settledParticlesIds.size() >= m_particles.size())
+                                  {
+                                      m_stop_processing.test_and_set();
+                                      return;
+                                  }
+                              }
+                          }
+                      }
+                  });
 }
 
 void ParticleTracker::processSegment(size_t start_index, size_t end_index,
@@ -348,7 +349,7 @@ void ParticleTracker::processSegment(size_t start_index, size_t end_index,
         barrier.arrive_and_wait(); // Wait for the equation to be solved.
 
         // 3. Receiving particles those are colided with surface.
-        processSurfaceCollisionTracker(start_index, end_index, cubicGrid, assemblier, globalPICtracker);
+        processSurfaceCollisionTracker(start_index, end_index, cubicGrid, assemblier, globalPICtracker, t);
     }
 }
 

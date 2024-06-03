@@ -2,7 +2,7 @@
 
 #include "../include/Generators/RealNumberGenerator.hpp"
 #include "../include/Geometry/CGALTypes.hpp"
-#include "../include/Particles/Particles.hpp"
+#include "../include/Particles/Particle.hpp"
 
 std::atomic<size_t> Particle::m_nextId{0ul};
 
@@ -184,8 +184,6 @@ double Particle::getX() const { return CGAL_TO_DOUBLE(m_centre.x()); }
 double Particle::getY() const { return CGAL_TO_DOUBLE(m_centre.y()); }
 double Particle::getZ() const { return CGAL_TO_DOUBLE(m_centre.z()); }
 double Particle::getPositionModule() const { return PositionVector(CGAL_TO_DOUBLE(m_centre.x()), CGAL_TO_DOUBLE(m_centre.y()), CGAL_TO_DOUBLE(m_centre.z())).module(); }
-
-double Particle::getEnergy_eV() const { return m_energy * physical_constants::J_eV; }
 double Particle::getVelocityModule() const { return m_velocity.module(); }
 
 bool Particle::colide(Particle target, double n_concentration, std::string_view model, double time_step)
@@ -390,21 +388,83 @@ ParticleVector createParticlesWithVelocityModule(size_t count, ParticleType type
 	return particles;
 }
 
-ParticleVector createParticlesWithEnergy(size_t count, ParticleType type,
-										 double energy,
-										 std::array<double, 6> const &particleSourceBaseAndDirection)
+ParticleVector createParticlesFromPointSource(std::vector<point_source_t> const &source)
 {
-	std::array<double, 3> thetaPhi;
-	thetaPhi[0] = particleSourceBaseAndDirection[3];
-	thetaPhi[1] = particleSourceBaseAndDirection[4];
-	thetaPhi[2] = particleSourceBaseAndDirection[5];
-
 	ParticleVector particles;
-	for (size_t i{}; i < count; ++i)
-		particles.emplace_back(type,
-							   Point(particleSourceBaseAndDirection[0], particleSourceBaseAndDirection[1], particleSourceBaseAndDirection[2]),
-							   energy, thetaPhi);
+	for (auto const &sourceData : source)
+	{
+		std::array<double, 3> thetaPhi = {sourceData.expansionAngle, sourceData.phi, sourceData.theta};
+		ParticleType type{util::getParticleTypeFromStrRepresentation(sourceData.type)};
+
+		for (size_t i{}; i < sourceData.count; ++i)
+			particles.emplace_back(type,
+								   Point(sourceData.baseCoordinates.at(0), sourceData.baseCoordinates.at(1), sourceData.baseCoordinates.at(2)),
+								   sourceData.energy,
+								   thetaPhi);
+	}
 	return particles;
+}
+
+ParticleVector createParticlesFromSurfaceSource(std::vector<surface_source_t> const &source)
+{
+    ParticleVector particles;
+    std::random_device rd;
+    std::mt19937 gen(rd());
+
+    for (auto const &sourceData : source)
+    {
+        size_t num_cells{sourceData.baseCoordinates.size()},
+            particles_per_cell{sourceData.count / num_cells},
+            remainder_particles_count{sourceData.count % num_cells};
+
+        std::vector<std::string> keys;
+        for (auto const &item : sourceData.baseCoordinates)
+            keys.emplace_back(item.first);
+
+        // Randomly distribute the remainder particles.
+        std::shuffle(keys.begin(), keys.end(), gen);
+        std::vector<size_t> cell_particle_count(num_cells, particles_per_cell);
+        for (size_t i{}; i < remainder_particles_count; ++i)
+            cell_particle_count[i]++;
+
+        size_t cell_index{};
+        ParticleType type{util::getParticleTypeFromStrRepresentation(sourceData.type)};
+        for (auto const &item : sourceData.baseCoordinates)
+        {
+            auto const &cell_centre_str{item.first};
+            auto const &normal{item.second};
+
+            // Parse the cell center coordinates from string to double
+            std::istringstream iss(cell_centre_str);
+            std::vector<double> cell_centre;
+            double coord;
+            while (iss >> coord)
+            {
+                cell_centre.push_back(coord);
+                if (iss.peek() == ',')
+                    iss.ignore();
+            }
+
+            std::cout << std::format("Cell centre: {} {} {}\tNormal: {} {} {}\n",
+                                     cell_centre.at(0), cell_centre.at(1), cell_centre.at(2),
+                                     normal.at(0), normal.at(1), normal.at(2));
+
+            for (size_t i{}; i < cell_particle_count[cell_index]; ++i)
+            {
+                // Calculate theta and phi based on the normal.
+                double theta{std::acos(normal.at(2) / std::sqrt(normal.at(0) * normal.at(0) + normal.at(1) * normal.at(1) + normal.at(2) * normal.at(2)))},
+                    phi{std::atan2(normal.at(1), normal.at(0))};
+
+                std::array<double, 3> thetaPhi = {0, phi, theta}; // Assume that there is no expansion with surface source.
+                particles.emplace_back(type,
+                                       Point(cell_centre.at(0), cell_centre.at(1), cell_centre.at(2)),
+                                       sourceData.energy,
+                                       thetaPhi);
+            }
+            ++cell_index;
+        }
+    }
+    return particles;
 }
 
 std::ostream &operator<<(std::ostream &os, Particle const &particle)

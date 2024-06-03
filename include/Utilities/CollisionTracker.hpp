@@ -11,7 +11,7 @@
 #include "../DataHandling/HDF5Handler.hpp"
 #include "../Generators/VolumeCreator.hpp"
 #include "../Geometry/Mesh.hpp"
-#include "../Particles/Particles.hpp"
+#include "../Particles/Particle.hpp"
 #include "ConfigParser.hpp"
 
 /**
