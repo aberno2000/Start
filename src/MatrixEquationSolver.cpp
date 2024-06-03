@@ -122,7 +122,8 @@ void MatrixEquationSolver::writeElectricPotentialsToPosFile(double time)
         }
         posFile << "};\n";
         posFile.close();
-        LOGMSG("File 'electricPotential.pos' was successfully created");
+
+        LOGMSG(util::stringify("File \'", filepath, "\' was successfully created"));
     }
     catch (std::exception const &ex)
     {
@@ -145,9 +146,9 @@ void MatrixEquationSolver::writeElectricFieldVectorsToPosFile(double time)
     try
     {
         std::string filepath;
-        filepath = (time == -1) ? "electricPotential.pos" : std::format("electricPotential_time_{}.pos", time);
+        filepath = (time == -1) ? "electricField.pos" : std::format("electricPotential_time_{}.pos", time);
         std::ofstream posFile(filepath);
-        
+
         posFile << "View \"Vector Field\" {\n";
         for (auto const &entry : m_assemblier.getMeshComponents().getMeshComponents())
         {
@@ -169,7 +170,8 @@ void MatrixEquationSolver::writeElectricFieldVectorsToPosFile(double time)
 
         posFile << "};\n";
         posFile.close();
-        LOGMSG("File 'electricField.pos' was successfully created");
+
+        LOGMSG(util::stringify("File \'", filepath, "\' was successfully created"));
     }
     catch (std::exception const &ex)
     {
