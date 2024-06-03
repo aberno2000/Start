@@ -257,8 +257,11 @@ void ParticleTracker::processSurfaceCollisionTracker(size_t start_index, size_t 
     std::for_each(m_particles.begin() + start_index, m_particles.begin() + end_index,
                   [this, cubicGrid, PICtracker, assemblier, magneticInduction, t](auto &particle)
                   {
-                      if (_settledParticlesIds.find(particle.getId()) != _settledParticlesIds.cend())
-                          return;
+                      {
+                          std::lock_guard<std::mutex> lock(m_settledParticles_mutex);
+                          if (_settledParticlesIds.find(particle.getId()) != _settledParticlesIds.cend())
+                              return;
+                      }
 
                       size_t containingTetrahedron{};
                       for (auto const &[tetraId, particlesInside] : PICtracker)
@@ -276,10 +279,6 @@ void ParticleTracker::processSurfaceCollisionTracker(size_t start_index, size_t 
                               particle.electroMagneticPush(magneticInduction,
                                                            MathVector(tetrahedron->electricField->x(), tetrahedron->electricField->y(), tetrahedron->electricField->z()),
                                                            m_config.getTimeStep());
-                      {
-                          std::lock_guard<std::mutex> lock(m_particlesMovement_mutex);
-                          m_particlesMovement[particle.getId()].emplace_back(particle.getCentre());
-                      }
 
                       Point prev(particle.getCentre());
                       particle.updatePosition(m_config.getTimeStep());
@@ -291,34 +290,40 @@ void ParticleTracker::processSurfaceCollisionTracker(size_t start_index, size_t 
                       particle.colide(m_config.getGas(), _gasConcentration, m_config.getScatteringModel(), m_config.getTimeStep());
 
                       // There is no need to check particle collision with surface mesh in initial time moment of the simulation (when t = 0).
-                      if (t != 0.0)
+                      if (t == 0.0)
+                          return;
+
+                      auto intersection{_surfaceMeshAABBtree.any_intersection(ray)};
+                      if (!intersection)
+                          return;
+
+                      auto triangle{boost::get<Triangle>(*intersection->second)};
+                      if (triangle.is_degenerate())
+                          return;
+
+                      auto matchedIt{std::ranges::find_if(_triangleMesh, [triangle](auto const &el)
+                                                          { return triangle == std::get<1>(el); })};
+                      if (matchedIt != _triangleMesh.cend())
                       {
-                          auto intersection{_surfaceMeshAABBtree.any_intersection(ray)};
-                          if (!intersection)
-                              return;
-
-                          auto triangle{boost::get<Triangle>(*intersection->second)};
-                          if (triangle.is_degenerate())
-                              return;
-
-                          auto matchedIt{std::ranges::find_if(_triangleMesh, [triangle](auto const &el)
-                                                              { return triangle == std::get<1>(el); })};
-                          if (matchedIt != _triangleMesh.cend())
+                          size_t id{isRayIntersectTriangle(ray, *matchedIt)};
+                          if (id != -1ul)
                           {
-                              size_t id{isRayIntersectTriangle(ray, *matchedIt)};
-                              if (id != -1ul)
-                              {
-                                  std::lock_guard<std::mutex> lock(m_settledParticles_mutex);
-                                  ++_settledParticlesCounterMap[id];
-                                  _settledParticlesIds.insert(particle.getId());
+                              std::lock_guard<std::mutex> lock(m_settledParticles_mutex);
+                              ++_settledParticlesCounterMap[id];
+                              _settledParticlesIds.insert(particle.getId());
 
-                                  if (_settledParticlesIds.size() >= m_particles.size())
-                                  {
-                                      m_stop_processing.test_and_set();
-                                      return;
-                                  }
+                              if (_settledParticlesIds.size() >= m_particles.size())
+                              {
+                                  m_stop_processing.test_and_set();
+                                  return;
                               }
                           }
+                      }
+
+                      {
+                          std::lock_guard<std::mutex> lock(m_particlesMovement_mutex);
+                          if (_settledParticlesIds.find(particle.getId()) == _settledParticlesIds.cend())
+                              m_particlesMovement[particle.getId()].emplace_back(particle.getCentre());
                       }
                   });
 }
