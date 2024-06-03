@@ -1,7 +1,8 @@
 from vtk import ( 
     vtkAxesActor, vtkOrientationMarkerWidget, vtkRenderer,
-    vtkSphereSource, vtkPolyDataMapper, vtkActor,
-    vtkGenericDataObjectReader, vtkDataSetMapper
+    vtkPoints, vtkPolyDataMapper, vtkActor,
+    vtkGenericDataObjectReader, vtkDataSetMapper,
+    vtkVertexGlyphFilter, vtkPolyData
 )
 from PyQt5.QtWidgets import (
     QVBoxLayout, QHBoxLayout, QWidget, QPushButton, QSpacerItem, 
@@ -280,19 +281,28 @@ class ResultsTab(QWidget):
         self.vtkWidget.GetRenderWindow().Render()
         
     
-    def create_sphere_actor(self, point):
-        sphere_source = vtkSphereSource()
-        sphere_source.SetCenter(point.x, point.y, point.z)
-        sphere_source.SetRadius(0.1)
-        
+    def create_particle_actor(self, points):
+        points_vtk = vtkPoints()
+        for point in points:
+            points_vtk.InsertNextPoint(point.x, point.y, point.z)
+
+        polydata = vtkPolyData()
+        polydata.SetPoints(points_vtk)
+
+        vertex_filter = vtkVertexGlyphFilter()
+        vertex_filter.SetInputData(polydata)
+        vertex_filter.Update()
+
         mapper = vtkPolyDataMapper()
-        mapper.SetInputConnection(sphere_source.GetOutputPort())
-        
+        mapper.SetInputConnection(vertex_filter.GetOutputPort())
+
         actor = vtkActor()
         actor.SetMapper(mapper)
         actor.GetProperty().SetColor(1, 0, 0)
-        
+        actor.GetProperty().SetPointSize(5)
+
         return actor
+    
     
     def animate_particle_movements(self, particles_movement):
         self.particles_movement = particles_movement
@@ -317,13 +327,17 @@ class ResultsTab(QWidget):
             self.renderer.RemoveActor(actor)
         self.sphere_actors.clear()
 
-        # Add new actors for the current iteration
+        # Collect points for the current iteration
+        points = []
         for _, movements in self.particles_movement.items():
             if self.current_iteration < len(movements):
-                point = movements[self.current_iteration]
-                actor = self.create_sphere_actor(point)
-                self.renderer.AddActor(actor)
-                self.sphere_actors.append(actor)
+                points.append(movements[self.current_iteration])
+
+        # Add new actor for the current iteration
+        if points:
+            actor = self.create_particle_actor(points)
+            self.renderer.AddActor(actor)
+            self.sphere_actors.append(actor)
         
         self.vtkWidget.GetRenderWindow().Render()
         self.current_iteration += 1

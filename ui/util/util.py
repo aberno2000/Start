@@ -13,7 +13,7 @@ from PyQt5.QtWidgets import (
     QDialog, QFormLayout, QLineEdit, QDialogButtonBox, 
     QVBoxLayout, QMessageBox, QPushButton, QTableWidget,
     QTableWidgetItem, QSizePolicy, QLabel, QHBoxLayout,
-    QWidget, QScrollArea, QComboBox, QTreeView
+    QWidget, QScrollArea, QComboBox, QTreeView, QInputDialog
 )
 from PyQt5.QtGui import QIntValidator, QDoubleValidator, QStandardItemModel, QStandardItem
 from .converter import is_positive_real_number, is_real_number
@@ -787,6 +787,46 @@ class ParticleSourceTypeDialog(QDialog):
 
     def getSelectedSourceType(self):
         return self.comboBox.currentText()
+
+
+class BoundaryValueInputDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        self.setWindowTitle("Set Boundary Value")
+
+        # Create layout and widgets
+        layout = QVBoxLayout()
+        self.label = QLabel("Enter value:")
+        self.input = QLineEdit()
+        self.input.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
+
+        # Buttons
+        self.ok_button = QPushButton("OK")
+        self.cancel_button = QPushButton("Cancel")
+
+        # Button layout
+        button_layout = QHBoxLayout()
+        button_layout.addWidget(self.ok_button)
+        button_layout.addWidget(self.cancel_button)
+
+        # Add widgets to layout
+        layout.addWidget(self.label)
+        layout.addWidget(self.input)
+        layout.addLayout(button_layout)
+
+        self.setLayout(layout)
+
+        # Connect buttons to dialog slots
+        self.ok_button.clicked.connect(self.accept)
+        self.cancel_button.clicked.connect(self.reject)
+
+    def get_value(self):
+        try:
+            value = float(self.input.text())
+            return value, True
+        except ValueError:
+            return None, False
 
 
 def align_view_by_axis(axis: str, renderer: vtkRenderer, vtkWidget: QVTKRenderWindowInteractor):

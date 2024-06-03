@@ -31,7 +31,7 @@ from .util import(
     SphereDialog, BoxDialog, CylinderDialog,
     AngleDialog, MoveActorDialog, AxisSelectionDialog,
     ExpansionAngleDialog, ParticleSourceDialog, 
-    ParticleSourceTypeDialog,
+    ParticleSourceTypeDialog, BoundaryValueInputDialog,
     pi
 )
 from util.util import(
@@ -47,14 +47,13 @@ from tabs.gedit_tab import ConfigTab
 from .styles import DEFAULT_ACTOR_COLOR, SELECTED_ACTOR_COLOR, ARROW_ACTOR_COLOR
 from logger.log_console import LogConsole
 
+
 INTERACTOR_STYLE_TRACKBALL_CAMERA = 'trackball_camera'
 INTERACTOR_STYLE_TRACKBALL_ACTOR = 'trackball_actor'
 INTERACTOR_STYLE_RUBBER_AND_PICK = 'rubber_and_pick'
 
-
 ACTION_ACTOR_CREATING = 'create_actor'
 ACTION_ACTOR_TRANSFORMATION = 'transform'
-
 
 class GraphicalEditor(QFrame):    
     def __init__(self, log_console: LogConsole, config_tab: ConfigTab, parent=None):
@@ -1722,10 +1721,14 @@ class GraphicalEditor(QFrame):
         if not self.selected_actors:
             QMessageBox.information(self, "Set Boundary Conditions", "There is no selected surfaces to apply boundary conditions on them")
             return
-    
-        value, ok = QInputDialog.getDouble(self, "Set Boundary Value", "Enter value:", decimals=3)
-        if not ok:
-            QMessageBox.warning(self, "Set Boundary Conditions Value", f"Failed to apply value {value}, retry please")
+        
+        dialog = BoundaryValueInputDialog(self)
+        if dialog.exec_() == QDialog.Accepted:
+            value, ok = dialog.get_value()
+            if not ok:
+                QMessageBox.warning(self, "Set Boundary Conditions Value", "Failed to apply value, retry please")
+                return
+        else:
             return
         
         for actor in self.selected_actors:
