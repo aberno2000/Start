@@ -146,7 +146,7 @@ void MatrixEquationSolver::writeElectricFieldVectorsToPosFile(double time)
     try
     {
         std::string filepath;
-        filepath = (time == -1) ? "electricField.pos" : std::format("electricPotential_time_{}.pos", time);
+        filepath = (time == -1) ? "electricField.pos" : std::format("electricField_time_{}.pos", time);
         std::ofstream posFile(filepath);
 
         posFile << "View \"Vector Field\" {\n";
