@@ -71,6 +71,28 @@ void ParticleTracker::initialize()
     initializeSurfaceMeshAABB();
 }
 
+void ParticleTracker::initializeFEM(GSMatrixAssemblier &assemblier,
+                                    std::unique_ptr<Grid3D> &cubicGrid,
+                                    std::map<GlobalOrdinal, double> &boundaryConditions,
+                                    SolutionVector &solutionVector)
+{
+    // Assembling global stiffness matrix from the mesh file.
+    assemblier = GSMatrixAssemblier(m_config.getMeshFilename(), m_config.getDesiredCalculationAccuracy());
+
+    // Creating cubic grid for the tetrahedron mesh.
+    cubicGrid = std::make_unique<Grid3D>(assemblier.getMeshComponents(), m_config.getEdgeSize());
+
+    // Setting boundary conditions.
+    for (auto const &[nodeIds, value] : m_config.getBoundaryConditions())
+        for (GlobalOrdinal nodeId : nodeIds)
+            boundaryConditions[nodeId] = value;
+    assemblier.setBoundaryConditions(boundaryConditions);
+
+    // Initializing the solution vector.
+    solutionVector = SolutionVector(assemblier.rows(), kdefault_polynomOrder);
+    solutionVector.clear();
+}
+
 bool ParticleTracker::isPointInsideTetrahedron(Point const &point, Tetrahedron const &tetrahedron)
 {
     CGAL::Oriented_side oriented_side{tetrahedron.oriented_side(point)};
@@ -92,6 +114,24 @@ size_t ParticleTracker::isRayIntersectTriangle(Ray const &ray, MeshTriangleParam
     return (RayTriangleIntersection::isIntersectTriangle(ray, std::get<1>(triangle)))
                ? std::get<0>(triangle)
                : -1ul;
+}
+
+unsigned int ParticleTracker::getNumThreads() const
+{
+    if (auto curThreads{m_config.getNumThreads()}; curThreads < 1 || curThreads > std::thread::hardware_concurrency())
+        throw std::runtime_error("The number of threads requested (1) exceeds the number of hardware threads supported by the system (" +
+                                 std::to_string(curThreads) +
+                                 "). Please run on a system with more resources.");
+
+    unsigned int num_threads{m_config.getNumThreads()},
+        hardware_threads{std::thread::hardware_concurrency()},
+        threshold{static_cast<unsigned int>(hardware_threads * 0.8)};
+    if (num_threads > threshold)
+        WARNINGMSG(util::stringify("Warning: The number of threads requested (", num_threads,
+                                   ") is close to or exceeds 80% of the available hardware threads (", hardware_threads, ").",
+                                   " This might cause the system to slow down or become unresponsive because the system also needs resources for its own tasks."));
+
+    return num_threads;
 }
 
 void ParticleTracker::saveParticleMovements() const
@@ -149,6 +189,35 @@ void ParticleTracker::updateSurfaceMesh()
     hdf5handler.saveMeshToHDF5(_triangleMesh);
 }
 
+template <typename Function, typename... Args>
+void ParticleTracker::processWithThreads(unsigned int num_threads, Function &&function, Args &&...args)
+{
+    size_t particles_per_thread{m_particles.size() / num_threads}, start_index{},
+        managed_particles{particles_per_thread * num_threads}; // Count of the managed particles.
+
+    std::vector<std::future<void>> futures;
+
+    // Create threads and assign each a segment of particles to process.
+    for (size_t i{}; i < num_threads; ++i)
+    {
+        size_t end_index{(i == num_threads - 1) ? m_particles.size() : start_index + particles_per_thread};
+
+        // If, for example, the simulation started with 1,000 particles and 18 threads, we would lose 10 particles: 1000/18=55 => 55*18=990.
+        // In this case, we assign all remaining particles to the last thread to manage them.
+        if (i == num_threads - 1 && managed_particles < m_particles.size())
+            end_index = m_particles.size();
+
+        // Launch the function asynchronously for the current segment.
+        futures.emplace_back(std::async(std::launch::async, [this, start_index, end_index, &function, &args...]()
+                                        { (this->*function)(start_index, end_index, std::forward<Args>(args)...); }));
+        start_index = end_index;
+    }
+
+    // Wait for all threads to complete their work.
+    for (auto &f : futures)
+        f.get();
+}
+
 ParticleTracker::ParticleTracker(std::string_view config_filename) : m_config(config_filename)
 {
     // Checking mesh filename on validity and assign it to the class member.
@@ -166,9 +235,8 @@ ParticleTracker::ParticleTracker(std::string_view config_filename) : m_config(co
     initializeParticles();
 }
 
-void ParticleTracker::processPIC(size_t start_index, size_t end_index,
+void ParticleTracker::processPIC(size_t start_index, size_t end_index, double t,
                                  Grid3D const &cubicGrid, GSMatrixAssemblier &assemblier,
-                                 std::map<size_t, ParticleVector> &globalPICtracker,
                                  std::map<GlobalOrdinal, double> &nodeChargeDensityMap)
 {
     std::map<size_t, ParticleVector> PICtracker;
@@ -221,7 +289,7 @@ void ParticleTracker::processPIC(size_t start_index, size_t end_index,
     std::lock_guard<std::mutex> lock_PIC(m_PICTracker_mutex);
     for (auto const &[tetraId, particlesInside] : PICtracker)
     {
-        auto &globalParticles{globalPICtracker[tetraId]};
+        auto &globalParticles{m_PICtracker[t][tetraId]};
         globalParticles.insert(globalParticles.begin(), particlesInside.begin(), particlesInside.end());
     }
 }
@@ -252,13 +320,12 @@ void ParticleTracker::solveEquation(std::map<GlobalOrdinal, double> &nodeChargeD
     }
 }
 
-void ParticleTracker::processSurfaceCollisionTracker(size_t start_index, size_t end_index,
-                                                     Grid3D const &cubicGrid, GSMatrixAssemblier const &assemblier,
-                                                     std::map<size_t, ParticleVector> const &PICtracker, double t)
+void ParticleTracker::processSurfaceCollisionTracker(size_t start_index, size_t end_index, double t,
+                                                     Grid3D const &cubicGrid, GSMatrixAssemblier const &assemblier)
 {
     MathVector magneticInduction{}; // For brevity assuming that induction vector B is 0.
     std::for_each(m_particles.begin() + start_index, m_particles.begin() + end_index,
-                  [this, cubicGrid, PICtracker, assemblier, magneticInduction, t](auto &particle)
+                  [this, cubicGrid, assemblier, magneticInduction, t](auto &particle)
                   {
                       {
                           std::lock_guard<std::mutex> lock(m_settledParticles_mutex);
@@ -269,7 +336,7 @@ void ParticleTracker::processSurfaceCollisionTracker(size_t start_index, size_t 
                       }
 
                       size_t containingTetrahedron{};
-                      for (auto const &[tetraId, particlesInside] : PICtracker)
+                      for (auto const &[tetraId, particlesInside] : m_PICtracker[t])
                       {
                           if (std::ranges::find_if(particlesInside, [particle](Particle const &storedParticle)
                                                    { return particle.getId() == storedParticle.getId(); }) != particlesInside.cend())
@@ -330,99 +397,52 @@ void ParticleTracker::processSurfaceCollisionTracker(size_t start_index, size_t 
                   });
 }
 
-void ParticleTracker::processSegment(size_t start_index, size_t end_index,
-                                     Grid3D const &cubicGrid, GSMatrixAssemblier &assemblier, SolutionVector &solutionVector,
-                                     std::map<GlobalOrdinal, double> &boundaryConditions, std::map<GlobalOrdinal, double> &nodeChargeDensityMap,
-                                     std::barrier<> &barrier)
+void ParticleTracker::processPICSegment(size_t start_index, size_t end_index, double t,
+                                        Grid3D const &cubicGrid, GSMatrixAssemblier &assemblier,
+                                        std::map<GlobalOrdinal, double> &nodeChargeDensityMap,
+                                        std::barrier<> &barrier)
 {
-    for (double t{};
-         t <= m_config.getSimulationTime() && !m_stop_processing.test();
-         t += m_config.getTimeStep())
-    {
-        std::map<size_t, ParticleVector> globalPICtracker; /* (Tetrahedron ID | Particles inside) */
+    processPIC(start_index, end_index, t, cubicGrid, assemblier, nodeChargeDensityMap);
+    barrier.arrive_and_wait(); // Wait for all threads to complete PIC.
+}
 
-        // 1. Obtain charge densities in all the nodes.
-        processPIC(start_index, end_index, cubicGrid, assemblier, globalPICtracker, nodeChargeDensityMap);
-
-        barrier.arrive_and_wait(); // Wait for all threads to complete PIC.
-
-        // 2. Solving equation Ax=b.
-        std::call_once(m_solve_once_flag, &ParticleTracker::solveEquation, this,
-                       std::ref(nodeChargeDensityMap), std::ref(assemblier), std::ref(solutionVector), std::ref(boundaryConditions), t);
-
-        barrier.arrive_and_wait(); // Wait for the equation to be solved.
-
-        // 3. Receiving particles those are colided with surface.
-        processSurfaceCollisionTracker(start_index, end_index, cubicGrid, assemblier, globalPICtracker, t);
-    }
+void ParticleTracker::processSurfaceCollisionTrackerSegment(size_t start_index, size_t end_index, double t,
+                                                            Grid3D const &cubicGrid, GSMatrixAssemblier const &assemblier,
+                                                            std::barrier<> &barrier)
+{
+    processSurfaceCollisionTracker(start_index, end_index, t, cubicGrid, assemblier);
+    barrier.arrive_and_wait(); // Wait for all threads to complete tracking for the collisions.
 }
 
 void ParticleTracker::startSimulation()
 {
     /* Beginning of the FEM initialization. */
-    // Assemblying global stiffness matrix from the mesh file.
-    GSMatrixAssemblier assemblier(m_config.getMeshFilename(), m_config.getDesiredCalculationAccuracy());
-
-    // PIC: Creating cubic grid for the tetrahedron mesh.
-    Grid3D cubicGrid(assemblier.getMeshComponents(), m_config.getEdgeSize());
-
-    // Setting boundary conditions.
+    GSMatrixAssemblier assemblier;
+    std::unique_ptr<Grid3D> cubicGrid;
     std::map<GlobalOrdinal, double> boundaryConditions;
-    for (auto const &[nodeIds, value] : m_config.getBoundaryConditions())
-        for (GlobalOrdinal nodeId : nodeIds)
-            boundaryConditions[nodeId] = value;
-    assemblier.setBoundaryConditions(boundaryConditions);
+    SolutionVector solutionVector;
 
-    SolutionVector solutionVector(assemblier.rows(), kdefault_polynomOrder);
-    solutionVector.clear();
+    initializeFEM(assemblier, cubicGrid, boundaryConditions, solutionVector);
     /* Ending of the FEM initialization. */
 
-    if (auto curThreads{m_config.getNumThreads()}; curThreads < 1 || curThreads > std::thread::hardware_concurrency())
-        throw std::runtime_error("The number of threads requested (1) exceeds the number of hardware threads supported by the system (" +
-                                 std::to_string(curThreads) +
-                                 "). Please run on a system with more resources.");
-
-    unsigned int num_threads{m_config.getNumThreads()},
-        hardware_threads{std::thread::hardware_concurrency()},
-        threshold{static_cast<unsigned int>(hardware_threads * 0.8)};
-    if (num_threads > threshold)
-        WARNINGMSG(util::stringify("Warning: The number of threads requested (", num_threads,
-                                   ") is close to or exceeds 80% of the available hardware threads (", hardware_threads, ").",
-                                   " This might cause the system to slow down or become unresponsive because the system also needs resources for its own tasks."));
-
-    // Number of concurrent threads supported by the implementation.
-    std::vector<std::future<void>> futures;
+    auto num_threads{getNumThreads()};
     std::map<GlobalOrdinal, double> nodeChargeDensityMap;
-
     std::barrier barrier(num_threads);
 
-    // Separate on segments.
-    size_t particles_per_thread{m_particles.size() / num_threads},
-        start_index{};
-    size_t managed_particles{particles_per_thread * num_threads}; // Count of the managed particles.
-
-    // Create threads and assign each a segment of particles to process.
-    for (size_t i{}; i < num_threads; ++i)
+    // Separate particles on segments.
+    for (double t{}; t <= m_config.getSimulationTime() && !m_stop_processing.test(); t += m_config.getTimeStep())
     {
-        size_t end_index{(i == num_threads - 1) ? m_particles.size() : start_index + particles_per_thread};
+        // 1. Obtain charge densities in all the nodes.
+        processWithThreads(num_threads, &ParticleTracker::processPICSegment,
+                           t, std::ref(*cubicGrid), std::ref(assemblier), std::ref(nodeChargeDensityMap), std::ref(barrier));
 
-        // If for example simulation started with 1'000 particles and 18 threads - we lost 10 particles: 1000/18=55 => 55*18=990.
-        // In this case we assign all remain particles to the last thread to manage them.
-        if (i == num_threads - 1 && managed_particles < m_particles.size())
-            end_index = m_particles.size();
+        // 2. Solve equation in the main thread.
+        solveEquation(nodeChargeDensityMap, assemblier, solutionVector, boundaryConditions, t);
 
-        futures.emplace_back(std::async(std::launch::async, [this, start_index, end_index,
-                                                             cubicGrid, &assemblier, &solutionVector, &boundaryConditions,
-                                                             &nodeChargeDensityMap, &barrier]()
-                                        { this->processSegment(start_index, end_index,
-                                                               cubicGrid, assemblier, solutionVector, boundaryConditions,
-                                                               nodeChargeDensityMap, barrier); }));
-        start_index = end_index;
+        // 3. Process surface collision tracking in parallel.
+        processWithThreads(num_threads, &ParticleTracker::processSurfaceCollisionTrackerSegment,
+                           t, std::ref(*cubicGrid), std::ref(assemblier), std::ref(barrier));
     }
-
-    // Wait for all threads to complete their work.
-    for (auto &f : futures)
-        f.get();
 
     updateSurfaceMesh();
     saveParticleMovements();
