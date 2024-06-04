@@ -71,10 +71,10 @@ private:
      * @param boundaryConditions A map of boundary conditions to be set.
      * @param solutionVector The solution vector to be initialized.
      */
-    void initializeFEM(GSMatrixAssemblier &assemblier,
-                       std::unique_ptr<Grid3D> &cubicGrid,
+    void initializeFEM(std::shared_ptr<GSMatrixAssemblier> &assemblier,
+                       std::shared_ptr<Grid3D> &cubicGrid,
                        std::map<GlobalOrdinal, double> &boundaryConditions,
-                       SolutionVector &solutionVector);
+                       std::shared_ptr<SolutionVector> &solutionVector);
 
     /**
      * @brief Saves the particle movements to a JSON file.
@@ -119,65 +119,14 @@ private:
     void processWithThreads(unsigned int num_threads, Function &&function, Args &&...args);
 
     void processPIC(size_t start_index, size_t end_index, double t,
-                    Grid3D const &cubicGrid, GSMatrixAssemblier &assemblier,
+                    std::shared_ptr<Grid3D> cubicGrid, std::shared_ptr<GSMatrixAssemblier> assemblier,
                     std::map<GlobalOrdinal, double> &nodeChargeDensityMap);
     void solveEquation(std::map<GlobalOrdinal, double> &nodeChargeDensityMap,
-                       GSMatrixAssemblier &assemblier, SolutionVector &solutionVector,
+                       std::shared_ptr<GSMatrixAssemblier> &assemblier,
+                       std::shared_ptr<SolutionVector> &solutionVector,
                        std::map<GlobalOrdinal, double> &boundaryConditions, double time);
     void processSurfaceCollisionTracker(size_t start_index, size_t end_index, double t,
-                                        Grid3D const &cubicGrid, GSMatrixAssemblier const &assemblier);
-
-    /**
-     * @brief Processes a segment of particles for PIC (Particle-In-Cell) method.
-     *
-     * @details This method runs in multiple threads, each processing a specified range of particles.
-     *          It updates particle positions and calculates charge densities on nodes of the grid.
-     *
-     * @param start_index The starting index in the particle vector for this segment.
-     * @param end_index The ending index in the particle vector for this segment.
-     * @param t The starting time for the simulation.
-     * @param cubicGrid The cubic grid structure for the tetrahedron mesh.
-     * @param assemblier The global stiffness matrix assembler.
-     * @param nodeChargeDensityMap A map of charge densities on the nodes of the grid.
-     * @param barrier A synchronization barrier to coordinate threads.
-     */
-    void processPICSegment(size_t start_index, size_t end_index, double t,
-                           Grid3D const &cubicGrid, GSMatrixAssemblier &assemblier,
-                           std::map<GlobalOrdinal, double> &nodeChargeDensityMap,
-                           std::barrier<> &barrier);
-
-    /**
-     * @brief Processes a segment of particles for detecting and handling surface collisions.
-     *
-     * @details This method runs in multiple threads, each processing a specified range of particles.
-     *          It updates particle positions and detects collisions with mesh elements.
-     *
-     * @param start_index The starting index in the particle vector for this segment.
-     * @param end_index The ending index in the particle vector for this segment.
-     * @param t The starting time for the simulation.
-     * @param cubicGrid The cubic grid structure for the tetrahedron mesh.
-     * @param assemblier The global stiffness matrix assembler.
-     * @param barrier A synchronization barrier to coordinate threads.
-     */
-    void processSurfaceCollisionTrackerSegment(size_t start_index, size_t end_index, double t,
-                                               Grid3D const &cubicGrid, GSMatrixAssemblier const &assemblier,
-                                               std::barrier<> &barrier);
-
-    /**
-     * @brief Processes a segment of the particle collection to detect collisions.
-     *
-     * @details This method runs in multiple threads, each processing a specified range of particles.
-     *          It updates particle positions and detects collisions with mesh elements,
-     *          recording collision counts.
-     *
-     * @param start_index The starting index in the particle vector for this segment.
-     * @param end_index The ending index in the particle vector for this segment.
-     * TODO:
-     */
-    void processSegment(size_t start_index, size_t end_index,
-                        Grid3D const &cubicGrid, GSMatrixAssemblier &assemblier, SolutionVector &solutionVector,
-                        std::map<GlobalOrdinal, double> &boundaryConditions, std::map<GlobalOrdinal, double> &nodeChargeDensityMap,
-                        std::barrier<> &barrier);
+                                        std::shared_ptr<Grid3D> cubicGrid, std::shared_ptr<GSMatrixAssemblier> assemblier);
 
 public:
     ParticleTracker(std::string_view config_filename);

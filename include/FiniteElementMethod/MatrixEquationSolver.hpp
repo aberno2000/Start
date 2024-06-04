@@ -10,18 +10,18 @@
 class MatrixEquationSolver
 {
 private:
-    GSMatrixAssemblier m_assemblier;      ///< Instance of the matrix assemblier.
-    SolutionVector m_solutionVector;      ///< Instance of the solution vector.
-    Teuchos::RCP<TpetraVectorType> m_rhs; ///< Right-hand side vector 'b'.
-    Teuchos::RCP<TpetraVectorType> m_x;   ///< Solution vector 'x'.
-    Teuchos::RCP<TpetraMatrixType> m_A;   ///< Matrix 'A'.
+    std::shared_ptr<GSMatrixAssemblier> m_assemblier; ///< Instance of the matrix assemblier.
+    std::shared_ptr<SolutionVector> m_solutionVector; ///< Instance of the solution vector.
+    Teuchos::RCP<TpetraVectorType> m_rhs;             ///< Right-hand side vector 'b'.
+    Teuchos::RCP<TpetraVectorType> m_x;               ///< Solution vector 'x'.
+    Teuchos::RCP<TpetraMatrixType> m_A;               ///< Matrix 'A'.
 
     /// @brief Initializes the matrix, solution, and RHS vectors
     void initialize();
 
 public:
     /// @brief Ctor with params.
-    MatrixEquationSolver(GSMatrixAssemblier const &assemblier, SolutionVector const &solutionVector);
+    MatrixEquationSolver(std::shared_ptr<GSMatrixAssemblier> assemblier, std::shared_ptr<SolutionVector> solutionVector);
 
     /// @brief Dtor.
     ~MatrixEquationSolver() {}

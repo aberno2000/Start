@@ -169,7 +169,7 @@ void VolumetricMeshData::assignElectricField(size_t tetrahedronId, Point const &
     }
 }
 
-std::map<size_t, std::vector<size_t>> VolumetricMeshData::getTetrahedronNodesMap()
+std::map<size_t, std::vector<size_t>> VolumetricMeshData::getTetrahedronNodesMap() const
 {
     std::map<size_t, std::vector<size_t>> tetrahedronNodesMap;
 
@@ -182,7 +182,7 @@ std::map<size_t, std::vector<size_t>> VolumetricMeshData::getTetrahedronNodesMap
     return tetrahedronNodesMap;
 }
 
-std::map<size_t, std::vector<size_t>> VolumetricMeshData::getNodeTetrahedronsMap()
+std::map<size_t, std::vector<size_t>> VolumetricMeshData::getNodeTetrahedronsMap() const
 {
     std::map<size_t, std::vector<size_t>> nodeTetrahedronsMap;
 
@@ -195,7 +195,7 @@ std::map<size_t, std::vector<size_t>> VolumetricMeshData::getNodeTetrahedronsMap
     return nodeTetrahedronsMap;
 }
 
-std::map<size_t, Point> VolumetricMeshData::getTetrahedronCenters()
+std::map<size_t, Point> VolumetricMeshData::getTetrahedronCenters() const
 {
     std::map<size_t, Point> tetraCentres;
 

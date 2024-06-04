@@ -133,13 +133,13 @@ public:
      * @brief Gets ID of tetrahedrons and corresponding IDs of elements within.
      * @return Map with key = tetrahedron's ID, value = list of nodes inside.
      */
-    std::map<size_t, std::vector<size_t>> getTetrahedronNodesMap();
+    std::map<size_t, std::vector<size_t>> getTetrahedronNodesMap() const;
 
     /**
      * @brief Map for global mesh nodes with all neighbour tetrahedrons.
      * @return Map with key = node ID, value = list of neighbour tetrahedrons to this node.
      */
-    std::map<size_t, std::vector<size_t>> getNodeTetrahedronsMap();
+    std::map<size_t, std::vector<size_t>> getNodeTetrahedronsMap() const;
 
     /**
      * @brief Calculates the geometric centers of all tetrahedrons in a given mesh.
@@ -158,7 +158,7 @@ public:
      *         might occur during file opening, reading, or processing. These exceptions are typically
      *         caught and should be handled to avoid crashes and ensure that the error is reported properly.
      */
-    std::map<size_t, Point> getTetrahedronCenters();
+    std::map<size_t, Point> getTetrahedronCenters() const;
 };
 
 #endif // !VOLUMETRICMESHDATA_HPP

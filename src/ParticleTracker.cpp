@@ -71,26 +71,26 @@ void ParticleTracker::initialize()
     initializeSurfaceMeshAABB();
 }
 
-void ParticleTracker::initializeFEM(GSMatrixAssemblier &assemblier,
-                                    std::unique_ptr<Grid3D> &cubicGrid,
+void ParticleTracker::initializeFEM(std::shared_ptr<GSMatrixAssemblier> &assemblier,
+                                    std::shared_ptr<Grid3D> &cubicGrid,
                                     std::map<GlobalOrdinal, double> &boundaryConditions,
-                                    SolutionVector &solutionVector)
+                                    std::shared_ptr<SolutionVector> &solutionVector)
 {
     // Assembling global stiffness matrix from the mesh file.
-    assemblier = GSMatrixAssemblier(m_config.getMeshFilename(), m_config.getDesiredCalculationAccuracy());
+    assemblier = std::make_shared<GSMatrixAssemblier>(m_config.getMeshFilename(), m_config.getDesiredCalculationAccuracy());
 
     // Creating cubic grid for the tetrahedron mesh.
-    cubicGrid = std::make_unique<Grid3D>(assemblier.getMeshComponents(), m_config.getEdgeSize());
+    cubicGrid = std::make_shared<Grid3D>(assemblier->getMeshComponents(), m_config.getEdgeSize());
 
     // Setting boundary conditions.
     for (auto const &[nodeIds, value] : m_config.getBoundaryConditions())
         for (GlobalOrdinal nodeId : nodeIds)
             boundaryConditions[nodeId] = value;
-    assemblier.setBoundaryConditions(boundaryConditions);
+    assemblier->setBoundaryConditions(boundaryConditions);
 
     // Initializing the solution vector.
-    solutionVector = SolutionVector(assemblier.rows(), kdefault_polynomOrder);
-    solutionVector.clear();
+    solutionVector = std::make_shared<SolutionVector>(assemblier->rows(), kdefault_polynomOrder);
+    solutionVector->clear();
 }
 
 bool ParticleTracker::isPointInsideTetrahedron(Point const &point, Tetrahedron const &tetrahedron)
@@ -236,212 +236,222 @@ ParticleTracker::ParticleTracker(std::string_view config_filename) : m_config(co
 }
 
 void ParticleTracker::processPIC(size_t start_index, size_t end_index, double t,
-                                 Grid3D const &cubicGrid, GSMatrixAssemblier &assemblier,
+                                 std::shared_ptr<Grid3D> cubicGrid, std::shared_ptr<GSMatrixAssemblier> assemblier,
                                  std::map<GlobalOrdinal, double> &nodeChargeDensityMap)
 {
-    std::map<size_t, ParticleVector> PICtracker;
-    std::map<size_t, double> tetrahedronChargeDensityMap;
+    try
+    {
+        std::map<size_t, ParticleVector> PICtracker;
+        std::map<size_t, double> tetrahedronChargeDensityMap;
 
-    std::for_each(m_particles.begin() + start_index, m_particles.begin() + end_index, [this, cubicGrid, &PICtracker](auto &particle)
-                  {
+        std::for_each(m_particles.begin() + start_index, m_particles.begin() + end_index, [this, &cubicGrid, &PICtracker](auto &particle)
+                      {
         if (_settledParticlesIds.find(particle.getId()) != _settledParticlesIds.cend())
             return;
 
-        auto meshParams{cubicGrid.getTetrahedronsByGridIndex(cubicGrid.getGridIndexByPosition(particle.getCentre()))};
+        auto meshParams{cubicGrid->getTetrahedronsByGridIndex(cubicGrid->getGridIndexByPosition(particle.getCentre()))};
         for (auto const &meshParam : meshParams)
             if (isPointInsideTetrahedron(particle.getCentre(), meshParam.tetrahedron))
                 PICtracker[meshParam.globalTetraId].emplace_back(particle); });
 
-    // Calculating charge density in each of the tetrahedron using `PICtracker`.
-    for (auto const &[tetrId, particlesInside] : PICtracker)
-        tetrahedronChargeDensityMap.insert({tetrId,
-                                            (std::accumulate(particlesInside.cbegin(), particlesInside.cend(), 0.0, [](double sum, Particle const &particle)
-                                                             { return sum + particle.getCharge(); })) /
-                                                assemblier.getMeshComponents().getMeshDataByTetrahedronId(tetrId).value().tetrahedron.volume()});
+        // Calculating charge density in each of the tetrahedron using `PICtracker`.
+        for (auto const &[tetrId, particlesInside] : PICtracker)
+            tetrahedronChargeDensityMap.insert({tetrId,
+                                                (std::accumulate(particlesInside.cbegin(), particlesInside.cend(), 0.0, [](double sum, Particle const &particle)
+                                                                 { return sum + particle.getCharge(); })) /
+                                                    assemblier->getMeshComponents().getMeshDataByTetrahedronId(tetrId).value().tetrahedron.volume()});
 
-    // Go around each node and aggregate data from adjacent tetrahedra.
-    for (auto const &[nodeId, adjecentTetrahedrons] : assemblier.getMeshComponents().getNodeTetrahedronsMap())
-    {
-        double totalCharge{}, totalVolume{};
-
-        // Sum up the charge and volume for all tetrahedra of a given node.
-        for (auto const &tetrId : adjecentTetrahedrons)
+        // Go around each node and aggregate data from adjacent tetrahedra.
+        for (auto const &[nodeId, adjecentTetrahedrons] : assemblier->getMeshComponents().getNodeTetrahedronsMap())
         {
-            if (tetrahedronChargeDensityMap.find(tetrId) != tetrahedronChargeDensityMap.end())
-            {
-                double tetrahedronChargeDensity{tetrahedronChargeDensityMap.at(tetrId)},
-                    tetrahedronVolume{assemblier.getMeshComponents().getMeshDataByTetrahedronId(tetrId)->tetrahedron.volume()};
+            double totalCharge{}, totalVolume{};
 
-                totalCharge += tetrahedronChargeDensity * tetrahedronVolume;
-                totalVolume += tetrahedronVolume;
+            // Sum up the charge and volume for all tetrahedra of a given node.
+            for (auto const &tetrId : adjecentTetrahedrons)
+            {
+                if (tetrahedronChargeDensityMap.find(tetrId) != tetrahedronChargeDensityMap.end())
+                {
+                    double tetrahedronChargeDensity{tetrahedronChargeDensityMap.at(tetrId)},
+                        tetrahedronVolume{assemblier->getMeshComponents().getMeshDataByTetrahedronId(tetrId)->tetrahedron.volume()};
+
+                    totalCharge += tetrahedronChargeDensity * tetrahedronVolume;
+                    totalVolume += tetrahedronVolume;
+                }
+            }
+
+            // Calculate and store the charge density for the node.
+            if (totalVolume > 0)
+            {
+                std::lock_guard<std::mutex> lock(m_nodeChargeDensityMap_mutex);
+                nodeChargeDensityMap[nodeId] = totalCharge / totalVolume;
             }
         }
 
-        // Calculate and store the charge density for the node.
-        if (totalVolume > 0)
+        // Adding all the elements from this thread from this local PICTracker to the global PIC tracker.
+        std::lock_guard<std::mutex> lock_PIC(m_PICTracker_mutex);
+        for (auto const &[tetraId, particlesInside] : PICtracker)
         {
-            std::lock_guard<std::mutex> lock(m_nodeChargeDensityMap_mutex);
-            nodeChargeDensityMap[nodeId] = totalCharge / totalVolume;
+            auto &globalParticles{m_PICtracker[t][tetraId]};
+            globalParticles.insert(globalParticles.begin(), particlesInside.begin(), particlesInside.end());
         }
     }
-
-    // Adding all the elements from this thread from this local PICTracker to the global PIC tracker.
-    std::lock_guard<std::mutex> lock_PIC(m_PICTracker_mutex);
-    for (auto const &[tetraId, particlesInside] : PICtracker)
+    catch (std::exception const &ex)
     {
-        auto &globalParticles{m_PICtracker[t][tetraId]};
-        globalParticles.insert(globalParticles.begin(), particlesInside.begin(), particlesInside.end());
+        ERRMSG(util::stringify("Can't finish PIC processing: ", ex.what()));
+    }
+    catch (...)
+    {
+        ERRMSG("Some error occured while PIC processing");
     }
 }
 
 void ParticleTracker::solveEquation(std::map<GlobalOrdinal, double> &nodeChargeDensityMap,
-                                    GSMatrixAssemblier &assemblier, SolutionVector &solutionVector,
+                                    std::shared_ptr<GSMatrixAssemblier> &assemblier,
+                                    std::shared_ptr<SolutionVector> &solutionVector,
                                     std::map<GlobalOrdinal, double> &boundaryConditions, double time)
 {
-    auto nonChangebleNodes{m_config.getNonChangeableNodes()};
-    for (auto const &[nodeId, nodeChargeDensity] : nodeChargeDensityMap)
-        if (std::ranges::find(nonChangebleNodes, nodeId) == nonChangebleNodes.cend())
-            boundaryConditions[nodeId] = nodeChargeDensity;
-    solutionVector.setBoundaryConditions(boundaryConditions);
-
-    std::unique_ptr<MatrixEquationSolver> solver;
+    try
     {
-        solver = std::make_unique<MatrixEquationSolver>(assemblier, solutionVector);
+        auto nonChangebleNodes{m_config.getNonChangeableNodes()};
+        for (auto const &[nodeId, nodeChargeDensity] : nodeChargeDensityMap)
+            if (std::ranges::find(nonChangebleNodes, nodeId) == nonChangebleNodes.cend())
+                boundaryConditions[nodeId] = nodeChargeDensity;
+        solutionVector->setBoundaryConditions(boundaryConditions);
 
-        auto solverParams{solver->createSolverParams(m_config.getSolverName(), m_config.getMaxIterations(), m_config.getConvergenceTolerance(),
-                                                     m_config.getVerbosity(), m_config.getOutputFrequency(), m_config.getNumBlocks(), m_config.getBlockSize(),
-                                                     m_config.getMaxRestarts(), m_config.getFlexibleGMRES(), m_config.getOrthogonalization(),
-                                                     m_config.getAdaptiveBlockSize(), m_config.getConvergenceTestFrequency())};
-        solver->solve(m_config.getSolverName(), solverParams);
-        solver->calculateElectricField(); // Getting electric field for the each cell.
+        MatrixEquationSolver solver(assemblier, solutionVector);
+        auto solverParams{solver.createSolverParams(m_config.getSolverName(), m_config.getMaxIterations(), m_config.getConvergenceTolerance(),
+                                                    m_config.getVerbosity(), m_config.getOutputFrequency(), m_config.getNumBlocks(), m_config.getBlockSize(),
+                                                    m_config.getMaxRestarts(), m_config.getFlexibleGMRES(), m_config.getOrthogonalization(),
+                                                    m_config.getAdaptiveBlockSize(), m_config.getConvergenceTestFrequency())};
+        solver.solve(m_config.getSolverName(), solverParams);
+        solver.calculateElectricField(); // Getting electric field for the each cell.
 
-        solver->writeElectricPotentialsToPosFile(time);
-        solver->writeElectricFieldVectorsToPosFile(time);
+        solver.writeElectricPotentialsToPosFile(time);
+        solver.writeElectricFieldVectorsToPosFile(time);
+    }
+    catch (std::exception const &ex)
+    {
+        ERRMSG(util::stringify("Can't solve the equation: ", ex.what()));
+    }
+    catch (...)
+    {
+        ERRMSG("Some error occured while solving the matrix equation Ax=b");
     }
 }
 
 void ParticleTracker::processSurfaceCollisionTracker(size_t start_index, size_t end_index, double t,
-                                                     Grid3D const &cubicGrid, GSMatrixAssemblier const &assemblier)
+                                                     std::shared_ptr<Grid3D> cubicGrid, std::shared_ptr<GSMatrixAssemblier> assemblier)
 {
-    MathVector magneticInduction{}; // For brevity assuming that induction vector B is 0.
-    std::for_each(m_particles.begin() + start_index, m_particles.begin() + end_index,
-                  [this, cubicGrid, assemblier, magneticInduction, t](auto &particle)
-                  {
+    try
+    {
+        MathVector magneticInduction{}; // For brevity assuming that induction vector B is 0.
+        std::for_each(m_particles.begin() + start_index, m_particles.begin() + end_index,
+                      [this, &cubicGrid, assemblier, magneticInduction, t](auto &particle)
                       {
-                          std::lock_guard<std::mutex> lock(m_settledParticles_mutex);
-                          if (_settledParticlesIds.find(particle.getId()) != _settledParticlesIds.end())
-                              return;
-                          else
-                              m_particlesMovement[particle.getId()].emplace_back(particle.getCentre());
-                      }
-
-                      size_t containingTetrahedron{};
-                      for (auto const &[tetraId, particlesInside] : m_PICtracker[t])
-                      {
-                          if (std::ranges::find_if(particlesInside, [particle](Particle const &storedParticle)
-                                                   { return particle.getId() == storedParticle.getId(); }) != particlesInside.cend())
-                          {
-                              containingTetrahedron = tetraId;
-                              break;
-                          }
-                      }
-
-                      if (auto tetrahedron{assemblier.getMeshComponents().getMeshDataByTetrahedronId(containingTetrahedron)})
-                          if (tetrahedron->electricField.has_value())
-                              particle.electroMagneticPush(magneticInduction,
-                                                           MathVector(tetrahedron->electricField->x(), tetrahedron->electricField->y(), tetrahedron->electricField->z()),
-                                                           m_config.getTimeStep());
-
-                      Point prev(particle.getCentre());
-                      particle.updatePosition(m_config.getTimeStep());
-                      Ray ray(prev, particle.getCentre());
-
-                      if (ray.is_degenerate())
-                          return;
-
-                      particle.colide(m_config.getGas(), _gasConcentration, m_config.getScatteringModel(), m_config.getTimeStep());
-
-                      // There is no need to check particle collision with surface mesh in initial time moment of the simulation (when t = 0).
-                      if (t == 0.0)
-                          return;
-
-                      auto intersection{_surfaceMeshAABBtree.any_intersection(ray)};
-                      if (!intersection)
-                          return;
-
-                      auto triangle{boost::get<Triangle>(*intersection->second)};
-                      if (triangle.is_degenerate())
-                          return;
-
-                      auto matchedIt{std::ranges::find_if(_triangleMesh, [triangle](auto const &el)
-                                                          { return triangle == std::get<1>(el); })};
-                      if (matchedIt != _triangleMesh.cend())
-                      {
-                          size_t id{isRayIntersectTriangle(ray, *matchedIt)};
-                          if (id != -1ul)
                           {
                               std::lock_guard<std::mutex> lock(m_settledParticles_mutex);
-                              ++_settledParticlesCounterMap[id];
-                              _settledParticlesIds.insert(particle.getId());
-
-                              if (_settledParticlesIds.size() >= m_particles.size())
-                              {
-                                  m_stop_processing.test_and_set();
+                              if (_settledParticlesIds.find(particle.getId()) != _settledParticlesIds.end())
                                   return;
-                              }
-
-                              auto intersection_point{RayTriangleIntersection::getIntersectionPoint(ray, triangle)};
-                              m_particlesMovement[particle.getId()].emplace_back(*intersection_point);
+                              else
+                                  m_particlesMovement[particle.getId()].emplace_back(particle.getCentre());
                           }
-                      }
-                  });
-}
 
-void ParticleTracker::processPICSegment(size_t start_index, size_t end_index, double t,
-                                        Grid3D const &cubicGrid, GSMatrixAssemblier &assemblier,
-                                        std::map<GlobalOrdinal, double> &nodeChargeDensityMap,
-                                        std::barrier<> &barrier)
-{
-    processPIC(start_index, end_index, t, cubicGrid, assemblier, nodeChargeDensityMap);
-    barrier.arrive_and_wait(); // Wait for all threads to complete PIC.
-}
+                          size_t containingTetrahedron{};
+                          for (auto const &[tetraId, particlesInside] : m_PICtracker[t])
+                          {
+                              if (std::ranges::find_if(particlesInside, [particle](Particle const &storedParticle)
+                                                       { return particle.getId() == storedParticle.getId(); }) != particlesInside.cend())
+                              {
+                                  containingTetrahedron = tetraId;
+                                  break;
+                              }
+                          }
 
-void ParticleTracker::processSurfaceCollisionTrackerSegment(size_t start_index, size_t end_index, double t,
-                                                            Grid3D const &cubicGrid, GSMatrixAssemblier const &assemblier,
-                                                            std::barrier<> &barrier)
-{
-    processSurfaceCollisionTracker(start_index, end_index, t, cubicGrid, assemblier);
-    barrier.arrive_and_wait(); // Wait for all threads to complete tracking for the collisions.
+                          if (auto tetrahedron{assemblier->getMeshComponents().getMeshDataByTetrahedronId(containingTetrahedron)})
+                              if (tetrahedron->electricField.has_value())
+                                  particle.electroMagneticPush(magneticInduction,
+                                                               MathVector(tetrahedron->electricField->x(), tetrahedron->electricField->y(), tetrahedron->electricField->z()),
+                                                               m_config.getTimeStep());
+
+                          Point prev(particle.getCentre());
+                          particle.updatePosition(m_config.getTimeStep());
+                          Ray ray(prev, particle.getCentre());
+
+                          if (ray.is_degenerate())
+                              return;
+
+                          particle.colide(m_config.getGas(), _gasConcentration, m_config.getScatteringModel(), m_config.getTimeStep());
+
+                          // There is no need to check particle collision with surface mesh in initial time moment of the simulation (when t = 0).
+                          if (t == 0.0)
+                              return;
+
+                          auto intersection{_surfaceMeshAABBtree.any_intersection(ray)};
+                          if (!intersection)
+                              return;
+
+                          auto triangle{boost::get<Triangle>(*intersection->second)};
+                          if (triangle.is_degenerate())
+                              return;
+
+                          auto matchedIt{std::ranges::find_if(_triangleMesh, [triangle](auto const &el)
+                                                              { return triangle == std::get<1>(el); })};
+                          if (matchedIt != _triangleMesh.cend())
+                          {
+                              size_t id{isRayIntersectTriangle(ray, *matchedIt)};
+                              if (id != -1ul)
+                              {
+                                  std::lock_guard<std::mutex> lock(m_settledParticles_mutex);
+                                  ++_settledParticlesCounterMap[id];
+                                  _settledParticlesIds.insert(particle.getId());
+
+                                  if (_settledParticlesIds.size() >= m_particles.size())
+                                  {
+                                      m_stop_processing.test_and_set();
+                                      return;
+                                  }
+
+                                  auto intersection_point{RayTriangleIntersection::getIntersectionPoint(ray, triangle)};
+                                  m_particlesMovement[particle.getId()].emplace_back(*intersection_point);
+                              }
+                          }
+                      });
+    }
+    catch (std::exception const &ex)
+    {
+        ERRMSG(util::stringify("Can't finish detecting particles collisions with surfaces: ", ex.what()));
+    }
+    catch (...)
+    {
+        ERRMSG("Some error occured while detecting particles collisions with surfaces");
+    }
 }
 
 void ParticleTracker::startSimulation()
 {
     /* Beginning of the FEM initialization. */
-    GSMatrixAssemblier assemblier;
-    std::unique_ptr<Grid3D> cubicGrid;
+    std::shared_ptr<GSMatrixAssemblier> assemblier;
+    std::shared_ptr<Grid3D> cubicGrid;
     std::map<GlobalOrdinal, double> boundaryConditions;
-    SolutionVector solutionVector;
+    std::shared_ptr<SolutionVector> solutionVector;
 
     initializeFEM(assemblier, cubicGrid, boundaryConditions, solutionVector);
     /* Ending of the FEM initialization. */
 
     auto num_threads{getNumThreads()};
     std::map<GlobalOrdinal, double> nodeChargeDensityMap;
-    std::barrier barrier(num_threads);
 
     // Separate particles on segments.
     for (double t{}; t <= m_config.getSimulationTime() && !m_stop_processing.test(); t += m_config.getTimeStep())
     {
         // 1. Obtain charge densities in all the nodes.
-        processWithThreads(num_threads, &ParticleTracker::processPICSegment,
-                           t, std::ref(*cubicGrid), std::ref(assemblier), std::ref(nodeChargeDensityMap), std::ref(barrier));
+        processWithThreads(num_threads, &ParticleTracker::processPIC, t, cubicGrid, assemblier, std::ref(nodeChargeDensityMap));
 
         // 2. Solve equation in the main thread.
         solveEquation(nodeChargeDensityMap, assemblier, solutionVector, boundaryConditions, t);
 
         // 3. Process surface collision tracking in parallel.
-        processWithThreads(num_threads, &ParticleTracker::processSurfaceCollisionTrackerSegment,
-                           t, std::ref(*cubicGrid), std::ref(assemblier), std::ref(barrier));
+        processWithThreads(num_threads, &ParticleTracker::processSurfaceCollisionTracker, t, cubicGrid, assemblier);
     }
 
     updateSurfaceMesh();

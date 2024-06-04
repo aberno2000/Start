@@ -6,14 +6,15 @@ using json = nlohmann::json;
 
 void MatrixEquationSolver::initialize()
 {
-    m_A = m_assemblier.getGlobalStiffnessMatrix();
+    m_A = m_assemblier->getGlobalStiffnessMatrix();
     m_x = Teuchos::rcp(new TpetraVectorType(m_A->getRowMap()));
-    m_rhs = m_solutionVector.getSolutionVector();
+    m_rhs = m_solutionVector->getSolutionVector();
     m_x->putScalar(0.0); // Initialize solution vector `x` with zeros.
 }
 
-MatrixEquationSolver::MatrixEquationSolver(GSMatrixAssemblier const &assemblier, SolutionVector const &solutionVector)
+MatrixEquationSolver::MatrixEquationSolver(std::shared_ptr<GSMatrixAssemblier> assemblier, std::shared_ptr<SolutionVector> solutionVector)
     : m_assemblier(assemblier), m_solutionVector(solutionVector) { initialize(); }
+
 
 void MatrixEquationSolver::setRHS(const Teuchos::RCP<TpetraVectorType> &rhs) { m_rhs = rhs; }
 
@@ -46,7 +47,7 @@ void MatrixEquationSolver::fillNodesPotential()
 
     GlobalOrdinal id{1};
     for (Scalar potential : getValuesFromX())
-        m_assemblier.getMeshComponents().assignPotential(id++, potential);
+        m_assemblier->getMeshComponents().assignPotential(id++, potential);
 }
 
 void MatrixEquationSolver::calculateElectricField()
@@ -59,7 +60,7 @@ void MatrixEquationSolver::calculateElectricField()
         // We have map: (Tetrahedron ID | map<Node ID | Basis function gradient math vector (3 components)>).
         // To get electric field of the cell we just need to accumulate all the basis func grads for each node for each tetrahedron:
         // E_cell = -1/(6V)*Σ(φi⋅∇φi), where i - global index of the node.
-        for (auto const &tetrahedronData : m_assemblier.getMeshComponents().getMeshComponents())
+        for (auto const &tetrahedronData : m_assemblier->getMeshComponents().getMeshComponents())
         {
             MathVector electricField{};
             double volumeFactor{1.0 / (6.0 * tetrahedronData.tetrahedron.volume())};
@@ -74,7 +75,7 @@ void MatrixEquationSolver::calculateElectricField()
                                                node.globalNodeId, " vertex of the ", tetrahedronData.globalTetraId, " tetrahedron"));
             }
             electricField *= volumeFactor;
-            m_assemblier.getMeshComponents().assignElectricField(tetrahedronData.globalTetraId, Point(electricField.getX(), electricField.getY(), electricField.getZ()));
+            m_assemblier->getMeshComponents().assignElectricField(tetrahedronData.globalTetraId, Point(electricField.getX(), electricField.getY(), electricField.getZ()));
         }
     }
     catch (std::exception const &ex)
@@ -102,7 +103,7 @@ void MatrixEquationSolver::writeElectricPotentialsToPosFile(double time)
         std::ofstream posFile(filepath);
 
         posFile << "View \"Scalar Field\" {\n";
-        for (auto const &entry : m_assemblier.getMeshComponents().getMeshComponents())
+        for (auto const &entry : m_assemblier->getMeshComponents().getMeshComponents())
         {
             for (short i{}; i < 4; ++i)
             {
@@ -150,7 +151,7 @@ void MatrixEquationSolver::writeElectricFieldVectorsToPosFile(double time)
         std::ofstream posFile(filepath);
 
         posFile << "View \"Vector Field\" {\n";
-        for (auto const &entry : m_assemblier.getMeshComponents().getMeshComponents())
+        for (auto const &entry : m_assemblier->getMeshComponents().getMeshComponents())
         {
             if (!entry.electricField.has_value())
             {
@@ -378,11 +379,11 @@ void MatrixEquationSolver::solveDefaultAndPrint()
     }
 }
 
-void MatrixEquationSolver::printRHS() const { m_solutionVector.print(); }
+void MatrixEquationSolver::printRHS() const { m_solutionVector->print(); }
 
 void MatrixEquationSolver::printLHS() const
 {
-    auto x{SolutionVector(m_solutionVector.size())};
+    auto x{SolutionVector(m_solutionVector->size())};
     x.setSolutionVector(m_x);
     x.print();
 }
