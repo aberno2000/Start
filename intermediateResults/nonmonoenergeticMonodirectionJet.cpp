@@ -10,7 +10,7 @@
 #include <TH3D.h>
 
 #include "../include/Geometry/MathVector.hpp"
-#include "../include/Particles/Particles.hpp"
+#include "../include/Particles/Particle.hpp"
 #include "../include/Generators/RealNumberGenerator.hpp"
 
 int main()

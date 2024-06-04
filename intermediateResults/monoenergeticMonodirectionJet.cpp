@@ -9,7 +9,7 @@
 #include <TH2D.h>
 #include <TH3D.h>
 
-#include "../include/Particles/Particles.hpp"
+#include "../include/Particles/Particle.hpp"
 
 int main()
 {

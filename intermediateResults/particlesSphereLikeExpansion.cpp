@@ -10,7 +10,7 @@
 #include <TH3D.h>
 
 #include "../include/Generators/RealNumberGenerator.hpp"
-#include "../include/Particles/Particles.hpp"
+#include "../include/Particles/Particle.hpp"
 
 ParticleVector createAluminiumParticles(size_t count)
 {
