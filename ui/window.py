@@ -441,6 +441,8 @@ class WindowApp(QMainWindow):
         elif self.config_tab.mesh_file.endswith('.vtk'):
             self.hdf5_filename = self.config_tab.mesh_file.replace('.vtk', '.hdf5')
         args = f"{self.config_tab.config_file_path}"
+        
+        self.geditor.update_gmsh_files()
 
         # Measure execution time
         self.run_cpp(args)

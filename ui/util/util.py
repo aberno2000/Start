@@ -1,4 +1,4 @@
-import gmsh, tempfile
+import gmsh, tempfile, meshio
 from math import pi
 from datetime import datetime
 from os import remove
@@ -6,14 +6,16 @@ from vtk import (
     vtkRenderer, vtkPolyData, vtkPolyDataWriter, vtkAppendPolyData,
     vtkPolyDataReader, vtkPolyDataMapper, vtkActor, vtkPolyDataWriter,
     vtkUnstructuredGrid, vtkGeometryFilter, vtkTransform, vtkCellArray,
-    vtkTriangle, vtkPoints, vtkDelaunay2D, vtkPolyLine, vtkVertexGlyphFilter
+    vtkTriangle, vtkPoints, vtkDelaunay2D, vtkPolyLine, vtkVertexGlyphFilter,
+    vtkUnstructuredGridWriter,
+    VTK_TRIANGLE
 )
 from PyQt5.QtCore import QSize, QModelIndex
 from PyQt5.QtWidgets import (
     QDialog, QFormLayout, QLineEdit, QDialogButtonBox, 
     QVBoxLayout, QMessageBox, QPushButton, QTableWidget,
     QTableWidgetItem, QSizePolicy, QLabel, QHBoxLayout,
-    QWidget, QScrollArea, QComboBox, QTreeView, QInputDialog
+    QWidget, QScrollArea, QComboBox, QTreeView,
 )
 from PyQt5.QtGui import QIntValidator, QDoubleValidator, QStandardItemModel, QStandardItem
 from .converter import is_positive_real_number, is_real_number
@@ -45,14 +47,44 @@ def is_path_accessable(path):
         return False
     
 def convert_msh_to_vtk(msh_filename: str):
-    gmsh.initialize()
+    if not msh_filename.endswith('.msh'):
+        return None
     
-    vtk_filename = msh_filename.replace('.msh', '.vtk')
-    gmsh.open(msh_filename)
-    gmsh.write(vtk_filename)
+    try:
+        gmsh.initialize()
+        vtk_filename = msh_filename.replace('.msh', '.vtk')
+        gmsh.open(msh_filename)
+        gmsh.write(vtk_filename)
+        gmsh.finalize()
+        return vtk_filename
+    except Exception as e:
+        print(f"Error converting VTK to Msh: {e}")
+        return None
+        
+
+def convert_vtk_to_msh(vtk_filename: str):
+    """
+    Converts a VTK file to a Gmsh (.msh) file.
     
-    gmsh.finalize()
-    return vtk_filename
+    Args:
+        vtk_filename (str): The filename of the VTK file to convert.
+    
+    Returns:
+        str: The filename of the converted Gmsh file if successful, None otherwise.
+    """
+    if not vtk_filename.endswith('.vtk'):
+        return None
+    
+    msh_filename = vtk_filename.replace('.vtk', '.msh')
+    msh_filename = msh_filename.replace('.msh.msh', '.msh')
+    try:
+        mesh = meshio.read(vtk_filename)
+        meshio.write(msh_filename, mesh, file_format="gmsh22")
+        return msh_filename
+    except Exception as e:
+        print(f"Error converting VTK to Msh: {e}")
+        return None
+    
     
 class AngleDialog(QDialog):
     def __init__(self, parent=None):
@@ -1024,6 +1056,46 @@ def convert_unstructured_grid_to_polydata(data):
     converted_part_1 = get_polydata_from_actor(data)
     converted_part_2 = convert_vtkUnstructuredGrid_to_vtkPolyData(converted_part_1)
     return converted_part_2
+
+
+def convert_vtkPolyData_to_vtkUnstructuredGrid(polydata):
+    """
+    Converts vtkPolyData to vtkUnstructuredGrid.
+    
+    Args:
+        polydata (vtkPolyData): The polydata to convert.
+    
+    Returns:
+        vtkUnstructuredGrid: The converted unstructured grid.
+    """
+    if not polydata.IsA("vtkPolyData"):
+        return None
+    
+    ugrid = vtkUnstructuredGrid()
+    points = vtkPoints()
+    points.SetDataTypeToDouble()
+    cells = vtkCellArray()
+    
+    for i in range(polydata.GetNumberOfPoints()):
+        points.InsertNextPoint(polydata.GetPoint(i))
+    
+    for i in range(polydata.GetNumberOfCells()):
+        cell = polydata.GetCell(i)
+        cell_type = cell.GetCellType()
+        ids = cell.GetPointIds()
+        
+        if cell_type == VTK_TRIANGLE:
+            triangle = vtkTriangle()
+            triangle.GetPointIds().SetId(0, ids.GetId(0))
+            triangle.GetPointIds().SetId(1, ids.GetId(1))
+            triangle.GetPointIds().SetId(2, ids.GetId(2))
+            cells.InsertNextCell(triangle)
+    
+    ugrid.SetPoints(points)
+    ugrid.SetCells(VTK_TRIANGLE, cells)
+    
+    return ugrid
+
     
 def remove_temp_files_helper(filename: str):
     try:
@@ -1190,6 +1262,60 @@ def getObjectMap(mesh_filename: str = None, obj_type: str = 'volume') -> dict:
                 surface_map[surf_tag] = triangles
             object_map[tag] = surface_map
         return object_map
+    
+
+def write_object_map_to_vtk(object_map: dict, filename: str) -> bool:
+    """
+    Writes the object map to a VTK file.
+    
+    Args:
+        object_map (dict): The object map containing mesh data.
+        filename (str): The filename to write the VTK file to.
+    
+    Returns:
+        bool: True if the file was successfully written, False otherwise.
+    """
+    try:
+        if not filename.endswith('.vtk'):
+            filename += '.vtk'
+        
+        points = vtkPoints()
+        points.SetDataTypeToDouble()
+        triangles = vtkCellArray()
+        ugrid = vtkUnstructuredGrid()
+        
+        point_index_map = {}
+        current_index = 0
+        
+        for volume_id, surfaces in object_map.items():
+            for surface_id, triangle_data in surfaces.items():
+                for triangle_id, triangle in triangle_data:
+                    pts = []
+                    for node_id, point in triangle:
+                        if node_id not in point_index_map:
+                            points.InsertNextPoint(point)
+                            point_index_map[node_id] = current_index
+                            current_index += 1
+                        pts.append(point_index_map[node_id])
+                    triangle_cell = vtkTriangle()
+                    triangle_cell.GetPointIds().SetId(0, pts[0])
+                    triangle_cell.GetPointIds().SetId(1, pts[1])
+                    triangle_cell.GetPointIds().SetId(2, pts[2])
+                    triangles.InsertNextCell(triangle_cell)
+        
+        ugrid.SetPoints(points)
+        ugrid.SetCells(VTK_TRIANGLE, triangles)
+        
+        writer = vtkUnstructuredGridWriter()
+        writer.SetFileName(filename)
+        writer.SetInputData(ugrid)
+        
+        writer.Write()
+        return True, filename
+    
+    except Exception as e:
+        print(f"Error writing VTK file: {e}")
+        return False, filename
 
 
 def createActorsFromObjectMap(object_map: dict, objType: str) -> list:
@@ -1572,7 +1698,7 @@ def formActorNodesDictionary(objectMap: dict, tree_item_actor_map: dict, objType
     # Iterate through the tree item actor map
     for parent_key, value in tree_item_actor_map.items():
         if isinstance(value, list):
-            for internal_row, actor, color in value:
+            for internal_row, actor, color, _, _ in value:
                 if actor not in actor_nodes_dict:
                     actor_nodes_dict[actor] = set()
 
@@ -1604,3 +1730,21 @@ def formActorNodesDictionary(objectMap: dict, tree_item_actor_map: dict, objType
 
 def get_cur_datetime() -> str:
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+
+def compare_matrices(mat1, mat2):
+    """
+    Compare two vtkMatrix4x4 matrices for equality.
+        
+    Args:
+        mat1 (vtkMatrix4x4): The first matrix.
+        mat2 (vtkMatrix4x4): The second matrix.
+        
+    Returns:
+        bool: True if the matrices are equal, False otherwise.
+    """
+    for i in range(4):
+        for j in range(4):
+            if mat1.GetElement(i, j) != mat2.GetElement(i, j):
+                return False
+    return True
