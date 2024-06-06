@@ -62,7 +62,7 @@ class GraphicalEditor(QFrame):
         super().__init__(parent)
         self.config_tab = config_tab
         
-        self.treedictId_treedict = {}  # Key = tree dictionary id  |  value = tree dictionary (*tree dictionary - own invented dictionary that stores data to fill the mesh tree)
+        self.externRow_treedict = {}   # Key = tree dictionary id  |  value = tree dictionary (*tree dictionary - own invented dictionary that stores data to fill the mesh tree)
         self.treedict_actors = {}      # Key = tree dictionary id  |  value = list of actors
         self.actor_rows = {}           # Key = actor               |  value = pair(external row, internal row)
         self.actor_color = {}          # Key = actor               |  value = color
@@ -1073,7 +1073,7 @@ class GraphicalEditor(QFrame):
         self.add_actors(actors)
         
         treedict_id = id(treedict)
-        self.treedictId_treedict[treedict_id] = treedict
+        self.externRow_treedict[treedict_id] = treedict
         if treedict_id not in self.treedict_actors:
             self.treedict_actors[treedict_id] = []
         self.treedict_actors[treedict_id].append(actors)
@@ -1447,7 +1447,6 @@ class GraphicalEditor(QFrame):
         for actor in self.selected_actors:
             if actor in self.actor_rows:
                 volume_index, surface_index = self.actor_rows[actor]
-                print(f"Vol row: {volume_index}\tSur row: {surface_index}")
 
                 # Remove the actor from actor_rows
                 del self.actor_rows[actor]
@@ -1498,7 +1497,7 @@ class GraphicalEditor(QFrame):
         self.meshfile_actors.setdefault('merged_surfaces', []).append(merged_actor)
 
         # Add treedict to treedictId_treedict and treedict_actors
-        self.treedictId_treedict[treedict_id] = treedict
+        self.externRow_treedict[treedict_id] = treedict
         self.treedict_actors[treedict_id] = [merged_actor]
 
         # Updating the tree view
