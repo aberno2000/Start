@@ -17,7 +17,7 @@ from vtk import(
     vtkActor, vtkSphereSource, vtkAxesActor, vtkOrientationMarkerWidget, 
     vtkGenericDataObjectReader, vtkDataSetMapper, vtkCellPicker, 
     vtkCleanPolyData, vtkPlane, vtkClipPolyData, vtkTransform, vtkTransformPolyDataFilter, 
-    vtkArrowSource, vtkCommand, vtkPolyDataNormals, vtkMatrix4x4
+    vtkArrowSource, vtkCommand, vtkPolyDataNormals, vtkMatrix4x4, vtkAppendPolyData
 )
 from PyQt5.QtWidgets import(
     QFrame, QVBoxLayout, QHBoxLayout, QTreeView,
@@ -38,9 +38,9 @@ from .util import(
 from util.util import(
     align_view_by_axis, save_scene, load_scene, convert_unstructured_grid_to_polydata,
     can_create_line, extract_transform_from_actor, calculate_thetaPhi, 
-    rad_to_degree, getObjectMap, createActorsFromObjectMap, populateTreeView, 
+    rad_to_degree, getTreeDict, createActorsFromTreeDict, populateTreeView, 
     can_create_surface, formActorNodesDictionary, compare_matrices,
-    write_object_map_to_vtk, convert_vtk_to_msh,
+    write_treedict_to_vtk, convert_vtk_to_msh,
     ActionHistory,
     DEFAULT_TEMP_MESH_FILE
 )
@@ -62,8 +62,14 @@ class GraphicalEditor(QFrame):
         super().__init__(parent)
         self.config_tab = config_tab
         
-        self.tree_item_actor_map = {}
-        self.actor_nodes_map = {}
+        self.treedictId_treedict = {}  # Key = tree dictionary id  |  value = tree dictionary (*tree dictionary - own invented dictionary that stores data to fill the mesh tree)
+        self.treedict_actors = {}      # Key = tree dictionary id  |  value = list of actors
+        self.actor_rows = {}           # Key = actor               |  value = pair(external row, internal row)
+        self.actor_color = {}          # Key = actor               |  value = color
+        self.actor_nodes = {}          # Key = actor               |  value = list of nodes
+        self.actor_matrix = {}         # Key = actor               |  value = transformation matrix: pair(initial, current)
+        self.meshfile_actors = {}      # Key = mesh filename       |  value = list of actors
+        
         self.treeView = QTreeView()
         self.model = QStandardItemModel()
         self.model.setHorizontalHeaderLabels(['Mesh Tree'])
@@ -80,7 +86,7 @@ class GraphicalEditor(QFrame):
         self.setup_interaction()
         self.setup_axes()
         
-        self.objectsHistory = ActionHistory()
+        self.objectsAddingHistory = ActionHistory()
         self.global_undo_stack = []
         self.global_redo_stack = []
         
@@ -150,7 +156,7 @@ class GraphicalEditor(QFrame):
             actor = node_data['actor']
             self.renderer.AddActor(actor)
         
-        self.vtkWidget.GetRenderWindow().Render()
+        self.render_editor_window()
         
     def remove_actors_from_node_list(self):
         if not self.nodeMap:
@@ -161,7 +167,7 @@ class GraphicalEditor(QFrame):
             self.renderer.RemoveActor(actor)
         
         self.nodeMap.clear()
-        self.vtkWidget.GetRenderWindow().Render()
+        self.render_editor_window()
     
     
     def upload_mesh_file(self, file_path):        
@@ -169,9 +175,9 @@ class GraphicalEditor(QFrame):
             self.mesh_file = file_path
             self.initialize_tree()
             gmsh.initialize()
-            objectMap = getObjectMap(self.mesh_file)
+            treedict = getTreeDict(self.mesh_file)
             gmsh.finalize()
-            self.add_actors_and_populate_tree_view(objectMap, file_path)
+            self.add_actors_and_populate_tree_view(treedict, file_path)
             self.initialize_node_map()
         else:
             QMessageBox.warning(self, "Warning", f"Unable to open file {file_path}")
@@ -274,7 +280,41 @@ class GraphicalEditor(QFrame):
         self.renderer = vtkRenderer()
         self.vtkWidget.GetRenderWindow().AddRenderer(self.renderer)
         
+        self.treeView.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.treeView.customContextMenuRequested.connect(self.on_treeView_context_menu)
+        
         self.change_interactor(INTERACTOR_STYLE_TRACKBALL_CAMERA)
+        
+        
+    def on_treeView_context_menu(self, position):
+        indexes = self.treeView.selectedIndexes()
+        if not indexes:
+            return
+        
+        menu = QMenu()
+        
+        move_action = QAction('Move', self)
+        rotate_action = QAction('Rotate', self)
+        adjust_size_action = QAction('Adjust size', self)
+        remove_action = QAction('Remove', self)
+        colorize_action = QAction('Colorize', self)
+        merge_surfaces_action = QAction('Merge surfaces', self)
+
+        move_action.triggered.connect(self.move_actors)
+        rotate_action.triggered.connect(self.rotate_actors)
+        adjust_size_action.triggered.connect(self.adjust_actors_size)
+        remove_action.triggered.connect(self.permanently_remove_actors)
+        colorize_action.triggered.connect(self.colorize_actors)
+        merge_surfaces_action.triggered.connect(self.merge_surfaces)
+
+        menu.addAction(move_action)
+        menu.addAction(rotate_action)
+        menu.addAction(adjust_size_action)
+        menu.addAction(remove_action)
+        menu.addAction(colorize_action)
+        menu.addAction(merge_surfaces_action)
+
+        menu.exec_(self.treeView.viewport().mapToGlobal(position))
     
     
     def get_filename_from_dialog(self) -> str:
@@ -298,7 +338,7 @@ class GraphicalEditor(QFrame):
             gmsh.model.geo.synchronize()
             gmsh.model.mesh.generate(3)
             
-            pointMap = getObjectMap(obj_type='point')
+            pointMap = getTreeDict(obj_type='point')
             filename = self.get_filename_from_dialog()
             if not filename:
                 return None
@@ -336,7 +376,7 @@ class GraphicalEditor(QFrame):
             gmsh.model.geo.synchronize()
             gmsh.model.mesh.generate(3)
             
-            lineMap = getObjectMap(obj_type='line')
+            lineMap = getTreeDict(obj_type='line')
             filename = self.get_filename_from_dialog()
             if not filename:
                 return None
@@ -395,7 +435,7 @@ class GraphicalEditor(QFrame):
             gmsh.model.geo.synchronize()
             gmsh.model.mesh.generate(3)
             
-            surfaceMap = getObjectMap(obj_type='surface')
+            surfaceMap = getTreeDict(obj_type='surface')
             filename = self.get_filename_from_dialog()
             if not filename:
                 return None
@@ -453,7 +493,7 @@ class GraphicalEditor(QFrame):
             gmsh.model.occ.synchronize()
             gmsh.model.mesh.generate(3)
             
-            sphereMap = getObjectMap()
+            sphereMap = getTreeDict()
             filename = self.get_filename_from_dialog()
             if not filename:
                 return None
@@ -494,7 +534,7 @@ class GraphicalEditor(QFrame):
             gmsh.model.occ.synchronize()
             gmsh.model.mesh.generate(3)
             
-            boxMap = getObjectMap()
+            boxMap = getTreeDict()
             filename = self.get_filename_from_dialog()
             if not filename:
                 return None
@@ -536,7 +576,7 @@ class GraphicalEditor(QFrame):
             gmsh.model.occ.synchronize()
             gmsh.model.mesh.generate(3)
             
-            cylinderMap = getObjectMap()
+            cylinderMap = getTreeDict()
             filename = self.get_filename_from_dialog()
             if not filename:
                 return None
@@ -642,32 +682,27 @@ class GraphicalEditor(QFrame):
     def add_actor(self, actor: vtkActor):
         self.renderer.AddActor(actor)
         actor.GetProperty().SetColor(DEFAULT_ACTOR_COLOR)
-        self.renderer.ResetCamera()
-        self.vtkWidget.GetRenderWindow().Render()
+        self.render_editor_window()
     
     
     def add_actors(self, actors: list):
         for actor in actors:
             self.renderer.AddActor(actor)
             actor.GetProperty().SetColor(DEFAULT_ACTOR_COLOR)
-        self.renderer.ResetCamera()
-        self.vtkWidget.GetRenderWindow().Render()
+        self.render_editor_window()
         
         
     def remove_actor(self, actor):
         if actor and isinstance(actor, vtkActor) and actor in self.renderer.GetActors():
             self.renderer.RemoveActor(actor)
-            self.renderer.ResetCamera()
-            self.vtkWidget.GetRenderWindow().Render()      
+            self.render_editor_window()      
     
     
     def remove_actors(self, actors: list):
         for actor in actors:
             if actor in self.renderer.GetActors():
                 self.renderer.RemoveActor(actor)
-                
-        self.renderer.ResetCamera()
-        self.vtkWidget.GetRenderWindow().Render()
+        self.render_editor_window()
     
     
     def remove_objects_with_restore(self, actors: list):
@@ -675,7 +710,7 @@ class GraphicalEditor(QFrame):
         if actors:
             # Saving previous actors:
             prev_state = actors
-            self.objectsHistory.add_action((prev_state, ))
+            self.objectsAddingHistory.add_action((prev_state, ))
             
             for actor in actors:
                 pass
@@ -690,10 +725,7 @@ class GraphicalEditor(QFrame):
             # Removing actor from the scene, row from the tree view and decrementing the ID of objects
             self.remove_actor(actor)
             self.model.removeRow(row)
-            
-            # Resetting camera view and rendering scene after performing deletion of actor
-            self.renderer.ResetCamera()
-            self.vtkWidget.GetRenderWindow().Render()
+            self.render_editor_window()
     
     
     def permanently_remove_actors(self):
@@ -718,9 +750,11 @@ class GraphicalEditor(QFrame):
                     if not actors:
                         self.log_console.printInternalError(f"Can't find actors <{hex(id(actors))}> by tree view row [{row}]>")
                         return
-                                
+                    
                     self.remove_row_from_tree(row)
                     self.remove_actors(actors)
+                    self.objectsAddingHistory.remove_by_id(self.objectsAddingHistory.get_id())
+                    self.objectsAddingHistory.decrementIndex()
     
     
     def colorize_actors(self):
@@ -728,22 +762,11 @@ class GraphicalEditor(QFrame):
         if actorColor.isValid():
             r, g, b = actorColor.redF(), actorColor.greenF(), actorColor.blueF()
         
-        for actor in self.selected_actors:
-            if actor and isinstance(actor, vtkActor):
-                actor.GetProperty().SetColor(r, g, b)
-                    
-                for key, items in self.tree_item_actor_map.items():
-                    if isinstance(items, list):
-                        for i, (index, mapped_actor, _, _) in enumerate(items):
-                            if actor == mapped_actor:
-                                self.tree_item_actor_map[key][i] = (index, actor, (r, g, b), _)
-                    elif isinstance(items, tuple) and len(items) == 4:
-                        index, mapped_actor, _, _ = items
-                        if actor == mapped_actor:
-                            self.tree_item_actor_map[key] = (index, actor, (r, g, b), _)
-                    
-                self.renderer.ResetCamera()
-                self.vtkWidget.GetRenderWindow().Render()
+            for actor in self.selected_actors:
+                if actor and isinstance(actor, vtkActor):
+                    actor.GetProperty().SetColor(r, g, b)
+                    self.actor_color[actor] = (r, g, b)
+            self.deselect()
                 
 
     def remove_all_actors(self):
@@ -755,13 +778,13 @@ class GraphicalEditor(QFrame):
             actor = actors.GetNextActor()
             self.renderer.RemoveActor(actor)
         
-        self.vtkWidget.GetRenderWindow().Render()
+        self.render_editor_window()
         
 
     def add_custom(self, meshfilename: str):
         gmsh.initialize()
-        customObjectMap = getObjectMap(meshfilename)
-        self.add_actors_and_populate_tree_view(customObjectMap, meshfilename, 'volume')
+        customTreeDict = getTreeDict(meshfilename)
+        self.add_actors_and_populate_tree_view(customTreeDict, meshfilename, 'volume')
         gmsh.finalize()
     
     
@@ -801,10 +824,10 @@ class GraphicalEditor(QFrame):
 
         
     def undo_object_creating(self):
-        res = self.objectsHistory.undo()
+        res = self.objectsAddingHistory.undo()
         if not res:
             return
-        row, actors, object_map, objType = res
+        row, actors, treedict, objType = res
         
         self.remove_actors(actors)
         
@@ -815,13 +838,13 @@ class GraphicalEditor(QFrame):
     
 
     def redo_object_creating(self):
-        res = self.objectsHistory.redo()
+        res = self.objectsAddingHistory.redo()
         if not res:
             return
-        row, actors, object_map, objType = res
+        row, actors, treedict, objType = res
         
         self.add_actors(actors)
-        self.populate_tree(object_map, objType)
+        self.populate_tree(treedict, objType)
     
     
     def remove_row_from_tree(self, row):
@@ -836,26 +859,28 @@ class GraphicalEditor(QFrame):
     
     def get_transformed_actors(self):
         """
-        Identify all actors that have been transformed and update the tree_item_actor_map.
+        Identify all actors that have been transformed and update the actor_matrix.
         
         Returns:
             list: A list of transformed actors along with their filenames.
         """
         transformed_actors = set()
         
-        for key, items in list(self.tree_item_actor_map.items()):  # Convert to list to allow modifications
-            for i, (index, actor, color, initial_transform, filename) in enumerate(items):
-                current_transform = actor.GetMatrix()
+        for actor, (initial_transform, _) in self.actor_matrix.items():
+            current_transform = actor.GetMatrix()
+            
+            if not compare_matrices(current_transform, initial_transform):
+                filename = None
+                for fn, actors in self.meshfile_actors.items():
+                    if actor in actors:
+                        filename = fn
+                        break
+                transformed_actors.add((actor, filename))
                 
-                if not compare_matrices(current_transform, initial_transform):
-                    transformed_actors.add((actor, key, filename))
-                    
-                    # Update the tree_item_actor_map with the new transform
-                    new_transform = vtkMatrix4x4()
-                    new_transform.DeepCopy(current_transform)
-                    
-                    # Replace the old entry with the new one
-                    self.tree_item_actor_map[key][i] = (index, actor, color, new_transform, filename)
+                # Update the actor_matrix with the new transform
+                new_transform = vtkMatrix4x4()
+                new_transform.DeepCopy(current_transform)
+                self.actor_matrix[actor] = (initial_transform, new_transform)
         
         return transformed_actors
     
@@ -870,11 +895,11 @@ class GraphicalEditor(QFrame):
         
         for actor, key, filename in transformed_actors:
             gmsh.initialize()
-            object_map = getObjectMap(filename)
-            if not object_map:
+            treedict = getTreeDict(filename)
+            if not treedict:
                 continue
             
-            success, vtk_filename = write_object_map_to_vtk(object_map, filename)
+            success, vtk_filename = write_treedict_to_vtk(treedict, filename)
             if not success:
                 self.log_console.printWarning(f"Failed to update Gmsh file for temporary filename {vtk_filename}")
                 QMessageBox.warning(self, "Gmsh Update Warning", f"Failed to update Gmsh file for temporary filename {vtk_filename}")
@@ -902,19 +927,18 @@ class GraphicalEditor(QFrame):
             gmsh.finalize()
     
 
-    
-    def fill_row_actor_map(self, row, actors, objType: str, filename: str):
+    def fill_dicts(self, row, actors, objType: str, filename: str):
         """
-        Populate the tree_item_actor_map with actors and their initial transformations.
-        
+        Populate the new dictionaries with actors and their initial transformations.
+
         Args:
             row (int): The row index in the tree view.
             actors (list): List of vtkActor objects.
             objType (str): The type of object ('volume', 'line', etc.).
+            filename (str): The mesh filename associated with the actors.
         """
         if objType == 'volume':
             volume_index = row
-            self.tree_item_actor_map[volume_index] = []
             for i, actor in enumerate(actors):
                 if actor and isinstance(actor, vtkActor):
                     surface_index = volume_index + i
@@ -922,98 +946,155 @@ class GraphicalEditor(QFrame):
                     initial_transform = vtkMatrix4x4()
                     initial_transform.DeepCopy(actor.GetMatrix())
                     
-                    self.tree_item_actor_map[surface_index] = [(surface_index, actor, actor_color, initial_transform, filename)]
-                    self.tree_item_actor_map[volume_index].append((surface_index, actor, actor_color, initial_transform, filename))
+                    self.actor_rows[actor] = (volume_index, surface_index)
+                    self.actor_color[actor] = actor_color
+                    self.actor_matrix[actor] = (initial_transform, initial_transform)
+                    if filename in self.meshfile_actors:
+                        self.meshfile_actors[filename].append(actor)
+                    else:
+                        self.meshfile_actors[filename] = [actor]
 
         elif objType == 'line':
             for i, r in enumerate(row):
-                actor_color = actors[i].GetProperty().GetColor()
-                initial_transform = vtkMatrix4x4()
-                initial_transform.DeepCopy(actors[i].GetMatrix())
-                self.tree_item_actor_map[r] = [(r, actors[i], actor_color, initial_transform, filename)]
+                actor = actors[i]
+                if actor and isinstance(actor, vtkActor):
+                    actor_color = actor.GetProperty().GetColor()
+                    initial_transform = vtkMatrix4x4()
+                    initial_transform.DeepCopy(actor.GetMatrix())
+                    
+                    self.actor_rows[actor] = (r, r)
+                    self.actor_color[actor] = actor_color
+                    self.actor_matrix[actor] = (initial_transform, initial_transform)
+                    if filename in self.meshfile_actors:
+                        self.meshfile_actors[filename].append(actor)
+                    else:
+                        self.meshfile_actors[filename] = [actor]
 
         else:
-            actor_color = actors[0].GetProperty().GetColor()
-            initial_transform = vtkMatrix4x4()
-            initial_transform.DeepCopy(actors[0].GetMatrix())
-            self.tree_item_actor_map[row] = [(row, actors[0], actor_color, initial_transform, filename)]
-            
+            for actor in actors:
+                if actor and isinstance(actor, vtkActor):
+                    actor_color = actor.GetProperty().GetColor()
+                    initial_transform = vtkMatrix4x4()
+                    initial_transform.DeepCopy(actor.GetMatrix())
+                    
+                    self.actor_rows[actor] = (row, row)
+                    self.actor_color[actor] = actor_color
+                    self.actor_matrix[actor] = (initial_transform, initial_transform)
+                    if filename in self.meshfile_actors:
+                        self.meshfile_actors[filename].append(actor)
+                    else:
+                        self.meshfile_actors[filename] = [actor]
+
     
     def get_volume_index(self, actor):
-        for volume_index, actors in self.tree_item_actor_map.items():
-            for surface_index, a, _, _ in actors:
-                if a == actor:
-                    return volume_index
+        """
+        Get the volume index for the given actor.
+
+        Args:
+            actor (vtkActor): The actor for which to get the volume index.
+
+        Returns:
+            int: The volume index, or None if the actor is not found.
+        """
+        if actor in self.actor_rows:
+            return self.actor_rows[actor][0]
         return None
 
 
     def get_surface_index(self, actor):
-        for volume_index, actors in self.tree_item_actor_map.items():
-            for surface_index, a, _, _ in actors:
-                if a == actor:
-                    return surface_index
+        """
+        Get the surface index for the given actor.
+
+        Args:
+            actor (vtkActor): The actor for which to get the surface index.
+
+        Returns:
+            int: The surface index, or None if the actor is not found.
+        """
+        if actor in self.actor_rows:
+            return self.actor_rows[actor][1]
         return None
-    
-    
+
+
     def get_actor_from_volume_index(self, volume_index):
-        if volume_index in self.tree_item_actor_map:
-            return [actor for _, actor, _, _ in self.tree_item_actor_map[volume_index]]
-        return None
+        """
+        Get the list of actors for the given volume index.
+
+        Args:
+            volume_index (int): The volume index for which to get the actors.
+
+        Returns:
+            list: A list of actors for the given volume index, or None if not found.
+        """
+        actors = [actor for actor, (vol_idx, _) in self.actor_rows.items() if vol_idx == volume_index]
+        return actors if actors else None
 
 
     def get_actor_from_surface_index(self, surface_index):
-        if surface_index in self.tree_item_actor_map:
-            return self.tree_item_actor_map[surface_index][0][1]
+        """
+        Get the actor for the given surface index.
+
+        Args:
+            surface_index (int): The surface index for which to get the actor.
+
+        Returns:
+            vtkActor: The actor for the given surface index, or None if not found.
+        """
+        for actor, (_, surf_idx) in self.actor_rows.items():
+            if surf_idx == surface_index:
+                return actor
         return None
+
             
-            
-    def fill_actor_nodes_map(self, objectMap: dict, objType: str):
+    def fill_actor_nodes(self, treedict: dict, objType: str):
         # Ensure the dictionary exists
-        if not hasattr(self, 'actor_nodes_map'):
-            self.actor_nodes_map = {}
+        if not hasattr(self, 'actor_nodes'):
+            self.actor_nodes = {}
         
-        # Update the actor_nodes_map with the new data
-        self.actor_nodes_map.update(formActorNodesDictionary(objectMap, self.tree_item_actor_map, objType))
+        # Update the actor_nodes with the new data
+        self.actor_nodes.update(formActorNodesDictionary(treedict, self.actor_rows, objType))
     
     
-    def populate_tree(self, objectMap: dict, objType: str, filename: str) -> list:
-        row = populateTreeView(objectMap, self.objectsHistory.id, self.model, self.treeView, objType)
+    def populate_tree(self, treedict: dict, objType: str, filename: str) -> list:
+        row = populateTreeView(treedict, self.objectsAddingHistory.id, self.model, self.treeView, objType)
         self.treeView.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self.treeView.selectionModel().selectionChanged.connect(self.on_tree_selection_changed)
-        actors = createActorsFromObjectMap(objectMap, objType)
+        actors = createActorsFromTreeDict(treedict, objType)
         
-        self.fill_row_actor_map(row, actors, objType, filename)
-        self.fill_actor_nodes_map(objectMap, objType)
+        self.fill_dicts(row, actors, objType, filename)
+        self.fill_actor_nodes(treedict, objType)
         
         return row, actors
     
     
-    def add_actors_and_populate_tree_view(self, objectMap: dict, filename: str, objType: str = 'volume'):
-        self.objectsHistory.id += 1
-        row, actors = self.populate_tree(objectMap, objType, filename)
+    def add_actors_and_populate_tree_view(self, treedict: dict, filename: str, objType: str = 'volume'):
+        self.objectsAddingHistory.id += 1
+        row, actors = self.populate_tree(treedict, objType, filename)
         self.add_actors(actors)
-        self.objectsHistory.add_action((row, actors, objectMap, objType))
+        
+        treedict_id = id(treedict)
+        self.treedictId_treedict[treedict_id] = treedict
+        if treedict_id not in self.treedict_actors:
+            self.treedict_actors[treedict_id] = []
+        self.treedict_actors[treedict_id].append(actors)
+        
+        self.objectsAddingHistory.add_action((row, actors, treedict, objType))
         self.global_undo_stack.append(ACTION_ACTOR_CREATING)
         
     
     def restore_actor_colors(self):
         try:
-            for items in self.tree_item_actor_map.values():
-                if isinstance(items, list):
-                    for index, actor, color, _, _ in items:
-                        actor.GetProperty().SetColor(color)
-                elif isinstance(items, tuple) and len(items) == 4:
-                    index, actor, color, _, _ = items
-                    actor.GetProperty().SetColor(color)
-            self.vtkWidget.GetRenderWindow().Render()
+            for actor, color in self.actor_color.items():
+                actor.GetProperty().SetColor(color)
+            self.render_editor_window()
         except Exception as e:
             self.log_console.printError(f"Error in restore_actor_colors: {e}")
-    
+
     
     def highlight_actors(self, actors):
         for actor in actors:
             actor.GetProperty().SetColor(SELECTED_ACTOR_COLOR)
-        self.vtkWidget.GetRenderWindow().Render()
+        self.render_editor_window()
 
 
     def unhighlight_actors(self, actors):
@@ -1024,34 +1105,29 @@ class GraphicalEditor(QFrame):
         selected_indexes = self.treeView.selectedIndexes()
         if not selected_indexes:
             return
-        
+
         self.unhighlight_actors(self.selected_actors)
         self.selected_actors.clear()
 
         for index in selected_indexes:
             selected_row = index.row()
             parent_index = index.parent().row()
-            
+
             selected_item = None
             if parent_index == -1:
-                selected_item = self.tree_item_actor_map.get(selected_row, None)
-            else:
-                parent_item = self.tree_item_actor_map.get(parent_index, [])
-                for item in parent_item:
-                    if item[0] == selected_row:
-                        selected_item = item[1]
+                for actor, (volume_index, _) in self.actor_rows.items():
+                    if volume_index == selected_row:
+                        selected_item = actor
                         break
-            
+            else:
+                for actor, (volume_index, surface_index) in self.actor_rows.items():
+                    if volume_index == parent_index and surface_index == selected_row:
+                        selected_item = actor
+                        break
+
             if selected_item:
-                if isinstance(selected_item, list):
-                    actors = [actor for _, actor, _ in selected_item]
-                    self.highlight_actors(actors)
-                    
-                    for _, actor, _ in selected_item:
-                        self.selected_actors.add(actor)
-                else:
-                    self.highlight_actors([selected_item])
-                    self.selected_actors.add(selected_item)
+                self.highlight_actors([selected_item])
+                self.selected_actors.add(selected_item)
 
     
     def retrieve_mesh_filename(self) -> str:
@@ -1117,7 +1193,7 @@ class GraphicalEditor(QFrame):
         self.tempLineActor.GetProperty().SetColor(1, 0, 0)  # red color
         
         self.renderer.AddActor(self.tempLineActor)
-        self.vtkWidget.GetRenderWindow().Render()
+        self.render_editor_window()
 
     def start_line_drawing(self):
         self.crossSectionLinePoints.clear()
@@ -1128,7 +1204,7 @@ class GraphicalEditor(QFrame):
         if self.tempLineActor:
             self.renderer.RemoveActor(self.tempLineActor)
             self.tempLineActor = None
-        self.vtkWidget.GetRenderWindow().Render()
+        self.render_editor_window()
     
     def pick_actor(self, obj, event):
         click_pos = self.interactor.GetEventPosition()
@@ -1139,28 +1215,24 @@ class GraphicalEditor(QFrame):
             if not (self.interactor.GetControlKey() or self.interactor.GetShiftKey()):
                 # Reset selection of all previous actors and tree view items
                 self.unhighlight_actors(self.selected_actors)
-                self.treeView.clearSelection()
+                self.reset_selection_treeview()
                 self.selected_actors.clear()
 
-            parent_row = next(iter(self.tree_item_actor_map))
-            rows_to_select = []
+            rows_to_select = ()
 
-            # Find the corresponding child rows
-            for internal_row, mapped_actor, color, _, _ in self.tree_item_actor_map[parent_row]:
-                if actor == mapped_actor:
-                    rows_to_select.append(internal_row)
+            # Find the corresponding rows
+            for act, (volume_index, surface_index) in self.actor_rows.items():
+                if actor == act:
+                    rows_to_select = (volume_index, surface_index)
                     break
 
-            # Select child rows
-            for row in rows_to_select:
-                child_index = self.model.index(row, 0, self.model.index(parent_row, 0))
-                if child_index.isValid():
-                    self.treeView.selectionModel().select(child_index, QItemSelectionModel.Select | QItemSelectionModel.Rows)
+            # Select the rows in the tree view
+            index = self.model.index(rows_to_select[1], 0, self.model.index(rows_to_select[0], 0))
+            self.treeView.selectionModel().select(index, QItemSelectionModel.Select | QItemSelectionModel.Rows)
 
             self.selected_actors.add(actor)
             actor.GetProperty().SetColor(SELECTED_ACTOR_COLOR)
-            self.vtkWidget.GetRenderWindow().Render()
-
+            self.render_editor_window()
 
         # Check if boundary node selection mode is active
         if self.isBoundaryNodeSelectionMode:
@@ -1177,7 +1249,7 @@ class GraphicalEditor(QFrame):
                         self.selected_node_ids.add(node_id)
                         self.select_node_in_list_widget(node_id)
                         self.log_console.printInfo(f"Selected node {node_id} at {actor_coords}")
-                    self.vtkWidget.GetRenderWindow().Render()
+                    self.render_editor_window()
                     break
 
         # Call the original OnLeftButtonDown event handler to maintain default interaction behavior
@@ -1286,7 +1358,7 @@ class GraphicalEditor(QFrame):
         menu.addAction(move_action)
 
         change_angle_action = QAction('Rotate', self)
-        change_angle_action.triggered.connect(self.change_actors_angle)
+        change_angle_action.triggered.connect(self.rotate_actors)
         menu.addAction(change_angle_action)
 
         adjust_size_action = QAction('Adjust size', self)
@@ -1304,27 +1376,29 @@ class GraphicalEditor(QFrame):
         menu.exec_(QCursor.pos())
     
     
+    def reset_selection_treeview(self):
+        self.treeView.clearSelection()
+        
+    
+    def render_editor_window(self):
+        self.renderer.ResetCamera()
+        self.vtkWidget.GetRenderWindow().Render()
+    
+    
     def deselect(self):
         try:
             for actor in self.renderer.GetActors():
-                original_color = None
-                for items in self.tree_item_actor_map.values():
-                    for _, mapped_actor, color, _ in items:
-                        if actor == mapped_actor:
-                            original_color = color
-                            break
-                        if original_color:
-                            break
-                
-                if original_color:
-                    actor.GetProperty().SetColor(original_color)
-                else:                
-                    actor.GetProperty().SetColor(DEFAULT_ACTOR_COLOR)
+                if actor in self.actor_color:
+                    original_color = self.actor_color[actor]
+                else:
+                    original_color = DEFAULT_ACTOR_COLOR
+                actor.GetProperty().SetColor(original_color)
             
             self.selected_actors.clear()
-            self.vtkWidget.GetRenderWindow().Render()
-        except Exception as _:
-            return
+            self.render_editor_window()
+            self.reset_selection_treeview()
+        except Exception as e:
+            self.log_console.printError(f"Error in deselect: {e}")
 
 
     def move_actors(self):
@@ -1350,9 +1424,95 @@ class GraphicalEditor(QFrame):
                 if actor and isinstance(actor, vtkActor):
                     actor.SetScale(scale_factor, scale_factor, scale_factor)
             self.deselect()
-               
+            
     
-    def change_actors_angle(self):
+    def merge_surfaces(self):
+        if len(self.selected_actors) == 1:
+            self.log_console.printInfo("Nothing to merge, selected only 1 surface")
+            QMessageBox.warning(self, "Merge Surfaces", "Nothing to merge, selected only 1 surface")
+            return
+
+        # Extracting indices for the actors to be merged
+        surface_indices = []
+        for actor in self.selected_actors:
+            surface_index = self.get_surface_index(actor)
+            if surface_index is not None:
+                surface_indices.append(surface_index)
+
+        if not surface_indices:
+            self.log_console.printError("No valid surface indices found for selected actors.")
+            return
+
+        # Removing the selected actors from all dictionaries and the scene
+        for actor in self.selected_actors:
+            if actor in self.actor_rows:
+                volume_index, surface_index = self.actor_rows[actor]
+                print(f"Vol row: {volume_index}\tSur row: {surface_index}")
+
+                # Remove the actor from actor_rows
+                del self.actor_rows[actor]
+                
+                # Remove the actor from actor_color
+                if actor in self.actor_color:
+                    del self.actor_color[actor]
+                
+                # Remove the actor from actor_matrix
+                if actor in self.actor_matrix:
+                    del self.actor_matrix[actor]
+                
+                # Remove the actor from meshfile_actors
+                for filename, actors in self.meshfile_actors.items():
+                    if actor in actors:
+                        actors.remove(actor)
+                        break
+
+                # Remove the actor from the scene
+                self.remove_actor(actor)
+
+        # Merging actors
+        append_filter = vtkAppendPolyData()
+        for actor in self.selected_actors:
+            poly_data = actor.GetMapper().GetInput()
+            append_filter.AddInputData(poly_data)
+        append_filter.Update()
+
+        # Creating a new merged actor
+        merged_mapper = vtkPolyDataMapper()
+        merged_mapper.SetInputData(append_filter.GetOutput())
+
+        merged_actor = vtkActor()
+        merged_actor.SetMapper(merged_mapper)
+        merged_actor.GetProperty().SetColor(DEFAULT_ACTOR_COLOR)
+
+        # Adding the merged actor to the scene
+        self.add_actor(merged_actor)
+
+        # Creating a unique identifier for the treedict
+        treedict_id = id(merged_actor)
+        treedict = {'id': treedict_id, 'type': 'merged_surfaces'}
+
+        # Adding the merged actor to the dictionaries
+        self.actor_rows[merged_actor] = (volume_index, surface_index)
+        self.actor_color[merged_actor] = DEFAULT_ACTOR_COLOR
+        self.actor_matrix[merged_actor] = (vtkMatrix4x4(), vtkMatrix4x4())
+        self.meshfile_actors.setdefault('merged_surfaces', []).append(merged_actor)
+
+        # Add treedict to treedictId_treedict and treedict_actors
+        self.treedictId_treedict[treedict_id] = treedict
+        self.treedict_actors[treedict_id] = [merged_actor]
+
+        # Updating the tree view
+        row, actors = self.populate_tree(treedict, 'merged_surfaces', 'merged_surfaces')
+        self.add_actors(actors)
+        
+        self.objectsAddingHistory.add_action((row, actors, treedict, 'merged_surfaces'))
+        self.global_undo_stack.append(ACTION_ACTOR_CREATING)
+
+        self.log_console.printInfo(f"Successfully merged selected surfaces: {surface_indices} to object with id <{hex(id(merged_actor))}>")
+        self.deselect()
+        
+    
+    def rotate_actors(self):
         dialog = AngleDialog(self)
         if dialog.exec_() == QDialog.Accepted:
             angles = dialog.getValues()
@@ -1724,8 +1884,7 @@ class GraphicalEditor(QFrame):
         arrowActor.GetProperty().SetColor(ARROW_ACTOR_COLOR)
         
         self.renderer.AddActor(arrowActor)
-        self.renderer.ResetCamera()
-        self.vtkWidget.GetRenderWindow().Render()
+        self.render_editor_window()
 
         return arrowActor
 
@@ -1779,7 +1938,7 @@ class GraphicalEditor(QFrame):
         
         self.remove_actors_from_node_list()
         
-        self.vtkWidget.GetRenderWindow().Render()
+        self.render_editor_window()
         if self.selected_node_ids:
             self.selected_node_ids.clear()
         self.setBoundaryNodeValuesButton.setVisible(False)
@@ -1879,7 +2038,7 @@ class GraphicalEditor(QFrame):
                 actor = self.nodeMap[node_id]['actor']
                 actor.GetProperty().SetColor(SELECTED_ACTOR_COLOR)
 
-        self.vtkWidget.GetRenderWindow().Render()
+        self.render_editor_window()
 
 
     def activate_selection_boundary_conditions_mode_for_surface(self):
@@ -1897,8 +2056,8 @@ class GraphicalEditor(QFrame):
             return
         
         for actor in self.selected_actors:
-            if actor in self.actor_nodes_map:
-                nodes = self.actor_nodes_map[actor]
+            if actor in self.actor_nodes:
+                nodes = self.actor_nodes[actor]
                 self.saveBoundaryConditions(nodes, value)
                 self.log_console.printInfo(f"Object: {hex(id(actor))}, Nodes: {nodes}, Value: {value}")
         self.deselect()
@@ -2006,12 +2165,12 @@ class GraphicalEditor(QFrame):
     def add_arrows(self, arrows):
         for arrow_actor, _, _ in arrows:
             self.renderer.AddActor(arrow_actor)
-        self.vtkWidget.GetRenderWindow().Render()
+        self.render_editor_window()
 
     def remove_arrows(self, arrows):
         for arrow_actor, _, _ in arrows:
             self.renderer.RemoveActor(arrow_actor)
-        self.vtkWidget.GetRenderWindow().Render()
+        self.render_editor_window()
 
     def populate_data(self, arrows, data):
         for arrow_actor, cell_center, normal in arrows:
