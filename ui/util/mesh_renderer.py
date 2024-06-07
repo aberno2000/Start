@@ -74,39 +74,40 @@ class MeshRenderer:
 
 
     def render_mesh(self):
+        points = vtkPoints()
+        cells = vtkCellArray()
+        scalars = vtkFloatArray()
+        scalars.SetNumberOfComponents(1)
+        
         for meshTriangle in self.mesh:
-            points = vtkPoints()
-            polyData = vtkPolyData()
-            cells = vtkCellArray()
-
+            point_ids = []
             for vertex in meshTriangle[1:4]:
-                points.InsertNextPoint(vertex)
-            
-            # Create a polygon for the points
-            triangle = vtkTriangle()
-            triangle.GetPointIds().SetId(0, 0)
-            triangle.GetPointIds().SetId(1, 1)
-            triangle.GetPointIds().SetId(2, 2)
-            cells.InsertNextCell(triangle)
-            
-            polyData.SetPoints(points)
-            polyData.SetPolys(cells)
+                point_id = points.InsertNextPoint(vertex)
+                point_ids.append(point_id)
 
-            # Map the count value (scalar) to a color
-            scalars = vtkFloatArray()
-            scalars.SetNumberOfComponents(1)
+            # Create a triangle cell
+            triangle = vtkTriangle()
+            triangle.GetPointIds().SetId(0, point_ids[0])
+            triangle.GetPointIds().SetId(1, point_ids[1])
+            triangle.GetPointIds().SetId(2, point_ids[2])
+            cells.InsertNextCell(triangle)
+
+            # Add the scalar value for the triangle
             scalars.InsertNextValue(meshTriangle[5])
 
-            polyData.GetCellData().SetScalars(scalars)
+        polyData = vtkPolyData()
+        polyData.SetPoints(points)
+        polyData.SetPolys(cells)
+        polyData.GetCellData().SetScalars(scalars)
 
-            mapper = vtkPolyDataMapper()
-            mapper.SetInputData(polyData)
-            mapper.SetScalarRange(0, self.max_count)
-            mapper.SetLookupTable(self.lookupTable)
+        mapper = vtkPolyDataMapper()
+        mapper.SetInputData(polyData)
+        mapper.SetScalarRange(0, self.max_count)
+        mapper.SetLookupTable(self.lookupTable)
 
-            self.actor = vtkActor()
-            self.actor.SetMapper(mapper)
-            self.renderer.AddActor(self.actor)
+        self.actor = vtkActor()
+        self.actor.SetMapper(mapper)
+        self.renderer.AddActor(self.actor)
 
         
     def add_colorbar(self, title='Color Scale', range=None): 
