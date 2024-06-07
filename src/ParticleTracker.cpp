@@ -135,10 +135,13 @@ void ParticleTracker::saveParticleMovements() const
         json j;
         for (const auto &[id, movements] : m_particlesMovement)
         {
-            json positions;
-            for (auto const &point : movements)
-                positions.push_back({{"x", point.x()}, {"y", point.y()}, {"z", point.z()}});
-            j[std::to_string(id)] = positions;
+            if (movements.size() > 1)
+            {
+                json positions;
+                for (auto const &point : movements)
+                    positions.push_back({{"x", point.x()}, {"y", point.y()}, {"z", point.z()}});
+                j[std::to_string(id)] = positions;
+            }
         }
 
         std::string filepath("particles_movements.json");
