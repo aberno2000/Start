@@ -54,6 +54,18 @@ public:
     GridIndex getGridIndexByPosition(Point const &point) const;
 
     /**
+     * @brief Checks if a given point is inside the grid.
+     *
+     * This method determines whether the specified point is within the bounds of the grid.
+     * The grid is divided into cubic components, each of which may intersect with multiple tetrahedra.
+     * The point is considered to be inside the grid if it is inside any of the tetrahedra within the cubic component.
+     *
+     * @param point The point to be checked.
+     * @return true if the point is inside the grid, false otherwise.
+     */
+    bool isInsideTetrahedronMesh(Point const &point) const;
+
+    /**
      * @brief Retrieves the list of tetrahedrons that intersect a specific grid cell.
      * @param index The index of the grid cell.
      * @return A vector of tetrahedrons that intersect with the specified cell.

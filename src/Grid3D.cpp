@@ -65,6 +65,21 @@ GridIndex Grid3D::getGridIndexByPosition(Point const &point) const
         std::clamp(short((z - m_commonBbox.zmin()) / m_cubeEdgeSize), short(0), static_cast<short>(m_divisionsZ - 1))};
 }
 
+bool Grid3D::isInsideTetrahedronMesh(Point const &point) const
+{
+    auto gridIndex{getGridIndexByPosition(point)};
+    auto tetrahedrons{getTetrahedronsByGridIndex(gridIndex)};
+
+    // One cube grid component can return multiple tetrahedra, so we need to fill the vector of checkings with results of checkings.
+    std::vector<bool> checks;
+    for (auto const &tetrahedron : tetrahedrons)
+        checks.emplace_back(Mesh::isPointInsideTetrahedron(point, tetrahedron.tetrahedron));
+
+    // If vector contains at least one `true` - it means that point is inside the tetrahedron mesh.
+    return std::ranges::any_of(checks, [](bool inside)
+                               { return inside; });
+}
+
 std::vector<VolumetricMeshData::TetrahedronData> Grid3D::getTetrahedronsByGridIndex(GridIndex const &index) const
 {
     std::vector<VolumetricMeshData::TetrahedronData> meshParams;
