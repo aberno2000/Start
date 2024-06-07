@@ -11,13 +11,13 @@ from vtkmodules.vtkInteractionStyle import(
 )
 from vtkmodules.vtkFiltersGeneral import vtkBooleanOperationPolyDataFilter
 from PyQt5.QtGui import QIcon
-from PyQt5.QtCore import QSize, Qt, pyqtSlot, QItemSelectionModel
+from PyQt5.QtCore import QSize, Qt, pyqtSlot, QItemSelectionModel, QThread
 from vtk import(
     vtkRenderer, vtkPoints, vtkPolyData, vtkPolyLine, vtkCellArray, vtkPolyDataMapper, 
     vtkActor, vtkSphereSource, vtkAxesActor, vtkOrientationMarkerWidget, 
     vtkGenericDataObjectReader, vtkDataSetMapper, vtkCellPicker, 
     vtkCleanPolyData, vtkPlane, vtkClipPolyData, vtkTransform, vtkTransformPolyDataFilter, 
-    vtkArrowSource, vtkCommand, vtkPolyDataNormals, vtkMatrix4x4, vtkAppendPolyData
+    vtkArrowSource, vtkCommand, vtkPolyDataNormals, vtkMatrix4x4
 )
 from PyQt5.QtWidgets import(
     QFrame, QVBoxLayout, QHBoxLayout, QTreeView,
@@ -31,8 +31,9 @@ from .util import(
     PointDialog, LineDialog, SurfaceDialog, 
     SphereDialog, BoxDialog, CylinderDialog,
     AngleDialog, MoveActorDialog, AxisSelectionDialog,
-    ExpansionAngleDialog, ParticleSourceDialog, 
+    ExpansionAngleDialogNonModal, ParticleSourceDialog, 
     ParticleSourceTypeDialog, BoundaryValueInputDialog,
+    ArrowPropertiesDialog, MethodSelectionDialog,
     pi
 )
 from util.util import(
@@ -1304,13 +1305,22 @@ class GraphicalEditor(QFrame):
                     rows_to_select = (volume_row, surface_row)
                     break
 
-            # Select the rows in the tree view
-            index = self.model.index(rows_to_select[1], 0, self.model.index(rows_to_select[0], 0))
-            self.treeView.selectionModel().select(index, QItemSelectionModel.Select | QItemSelectionModel.Rows)
+            # Highlight the actor if it is the arrow actor
+            if actor == self.particleSourceArrowActor:
+                actor.GetProperty().SetColor(SELECTED_ACTOR_COLOR)
+                self.selected_actors.add(actor)
+                self.render_editor_window()
+                return
 
-            self.selected_actors.add(actor)
-            actor.GetProperty().SetColor(SELECTED_ACTOR_COLOR)
-            self.render_editor_window()
+            # Select the rows in the tree view if rows_to_select is not empty
+            if rows_to_select:
+                index = self.model.index(rows_to_select[1], 0, self.model.index(rows_to_select[0], 0))
+                self.treeView.selectionModel().select(index, QItemSelectionModel.Select | QItemSelectionModel.Rows)
+                self.selected_actors.add(actor)
+                actor.GetProperty().SetColor(SELECTED_ACTOR_COLOR)
+                self.render_editor_window()
+            else:
+                QMessageBox.warning(self, "Selection Error", "Selected actor not found in the actor rows mapping.")
 
         # Check if boundary node selection mode is active
         if self.isBoundaryNodeSelectionMode:
@@ -1834,6 +1844,7 @@ class GraphicalEditor(QFrame):
             config_file = self.config_tab.config_file_path
             if not config_file:
                 QMessageBox.warning(self, "Saving Particle Source as Point", "Can't save pointed particle source, first you need to choose a configuration file, then set the source")
+                self.resetParticleSourceArrow()
                 return
 
             # Read the existing configuration file
@@ -1857,10 +1868,13 @@ class GraphicalEditor(QFrame):
             
             dialog = ParticleSourceDialog(self)
             if dialog.exec_() == QDialog.Accepted:
-                particle_params = dialog.get_values()
+                particle_params = dialog.getValues()
                 particle_type = particle_params["particle_type"]
                 energy = particle_params["energy"]
                 num_particles = particle_params["num_particles"]
+            else:
+                self.resetParticleSourceArrow()
+                return
 
             # Prepare new ParticleSourcePoint entry
             if "ParticleSourcePoint" not in config_data:
@@ -1907,7 +1921,7 @@ class GraphicalEditor(QFrame):
         
         
     def getParticleSourceBaseCoords(self):
-        if not self.particleSourceArrowActor:
+        if not self.particleSourceArrowActor or not isinstance(self.particleSourceArrowActor, vtkActor):
             return None
         return self.particleSourceArrowActor.GetPosition()
     
@@ -1938,36 +1952,8 @@ class GraphicalEditor(QFrame):
         
         return theta, phi
     
-    def set_particle_source_as_point(self):
-        if not self.particleSourceArrowActor:
-            self.particleSourceArrowActor = self.create_direction_arrow()
-        
-        dialog = ExpansionAngleDialog(self)
-        if dialog.exec_() == QDialog.Accepted and dialog.getTheta() is not None:
-            try:
-                thetaMax = dialog.getTheta()
-                
-                if self.getParticleSourceDirection() is None:
-                    return
-                _, phi = self.getParticleSourceDirection()
-                
-                if thetaMax > pi / 2.:
-                    self.log_console.printWarning(f"The θ angle exceeds 90°, so some particles can distribute in the opposite direction\nθ = {thetaMax} ({thetaMax * 180. / pi}°)")    
-                self.log_console.printInfo(f"Successfully assigned values to the expansion angle and calculated φ angle\nθ = {thetaMax} ({thetaMax * 180. / pi}°)\nφ = {phi} ({phi * 180. / pi}°)\n")
-            
-                self.savePointParticleSourceToConfig()
-            
-            except Exception as e:
-                QMessageBox.critical(self, "Scattering angles", f"Exception while assigning expansion angle θ: {e}")
-                self.log_console.printError(f"Exception while assigning expansion angle θ: {e}\n")
-                return
-
-            self.expansion_angle = thetaMax
-        else:
-            self.resetParticleSourceArrow()
-            
- 
-    def create_direction_arrow(self):
+    
+    def create_direction_arrow_interactively(self):
         arrowSource = vtkArrowSource()
         arrowSource.SetTipLength(0.25)
         arrowSource.SetTipRadius(0.1)
@@ -1987,14 +1973,43 @@ class GraphicalEditor(QFrame):
         mapper = vtkPolyDataMapper()
         mapper.SetInputConnection(arrowTransformFilter.GetOutputPort())
         
-        arrowActor = vtkActor()
-        arrowActor.SetMapper(mapper)
-        arrowActor.GetProperty().SetColor(ARROW_ACTOR_COLOR)
+        self.particleSourceArrowActor = vtkActor()
+        self.particleSourceArrowActor.SetMapper(mapper)
+        self.particleSourceArrowActor.GetProperty().SetColor(ARROW_ACTOR_COLOR)
         
-        self.renderer.AddActor(arrowActor)
+        self.renderer.AddActor(self.particleSourceArrowActor)
+        self.render_editor_window()
+    
+ 
+    def create_direction_arrow_manually(self, x, y, z, angle_x, angle_y, angle_z):
+        arrowSource = vtkArrowSource()
+        arrowSource.SetTipLength(0.25)
+        arrowSource.SetTipRadius(0.1)
+        arrowSource.SetShaftRadius(0.01)
+        arrowSource.Update()
+        arrowSource.SetTipResolution(100)
+
+        arrowTransform = vtkTransform()
+        arrowTransform.Translate(x, y, z)
+        arrowTransform.RotateX(angle_x)
+        arrowTransform.RotateY(angle_y)
+        arrowTransform.RotateZ(angle_z)
+        arrowTransform.Scale(5, 5, 5)
+        arrowTransformFilter = vtkTransformPolyDataFilter()
+        arrowTransformFilter.SetTransform(arrowTransform)
+        arrowTransformFilter.SetInputConnection(arrowSource.GetOutputPort())
+        arrowTransformFilter.Update()
+
+        mapper = vtkPolyDataMapper()
+        mapper.SetInputConnection(arrowTransformFilter.GetOutputPort())
+        
+        self.particleSourceArrowActor = vtkActor()
+        self.particleSourceArrowActor.SetMapper(mapper)
+        self.particleSourceArrowActor.GetProperty().SetColor(ARROW_ACTOR_COLOR)
+        
+        self.renderer.AddActor(self.particleSourceArrowActor)
         self.render_editor_window()
 
-        return arrowActor
 
     def init_node_selection_attributes(self):
         self.nodeMap = {}
@@ -2232,6 +2247,58 @@ class GraphicalEditor(QFrame):
                 self.set_particle_source_as_point()
             elif selected_source_type == "Surface Source":
                 self.set_particle_source_as_surface()
+
+
+    def set_particle_source_as_point(self):
+        if not self.particleSourceArrowActor:
+            method_dialog = MethodSelectionDialog(self)
+            if method_dialog.exec_() == QDialog.Accepted:
+                method = method_dialog.get_selected_method()
+                if method == "manual":
+                    dialog = ArrowPropertiesDialog(self)
+                    if dialog.exec_() == QDialog.Accepted:
+                        properties = dialog.getProperties()
+                        if properties:
+                            x, y, z, angle_x, angle_y, angle_z = properties
+                            self.create_direction_arrow_manually(x, y, z, angle_x, angle_y, angle_z)
+                        else:
+                            self.resetParticleSourceArrow()
+                            QMessageBox.warning(self, "Invalid input", "Please enter valid numerical values.")
+                            return
+                    else:
+                        self.resetParticleSourceArrow()
+                        return
+                elif method == "interactive":
+                    self.create_direction_arrow_interactively()
+                else:
+                    self.resetParticleSourceArrow()
+                    return
+
+        self.expansion_angle_dialog = ExpansionAngleDialogNonModal(self.vtkWidget, self.renderer, self.particleSourceArrowActor, self)
+        self.expansion_angle_dialog.accepted_signal.connect(self.handle_theta_signal)
+        self.expansion_angle_dialog.show()
+
+
+    def handle_theta_signal(self, thetaMax):
+        try:
+            self.expansion_angle = thetaMax
+            
+            if self.getParticleSourceDirection() is None:
+                self.resetParticleSourceArrow()
+                return
+            _, phi = self.getParticleSourceDirection()
+            
+            if thetaMax > pi / 2.:
+                self.log_console.printWarning(f"The θ angle exceeds 90°, so some particles can distribute in the opposite direction\nθ = {thetaMax} ({thetaMax * 180. / pi}°)")    
+            self.log_console.printInfo(f"Successfully assigned values to the expansion angle and calculated φ angle\nθ = {thetaMax} ({thetaMax * 180. / pi}°)\nφ = {phi} ({phi * 180. / pi}°)\n")
+        
+            self.savePointParticleSourceToConfig()
+        
+        except Exception as e:
+            self.resetParticleSourceArrow()
+            QMessageBox.critical(self, "Scattering angles", f"Exception while assigning expansion angle θ: {e}")
+            self.log_console.printError(f"Exception while assigning expansion angle θ: {e}\n")
+            return
 
 
     def set_particle_source_as_surface(self):

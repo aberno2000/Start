@@ -15,7 +15,8 @@
 class ParticleTracker final
 {
 private:
-    static constexpr short const kdefault_polynomOrder{1}; ///< Polynom order. Responds for count of the basis functions.
+    static constexpr short const kdefault_polynomOrder{1};                 ///< Polynom order. Responds for count of the basis functions.
+    static constexpr short const kdefault_max_numparticles_to_anim{1'000}; ///< Maximal count of particles to do animation.
 
     static std::mutex m_PICTracker_mutex;              ///< Mutex for synchronizing access to the particles in tetrahedrons.
     static std::mutex m_nodeChargeDensityMap_mutex;    ///< Mutex for synchronizing access to the charge densities in nodes.

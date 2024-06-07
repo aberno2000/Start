@@ -339,17 +339,8 @@ void ParticleTracker::processSurfaceCollisionTracker(size_t start_index, size_t 
                           {
                               // If particles is already settled on surface - there is no need to proceed handling it.
                               std::shared_lock<std::shared_mutex> lock(m_settledParticles_mutex);
-                              if (_settledParticlesIds.find(particle.getId()) != _settledParticlesIds.end() ||
-                                  !cubicGrid->isInsideTetrahedronMesh(particle.getCentre()))
+                              if (_settledParticlesIds.find(particle.getId()) != _settledParticlesIds.end())
                                   return;
-                          }
-
-                          {
-                              std::lock_guard<std::mutex> lock(m_particlesMovement_mutex);
-
-                              // There is no need to feed map with more than 2'000 particles. Just for simple visualization.
-                              if (m_particlesMovement.size() < 1000)
-                                  m_particlesMovement[particle.getId()].emplace_back(particle.getCentre());
                           }
 
                           size_t containingTetrahedron{};
@@ -365,17 +356,29 @@ void ParticleTracker::processSurfaceCollisionTracker(size_t start_index, size_t 
 
                           if (auto tetrahedron{assemblier->getMeshComponents().getMeshDataByTetrahedronId(containingTetrahedron)})
                               if (tetrahedron->electricField.has_value())
+                                  // Updating velocity of the particle according to the Lorentz force.
                                   particle.electroMagneticPush(magneticInduction,
                                                                MathVector(tetrahedron->electricField->x(), tetrahedron->electricField->y(), tetrahedron->electricField->z()),
                                                                m_config.getTimeStep());
 
                           Point prev(particle.getCentre());
+
+                          {
+                              std::lock_guard<std::mutex> lock(m_particlesMovement_mutex);
+
+                              // Adding only those particles which are inside tetrahedron mesh.
+                              // There is no need to spawn large count of particles and load PC, fixed count must be enough.
+                              if (cubicGrid->isInsideTetrahedronMesh(prev))
+                                  m_particlesMovement[particle.getId()].emplace_back(prev);
+                          }
+
                           particle.updatePosition(m_config.getTimeStep());
                           Ray ray(prev, particle.getCentre());
 
                           if (ray.is_degenerate())
                               return;
 
+                          // Updating velocity of the particle according to the coliding with gas.
                           particle.colide(m_config.getGas(), _gasConcentration, m_config.getScatteringModel(), m_config.getTimeStep());
 
                           // There is no need to check particle collision with surface mesh in initial time moment of the simulation (when t = 0).
@@ -397,19 +400,24 @@ void ParticleTracker::processSurfaceCollisionTracker(size_t start_index, size_t 
                               size_t id{isRayIntersectTriangle(ray, *matchedIt)};
                               if (id != -1ul)
                               {
-                                  std::shared_lock<std::shared_mutex> lock(m_settledParticles_mutex);
-                                  ++_settledParticlesCounterMap[id];
-                                  _settledParticlesIds.insert(particle.getId());
-
-                                  if (_settledParticlesIds.size() >= m_particles.size())
                                   {
-                                      m_stop_processing.test_and_set();
-                                      return;
+                                      std::shared_lock<std::shared_mutex> lock(m_settledParticles_mutex);
+                                      ++_settledParticlesCounterMap[id];
+                                      _settledParticlesIds.insert(particle.getId());
+
+                                      if (_settledParticlesIds.size() >= m_particles.size())
+                                      {
+                                          m_stop_processing.test_and_set();
+                                          return;
+                                      }
                                   }
 
-                                  auto intersection_point{RayTriangleIntersection::getIntersectionPoint(ray, triangle)};
-                                  if (intersection_point)
-                                      m_particlesMovement[particle.getId()].emplace_back(*intersection_point);
+                                  {
+                                      std::lock_guard<std::mutex> lock(m_particlesMovement_mutex);
+                                      auto intersection_point{RayTriangleIntersection::getIntersectionPoint(ray, triangle)};
+                                      if (intersection_point)
+                                          m_particlesMovement[particle.getId()].emplace_back(*intersection_point);
+                                  }
                               }
                           }
                       });

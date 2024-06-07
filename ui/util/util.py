@@ -1,5 +1,5 @@
 import gmsh, tempfile, meshio
-from math import pi
+from math import radians, pi
 from datetime import datetime
 from os import remove
 from vtk import (
@@ -10,7 +10,7 @@ from vtk import (
     vtkUnstructuredGridWriter,
     VTK_TRIANGLE
 )
-from PyQt5.QtCore import QSize, QModelIndex
+from PyQt5.QtCore import QSize, QModelIndex, pyqtSignal, QObject
 from PyQt5.QtWidgets import (
     QDialog, QFormLayout, QLineEdit, QDialogButtonBox, 
     QVBoxLayout, QMessageBox, QPushButton, QTableWidget,
@@ -644,6 +644,58 @@ class AxisSelectionDialog(QDialog):
     def getSelectedAxis(self):
         return self.axisComboBox.currentText()
 
+
+class ExpansionAngleDialogNonModal(QDialog):
+    accepted_signal = pyqtSignal(float)
+
+    def __init__(self, vtkWidget: QVTKRenderWindowInteractor, renderer: vtkRenderer, arrowActor: vtkActor, parent=None):
+        super(ExpansionAngleDialogNonModal, self).__init__(parent)
+        
+        self.arrowActor = arrowActor
+        self.vtkWidget = vtkWidget
+        self.renderer = renderer
+        
+        self.setWindowTitle("Set Expansion Angle")
+        
+        layout = QVBoxLayout(self)
+        
+        self.theta_input = QLineEdit(self)
+        self.theta_input.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
+        self.theta_input.setValidator(QDoubleValidator(0.0, 180.0, 6))
+        
+        layout.addWidget(QLabel("Expansion Angle θ (degrees):"))
+        layout.addWidget(self.theta_input)
+        
+        button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self)
+        button_box.accepted.connect(self.handle_accept)
+        button_box.rejected.connect(self.handle_reject)
+        
+        layout.addWidget(button_box)
+        
+    def resetArrowActor(self):
+        self.renderer.RemoveActor(self.arrowActor)
+        self.renderer.ResetCamera()
+        self.vtkWidget.GetRenderWindow().Render()
+        self.arrowActor = None
+    
+    def handle_accept(self):
+        try:
+            theta = float(self.theta_input.text())
+            self.accepted_signal.emit(radians(theta))  # Convert degrees to radians
+            self.close()
+            self.resetArrowActor()            
+        except ValueError:
+            QMessageBox.warning(self, "Invalid input", "Please enter a valid numerical value.")
+    
+    def handle_reject(self):
+        self.close()
+        self.resetArrowActor()
+        
+    def closeEvent(self, event):
+        self.resetArrowActor()
+        super().closeEvent(event)
+
+
 class ExpansionAngleDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -680,6 +732,103 @@ class ExpansionAngleDialog(QDialog):
         theta = theta * pi / 180.
         return theta
     
+
+class ArrowPropertiesDialog(QDialog):
+    def __init__(self, parent=None):
+        super(ArrowPropertiesDialog, self).__init__(parent)
+        
+        self.setWindowTitle("Set Arrow Properties")
+        
+        layout = QVBoxLayout(self)
+        
+        self.x_input = QLineEdit(self)
+        self.y_input = QLineEdit(self)
+        self.z_input = QLineEdit(self)
+        self.angle_x_input = QLineEdit(self)
+        self.angle_y_input = QLineEdit(self)
+        self.angle_z_input = QLineEdit(self)
+        
+        self.x_input.setValidator(QDoubleValidator())
+        self.y_input.setValidator(QDoubleValidator())
+        self.z_input.setValidator(QDoubleValidator())
+        self.angle_x_input.setValidator(QDoubleValidator())
+        self.angle_y_input.setValidator(QDoubleValidator())
+        self.angle_z_input.setValidator(QDoubleValidator())
+        
+        self.x_input.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
+        self.y_input.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
+        self.z_input.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
+        self.angle_x_input.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
+        self.angle_y_input.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
+        self.angle_z_input.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
+        
+        layout.addWidget(QLabel("X Coordinate:"))
+        layout.addWidget(self.x_input)
+        layout.addWidget(QLabel("Y Coordinate:"))
+        layout.addWidget(self.y_input)
+        layout.addWidget(QLabel("Z Coordinate:"))
+        layout.addWidget(self.z_input)
+        layout.addWidget(QLabel("Rotation Angle around X-axis (degrees):"))
+        layout.addWidget(self.angle_x_input)
+        layout.addWidget(QLabel("Rotation Angle around Y-axis (degrees):"))
+        layout.addWidget(self.angle_y_input)
+        layout.addWidget(QLabel("Rotation Angle around Z-axis (degrees):"))
+        layout.addWidget(self.angle_z_input)
+        
+        button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self)
+        button_box.accepted.connect(self.accept)
+        button_box.rejected.connect(self.reject)
+        
+        layout.addWidget(button_box)
+    
+    def getProperties(self):
+        try:
+            x = float(self.x_input.text())
+            y = float(self.y_input.text())
+            z = float(self.z_input.text())
+            angle_x = radians(float(self.angle_x_input.text()))
+            angle_y = radians(float(self.angle_y_input.text()))
+            angle_z = radians(float(self.angle_z_input.text()))
+            return x, y, z, angle_x, angle_y, angle_z
+        except ValueError:
+            return None
+
+
+class MethodSelectionDialog(QDialog):
+    def __init__(self, parent=None):
+        super(MethodSelectionDialog, self).__init__(parent)
+        
+        self.setWindowTitle("Select Method")
+        
+        layout = QVBoxLayout(self)
+        
+        label = QLabel("Do you want to set the parameters manually or interactively?")
+        layout.addWidget(label)
+        
+        button_box = QDialogButtonBox(self)
+        self.manual_button = QPushButton("Manually")
+        self.interactive_button = QPushButton("Interactively")
+        button_box.addButton(self.manual_button, QDialogButtonBox.AcceptRole)
+        button_box.addButton(self.interactive_button, QDialogButtonBox.AcceptRole)
+        
+        self.manual_button.clicked.connect(self.accept_manual)
+        self.interactive_button.clicked.connect(self.accept_interactive)
+        
+        layout.addWidget(button_box)
+        self.selected_method = None
+    
+    def accept_manual(self):
+        self.selected_method = "manual"
+        self.accept()
+    
+    def accept_interactive(self):
+        self.selected_method = "interactive"
+        self.accept()
+    
+    def get_selected_method(self):
+        return self.selected_method
+
+
 class CustomDoubleValidator(QDoubleValidator):
     def __init__(self, bottom, top, decimals, parent=None):
         super().__init__(bottom, top, decimals, parent)
@@ -792,7 +941,7 @@ class ParticleSourceDialog(QDialog):
         # Energy
         self.energy_input = QLineEdit()
         self.energy_input.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
-        energy_validator = QDoubleValidator(0.0, 10000.0, 2, self)  # Range of the energy in [eV]
+        energy_validator = QDoubleValidator(0.0, 10000.0, 6, self)  # Range of the energy in [eV]
         self.energy_input.setValidator(energy_validator)
         layout.addRow("Energy (eV):", self.energy_input)
 

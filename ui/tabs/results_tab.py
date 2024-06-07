@@ -1,7 +1,6 @@
 from vtk import ( 
     vtkAxesActor, vtkOrientationMarkerWidget, vtkRenderer,
     vtkPoints, vtkPolyDataMapper, vtkActor,
-    vtkGenericDataObjectReader, vtkDataSetMapper,
     vtkVertexGlyphFilter, vtkPolyData
 )
 from PyQt5.QtWidgets import (
@@ -17,7 +16,7 @@ from data.hdf5handler import HDF5Handler
 from vtkmodules.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 from vtkmodules.vtkInteractionStyle import vtkInteractorStyleTrackballCamera
 from util.util import align_view_by_axis, Point
-from util.styles import DEFAULT_QLINEEDIT_STYLE, DEFAULT_ACTOR_COLOR
+from util.styles import DEFAULT_QLINEEDIT_STYLE
 from logger.log_console import LogConsole
 
 
@@ -90,21 +89,7 @@ class ResultsTab(QWidget):
         layout.addWidget(button)
         return button
 
-    def setup_toolbar(self):
-        self.addMeshedObjectButton = self.create_toolbar_button(
-            icon_path="icons/custom.png",
-            tooltip='Adds meshed object',
-            callback=self.add_meshed_object,
-            layout=self.toolbarLayout
-        )
-        
-        self.removeAllObjectsButton = self.create_toolbar_button(
-            icon_path="icons/eraser.png",
-            tooltip='Adds meshed object',
-            callback=self.remove_all_actors,
-            layout=self.toolbarLayout
-        )
-        
+    def setup_toolbar(self):        
         self.animationsButton = self.create_toolbar_button(
             icon_path="icons/anim.png",
             tooltip='Shows animation',
@@ -321,10 +306,10 @@ class ResultsTab(QWidget):
             if self.repeat_count >= self.max_repeats:
                 self.animation_timer.stop()
                 return
-            self.current_iteration = 0       # Reset iteration to start over
-            self.remove_all_particles()      # Clear all particles and stop the animation
+            self.current_iteration = 0   # Reset iteration to start over
+            self.remove_all_particles()  # Clear all particles and stop the animation
         self.remove_all_particles()
-        
+
         # Collect points for the current iteration
         points = []
         for particle_id, movements in self.particles_movement.items():
@@ -345,18 +330,6 @@ class ResultsTab(QWidget):
 
         self.vtkWidget.GetRenderWindow().Render()
         self.current_iteration += 1
-    
-    
-    def remove_all_actors(self):
-        self.particleSourceArrowActor = None
-        
-        actors = self.renderer.GetActors()
-        actors.InitTraversal()        
-        for _ in range(actors.GetNumberOfItems()):
-            actor = actors.GetNextActor()
-            self.renderer.RemoveActor(actor)
-        
-        self.vtkWidget.GetRenderWindow().Render()
         
         
     def remove_all_particles(self):
@@ -399,7 +372,6 @@ class ResultsTab(QWidget):
             for particle_id, movements in data.items():
                 particle_id = int(particle_id)
                 particles_movement[particle_id] = [Point(movement['x'], movement['y'], movement['z']) for movement in movements]
-
             return particles_movement
 
         except FileNotFoundError:
@@ -415,63 +387,3 @@ class ResultsTab(QWidget):
             self.log_console.printError("There is nothing to show. Particles haven't been spawned or simulation hasn't been started")
             return
         self.animate_particle_movements(particles_movement)
-
-
-    def add_meshed_object(self):
-        """
-        Upload actor from .msh file and add it to the renderer.
-        """
-        options = QFileDialog.Options()
-        options |= QFileDialog.ReadOnly
-        file_path, _ = QFileDialog.getOpenFileName(self, "Select .msh file", "", "Mesh Files (*.msh);;All Files (*)", options=options)
-        
-        if not file_path:
-            self.log_console.printWarning("No file selected.")
-            return
-        
-        try:
-            mesh_actor = self.create_actor_from_msh(file_path)
-            if mesh_actor:
-                self.renderer.AddActor(mesh_actor)
-                mesh_actor.GetProperty().SetColor(DEFAULT_ACTOR_COLOR)
-                self.vtkWidget.GetRenderWindow().Render()
-                self.log_console.printInfo(f"Mesh loaded from {file_path}")
-                self.reset_camera()
-            else:
-                raise ValueError("Failed to create actor from the provided .msh file.")
-        
-        except FileNotFoundError:
-            self.log_console.printError(f"The file {file_path} was not found.")
-        except ValueError as ve:
-            self.log_console.printError(f"Error processing the .msh file: {ve}")
-        except Exception as e:
-            self.log_console.printError(f"Unexpected error: {e}")
-
-    
-    def create_actor_from_msh(self, msh_filename):
-        """
-        Create a VTK actor from a .msh file.
-        
-        :param msh_filename: Path to the .msh file.
-        :return: A VTK actor.
-        """
-        try:
-            vtk_filename = msh_filename.replace('.msh', '.vtk')
-        
-            reader = vtkGenericDataObjectReader()
-            reader.SetFileName(vtk_filename)
-            reader.Update()
-            
-            if reader.IsFilePolyData():
-                mapper = vtkPolyDataMapper()
-            elif reader.IsFileUnstructuredGrid():
-                mapper = vtkDataSetMapper()
-            else:
-                return None
-            mapper.SetInputConnection(reader.GetOutputPort())
-
-            actor = vtkActor()
-            actor.SetMapper(mapper)
-            return actor
-        except Exception as e:
-            raise ValueError(f"Failed to create actor: {e}")
