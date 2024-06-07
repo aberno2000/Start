@@ -3,6 +3,7 @@
 
 #include <barrier>
 #include <mutex>
+#include <shared_mutex>
 
 #include "FiniteElementMethod/MatrixEquationSolver.hpp"
 #include "Generators/VolumeCreator.hpp"
@@ -16,11 +17,11 @@ class ParticleTracker final
 private:
     static constexpr short const kdefault_polynomOrder{1}; ///< Polynom order. Responds for count of the basis functions.
 
-    static std::mutex m_PICTracker_mutex;           ///< Mutex for synchronizing access to the particles in tetrahedrons.
-    static std::mutex m_nodeChargeDensityMap_mutex; ///< Mutex for synchronizing access to the charge densities in nodes.
-    static std::mutex m_particlesMovement_mutex;    ///< Mutex for synchronizing access to particle movements.
-    static std::mutex m_settledParticles_mutex;     ///< Mutex for synchronizing access to settled particle IDs.
-    static std::atomic_flag m_stop_processing;      ///< Flag-checker for condition (counter >= size of particles).
+    static std::mutex m_PICTracker_mutex;              ///< Mutex for synchronizing access to the particles in tetrahedrons.
+    static std::mutex m_nodeChargeDensityMap_mutex;    ///< Mutex for synchronizing access to the charge densities in nodes.
+    static std::mutex m_particlesMovement_mutex;       ///< Mutex for synchronizing access to the trajectories of particles.
+    static std::shared_mutex m_settledParticles_mutex; ///< Mutex for synchronizing access to settled particle IDs.
+    static std::atomic_flag m_stop_processing;         ///< Flag-checker for condition (counter >= size of particles).
 
     /* All the neccessary data members from the mesh. */
     MeshTriangleParamVector _triangleMesh;   ///< Triangle mesh params acquired from the mesh file. Surface mesh.
@@ -83,14 +84,6 @@ private:
      * It handles exceptions and provides a warning message if the map is empty.
      */
     void saveParticleMovements() const;
-
-    /**
-     * @brief Checker for point inside the tetrahedron.
-     * @param point `Point_3` from CGAL.
-     * @param tetrahedron `Tetrahedron_3` from CGAL.
-     * @return `true` if point within the tetrahedron, otherwise `false`.
-     */
-    bool isPointInsideTetrahedron(Point const &point, Tetrahedron const &tetrahedron);
 
     /**
      * @brief Checker for ray-triangle intersection.

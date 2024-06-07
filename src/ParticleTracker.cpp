@@ -11,7 +11,7 @@ using json = nlohmann::json;
 std::mutex ParticleTracker::m_PICTracker_mutex;
 std::mutex ParticleTracker::m_nodeChargeDensityMap_mutex;
 std::mutex ParticleTracker::m_particlesMovement_mutex;
-std::mutex ParticleTracker::m_settledParticles_mutex;
+std::shared_mutex ParticleTracker::m_settledParticles_mutex;
 std::atomic_flag ParticleTracker::m_stop_processing = ATOMIC_FLAG_INIT;
 
 void ParticleTracker::checkMeshfilename() const
@@ -91,18 +91,6 @@ void ParticleTracker::initializeFEM(std::shared_ptr<GSMatrixAssemblier> &assembl
     // Initializing the solution vector.
     solutionVector = std::make_shared<SolutionVector>(assemblier->rows(), kdefault_polynomOrder);
     solutionVector->clear();
-}
-
-bool ParticleTracker::isPointInsideTetrahedron(Point const &point, Tetrahedron const &tetrahedron)
-{
-    CGAL::Oriented_side oriented_side{tetrahedron.oriented_side(point)};
-    if (oriented_side == CGAL::ON_POSITIVE_SIDE)
-        return true;
-    else if (oriented_side == CGAL::ON_NEGATIVE_SIDE)
-        return false;
-    else
-        // TODO: Correctly handle case when particle is on boundary of tetrahedron.
-        return true;
 }
 
 size_t ParticleTracker::isRayIntersectTriangle(Ray const &ray, MeshTriangleParam const &triangle)
@@ -251,7 +239,7 @@ void ParticleTracker::processPIC(size_t start_index, size_t end_index, double t,
 
         auto meshParams{cubicGrid->getTetrahedronsByGridIndex(cubicGrid->getGridIndexByPosition(particle.getCentre()))};
         for (auto const &meshParam : meshParams)
-            if (isPointInsideTetrahedron(particle.getCentre(), meshParam.tetrahedron))
+            if (Mesh::isPointInsideTetrahedron(particle.getCentre(), meshParam.tetrahedron))
                 PICtracker[meshParam.globalTetraId].emplace_back(particle); });
 
         // Calculating charge density in each of the tetrahedron using `PICtracker`.
@@ -349,10 +337,18 @@ void ParticleTracker::processSurfaceCollisionTracker(size_t start_index, size_t 
                       [this, &cubicGrid, assemblier, magneticInduction, t](auto &particle)
                       {
                           {
-                              std::lock_guard<std::mutex> lock(m_settledParticles_mutex);
-                              if (_settledParticlesIds.find(particle.getId()) != _settledParticlesIds.end())
+                              // If particles is already settled on surface - there is no need to proceed handling it.
+                              std::shared_lock<std::shared_mutex> lock(m_settledParticles_mutex);
+                              if (_settledParticlesIds.find(particle.getId()) != _settledParticlesIds.end() ||
+                                  !cubicGrid->isInsideTetrahedronMesh(particle.getCentre()))
                                   return;
-                              else
+                          }
+
+                          {
+                              std::lock_guard<std::mutex> lock(m_particlesMovement_mutex);
+
+                              // There is no need to feed map with more than 2'000 particles. Just for simple visualization.
+                              if (m_particlesMovement.size() < 1000)
                                   m_particlesMovement[particle.getId()].emplace_back(particle.getCentre());
                           }
 
@@ -401,7 +397,7 @@ void ParticleTracker::processSurfaceCollisionTracker(size_t start_index, size_t 
                               size_t id{isRayIntersectTriangle(ray, *matchedIt)};
                               if (id != -1ul)
                               {
-                                  std::lock_guard<std::mutex> lock(m_settledParticles_mutex);
+                                  std::shared_lock<std::shared_mutex> lock(m_settledParticles_mutex);
                                   ++_settledParticlesCounterMap[id];
                                   _settledParticlesIds.insert(particle.getId());
 
@@ -412,7 +408,8 @@ void ParticleTracker::processSurfaceCollisionTracker(size_t start_index, size_t 
                                   }
 
                                   auto intersection_point{RayTriangleIntersection::getIntersectionPoint(ray, triangle)};
-                                  m_particlesMovement[particle.getId()].emplace_back(*intersection_point);
+                                  if (intersection_point)
+                                      m_particlesMovement[particle.getId()].emplace_back(*intersection_point);
                               }
                           }
                       });
