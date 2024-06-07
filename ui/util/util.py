@@ -768,9 +768,12 @@ class ActionHistory:
     
     def decrementIndex(self):
         self.id -= 1
-        
+    
     def incrementIndex(self):
         self.id += 1
+    
+    def clearIndex(self):
+        self.id = 0
     
 
 class ParticleSourceDialog(QDialog):
@@ -1765,3 +1768,72 @@ def compare_matrices(mat1, mat2):
             if mat1.GetElement(i, j) != mat2.GetElement(i, j):
                 return False
     return True
+
+
+def rename_first_selected_row(model, volume_row, surface_indices):
+    """
+    Rename the first selected row in the tree view with the merged surface name.
+
+    Args:
+        model (QStandardItemModel): The model of the tree view.
+        volume_row (int): The row index of the volume item in the tree view.
+        surface_indices (list): The list of indices of the surface items to be merged.
+    """
+    # Creating the new merged item name
+    merged_surface_name = f"Surface_merged_{'_'.join(map(str, sorted([i + 1 for i in surface_indices])))}"
+    parent_index = model.index(volume_row, 0)
+
+    # Replacing the name of the first selected row with the new name
+    first_surface_index = surface_indices[0]
+    first_child_index = model.index(first_surface_index, 0, parent_index)
+    first_item = model.itemFromIndex(first_child_index)
+    first_item.setText(merged_surface_name)
+
+
+def copy_children(source_item, target_item):
+    """
+    Recursively copy children from source_item to target_item.
+
+    Args:
+        source_item (QStandardItem): The item from which to copy children.
+        target_item (QStandardItem): The item to which the children will be copied.
+    """
+    # Iterate through all rows (children) of the source item
+    for row in range(source_item.rowCount()):
+        # Clone the child item at the current row
+        child = source_item.child(row).clone()
+        
+        # Append the cloned child to the target item
+        target_item.appendRow(child)
+        
+        # Recursively call copy_children to copy the children of the current child
+        copy_children(source_item.child(row), child)
+
+
+def merge_actors(actors):
+    """
+    Merge the provided list of actors into a single actor.
+
+    Args:
+        actors (list): List of vtkActor objects to be merged.
+
+    Returns:
+        vtkActor: A new actor that is the result of merging the provided actors.
+    """
+    # Merging actors
+    append_filter = vtkAppendPolyData()
+    for actor in actors:
+        poly_data = actor.GetMapper().GetInput()
+        append_filter.AddInputData(poly_data)
+    append_filter.Update()
+
+    # Creating a new merged actor
+    merged_mapper = vtkPolyDataMapper()
+    merged_mapper.SetInputData(append_filter.GetOutput())
+
+    merged_actor = vtkActor()
+    merged_actor.SetMapper(merged_mapper)
+    merged_actor.GetProperty().SetColor(DEFAULT_ACTOR_COLOR)
+
+    return merged_actor
+
