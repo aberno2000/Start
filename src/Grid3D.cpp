@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <boost/dynamic_bitset.hpp>
 #include <ranges>
 #include <utility>
 #include <vector>
@@ -71,13 +72,13 @@ bool Grid3D::isInsideTetrahedronMesh(Point const &point) const
     auto tetrahedrons{getTetrahedronsByGridIndex(gridIndex)};
 
     // One cube grid component can return multiple tetrahedra, so we need to fill the vector of checkings with results of checkings.
-    std::vector<bool> checks;
+    boost::dynamic_bitset<> checks(tetrahedrons.size());
+    size_t i{};
     for (auto const &tetrahedron : tetrahedrons)
-        checks.emplace_back(Mesh::isPointInsideTetrahedron(point, tetrahedron.tetrahedron));
+        checks[i++] = Mesh::isPointInsideTetrahedron(point, tetrahedron.tetrahedron);
 
-    // If vector contains at least one `true` - it means that point is inside the tetrahedron mesh.
-    return std::ranges::any_of(checks, [](bool inside)
-                               { return inside; });
+    // If bitset contains at least one `true` - it means that point is inside the tetrahedron mesh.
+    return checks.any();
 }
 
 std::vector<VolumetricMeshData::TetrahedronData> Grid3D::getTetrahedronsByGridIndex(GridIndex const &index) const
