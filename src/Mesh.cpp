@@ -216,14 +216,15 @@ MeshTetrahedronParamVector Mesh::getTetrahedronMeshParams(std::string_view msh_f
     return result;
 }
 
-bool Mesh::isPointInsideTetrahedron(Point const &point, MeshTetrahedronParam const &meshParam)
+bool Mesh::isPointInsideTetrahedron(Point const &point, Tetrahedron const &tetrahedron)
 {
-    CGAL::Oriented_side oriented_side{std::get<1>(meshParam).oriented_side(point)};
+    CGAL::Oriented_side oriented_side{tetrahedron.oriented_side(point)};
     if (oriented_side == CGAL::ON_POSITIVE_SIDE)
         return true;
     else if (oriented_side == CGAL::ON_NEGATIVE_SIDE)
         return false;
     else
+        // TODO: Correctly handle case when particle is on boundary of tetrahedron.
         return true;
 }
 

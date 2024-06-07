@@ -129,7 +129,7 @@ public:
      * @param tetrahedron `Tetrahedron_3` from CGAL.
      * @return `true` if point within the tetrahedron, otherwise `false`.
      */
-    static bool isPointInsideTetrahedron(Point const &point, MeshTetrahedronParam const &meshParam);
+    static bool isPointInsideTetrahedron(Point const &point, Tetrahedron const &tetrahedron);
 
     /**
      * @brief Calculates volume value from the specified mesh file.
