@@ -1866,15 +1866,22 @@ class GraphicalEditor(QFrame):
                     for source in sources_to_remove:
                         del config_data[source]
             
-            dialog = ParticleSourceDialog(self)
-            if dialog.exec_() == QDialog.Accepted:
-                particle_params = dialog.getValues()
-                particle_type = particle_params["particle_type"]
-                energy = particle_params["energy"]
-                num_particles = particle_params["num_particles"]
-            else:
-                self.resetParticleSourceArrow()
-                return
+            self.particle_source_dialog = ParticleSourceDialog(self)
+            self.particle_source_dialog.accepted_signal.connect(lambda params: self.handle_particle_source_point_accepted(params, config_file, config_data, theta, phi, base_coords))
+            self.particle_source_dialog.rejected_signal.connect(self.resetParticleSourceArrow)
+            self.particle_source_dialog.show()
+
+        except Exception as e:
+            self.log_console.printError(f"Error defining particle source. {e}")
+            QMessageBox.warning(self, "Particle Source", f"Error defining particle source. {e}")
+            return None
+        
+    
+    def handle_particle_source_point_accepted(self, particle_params, config_file, config_data, theta, phi, base_coords):
+        try:
+            particle_type = particle_params["particle_type"]
+            energy = particle_params["energy"]
+            num_particles = particle_params["num_particles"]
 
             # Prepare new ParticleSourcePoint entry
             if "ParticleSourcePoint" not in config_data:
@@ -1907,11 +1914,9 @@ class GraphicalEditor(QFrame):
             self.log_console.addNewLine()
 
             self.resetParticleSourceArrow()
-            return 1
-
         except Exception as e:
-            self.log_console.printError(f"Error defining particle source. {e}")
-            QMessageBox.warning(self, "Particle Source", f"Error defining particle source. {e}")
+            self.log_console.printError(f"Error saving particle source. {e}")
+            QMessageBox.warning(self, "Particle Source", f"Error saving particle source. {e}")
             return None
 
         
@@ -2274,6 +2279,7 @@ class GraphicalEditor(QFrame):
                     self.resetParticleSourceArrow()
                     return
 
+        QMessageBox.information(self, "Set Source Direction", "Now you can select arrow and then press 'C' key to scale/adjust angles/base coordinates of this arrow")
         self.expansion_angle_dialog = ExpansionAngleDialogNonModal(self.vtkWidget, self.renderer, self.particleSourceArrowActor, self)
         self.expansion_angle_dialog.accepted_signal.connect(self.handle_theta_signal)
         self.expansion_angle_dialog.show()
@@ -2312,22 +2318,29 @@ class GraphicalEditor(QFrame):
         if not surface_and_normals_dict:
             return
         
-        dialog = ParticleSourceDialog(self)
-        if dialog.exec_() == QDialog.Accepted:
-            particle_params = dialog.getValues()
+        self.particle_source_dialog = ParticleSourceDialog(self)
+        self.particle_source_dialog.accepted_signal.connect(lambda params: self.handle_particle_source_surface_accepted(params, surface_and_normals_dict))
+        self.particle_source_dialog.show()
+
+
+    def handle_particle_source_surface_accepted(self, particle_params, surface_and_normals_dict):
+        try:
             particle_type = particle_params["particle_type"]
             energy = particle_params["energy"]
             num_particles = particle_params["num_particles"]
             
             self.log_console.printInfo("Particle source set as surface source\n"
-                                       f"Particle Type: {particle_type}\n"
-                                       f"Energy: {energy} eV\n"
-                                       f"Number of Particles: {num_particles}")
+                                    f"Particle Type: {particle_type}\n"
+                                    f"Energy: {energy} eV\n"
+                                    f"Number of Particles: {num_particles}")
             self.log_console.addNewLine()
-        else:
-            return
-        
-        self.update_config_with_particle_source(particle_params, surface_and_normals_dict)
+            
+            self.update_config_with_particle_source(particle_params, surface_and_normals_dict)
+        except Exception as e:
+            self.log_console.printError(f"Error setting particle source. {e}")
+            QMessageBox.warning(self, "Particle Source", f"Error setting particle source. {e}")
+            return None
+
 
     def confirm_normal_orientation(self, orientation):
         return QMessageBox.question(

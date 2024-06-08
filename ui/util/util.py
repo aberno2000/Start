@@ -10,7 +10,7 @@ from vtk import (
     vtkUnstructuredGridWriter,
     VTK_TRIANGLE
 )
-from PyQt5.QtCore import QSize, QModelIndex, pyqtSignal, QObject
+from PyQt5.QtCore import QSize, QModelIndex, pyqtSignal
 from PyQt5.QtWidgets import (
     QDialog, QFormLayout, QLineEdit, QDialogButtonBox, 
     QVBoxLayout, QMessageBox, QPushButton, QTableWidget,
@@ -926,9 +926,11 @@ class ActionHistory:
     
 
 class ParticleSourceDialog(QDialog):
+    accepted_signal = pyqtSignal(dict)
+    rejected_signal = pyqtSignal()
+
     def __init__(self, parent=None):
         super().__init__(parent)
-
         self.setWindowTitle("Set Particle Source Parameters")
 
         layout = QFormLayout(self)
@@ -948,14 +950,14 @@ class ParticleSourceDialog(QDialog):
         # Number of particles
         self.num_particles_input = QLineEdit()
         self.num_particles_input.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
-        num_particles_validator = QIntValidator(1, 1000000000, self) # Range of particle count
+        num_particles_validator = QIntValidator(1, 1000000000, self)  # Range of particle count
         self.num_particles_input.setValidator(num_particles_validator)
         layout.addRow("Number of Particles:", self.num_particles_input)
 
         # Dialog buttons
         self.button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self)
-        self.button_box.accepted.connect(self.accept)
-        self.button_box.rejected.connect(self.reject)
+        self.button_box.accepted.connect(self.handle_accept)
+        self.button_box.rejected.connect(self.handle_reject)
         layout.addRow(self.button_box)
 
     def getValues(self):
@@ -964,6 +966,21 @@ class ParticleSourceDialog(QDialog):
             "energy": float(self.energy_input.text()),
             "num_particles": int(self.num_particles_input.text())
         }
+
+    def handle_accept(self):
+        try:
+            values = self.getValues()
+            self.accepted_signal.emit(values)
+            self.close()
+        except ValueError:
+            QMessageBox.warning(self, "Invalid input", "Please enter valid numerical values.")
+
+    def handle_reject(self):
+        self.rejected_signal.emit()
+        self.close()
+
+    def closeEvent(self, event):
+        super().closeEvent(event)
 
 
 class ParticleSourceTypeDialog(QDialog):
