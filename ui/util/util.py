@@ -18,7 +18,8 @@ from PyQt5.QtWidgets import (
     QDialog, QFormLayout, QLineEdit, QDialogButtonBox, 
     QVBoxLayout, QMessageBox, QPushButton, QTableWidget,
     QTableWidgetItem, QSizePolicy, QLabel, QHBoxLayout,
-    QWidget, QScrollArea, QComboBox, QTreeView, QSlider
+    QWidget, QScrollArea, QComboBox, QTreeView, QSlider,
+    QFileDialog
 )
 from PyQt5.QtGui import QIntValidator, QDoubleValidator, QStandardItemModel, QStandardItem
 from .converter import is_positive_real_number, is_real_number
@@ -1487,6 +1488,149 @@ class SurfaceAndArrowManager:
         arrow_actor.GetProperty().SetColor(ARROW_ACTOR_COLOR)
 
         return arrow_actor
+
+
+class AddMaterialDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        
+        self.setWindowTitle('Add Material')
+        self.setMinimumWidth(400)
+        self.layout = QVBoxLayout()
+        
+        # ComboBox for default materials
+        self.materials_combobox = QComboBox()
+        self.default_materials = {
+            'Steel A': {'Fe': 75.0, 'Ni': 25.0},
+            'Steel B': {'Fe': 85.0, 'Ni': 10.0, 'C': 5.0},
+            'Steel C': {'Fe': 90.0, 'C': 10.0},
+            # Add more materials with their hints here
+        }
+        for material, components in self.default_materials.items():
+            hint = ', '.join([f'{k}: {v}%' for k, v in components.items()])
+            self.materials_combobox.addItem(material)
+            self.materials_combobox.setItemData(self.materials_combobox.count() - 1, hint, Qt.ToolTipRole)
+        
+        self.layout.addWidget(QLabel('Select a material:'))
+        self.layout.addWidget(self.materials_combobox)
+        
+        # Plus button for custom material
+        self.add_custom_material_button = QPushButton('[+] Add Custom Material')
+        self.add_custom_material_button.clicked.connect(self.add_custom_material)
+        self.layout.addWidget(self.add_custom_material_button)
+        
+        # Load materials button
+        self.load_materials_button = QPushButton('Load Materials from File')
+        self.load_materials_button.clicked.connect(self.load_materials_from_file)
+        self.layout.addWidget(self.load_materials_button)
+        
+        self.setLayout(self.layout)
+        
+        self.custom_materials = []
+
+    def add_custom_material(self):
+        custom_dialog = CustomMaterialDialog(self)
+        if custom_dialog.exec_() == QDialog.Accepted:
+            custom_material = custom_dialog.get_material()
+            if custom_material:
+                material_name = custom_material['name']
+                components = {k: float(v) for k, v in custom_material.items() if k != 'name'}
+                self.custom_materials.append({material_name: components})
+                hint = ', '.join([f'{k}: {v}%' for k, v in components.items()])
+                self.materials_combobox.addItem(material_name)
+                self.materials_combobox.setItemData(self.materials_combobox.count() - 1, hint, Qt.ToolTipRole)
+                self.save_custom_materials_to_file()
+
+    def save_custom_materials_to_file(self):
+        with open('materials.json', 'w') as file:
+            dump(self.custom_materials, file, indent=4)
+
+    def load_materials_from_file(self):
+        file_path, _ = QFileDialog.getOpenFileName(self, 'Open Materials File', '', 'JSON Files (*.json)')
+        if file_path:
+            try:
+                with open(file_path, 'r') as file:
+                    materials = load(file)
+                    for material in materials:
+                        for name, components in material.items():
+                            hint = ', '.join([f'{k}: {v}%' for k, v in components.items()])
+                            self.materials_combobox.addItem(name)
+                            self.materials_combobox.setItemData(self.materials_combobox.count() - 1, hint, Qt.ToolTipRole)
+            except Exception as e:
+                QMessageBox.critical(self, 'Error', f'Failed to load materials: {e}')
+
+class CustomMaterialDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        
+        self.setWindowTitle('Custom Material')
+        self.layout = QVBoxLayout()
+        
+        self.name_label = QLabel('Name:')
+        self.name_edit = QLineEdit()
+        self.name_edit.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
+        
+        self.fe_label = QLabel('Fe:')
+        self.fe_edit = QLineEdit()
+        self.fe_edit.setValidator(QDoubleValidator(0, 100, 3))
+        self.fe_edit.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
+        
+        self.ni_label = QLabel('Ni:')
+        self.ni_edit = QLineEdit()
+        self.ni_edit.setValidator(QDoubleValidator(0, 100, 3))
+        self.ni_edit.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
+        
+        self.c_label = QLabel('C:')
+        self.c_edit = QLineEdit()
+        self.c_edit.setValidator(QDoubleValidator(0, 100, 3))
+        self.c_edit.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
+        
+        self.layout.addWidget(self.name_label)
+        self.layout.addWidget(self.name_edit)
+        self.layout.addWidget(self.fe_label)
+        self.layout.addWidget(self.fe_edit)
+        self.layout.addWidget(self.ni_label)
+        self.layout.addWidget(self.ni_edit)
+        self.layout.addWidget(self.c_label)
+        self.layout.addWidget(self.c_edit)
+        
+        self.button_box = QHBoxLayout()
+        self.ok_button = QPushButton('OK')
+        self.ok_button.clicked.connect(self.validate_and_accept)
+        self.cancel_button = QPushButton('Cancel')
+        self.cancel_button.clicked.connect(self.reject)
+        
+        self.button_box.addWidget(self.ok_button)
+        self.button_box.addWidget(self.cancel_button)
+        
+        self.layout.addLayout(self.button_box)
+        self.setLayout(self.layout)
+        
+    def validate_and_accept(self):
+        total_percentage = 0
+        try:
+            total_percentage = (float(self.fe_edit.text()) +
+                                float(self.ni_edit.text()) +
+                                float(self.c_edit.text()))
+            # TODO: Add more elements to the total
+        except ValueError:
+            QMessageBox.warning(self, 'Invalid Input', 'Please enter valid percentages.')
+            return
+        
+        if total_percentage > 100:
+            QMessageBox.warning(self, 'Invalid Input', 'Total percentage cannot exceed 100%.')
+            return
+        
+        self.accept()
+        
+    def get_material(self):
+        return {
+            'name': self.name_edit.text(),
+            'Fe': self.fe_edit.text(),
+            'Ni': self.ni_edit.text(),
+            'C': self.c_edit.text(),
+            # TODO: Add more elements
+        }
 
 
 def align_view_by_axis(axis: str, renderer: vtkRenderer, vtkWidget: QVTKRenderWindowInteractor):

@@ -33,7 +33,7 @@ from .util import(
     ExpansionAngleDialogNonModal, ParticleSourceDialog, 
     ParticleSourceTypeDialog, BoundaryValueInputDialog,
     ArrowPropertiesDialog, MethodSelectionDialog,
-    SurfaceAndArrowManager,
+    SurfaceAndArrowManager, AddMaterialDialog,
     pi
 )
 from util.util import(
@@ -406,6 +406,7 @@ class GraphicalEditor(QFrame):
         remove_action = QAction('Remove', self)
         colorize_action = QAction('Colorize', self)
         merge_surfaces_action = QAction('Merge surfaces', self)
+        add_material_action = QAction('Add Material', self)
 
         move_action.triggered.connect(self.move_actors)
         rotate_action.triggered.connect(self.rotate_actors)
@@ -413,6 +414,7 @@ class GraphicalEditor(QFrame):
         remove_action.triggered.connect(self.permanently_remove_actors)
         colorize_action.triggered.connect(self.colorize_actors)
         merge_surfaces_action.triggered.connect(self.merge_surfaces)
+        add_material_action.triggered.connect(self.add_material)
 
         menu.addAction(move_action)
         menu.addAction(rotate_action)
@@ -420,6 +422,7 @@ class GraphicalEditor(QFrame):
         menu.addAction(remove_action)
         menu.addAction(colorize_action)
         menu.addAction(merge_surfaces_action)
+        menu.addAction(add_material_action)
 
         menu.exec_(self.treeView.viewport().mapToGlobal(position))
     
@@ -1480,6 +1483,10 @@ class GraphicalEditor(QFrame):
         merge_surfaces_action = QAction('Merge surfaces', self)
         merge_surfaces_action.triggered.connect(self.merge_surfaces)
         menu.addAction(merge_surfaces_action)
+        
+        add_material_action = QAction('Add Material', self)
+        add_material_action.triggered.connect(self.add_material)
+        menu.addAction(add_material_action)
 
         menu.exec_(QCursor.pos())
     
@@ -2344,6 +2351,14 @@ class GraphicalEditor(QFrame):
     def set_particle_source_as_surface(self):
         manager = SurfaceAndArrowManager(self.vtkWidget, self.renderer, self.log_console, self.selected_actors, self)
         manager.set_particle_source_as_surface()
+    
+
+    def add_material(self):
+        dialog = AddMaterialDialog(self)
+        if dialog.exec_() == QDialog.Accepted:
+            selected_material = dialog.materials_combobox.currentText()
+            # TODO: Handle the selected material here (e.g., add it to the application)
+            pass
     
 
     def test(self):
