@@ -3,7 +3,6 @@ from numpy import cross
 from os import remove
 from os.path import isfile, exists
 from vtkmodules.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
-from vtkmodules.vtkCommonCore import vtkMath
 from vtkmodules.vtkInteractionStyle import(
     vtkInteractorStyleTrackballCamera, 
     vtkInteractorStyleTrackballActor, 
@@ -17,7 +16,7 @@ from vtk import(
     vtkActor, vtkSphereSource, vtkAxesActor, vtkOrientationMarkerWidget, 
     vtkGenericDataObjectReader, vtkDataSetMapper, vtkCellPicker, 
     vtkCleanPolyData, vtkPlane, vtkClipPolyData, vtkTransform, vtkTransformPolyDataFilter, 
-    vtkArrowSource, vtkCommand, vtkPolyDataNormals, vtkMatrix4x4
+    vtkArrowSource, vtkCommand, vtkMatrix4x4
 )
 from PyQt5.QtWidgets import(
     QFrame, QVBoxLayout, QHBoxLayout, QTreeView,
@@ -34,6 +33,7 @@ from .util import(
     ExpansionAngleDialogNonModal, ParticleSourceDialog, 
     ParticleSourceTypeDialog, BoundaryValueInputDialog,
     ArrowPropertiesDialog, MethodSelectionDialog,
+    SurfaceAndArrowManager,
     pi
 )
 from util.util import(
@@ -42,13 +42,16 @@ from util.util import(
     rad_to_degree, getTreeDict, createActorsFromTreeDict, populateTreeView, 
     can_create_surface, formActorNodesDictionary, compare_matrices,
     write_treedict_to_vtk, convert_vtk_to_msh, copy_children, rename_first_selected_row,
-    merge_actors, calculate_thetaPhi_with_angles, get_smallest_cell_size,
+    merge_actors, calculate_thetaPhi_with_angles,
     ActionHistory,
     DEFAULT_TEMP_MESH_FILE
 )
 from .mesh_dialog import MeshDialog
 from tabs.gedit_tab import ConfigTab
-from .styles import DEFAULT_ACTOR_COLOR, SELECTED_ACTOR_COLOR, ARROW_ACTOR_COLOR
+from .styles import (
+    DEFAULT_ACTOR_COLOR, SELECTED_ACTOR_COLOR, 
+    ARROW_ACTOR_COLOR, ARROW_DEFAULT_SCALE
+)
 from logger.log_console import LogConsole
 
 
@@ -161,6 +164,12 @@ class GraphicalEditor(QFrame):
             if actor in actors:
                 return filename
         return None
+    
+    def get_filenames(self) -> list:
+        filenames = []
+        for filename, actors in self.meshfile_actors.items():
+            filenames.append(filename)
+        return filenames
     
     
     def update_actor_dictionaries(self, actor_to_add: vtkActor, volume_row: int, surface_row: int, filename: str):
@@ -433,6 +442,8 @@ class GraphicalEditor(QFrame):
             gmsh.initialize()
             gmsh.model.add("point")
             gmsh.model.geo.addPoint(x, y, z, meshSize=mesh_size, tag=1)
+            gmsh.option.setNumber("Mesh.MeshSizeMax", mesh_size)
+            gmsh.option.setNumber("Mesh.MeshSizeMin", mesh_size)
             gmsh.model.geo.synchronize()
             gmsh.model.mesh.generate(3)
             
@@ -470,7 +481,10 @@ class GraphicalEditor(QFrame):
                 gmsh.model.geo.addPoint(x, y, z, meshSize=mesh_size, tag=idx)
             for i in range(len(points) - 1):
                 gmsh.model.geo.addLine(i + 1, i + 2)
-
+            
+            gmsh.option.setNumber("Mesh.MeshSizeMax", mesh_size)
+            gmsh.option.setNumber("Mesh.MeshSizeMin", mesh_size)
+            
             gmsh.model.geo.synchronize()
             gmsh.model.mesh.generate(3)
             
@@ -530,6 +544,8 @@ class GraphicalEditor(QFrame):
                 gmsh.model.geo.addLine(i + 1, ((i + 1) % len(points)) + 1)
             loop = gmsh.model.geo.addCurveLoop(list(range(1, len(points) + 1)))
             gmsh.model.geo.addPlaneSurface([loop])
+            gmsh.option.setNumber("Mesh.MeshSizeMax", mesh_size)
+            gmsh.option.setNumber("Mesh.MeshSizeMin", mesh_size)
             gmsh.model.geo.synchronize()
             gmsh.model.mesh.generate(3)
             
@@ -1992,7 +2008,7 @@ class GraphicalEditor(QFrame):
         return theta, phi
     
     
-    def create_direction_arrow_interactively(self):                
+    def create_direction_arrow_interactively(self):        
         arrowSource = vtkArrowSource()
         arrowSource.SetTipLength(0.25)
         arrowSource.SetTipRadius(0.1)
@@ -2003,7 +2019,7 @@ class GraphicalEditor(QFrame):
         arrowTransform = vtkTransform()
         arrowTransform.RotateX(90)
         arrowTransform.RotateWXYZ(90, 0, 0, 1) # Initial direction by Z-axis.
-        arrowTransform.Scale(50, 50, 50)
+        arrowTransform.Scale(ARROW_DEFAULT_SCALE)
         arrowTransformFilter = vtkTransformPolyDataFilter()
         arrowTransformFilter.SetTransform(arrowTransform)
         arrowTransformFilter.SetInputConnection(arrowSource.GetOutputPort())
@@ -2015,6 +2031,7 @@ class GraphicalEditor(QFrame):
         self.particleSourceArrowActor = vtkActor()
         self.particleSourceArrowActor.SetMapper(mapper)
         self.particleSourceArrowActor.GetProperty().SetColor(ARROW_ACTOR_COLOR)
+        self.add_actor(self.particleSourceArrowActor)
 
 
     def init_node_selection_attributes(self):
@@ -2276,7 +2293,7 @@ class GraphicalEditor(QFrame):
                     return
 
     def on_arrow_properties_accepted(self, properties):
-        x, y, z, angle_x, angle_y, angle_z = properties
+        x, y, z, angle_x, angle_y, angle_z, arrow_size = properties
         theta, phi = calculate_thetaPhi_with_angles(x, y, z, angle_x, angle_y, angle_z)
         self.expansion_angle_dialog = ExpansionAngleDialogNonModal(self.vtkWidget, self.renderer, self.particleSourceArrowActor, self)
         self.expansion_angle_dialog.accepted_signal.connect(lambda thetaMax: self.handle_theta_signal_with_thetaPhi(x, y, z, thetaMax, theta, phi))
@@ -2325,177 +2342,9 @@ class GraphicalEditor(QFrame):
 
 
     def set_particle_source_as_surface(self):
-        if not self.selected_actors:
-            self.log_console.printWarning("There is no selected surfaces to apply boundary conditions on them")
-            QMessageBox.information(self, "Set Boundary Conditions", "There is no selected surfaces to apply boundary conditions on them")
-            return
-
-        selected_actor = list(self.selected_actors)[0]
-        surface_and_normals_dict = self.select_surface_and_normals(selected_actor)
-        if not surface_and_normals_dict:
-            return
-        
-        self.particle_source_dialog = ParticleSourceDialog(self)
-        self.particle_source_dialog.accepted_signal.connect(lambda params: self.handle_particle_source_surface_accepted(params, surface_and_normals_dict))
-        self.particle_source_dialog.show()
-
-
-    def handle_particle_source_surface_accepted(self, particle_params, surface_and_normals_dict):
-        try:
-            particle_type = particle_params["particle_type"]
-            energy = particle_params["energy"]
-            num_particles = particle_params["num_particles"]
-            
-            self.log_console.printInfo("Particle source set as surface source\n"
-                                    f"Particle Type: {particle_type}\n"
-                                    f"Energy: {energy} eV\n"
-                                    f"Number of Particles: {num_particles}")
-            self.log_console.addNewLine()
-            
-            self.update_config_with_particle_source(particle_params, surface_and_normals_dict)
-        except Exception as e:
-            self.log_console.printError(f"Error setting particle source. {e}")
-            QMessageBox.warning(self, "Particle Source", f"Error setting particle source. {e}")
-            return None
-
-
-    def confirm_normal_orientation(self, orientation):
-        return QMessageBox.question(
-            self, 
-            "Normal Orientation", 
-            f"Do you want to set normals {orientation}?", 
-            QMessageBox.Yes | QMessageBox.No
-        ) == QMessageBox.Yes
-
-    def add_arrows(self, arrows):
-        for arrow_actor, _, _ in arrows:
-            self.renderer.AddActor(arrow_actor)
-        self.render_editor_window()
-
-    def remove_arrows(self, arrows):
-        for arrow_actor, _, _ in arrows:
-            self.renderer.RemoveActor(arrow_actor)
-        self.render_editor_window()
-
-    def populate_data(self, arrows, data):
-        for arrow_actor, cell_center, normal in arrows:
-            actor_address = hex(id(arrow_actor))
-            data[actor_address] = {"cell_center": cell_center, "normal": normal}
-
-
-    def select_surface_and_normals(self, actor: vtkActor):
-        poly_data = actor.GetMapper().GetInput()
-        normals = self.calculate_normals(poly_data)
-
-        if not normals:
-            self.log_console.printWarning("No normals found for the selected surface")
-            QMessageBox.warning(self, "Normals Calculation", "No normals found for the selected surface")
-            return
-
-        num_cells = poly_data.GetNumberOfCells()
-        arrows_outside = []
-        arrows_inside = []
-        data = {}
-
-        for i in range(num_cells):
-            normal = normals.GetTuple(i)
-            rev_normal = tuple(-n if n != 0 else 0.0 for n in normal)
-            cell = poly_data.GetCell(i)
-            cell_center = self.calculate_cell_center(cell)
-
-            arrow_outside = self.create_arrow_actor(cell_center, normal)
-            arrow_inside = self.create_arrow_actor(cell_center, rev_normal)
-            
-            arrows_outside.append((arrow_outside, cell_center, normal))
-            arrows_inside.append((arrow_inside, cell_center, rev_normal))
-        self.add_arrows(arrows_outside)
-        
-        if not self.confirm_normal_orientation("outside"):
-            self.remove_arrows(arrows_outside)
-            self.add_arrows(arrows_inside)
-            if not self.confirm_normal_orientation("inside"):
-                self.remove_arrows(arrows_inside)
-                return
-            else:
-                self.populate_data(arrows_inside, data)
-        else:
-            self.populate_data(arrows_outside, data)
-            
-        self.remove_arrows(arrows_outside)
-        self.remove_arrows(arrows_inside)
-
-        surface_address = next(iter(data))
-        self.log_console.printInfo(f"Selected surface <{surface_address}> with {num_cells} cells inside:")
-        for arrow_address, values in data.items():
-            cellCentre = values['cell_center']
-            normal = values['normal']
-            self.log_console.printInfo(f"<{surface_address}> | <{arrow_address}>: [{cellCentre[0]:.2f}, {cellCentre[1]:.2f}, {cellCentre[2]:.2f}] - ({normal[0]:.2f}, {normal[1]:.2f}, {normal[2]:.2f})")
-            surface_address = next(iter(data))
-        
-        self.deselect()
-        return data
-
-
-    def calculate_normals(self, poly_data):
-        normals_filter = vtkPolyDataNormals()
-        normals_filter.SetInputData(poly_data)
-        normals_filter.ComputePointNormalsOff()
-        normals_filter.ComputeCellNormalsOn()
-        normals_filter.Update()
-
-        return normals_filter.GetOutput().GetCellData().GetNormals()
-
-
-    def calculate_cell_center(self, cell):
-        cell_center = [0.0, 0.0, 0.0]
-        points = cell.GetPoints()
-        num_points = points.GetNumberOfPoints()
-        for j in range(num_points):
-            point = points.GetPoint(j)
-            cell_center[0] += point[0]
-            cell_center[1] += point[1]
-            cell_center[2] += point[2]
-        return [coord / num_points for coord in cell_center]
+        manager = SurfaceAndArrowManager(self.vtkWidget, self.renderer, self.log_console, self.selected_actors, self)
+        manager.set_particle_source_as_surface()
     
-    
-    def create_arrow_actor(self, position, direction):
-        arrow_source = vtkArrowSource()
-        arrow_source.SetTipLength(0.2)
-        arrow_source.SetShaftRadius(0.02)
-        arrow_source.SetTipResolution(100)
-
-        transform = vtkTransform()
-        transform.Translate(position)
-
-        direction_list = list(direction)
-        norm = vtkMath.Norm(direction_list)
-        if norm > 0:
-            vtkMath.Normalize(direction_list)
-            x_axis = [1, 0, 0]
-            angle = vtkMath.AngleBetweenVectors(x_axis, direction_list)
-            
-            if direction == [-1.0, 0.0, 0.0] or direction == [1.0, 0.0, 0.0]:
-                rotation_axis = [0.0, 1.0, 0.0]
-            else:
-                rotation_axis = [0.0, 0.0, 0.0]
-                vtkMath.Cross(x_axis, direction_list, rotation_axis)
-                if vtkMath.Norm(rotation_axis) == 0:
-                    rotation_axis = [0.0, 1.0, 0.0]
-            transform.RotateWXYZ(vtkMath.DegreesFromRadians(angle), *rotation_axis)
-
-        transform_filter = vtkTransformPolyDataFilter()
-        transform_filter.SetInputConnection(arrow_source.GetOutputPort())
-        transform_filter.SetTransform(transform)
-        transform_filter.Update()
-
-        mapper = vtkPolyDataMapper()
-        mapper.SetInputConnection(transform_filter.GetOutputPort())
-
-        arrow_actor = vtkActor()
-        arrow_actor.SetMapper(mapper)
-        arrow_actor.GetProperty().SetColor(ARROW_ACTOR_COLOR)
-
-        return arrow_actor
 
     def test(self):
         self.update_gmsh_files()

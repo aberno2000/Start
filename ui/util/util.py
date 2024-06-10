@@ -3,27 +3,32 @@ import numpy as np
 from math import radians, pi
 from datetime import datetime
 from os import remove
+from vtkmodules.vtkCommonCore import vtkMath
 from vtk import (
     vtkRenderer, vtkPolyData, vtkPolyDataWriter, vtkAppendPolyData,
     vtkPolyDataReader, vtkPolyDataMapper, vtkActor, vtkPolyDataWriter,
     vtkUnstructuredGrid, vtkGeometryFilter, vtkTransform, vtkCellArray,
     vtkTriangle, vtkPoints, vtkDelaunay2D, vtkPolyLine, vtkVertexGlyphFilter,
     vtkUnstructuredGridWriter, vtkArrowSource, vtkTransformPolyDataFilter,
+    vtkPolyDataNormals,
     VTK_TRIANGLE
 )
-from PyQt5.QtCore import QSize, QModelIndex, pyqtSignal
+from PyQt5.QtCore import Qt, QSize, QModelIndex, pyqtSignal
 from PyQt5.QtWidgets import (
     QDialog, QFormLayout, QLineEdit, QDialogButtonBox, 
     QVBoxLayout, QMessageBox, QPushButton, QTableWidget,
     QTableWidgetItem, QSizePolicy, QLabel, QHBoxLayout,
-    QWidget, QScrollArea, QComboBox, QTreeView,
+    QWidget, QScrollArea, QComboBox, QTreeView, QSlider
 )
 from PyQt5.QtGui import QIntValidator, QDoubleValidator, QStandardItemModel, QStandardItem
 from .converter import is_positive_real_number, is_real_number
 from os.path import exists, isfile
 from vtkmodules.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 from json import dump, load
-from .styles import DEFAULT_QLINEEDIT_STYLE, DEFAULT_ACTOR_COLOR, ARROW_ACTOR_COLOR
+from .styles import(
+    DEFAULT_QLINEEDIT_STYLE, DEFAULT_ACTOR_COLOR, ARROW_ACTOR_COLOR,
+    ARROW_DEFAULT_SCALE
+)
 
 DEFAULT_TEMP_MESH_FILE = 'temp.msh'
 DEFAULT_TEMP_VTK_FILE = 'temp.vtk'
@@ -743,6 +748,7 @@ class ArrowPropertiesDialog(QDialog):
         self.vtkWidget = vtkWidget
         self.renderer = renderer
         self.arrowActor = arrowActor
+        self.arrowSize = ARROW_DEFAULT_SCALE[0]
         
         self.setWindowTitle("Set Arrow Properties")
         
@@ -782,14 +788,15 @@ class ArrowPropertiesDialog(QDialog):
         layout.addWidget(QLabel("Rotation Angle around Z-axis (degrees):"))
         layout.addWidget(self.angle_z_input)
         
-        button_box = QDialogButtonBox(self)
-        button_box.addButton(QDialogButtonBox.Ok)
-        button_box.addButton(QDialogButtonBox.Cancel)
+        size_button = QPushButton("Set Arrow Size")
+        size_button.clicked.connect(self.open_size_dialog)
+        layout.addWidget(size_button)
         
+        button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self)
+        layout.addWidget(button_box)
+
         button_box.accepted.connect(self.accept_and_emit)
         button_box.rejected.connect(self.reject)
-        
-        layout.addWidget(button_box)
 
         self.x_input.textChanged.connect(self.update_arrow)
         self.y_input.textChanged.connect(self.update_arrow)
@@ -798,12 +805,21 @@ class ArrowPropertiesDialog(QDialog):
         self.angle_y_input.textChanged.connect(self.update_arrow)
         self.angle_z_input.textChanged.connect(self.update_arrow)
 
+    def open_size_dialog(self):
+        self.size_dialog = ArrowSizeDialog(self.arrowSize, self)
+        self.size_dialog.size_changed.connect(self.update_arrow_size)
+        self.size_dialog.show()
+    
+    def update_arrow_size(self, size):
+        self.arrowSize = size
+        self.update_arrow()
+    
     def update_arrow(self):
         properties = self.getProperties()
         if properties:
-            x, y, z, angle_x, angle_y, angle_z = properties
+            x, y, z, angle_x, angle_y, angle_z, size = properties
             self.resetArrowActor()
-            self.create_direction_arrow_manually(x, y, z, angle_x, angle_y, angle_z)
+            self.create_direction_arrow_manually(x, y, z, angle_x, angle_y, angle_z, self.arrowSize)
 
     def getProperties(self):
         try:
@@ -813,7 +829,7 @@ class ArrowPropertiesDialog(QDialog):
             angle_x = float(self.angle_x_input.text())
             angle_y = float(self.angle_y_input.text())
             angle_z = float(self.angle_z_input.text())
-            return x, y, z, angle_x, angle_y, angle_z
+            return x, y, z, angle_x, angle_y, angle_z, self.arrowSize
         except ValueError:
             return None
     
@@ -830,7 +846,7 @@ class ArrowPropertiesDialog(QDialog):
         self.renderer.ResetCamera()
         self.vtkWidget.GetRenderWindow().Render()
         
-    def create_direction_arrow_manually(self, x, y, z, angle_x, angle_y, angle_z):
+    def create_direction_arrow_manually(self, x, y, z, angle_x, angle_y, angle_z, size):        
         arrowSource = vtkArrowSource()
         arrowSource.SetTipLength(0.25)
         arrowSource.SetTipRadius(0.1)
@@ -843,7 +859,7 @@ class ArrowPropertiesDialog(QDialog):
         arrowTransform.RotateX(angle_x)
         arrowTransform.RotateY(angle_y)
         arrowTransform.RotateZ(angle_z)
-        arrowTransform.Scale(5, 5, 5)
+        arrowTransform.Scale(size, size, size)
         arrowTransformFilter = vtkTransformPolyDataFilter()
         arrowTransformFilter.SetTransform(arrowTransform)
         arrowTransformFilter.SetInputConnection(arrowSource.GetOutputPort())
@@ -874,8 +890,6 @@ class ArrowPropertiesDialog(QDialog):
     def closeEvent(self, event):
         self.resetArrowActor()
         super(ArrowPropertiesDialog, self).closeEvent(event)
-
-
 
 class MethodSelectionDialog(QDialog):
     def __init__(self, parent=None):
@@ -1066,6 +1080,62 @@ class ParticleSourceDialog(QDialog):
         super().closeEvent(event)
 
 
+class ArrowSizeDialog(QDialog):
+    size_changed = pyqtSignal(float)
+    size_accepted = pyqtSignal(float)
+    
+    def __init__(self, initial_size=1.0, parent=None):
+        super(ArrowSizeDialog, self).__init__(parent)
+        
+        self.setWindowTitle("Set Arrow Size")
+        
+        layout = QVBoxLayout(self)
+        
+        self.size_slider = QSlider(Qt.Horizontal, self)
+        self.size_slider.setRange(1, 10000)
+        self.size_slider.setValue(int(initial_size * 100))
+        
+        self.size_input = QLineEdit(self)
+        self.size_input.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
+        self.size_input.setValidator(QDoubleValidator(0.01, 100.0, 3, self))
+        self.size_input.setText(f"{initial_size:.2f}")
+        
+        size_layout = QHBoxLayout()
+        size_layout.addWidget(self.size_slider)
+        size_layout.addWidget(self.size_input)
+        
+        layout.addWidget(QLabel("Arrow Size:"))
+        layout.addLayout(size_layout)
+        
+        button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self)
+        layout.addWidget(button_box)
+        
+        button_box.accepted.connect(self.accept)
+        button_box.rejected.connect(self.reject)
+        
+        self.size_slider.valueChanged.connect(self.update_size_input)
+        self.size_input.textChanged.connect(self.update_size_slider)
+    
+    def update_size_input(self, value):
+        size = value / 100.0
+        self.size_input.setText(f"{size:.2f}")
+        self.size_changed.emit(size)
+    
+    def update_size_slider(self):
+        try:
+            size = float(self.size_input.text())
+            if 0.01 <= size <= 100:
+                self.size_slider.setValue(int(size * 100))
+                self.size_changed.emit(size)
+        except ValueError:
+            pass
+        
+    def on_accept(self):
+        size = float(self.size_input.text())
+        self.size_accepted.emit(size)
+        self.accept()
+
+
 class ParticleSourceTypeDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -1129,6 +1199,294 @@ class BoundaryValueInputDialog(QDialog):
             return value, True
         except ValueError:
             return None, False
+
+
+class NormalOrientationDialog(QDialog):
+    orientation_accepted = pyqtSignal(bool, float)  # Signal with orientation (bool) and arrow size (float)
+    size_changed = pyqtSignal(float)  # Signal for size change in real-time
+
+    def __init__(self, initial_size=1.0, parent=None):
+        super(NormalOrientationDialog, self).__init__(parent)
+        
+        self.setWindowTitle("Normal Orientation and Arrow Size")
+        
+        layout = QVBoxLayout(self)
+        
+        self.msg_label = QLabel("Do you want to set normals outside?")
+        layout.addWidget(self.msg_label)
+        
+        button_box = QDialogButtonBox(QDialogButtonBox.Yes | QDialogButtonBox.No, self)
+        layout.addWidget(button_box)
+        
+        self.size_slider = QSlider(Qt.Horizontal, self)
+        self.size_slider.setRange(1, 10000)
+        self.size_slider.setValue(int(initial_size * 100))
+        
+        self.size_input = QLineEdit(self)
+        self.size_input.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
+        self.size_input.setValidator(QDoubleValidator(0.01, 100.0, 3, self))
+        self.size_input.setText(f"{initial_size:.2f}")
+        
+        size_layout = QHBoxLayout()
+        size_layout.addWidget(self.size_slider)
+        size_layout.addWidget(self.size_input)
+        
+        layout.addWidget(QLabel("Arrow Size:"))
+        layout.addLayout(size_layout)
+        
+        button_box.accepted.connect(self.accepted_yes)
+        button_box.rejected.connect(self.accepted_no)
+        
+        self.size_slider.valueChanged.connect(self.update_size_input)
+        self.size_slider.valueChanged.connect(lambda: self.size_changed.emit(float(self.size_input.text())))
+        self.size_input.textChanged.connect(self.update_size_slider)
+
+    def update_size_input(self, value):
+        size = value / 100.0
+        self.size_input.setText(f"{size:.2f}")
+        self.size_changed.emit(size)  # Emit the size change signal
+
+    def update_size_slider(self):
+        try:
+            size = float(self.size_input.text())
+            if 0.01 <= size <= 100:
+                self.size_slider.setValue(int(size * 100))
+                self.size_changed.emit(size)  # Emit the size change signal
+        except ValueError:
+            pass
+
+    def accepted_yes(self):
+        size = float(self.size_input.text())
+        self.orientation_accepted.emit(True, size)
+        self.accept()
+
+    def accepted_no(self):
+        size = float(self.size_input.text())
+        self.orientation_accepted.emit(False, size)
+        self.accept()
+
+
+class SurfaceAndArrowManager:
+    def __init__(self, vtkWidget, renderer, log_console, selected_actors: set, parent=None):
+        self.vtkWidget = vtkWidget
+        self.renderer = renderer
+        self.log_console = log_console
+        self.selected_actors = selected_actors
+        self.arrow_size = ARROW_DEFAULT_SCALE[0]
+        self.selected_actor = None
+        self.parent = parent
+        
+    def render_editor_window(self):
+        self.renderer.ResetCamera()
+        self.vtkWidget.GetRenderWindow().Render()
+
+    def set_particle_source_as_surface(self):
+        if not self.selected_actors:
+            self.log_console.printWarning("There is no selected surfaces to apply particle source on them")
+            QMessageBox.information(self.parent, "Set Particle Source", "There is no selected surfaces to apply particle source on them")
+            return
+
+        self.selected_actor = list(self.selected_actors)[0]
+        self.select_surface_and_normals(self.selected_actor)
+        if not self.selected_actor:
+            return
+        
+        self.particle_source_dialog = ParticleSourceDialog(self.parent)
+        self.particle_source_dialog.accepted_signal.connect(lambda params: self.handle_particle_source_surface_accepted(params, self.data))
+        self.particle_source_dialog.show()
+
+    def handle_particle_source_surface_accepted(self, particle_params, surface_and_normals_dict):
+        try:
+            particle_type = particle_params["particle_type"]
+            energy = particle_params["energy"]
+            num_particles = particle_params["num_particles"]
+            
+            self.log_console.printInfo("Particle source set as surface source\n"
+                                    f"Particle Type: {particle_type}\n"
+                                    f"Energy: {energy} eV\n"
+                                    f"Number of Particles: {num_particles}")
+            self.log_console.addNewLine()
+            
+            self.parent.update_config_with_particle_source(particle_params, surface_and_normals_dict)
+        except Exception as e:
+            self.log_console.printError(f"Error setting particle source. {e}")
+            QMessageBox.warning(self.parent, "Particle Source", f"Error setting particle source. {e}")
+            return None
+
+    def add_arrows(self, arrows):
+        for arrow_actor, _, _ in arrows:
+            self.renderer.AddActor(arrow_actor)
+        self.render_editor_window()
+
+    def remove_arrows(self, arrows):
+        for arrow_actor, _, _ in arrows:
+            self.renderer.RemoveActor(arrow_actor)
+        self.render_editor_window()
+
+    def update_arrow_sizes(self, size):
+        for arrow_actor, cell_center, normal in self.arrows_outside:
+            self.renderer.RemoveActor(arrow_actor)
+        for arrow_actor, cell_center, normal in self.arrows_inside:
+            self.renderer.RemoveActor(arrow_actor)
+
+        self.arrows_outside = [
+            (self.create_arrow_actor(cell_center, normal, size), cell_center, normal)
+            for _, cell_center, normal in self.arrows_outside
+        ]
+        self.arrows_inside = [
+            (self.create_arrow_actor(cell_center, normal, size), cell_center, normal)
+            for _, cell_center, normal in self.arrows_inside
+        ]
+
+        self.add_arrows(self.arrows_outside)
+
+    def populate_data(self, arrows, data):
+        for arrow_actor, cell_center, normal in arrows:
+            actor_address = hex(id(arrow_actor))
+            data[actor_address] = {"cell_center": cell_center, "normal": normal}
+
+    def select_surface_and_normals(self, actor: vtkActor):        
+        poly_data = actor.GetMapper().GetInput()
+        normals = self.calculate_normals(poly_data)
+
+        if not normals:
+            self.log_console.printWarning("No normals found for the selected surface")
+            QMessageBox.warning(self.parent, "Normals Calculation", "No normals found for the selected surface")
+            return
+
+        self.num_cells = poly_data.GetNumberOfCells()
+        self.arrows_outside = []
+        self.arrows_inside = []
+        self.data = {}
+
+        for i in range(self.num_cells):
+            normal = normals.GetTuple(i)
+            rev_normal = tuple(-n if n != 0 else 0.0 for n in normal)
+            cell = poly_data.GetCell(i)
+            cell_center = self.calculate_cell_center(cell)
+
+            arrow_outside = self.create_arrow_actor(cell_center, normal, self.arrow_size)
+            arrow_inside = self.create_arrow_actor(cell_center, rev_normal, self.arrow_size)
+            
+            self.arrows_outside.append((arrow_outside, cell_center, normal))
+            self.arrows_inside.append((arrow_inside, cell_center, rev_normal))
+        self.add_arrows(self.arrows_outside)
+        
+        self.normal_orientation_dialog = NormalOrientationDialog(self.arrow_size, self.parent)
+        self.normal_orientation_dialog.orientation_accepted.connect(self.handle_outside_confirmation)
+        self.normal_orientation_dialog.size_changed.connect(self.update_arrow_sizes)  # Connect the size change signal
+        self.normal_orientation_dialog.show()
+
+    def handle_outside_confirmation(self, confirmed, size):
+        self.arrow_size = size
+        if confirmed:
+            self.populate_data(self.arrows_outside, self.data)
+            self.finalize_surface_selection()
+        else:
+            self.remove_arrows(self.arrows_outside)
+            self.add_arrows(self.arrows_inside)
+            self.normal_orientation_dialog = NormalOrientationDialog(self.arrow_size, self.parent)
+            self.normal_orientation_dialog.msg_label.setText("Do you want to set normals inside?")
+            self.normal_orientation_dialog.orientation_accepted.connect(self.handle_inside_confirmation)
+            self.normal_orientation_dialog.size_changed.connect(self.update_arrow_sizes)  # Connect the size change signal
+            self.normal_orientation_dialog.show()
+
+    def handle_inside_confirmation(self, confirmed, size):
+        self.arrow_size = size
+        if confirmed:
+            self.populate_data(self.arrows_inside, self.data)
+            self.finalize_surface_selection()
+        else:
+            self.remove_arrows(self.arrows_inside)
+
+    def finalize_surface_selection(self):
+        self.remove_arrows(self.arrows_outside)
+        self.remove_arrows(self.arrows_inside)
+
+        if not self.data:
+            return
+
+        surface_address = next(iter(self.data))
+        self.log_console.printInfo(f"Selected surface <{surface_address}> with {self.num_cells} cells inside:")
+        for arrow_address, values in self.data.items():
+            cellCentre = values['cell_center']
+            normal = values['normal']
+            self.log_console.printInfo(f"<{surface_address}> | <{arrow_address}>: [{cellCentre[0]:.2f}, {cellCentre[1]:.2f}, {cellCentre[2]:.2f}] - ({normal[0]:.2f}, {normal[1]:.2f}, {normal[2]:.2f})")
+            surface_address = next(iter(self.data))
+        
+        self.parent.deselect()
+
+
+    def confirm_normal_orientation(self, orientation):
+        msg_box = QMessageBox(self.parent)
+        msg_box.setWindowTitle("Normal Orientation")
+        msg_box.setText(f"Do you want to set normals {orientation}?")
+        msg_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        msg_box.setDefaultButton(QMessageBox.No)
+        
+        result = msg_box.exec_()
+        
+        return result == QMessageBox.Yes
+
+    def calculate_normals(self, poly_data):
+        normals_filter = vtkPolyDataNormals()
+        normals_filter.SetInputData(poly_data)
+        normals_filter.ComputePointNormalsOff()
+        normals_filter.ComputeCellNormalsOn()
+        normals_filter.Update()
+
+        return normals_filter.GetOutput().GetCellData().GetNormals()
+
+    def calculate_cell_center(self, cell):
+        cell_center = [0.0, 0.0, 0.0]
+        points = cell.GetPoints()
+        num_points = points.GetNumberOfPoints()
+        for j in range(num_points):
+            point = points.GetPoint(j)
+            cell_center[0] += point[0]
+            cell_center[1] += point[1]
+            cell_center[2] += point[2]
+        return [coord / num_points for coord in cell_center]
+
+    def create_arrow_actor(self, position, direction, arrow_size):
+        arrow_source = vtkArrowSource()
+        arrow_source.SetTipLength(0.2)
+        arrow_source.SetShaftRadius(0.02)
+        arrow_source.SetTipResolution(100)
+
+        transform = vtkTransform()
+        transform.Translate(position)
+        transform.Scale(arrow_size, arrow_size, arrow_size)
+
+        direction_list = list(direction)
+        norm = vtkMath.Norm(direction_list)
+        if norm > 0:
+            vtkMath.Normalize(direction_list)
+            x_axis = [1, 0, 0]
+            angle = vtkMath.AngleBetweenVectors(x_axis, direction_list)
+            
+            if direction == [-1.0, 0.0, 0.0] or direction == [1.0, 0.0, 0.0]:
+                rotation_axis = [0.0, 1.0, 0.0]
+            else:
+                rotation_axis = [0.0, 0.0, 0.0]
+                vtkMath.Cross(x_axis, direction_list, rotation_axis)
+                if vtkMath.Norm(rotation_axis) == 0:
+                    rotation_axis = [0.0, 1.0, 0.0]
+            transform.RotateWXYZ(vtkMath.DegreesFromRadians(angle), *rotation_axis)
+
+        transform_filter = vtkTransformPolyDataFilter()
+        transform_filter.SetInputConnection(arrow_source.GetOutputPort())
+        transform_filter.SetTransform(transform)
+        transform_filter.Update()
+
+        mapper = vtkPolyDataMapper()
+        mapper.SetInputConnection(transform_filter.GetOutputPort())
+
+        arrow_actor = vtkActor()
+        arrow_actor.SetMapper(mapper)
+        arrow_actor.GetProperty().SetColor(ARROW_ACTOR_COLOR)
+
+        return arrow_actor
 
 
 def align_view_by_axis(axis: str, renderer: vtkRenderer, vtkWidget: QVTKRenderWindowInteractor):
@@ -2096,63 +2454,32 @@ def merge_actors(actors):
     return merged_actor
 
 
-def get_smallest_cell_size(filename: str):
+def compute_distance_between_points(coord1, coord2):
     """
-    This function takes the name of a .msh file as a string argument
-    and returns the size of the smallest cell (triangle) in the mesh,
-    defined as the smallest side length of any triangle in the mesh.
+    Compute the Euclidean distance between two points in 3D space.
     """
-    
-    def compute_distance(coord1, coord2):
-        """
-        Compute the Euclidean distance between two points in 3D space.
-        """
-        return np.sqrt((coord1[0] - coord2[0])**2 + (coord1[1] - coord2[1])**2 + (coord1[2] - coord2[2])**2)
-
     try:
-        if not gmsh.isInitialized():
-            gmsh.initialize()
-        gmsh.open(filename)
-
-        node_tags, node_coords, _ = gmsh.model.mesh.getNodes()
-        node_coords = np.reshape(node_coords, (-1, 3))
-        element_types, element_tags, element_node_tags = gmsh.model.mesh.getElements()
-        min_length = float('inf')
-
-        # Process all triangular elements (type 2 - triangles)
-        for elem_type, elem_nodes in zip(element_types, element_node_tags):
-            if elem_type == 2:  # 2 means triangular elements
-                elem_nodes = np.reshape(elem_nodes, (-1, 3))
-                for triangle in elem_nodes:
-                    # Get the coordinates of the triangle vertices
-                    p1 = node_coords[triangle[0] - 1]  # Indexing starts from 0
-                    p2 = node_coords[triangle[1] - 1]
-                    p3 = node_coords[triangle[2] - 1]
-
-                    # Calculate the lengths of the sides of the triangle
-                    length1 = compute_distance(p1, p2)
-                    length2 = compute_distance(p2, p3)
-                    length3 = compute_distance(p3, p1)
-
-                    # Find the minimum side length in this triangle
-                    min_triangle_length = min(length1, length2, length3)
-
-                    # Update the minimum side length among all triangles
-                    if min_triangle_length < min_length:
-                        min_length = min_triangle_length
-
-        if gmsh.isInitialized():
-            gmsh.finalize()
-        return min_length
-        
-    except FileNotFoundError:
-        print(f"Error: The file '{filename}' was not found")
-    except gmsh.GmshException as e:
-        print(f"Gmsh API error: {e}")
+        result = np.sqrt((coord1[0] - coord2[0])**2 + (coord1[1] - coord2[1])**2 + (coord1[2] - coord2[2])**2)
     except Exception as e:
-        print(f"An unexpected error occurred: {e}")
-    finally:
-        if gmsh.isInitialized():
-            gmsh.finalize()
+        print_warning_none_result()
+        return None
+    return result
 
-    return None
+
+def pretty_function_details() -> str:
+    """
+    Prints the details of the calling function in the format:
+    <file name>: line[<line number>]: <func name>(<args>)
+    """
+    from inspect import currentframe, getargvalues
+    
+    current_frame = currentframe()
+    caller_frame = current_frame.f_back
+    function_name = caller_frame.f_code.co_name
+    args, _, _, values = getargvalues(caller_frame)
+    function_file = caller_frame.f_code.co_filename
+    formatted_args = ', '.join([f"{arg}={values[arg]}" for arg in args])
+    return f"{function_file}: {function_name}({formatted_args})"
+
+def print_warning_none_result():
+    print(f"Warning, {pretty_function_details()} returned {None} result")
