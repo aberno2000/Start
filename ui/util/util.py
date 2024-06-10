@@ -2095,3 +2095,64 @@ def merge_actors(actors):
 
     return merged_actor
 
+
+def get_smallest_cell_size(filename: str):
+    """
+    This function takes the name of a .msh file as a string argument
+    and returns the size of the smallest cell (triangle) in the mesh,
+    defined as the smallest side length of any triangle in the mesh.
+    """
+    
+    def compute_distance(coord1, coord2):
+        """
+        Compute the Euclidean distance between two points in 3D space.
+        """
+        return np.sqrt((coord1[0] - coord2[0])**2 + (coord1[1] - coord2[1])**2 + (coord1[2] - coord2[2])**2)
+
+    try:
+        if not gmsh.isInitialized():
+            gmsh.initialize()
+        gmsh.open(filename)
+
+        node_tags, node_coords, _ = gmsh.model.mesh.getNodes()
+        node_coords = np.reshape(node_coords, (-1, 3))
+        element_types, element_tags, element_node_tags = gmsh.model.mesh.getElements()
+        min_length = float('inf')
+
+        # Process all triangular elements (type 2 - triangles)
+        for elem_type, elem_nodes in zip(element_types, element_node_tags):
+            if elem_type == 2:  # 2 means triangular elements
+                elem_nodes = np.reshape(elem_nodes, (-1, 3))
+                for triangle in elem_nodes:
+                    # Get the coordinates of the triangle vertices
+                    p1 = node_coords[triangle[0] - 1]  # Indexing starts from 0
+                    p2 = node_coords[triangle[1] - 1]
+                    p3 = node_coords[triangle[2] - 1]
+
+                    # Calculate the lengths of the sides of the triangle
+                    length1 = compute_distance(p1, p2)
+                    length2 = compute_distance(p2, p3)
+                    length3 = compute_distance(p3, p1)
+
+                    # Find the minimum side length in this triangle
+                    min_triangle_length = min(length1, length2, length3)
+
+                    # Update the minimum side length among all triangles
+                    if min_triangle_length < min_length:
+                        min_length = min_triangle_length
+
+        if gmsh.isInitialized():
+            gmsh.finalize()
+        return min_length
+        
+    except FileNotFoundError:
+        print(f"Error: The file '{filename}' was not found")
+    except gmsh.GmshException as e:
+        print(f"Gmsh API error: {e}")
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
+    finally:
+        if gmsh.isInitialized():
+            gmsh.finalize()
+
+    return None
