@@ -42,7 +42,7 @@ from util.util import(
     rad_to_degree, getTreeDict, createActorsFromTreeDict, populateTreeView, 
     can_create_surface, formActorNodesDictionary, compare_matrices,
     write_treedict_to_vtk, convert_vtk_to_msh, copy_children, rename_first_selected_row,
-    merge_actors, calculate_thetaPhi_with_angles,
+    merge_actors, calculate_thetaPhi_with_angles, get_smallest_cell_size,
     ActionHistory,
     DEFAULT_TEMP_MESH_FILE
 )
@@ -1165,7 +1165,7 @@ class GraphicalEditor(QFrame):
         try:
             for actor, color in self.actor_color.items():
                 actor.GetProperty().SetColor(color)
-            self.render_editor_window()
+            self.vtkWidget.GetRenderWindow().Render()
         except Exception as e:
             self.log_console.printError(f"Error in restore_actor_colors: {e}")
 
@@ -1173,7 +1173,7 @@ class GraphicalEditor(QFrame):
     def highlight_actors(self, actors):
         for actor in actors:
             actor.GetProperty().SetColor(SELECTED_ACTOR_COLOR)
-        self.render_editor_window()
+        self.vtkWidget.GetRenderWindow().Render()
 
 
     def unhighlight_actors(self):
@@ -1309,7 +1309,7 @@ class GraphicalEditor(QFrame):
             if actor == self.particleSourceArrowActor:
                 actor.GetProperty().SetColor(SELECTED_ACTOR_COLOR)
                 self.selected_actors.add(actor)
-                self.render_editor_window()
+                self.vtkWidget.GetRenderWindow().Render()
                 return
 
             # Select the rows in the tree view if rows_to_select is not empty
@@ -1318,7 +1318,7 @@ class GraphicalEditor(QFrame):
                 self.treeView.selectionModel().select(index, QItemSelectionModel.Select | QItemSelectionModel.Rows)
                 self.selected_actors.add(actor)
                 actor.GetProperty().SetColor(SELECTED_ACTOR_COLOR)
-                self.render_editor_window()
+                self.vtkWidget.GetRenderWindow().Render()
             else:
                 QMessageBox.warning(self, "Selection Error", "Selected actor not found in the actor rows mapping.")
 
@@ -1487,7 +1487,7 @@ class GraphicalEditor(QFrame):
                 actor.GetProperty().SetColor(original_color)
             
             self.selected_actors.clear()
-            self.render_editor_window()
+            self.vtkWidget.GetRenderWindow().Render()
             self.reset_selection_treeview()
         except Exception as e:
             self.log_console.printError(f"Error in deselect: {e}")
@@ -1550,10 +1550,6 @@ class GraphicalEditor(QFrame):
             self.log_console.printError("No valid surface indices found for selected actors")
             return
 
-        print(f"Before")
-        for a, rows in self.actor_rows.items():
-            print(f"<{hex(id(a))}> - ({rows[0]};{rows[1]})")
-
         # Remove selected actors and save the first one for future use
         saved_actor = vtkActor()
         for actor in self.selected_actors:
@@ -1566,10 +1562,6 @@ class GraphicalEditor(QFrame):
         self.add_actor(merged_actor)
         self.update_actor_dictionaries(saved_actor, merged_actor)
         self.update_tree_view(volume_row, surface_indices, merged_actor)
-        
-        print(f"After")
-        for a, rows in self.actor_rows.items():
-            print(f"<{hex(id(a))}> - ({rows[0]};{rows[1]})")
 
         self.log_console.printInfo(f"Successfully merged selected surfaces: {set([i + 1 for i in surface_indices])} to object with id <{hex(id(merged_actor))}>")
         self.deselect()
@@ -2000,7 +1992,7 @@ class GraphicalEditor(QFrame):
         return theta, phi
     
     
-    def create_direction_arrow_interactively(self):
+    def create_direction_arrow_interactively(self):                
         arrowSource = vtkArrowSource()
         arrowSource.SetTipLength(0.25)
         arrowSource.SetTipRadius(0.1)

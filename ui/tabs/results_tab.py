@@ -68,7 +68,7 @@ class ResultsTab(QWidget):
         self.setLayout(self.layout)
         
     
-    def create_toolbar_button(self, icon_path, tooltip, callback, layout, icon_size=QSize(32, 32), button_size=QSize(32, 32)):
+    def create_toolbar_button(self, icon_path, tooltip, callback, layout, icon_size=QSize(40, 40), button_size=QSize(40, 40)):
         """
         Create a toolbar button and add it to the specified layout.
 
