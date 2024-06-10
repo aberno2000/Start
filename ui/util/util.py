@@ -1,4 +1,5 @@
 import gmsh, tempfile, meshio
+import numpy as np
 from math import radians, pi
 from datetime import datetime
 from os import remove
@@ -7,7 +8,7 @@ from vtk import (
     vtkPolyDataReader, vtkPolyDataMapper, vtkActor, vtkPolyDataWriter,
     vtkUnstructuredGrid, vtkGeometryFilter, vtkTransform, vtkCellArray,
     vtkTriangle, vtkPoints, vtkDelaunay2D, vtkPolyLine, vtkVertexGlyphFilter,
-    vtkUnstructuredGridWriter,
+    vtkUnstructuredGridWriter, vtkArrowSource, vtkTransformPolyDataFilter,
     VTK_TRIANGLE
 )
 from PyQt5.QtCore import QSize, QModelIndex, pyqtSignal
@@ -22,7 +23,7 @@ from .converter import is_positive_real_number, is_real_number
 from os.path import exists, isfile
 from vtkmodules.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 from json import dump, load
-from .styles import DEFAULT_QLINEEDIT_STYLE, DEFAULT_ACTOR_COLOR
+from .styles import DEFAULT_QLINEEDIT_STYLE, DEFAULT_ACTOR_COLOR, ARROW_ACTOR_COLOR
 
 DEFAULT_TEMP_MESH_FILE = 'temp.msh'
 DEFAULT_TEMP_VTK_FILE = 'temp.vtk'
@@ -681,7 +682,7 @@ class ExpansionAngleDialogNonModal(QDialog):
     def handle_accept(self):
         try:
             theta = float(self.theta_input.text())
-            self.accepted_signal.emit(radians(theta))  # Convert degrees to radians
+            self.accepted_signal.emit(radians(theta))
             self.close()
             self.resetArrowActor()            
         except ValueError:
@@ -734,8 +735,14 @@ class ExpansionAngleDialog(QDialog):
     
 
 class ArrowPropertiesDialog(QDialog):
-    def __init__(self, parent=None):
+    properties_accepted = pyqtSignal(tuple)
+
+    def __init__(self, vtkWidget, renderer, arrowActor: vtkActor, parent=None):
         super(ArrowPropertiesDialog, self).__init__(parent)
+        
+        self.vtkWidget = vtkWidget
+        self.renderer = renderer
+        self.arrowActor = arrowActor
         
         self.setWindowTitle("Set Arrow Properties")
         
@@ -775,23 +782,99 @@ class ArrowPropertiesDialog(QDialog):
         layout.addWidget(QLabel("Rotation Angle around Z-axis (degrees):"))
         layout.addWidget(self.angle_z_input)
         
-        button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self)
-        button_box.accepted.connect(self.accept)
+        button_box = QDialogButtonBox(self)
+        button_box.addButton(QDialogButtonBox.Ok)
+        button_box.addButton(QDialogButtonBox.Cancel)
+        
+        button_box.accepted.connect(self.accept_and_emit)
         button_box.rejected.connect(self.reject)
         
         layout.addWidget(button_box)
-    
+
+        self.x_input.textChanged.connect(self.update_arrow)
+        self.y_input.textChanged.connect(self.update_arrow)
+        self.z_input.textChanged.connect(self.update_arrow)
+        self.angle_x_input.textChanged.connect(self.update_arrow)
+        self.angle_y_input.textChanged.connect(self.update_arrow)
+        self.angle_z_input.textChanged.connect(self.update_arrow)
+
+    def update_arrow(self):
+        properties = self.getProperties()
+        if properties:
+            x, y, z, angle_x, angle_y, angle_z = properties
+            self.resetArrowActor()
+            self.create_direction_arrow_manually(x, y, z, angle_x, angle_y, angle_z)
+
     def getProperties(self):
         try:
             x = float(self.x_input.text())
             y = float(self.y_input.text())
             z = float(self.z_input.text())
-            angle_x = radians(float(self.angle_x_input.text()))
-            angle_y = radians(float(self.angle_y_input.text()))
-            angle_z = radians(float(self.angle_z_input.text()))
+            angle_x = float(self.angle_x_input.text())
+            angle_y = float(self.angle_y_input.text())
+            angle_z = float(self.angle_z_input.text())
             return x, y, z, angle_x, angle_y, angle_z
         except ValueError:
             return None
+    
+    def resetArrowActor(self):
+        if self.arrowActor:
+            self.renderer.RemoveActor(self.arrowActor)
+            self.renderer.ResetCamera()
+            self.vtkWidget.GetRenderWindow().Render()
+            self.arrowActor = None
+    
+    def addArrowActor(self):
+        self.renderer.AddActor(self.arrowActor)
+        self.arrowActor.GetProperty().SetColor(ARROW_ACTOR_COLOR)
+        self.renderer.ResetCamera()
+        self.vtkWidget.GetRenderWindow().Render()
+        
+    def create_direction_arrow_manually(self, x, y, z, angle_x, angle_y, angle_z):
+        arrowSource = vtkArrowSource()
+        arrowSource.SetTipLength(0.25)
+        arrowSource.SetTipRadius(0.1)
+        arrowSource.SetShaftRadius(0.01)
+        arrowSource.Update()
+        arrowSource.SetTipResolution(100)
+
+        arrowTransform = vtkTransform()
+        arrowTransform.Translate(x, y, z)
+        arrowTransform.RotateX(angle_x)
+        arrowTransform.RotateY(angle_y)
+        arrowTransform.RotateZ(angle_z)
+        arrowTransform.Scale(5, 5, 5)
+        arrowTransformFilter = vtkTransformPolyDataFilter()
+        arrowTransformFilter.SetTransform(arrowTransform)
+        arrowTransformFilter.SetInputConnection(arrowSource.GetOutputPort())
+        arrowTransformFilter.Update()
+
+        mapper = vtkPolyDataMapper()
+        mapper.SetInputConnection(arrowTransformFilter.GetOutputPort())
+        
+        self.arrowActor = vtkActor()
+        self.arrowActor.SetMapper(mapper)
+        self.arrowActor.GetProperty().SetColor(ARROW_ACTOR_COLOR)
+        
+        self.addArrowActor()
+    
+    def accept_and_emit(self):
+        properties = self.getProperties()
+        if properties:
+            self.properties_accepted.emit(properties)
+            self.accept()
+            self.resetArrowActor()
+        else:
+            QMessageBox.warning(self, "Invalid input", "Please enter valid numerical values.")
+            
+    def reject(self):
+        self.resetArrowActor()
+        super(ArrowPropertiesDialog, self).reject()
+
+    def closeEvent(self, event):
+        self.resetArrowActor()
+        super(ArrowPropertiesDialog, self).closeEvent(event)
+
 
 
 class MethodSelectionDialog(QDialog):
@@ -1333,6 +1416,15 @@ def calculate_thetaPhi(base, tip):
     theta = arccos(z)
     phi = arctan2(y, x)
     
+    return theta, phi
+
+def calculate_thetaPhi_with_angles(x, y, z, angle_x, angle_y, angle_z):
+    direction_vector = np.array([np.cos(np.radians(angle_y)) * np.cos(np.radians(angle_z)),
+                                 np.sin(np.radians(angle_x)) * np.sin(np.radians(angle_z)),
+                                 np.cos(np.radians(angle_x)) * np.cos(np.radians(angle_y))])
+    norm = np.linalg.norm(direction_vector)
+    theta = np.arccos(direction_vector[2] / norm)
+    phi = np.arctan2(direction_vector[1], direction_vector[0])
     return theta, phi
 
 def rad_to_degree(angle: float):
