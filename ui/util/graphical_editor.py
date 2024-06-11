@@ -25,7 +25,7 @@ from PyQt5.QtWidgets import(
     QMenu, QAction, QInputDialog, QStatusBar,
     QListWidget, QListWidgetItem, QAbstractItemView,
 )
-from PyQt5.QtGui import QCursor, QStandardItemModel
+from PyQt5.QtGui import QCursor, QStandardItemModel, QBrush
 from .util import(
     PointDialog, LineDialog, SurfaceDialog, 
     SphereDialog, BoxDialog, CylinderDialog,
@@ -50,7 +50,8 @@ from .mesh_dialog import MeshDialog
 from tabs.gedit_tab import ConfigTab
 from .styles import (
     DEFAULT_ACTOR_COLOR, SELECTED_ACTOR_COLOR, 
-    ARROW_ACTOR_COLOR, ARROW_DEFAULT_SCALE
+    ARROW_ACTOR_COLOR, ARROW_DEFAULT_SCALE,
+    DEFAULT_TREE_VIEW_ROW_COLOR, DEFAULT_TREE_VIEW_ROW_COLOR_HIDED_ACTOR
 )
 from logger.log_console import LogConsole
 
@@ -165,6 +166,20 @@ class GraphicalEditor(QFrame):
                 return filename
         return None
     
+    def get_index_from_rows(self, external_row, internal_row):
+        # Get the external index
+        external_index = self.treeView.model().index(external_row, 0)
+        if not external_index.isValid():
+            return None
+
+        # Get the internal index using the external index as parent
+        internal_index = self.treeView.model().index(internal_row, 0, external_index)
+        if not internal_index.isValid():
+            return None
+
+        return internal_index
+
+    
     def get_filenames(self) -> list:
         filenames = []
         for filename, actors in self.meshfile_actors.items():
@@ -249,11 +264,13 @@ class GraphicalEditor(QFrame):
             self.nodeMap[node_id] = {'actor': actor, 'coords': coords}
         gmsh.finalize()
         
+        
     def populate_node_list(self):
         self.nodeListWidget.clear()        
         for node_id in set(self.nodeMap.keys()):
             item = QListWidgetItem(str(node_id))
             self.nodeListWidget.addItem(item)
+            
             
     def add_actors_from_node_list(self):
         if not self.nodeMap:
@@ -264,6 +281,7 @@ class GraphicalEditor(QFrame):
             self.renderer.AddActor(actor)
         
         self.render_editor_window()
+        
         
     def remove_actors_from_node_list(self):
         if not self.nodeMap:
@@ -407,6 +425,7 @@ class GraphicalEditor(QFrame):
         colorize_action = QAction('Colorize', self)
         merge_surfaces_action = QAction('Merge surfaces', self)
         add_material_action = QAction('Add Material', self)
+        hide_action = QAction('Hide', self)
 
         move_action.triggered.connect(self.move_actors)
         rotate_action.triggered.connect(self.rotate_actors)
@@ -415,6 +434,11 @@ class GraphicalEditor(QFrame):
         colorize_action.triggered.connect(self.colorize_actors)
         merge_surfaces_action.triggered.connect(self.merge_surfaces)
         add_material_action.triggered.connect(self.add_material)
+        hide_action.triggered.connect(self.hide_actors)
+        
+        # Determine if all selected actors are visible or not
+        all_visible = all(actor.GetVisibility() for actor in self.selected_actors if actor and isinstance(actor, vtkActor))
+        hide_action.setText('Hide' if all_visible else 'Show')
 
         menu.addAction(move_action)
         menu.addAction(rotate_action)
@@ -423,8 +447,43 @@ class GraphicalEditor(QFrame):
         menu.addAction(colorize_action)
         menu.addAction(merge_surfaces_action)
         menu.addAction(add_material_action)
+        menu.addAction(hide_action)
 
         menu.exec_(self.treeView.viewport().mapToGlobal(position))
+    
+    
+    def hide_actors(self):
+        action = self.sender()
+        all_visible = all(actor.GetVisibility() for actor in self.selected_actors if actor and isinstance(actor, vtkActor))
+
+        for actor in self.selected_actors:
+            if actor and isinstance(actor, vtkActor):
+                cur_visibility = actor.GetVisibility()
+                actor.SetVisibility(not cur_visibility)
+                self.update_tree_item_visibility(actor, not cur_visibility)
+        
+        if all_visible:
+            action.setText('Show')
+        else:
+            action.setText('Hide')
+
+        self.vtkWidget.GetRenderWindow().Render()
+
+
+
+    def update_tree_item_visibility(self, actor, visible):
+        rows = self.get_rows_by_actor(actor)
+        if rows:
+            external_row, internal_row = rows
+            index = self.get_index_from_rows(external_row, internal_row)
+            if index.isValid():
+                item = self.treeView.model().itemFromIndex(index)
+                if item:
+                    if visible:
+                        item.setForeground(QBrush(DEFAULT_TREE_VIEW_ROW_COLOR))
+                    else:
+                        item.setForeground(QBrush(DEFAULT_TREE_VIEW_ROW_COLOR_HIDED_ACTOR))
+
     
     
     def get_filename_from_dialog(self) -> str:
@@ -1487,6 +1546,10 @@ class GraphicalEditor(QFrame):
         add_material_action = QAction('Add Material', self)
         add_material_action.triggered.connect(self.add_material)
         menu.addAction(add_material_action)
+        
+        hide_action = QAction('Hide', self)
+        hide_action.triggered.connect(self.hide_actors)
+        menu.addAction(hide_action)
 
         menu.exec_(QCursor.pos())
     
