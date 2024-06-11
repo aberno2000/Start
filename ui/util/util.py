@@ -28,7 +28,7 @@ from vtkmodules.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 from json import dump, load
 from .styles import(
     DEFAULT_QLINEEDIT_STYLE, DEFAULT_ACTOR_COLOR, ARROW_ACTOR_COLOR,
-    ARROW_DEFAULT_SCALE
+    ARROW_DEFAULT_SCALE, DEFAULT_DISABLED_BUTTON_STYLE
 )
 
 DEFAULT_TEMP_MESH_FILE = 'temp.msh'
@@ -39,6 +39,19 @@ DEFAULT_TEMP_CONFIG_FILE = 'temp_config.json'
 DEFAULT_COUNT_OF_PROJECT_FILES = 3
 
 figure_types = ['Point', 'Line', 'Surface', 'Sphere', 'Box', 'Cylinder', 'Custom']
+
+CHEMICAL_ELEMENTS = ['H', 'He', 'Li', 'Be', 'B', 'C', 'N', 'O', 'F', 'Ne',
+                     'Na', 'Mg', 'Al', 'Si', 'P', 'S', 'Cl', 'Ar', 'K', 'Ca',
+                     'Sc', 'Ti', 'V', 'Cr', 'Mn', 'Fe', 'Co', 'Ni', 'Cu', 'Zn',
+                     'Ga', 'Ge', 'As', 'Se', 'Br', 'Kr', 'Rb', 'Sr', 'Y', 'Zr',
+                     'Nb', 'Mo', 'Tc', 'Ru', 'Rh', 'Pd', 'Ag', 'Cd', 'In', 'Sn',
+                     'Sb', 'Te', 'I', 'Xe', 'Cs', 'Ba', 'La', 'Ce', 'Pr', 'Nd',
+                     'Pm', 'Sm', 'Eu', 'Gd', 'Tb', 'Dy', 'Ho', 'Er', 'Tm', 'Yb',
+                     'Lu', 'Hf', 'Ta', 'W', 'Re', 'Os', 'Ir', 'Pt', 'Au', 'Hg',
+                     'Tl', 'Pb', 'Bi', 'Po', 'At', 'Rn', 'Fr', 'Ra', 'Ac', 'Th',
+                     'Pa', 'U', 'Np', 'Pu', 'Am', 'Cm', 'Bk', 'Cf', 'Es', 'Fm',
+                     'Md', 'No', 'Lr', 'Rf', 'Db', 'Sg', 'Bh', 'Hs', 'Mt', 'Ds',
+                     'Rg', 'Cn', 'Nh', 'Fl', 'Mc', 'Lv', 'Ts', 'Og']
 
 def is_file_valid(path: str):
     if not exists(path) or not isfile(path) or not path:
@@ -1495,22 +1508,24 @@ class AddMaterialDialog(QDialog):
         super().__init__(parent)
         
         self.setWindowTitle('Add Material')
-        self.setMinimumWidth(400)
+        self.setMinimumWidth(250)
+        self.setMaximumWidth(250)
         self.layout = QVBoxLayout()
         
         # ComboBox for default materials
         self.materials_combobox = QComboBox()
         self.default_materials = {
-            'Steel A': {'Fe': 75.0, 'Ni': 25.0},
-            'Steel B': {'Fe': 85.0, 'Ni': 10.0, 'C': 5.0},
-            'Steel C': {'Fe': 90.0, 'C': 10.0},
-            # Add more materials with their hints here
+            'Steel Х12МФ': {'Fe': 95.0, 'Cr': 11.0, 'Mo': 0.5, 'Mn': 0.3, 'Ni': 0.35, 'V': 0.225},
+            'Steel 12Х18Н9Т': {'Fe': 95.0, 'C': 0.12, 'Mn': 1.9, 'Si': 0.3, 'Cr': 18.0, 'Ni': 9.0, 'Ti': 0.3, 'Nb': 0.1, 'V': 0.1},
+            'Steel 08Х18Н10Т': {'Fe': 95.0, 'C': 0.08, 'Mn': 1.8, 'Si': 0.3, 'Cr': 18.0, 'Ni': 10.0, 'Ti': 0.3, 'Nb': 0.1, 'V': 0.1},
         }
         for material, components in self.default_materials.items():
             hint = ', '.join([f'{k}: {v}%' for k, v in components.items()])
-            self.materials_combobox.addItem(material)
+            display_name = f"{material} ({hint})"
+            self.materials_combobox.addItem(display_name)
             self.materials_combobox.setItemData(self.materials_combobox.count() - 1, hint, Qt.ToolTipRole)
         
+        self.material_names = set(material for material in self.default_materials)
         self.layout.addWidget(QLabel('Select a material:'))
         self.layout.addWidget(self.materials_combobox)
         
@@ -1524,6 +1539,10 @@ class AddMaterialDialog(QDialog):
         self.load_materials_button.clicked.connect(self.load_materials_from_file)
         self.layout.addWidget(self.load_materials_button)
         
+        self.save_materials_button = QPushButton('Save Materials to File')
+        self.save_materials_button.clicked.connect(self.save_materials_to_file)
+        self.layout.addWidget(self.save_materials_button)
+        
         self.setLayout(self.layout)
         
         self.custom_materials = []
@@ -1533,67 +1552,127 @@ class AddMaterialDialog(QDialog):
         if custom_dialog.exec_() == QDialog.Accepted:
             custom_material = custom_dialog.get_material()
             if custom_material:
-                material_name = custom_material['name']
-                components = {k: float(v) for k, v in custom_material.items() if k != 'name'}
+                material_name = custom_material.pop('name')
+                components = {k: float(v) for k, v in custom_material.items()}
                 self.custom_materials.append({material_name: components})
                 hint = ', '.join([f'{k}: {v}%' for k, v in components.items()])
-                self.materials_combobox.addItem(material_name)
+                display_name = f"{material_name} ({hint})"
+                self.materials_combobox.addItem(display_name)
                 self.materials_combobox.setItemData(self.materials_combobox.count() - 1, hint, Qt.ToolTipRole)
                 self.save_custom_materials_to_file()
+                self.material_names.add(material_name)
 
     def save_custom_materials_to_file(self):
         with open('materials.json', 'w') as file:
             dump(self.custom_materials, file, indent=4)
+            
+    def save_materials_to_file(self):
+        try:
+            file_path, _ = QFileDialog.getSaveFileName(self, 'Save Materials File', '', 'JSON Files (*.json)')
+            if file_path:
+                if not file_path.endswith('.json'):
+                    file_path += '.json'
+                if exists(file_path):
+                    reply = QMessageBox.question(self, 'Overwrite File', 'File already exists. Do you want to overwrite it?', QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+                    if reply == QMessageBox.No:
+                        return
+                
+                # Collect all materials from the combo box
+                all_materials = []
+                for i in range(self.materials_combobox.count()):
+                    display_name = self.materials_combobox.itemText(i)
+                    hint = self.materials_combobox.itemData(i, Qt.ToolTipRole)
+                    name, components_str = display_name.split(' (')
+                    components_str = components_str[:-1]  # Remove the trailing ')'
+                    components = dict([comp.split(': ') for comp in components_str.split(', ')])
+                    components = {k: float(v[:-1]) for k, v in components.items()}  # Convert percentages to floats
+                    all_materials.append({name: components})
+
+                with open(file_path, 'w') as file:
+                    dump(all_materials, file, indent=4)
+                
+                QMessageBox.information(self, 'Success', f'Materials saved to {file_path}')
+        except Exception as e:
+            QMessageBox.critical(self, 'Error', f'Failed to save materials: {e}')
+
 
     def load_materials_from_file(self):
-        file_path, _ = QFileDialog.getOpenFileName(self, 'Open Materials File', '', 'JSON Files (*.json)')
-        if file_path:
-            try:
+        try:
+            file_path, _ = QFileDialog.getOpenFileName(self, 'Open Materials File', '', 'JSON Files (*.json)')
+            if file_path:
                 with open(file_path, 'r') as file:
                     materials = load(file)
+
+                    existing_names = {self.materials_combobox.itemText(i) for i in range(self.materials_combobox.count())}
+                    existing_compositions = {
+                        tuple(sorted(components.items())): name
+                        for name, components in self.default_materials.items()
+                    }
+                    for i in range(self.materials_combobox.count()):
+                        hint = self.materials_combobox.itemData(i, Qt.ToolTipRole)
+                        composition = tuple(sorted((component.split(': ')[0], float(component.split(': ')[1][:-1])) for component in hint.split(', ')))
+                        existing_compositions[composition] = self.materials_combobox.itemText(i)
+
+                    name_conflicts = []
+                    composition_conflicts = []
+
                     for material in materials:
                         for name, components in material.items():
                             hint = ', '.join([f'{k}: {v}%' for k, v in components.items()])
-                            self.materials_combobox.addItem(name)
-                            self.materials_combobox.setItemData(self.materials_combobox.count() - 1, hint, Qt.ToolTipRole)
-            except Exception as e:
-                QMessageBox.critical(self, 'Error', f'Failed to load materials: {e}')
+                            composition = tuple(sorted(components.items()))
+
+                            if name in existing_names:
+                                name_conflicts.append(name)
+                            elif composition in existing_compositions:
+                                composition_conflicts.append(f'{name} vs {existing_compositions[composition]}')
+                            else:
+                                display_name = f"{name} ({hint})"
+                                self.materials_combobox.addItem(display_name)
+                                self.materials_combobox.setItemData(self.materials_combobox.count() - 1, hint, Qt.ToolTipRole)
+                                self.custom_materials.append({name: components})
+                                self.material_names.add(name)
+
+                    if name_conflicts:
+                        QMessageBox.warning(self, 'Name Conflicts', 'These materials have conflicting names:\n' + '\n'.join(name_conflicts))
+
+                    if composition_conflicts:
+                        QMessageBox.warning(self, 'Composition Conflicts', 'These materials have conflicting compositions:\n' + '\n'.join(composition_conflicts))
+
+
+        except Exception as e:
+            QMessageBox.critical(self, 'Error', f'Failed to load materials: {e}')
+
+
+
 
 class CustomMaterialDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         
         self.setWindowTitle('Custom Material')
+        self.setMinimumWidth(180)
         self.layout = QVBoxLayout()
         
         self.name_label = QLabel('Name:')
         self.name_edit = QLineEdit()
         self.name_edit.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
         
-        self.fe_label = QLabel('Fe:')
-        self.fe_edit = QLineEdit()
-        self.fe_edit.setValidator(QDoubleValidator(0, 100, 3))
-        self.fe_edit.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
-        
-        self.ni_label = QLabel('Ni:')
-        self.ni_edit = QLineEdit()
-        self.ni_edit.setValidator(QDoubleValidator(0, 100, 3))
-        self.ni_edit.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
-        
-        self.c_label = QLabel('C:')
-        self.c_edit = QLineEdit()
-        self.c_edit.setValidator(QDoubleValidator(0, 100, 3))
-        self.c_edit.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
+        self.add_element_button = QPushButton('[+] Add Element')
+        self.add_element_button.clicked.connect(self.add_element_input)
         
         self.layout.addWidget(self.name_label)
         self.layout.addWidget(self.name_edit)
-        self.layout.addWidget(self.fe_label)
-        self.layout.addWidget(self.fe_edit)
-        self.layout.addWidget(self.ni_label)
-        self.layout.addWidget(self.ni_edit)
-        self.layout.addWidget(self.c_label)
-        self.layout.addWidget(self.c_edit)
+
+        self.element_layout = QVBoxLayout()
+        self.layout.addLayout(self.element_layout)
+
+        self.remaining_percentage_label = QLabel('Remaining percentage: 100%')
+        self.layout.addWidget(self.remaining_percentage_label)
+        self.remaining_percentage = 100.0
+
+        self.add_element_input()
         
+        self.layout.addWidget(self.add_element_button)
         self.button_box = QHBoxLayout()
         self.ok_button = QPushButton('OK')
         self.ok_button.clicked.connect(self.validate_and_accept)
@@ -1605,33 +1684,140 @@ class CustomMaterialDialog(QDialog):
         
         self.layout.addLayout(self.button_box)
         self.setLayout(self.layout)
-        
-    def validate_and_accept(self):
-        total_percentage = 0
-        try:
-            total_percentage = (float(self.fe_edit.text()) +
-                                float(self.ni_edit.text()) +
-                                float(self.c_edit.text()))
-            # TODO: Add more elements to the total
-        except ValueError:
-            QMessageBox.warning(self, 'Invalid Input', 'Please enter valid percentages.')
-            return
-        
-        if total_percentage > 100:
-            QMessageBox.warning(self, 'Invalid Input', 'Total percentage cannot exceed 100%.')
-            return
-        
-        self.accept()
-        
-    def get_material(self):
-        return {
-            'name': self.name_edit.text(),
-            'Fe': self.fe_edit.text(),
-            'Ni': self.ni_edit.text(),
-            'C': self.c_edit.text(),
-            # TODO: Add more elements
-        }
 
+    def add_element_input(self):
+        element_layout = QHBoxLayout()
+        element_combobox = QComboBox()
+
+        # Get the list of currently selected elements
+        selected_elements = set()
+        for i in range(self.element_layout.count()):
+            layout = self.element_layout.itemAt(i).layout()
+            combobox = layout.itemAt(0).widget()
+            selected_elements.add(combobox.currentText())
+
+        # Filter the elements to exclude the already selected ones
+        available_elements = [e for e in CHEMICAL_ELEMENTS if e not in selected_elements]
+        element_combobox.addItems(available_elements)
+        element_combobox.currentIndexChanged.connect(self.update_combo_boxes)
+        
+        element_percentage = QLineEdit()
+        element_percentage.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
+        element_percentage.setValidator(QDoubleValidator(0, 100, 3))
+        element_percentage.textChanged.connect(self.update_remaining_percentage)
+        
+        element_layout.addWidget(element_combobox)
+        element_layout.addWidget(element_percentage)
+        
+        self.element_layout.addLayout(element_layout)
+        self.update_remaining_percentage()
+        self.update_combo_boxes()
+        
+    def update_combo_boxes(self):
+        selected_elements = set()
+        for i in range(self.element_layout.count()):
+            layout = self.element_layout.itemAt(i).layout()
+            combobox = layout.itemAt(0).widget()
+            selected_elements.add(combobox.currentText())
+
+        for i in range(self.element_layout.count()):
+            layout = self.element_layout.itemAt(i).layout()
+            combobox = layout.itemAt(0).widget()
+            current_element = combobox.currentText()
+            combobox.blockSignals(True)
+            combobox.clear()
+            available_elements = [e for e in CHEMICAL_ELEMENTS if e not in selected_elements or e == current_element]
+            combobox.addItems(available_elements)
+            combobox.setCurrentText(current_element)
+            combobox.blockSignals(False)
+
+    def update_elements(self):
+        selected_elements = set()
+        for i in range(self.element_layout.count()):
+            layout = self.element_layout.itemAt(i).layout()
+            combobox = layout.itemAt(0).widget()
+            selected_elements.add(combobox.currentText())
+        
+        for i in range(self.element_layout.count()):
+            layout = self.element_layout.itemAt(i).layout()
+            combobox = layout.itemAt(0).widget()
+            current_element = combobox.currentText()
+            combobox.blockSignals(True)
+            combobox.clear()
+            available_elements = [e for e in CHEMICAL_ELEMENTS if e not in selected_elements or e == current_element]
+            combobox.addItems(available_elements)
+            combobox.setCurrentText(current_element)
+            combobox.blockSignals(False)
+
+    def update_remaining_percentage(self):
+        try:
+            total_percentage = 0
+            for i in range(self.element_layout.count()):
+                layout = self.element_layout.itemAt(i).layout()
+                percentage_edit = layout.itemAt(1).widget()
+                try:
+                    total_percentage += float(percentage_edit.text())
+                except ValueError:
+                    continue
+
+            self.remaining_percentage = 100 - total_percentage
+            self.remaining_percentage_label.setText(f'Remaining percentage: {self.remaining_percentage:.2f}%')
+
+            # Enable or disable the add element button and change its color
+            if self.remaining_percentage <= 0:
+                self.add_element_button.setDisabled(True)
+                self.add_element_button.setStyleSheet("background-color: lightgrey; color: grey;")
+            else:
+                self.add_element_button.setDisabled(False)
+                self.add_element_button.setStyleSheet("")
+        except Exception as e:
+            QMessageBox.critical(self, 'Error', f'An error occurred: {e}')
+
+
+
+    def validate_and_accept(self):
+        try:
+            material_name = self.name_edit.text().strip()
+            
+            # Check if the name is empty
+            if not material_name:
+                QMessageBox.warning(self, 'Invalid Input', 'The name field cannot be empty.')
+                return
+
+            # Check if the name is already taken
+            parent_dialog = self.parent()
+            if material_name in parent_dialog.material_names:
+                QMessageBox.warning(self, 'Invalid Input', f'The name "{material_name}" is already taken.')
+                return
+            
+            total_percentage = 0
+            try:
+                for i in range(self.element_layout.count()):
+                    layout = self.element_layout.itemAt(i).layout()
+                    percentage_edit = layout.itemAt(1).widget()
+                    total_percentage += float(percentage_edit.text())
+            except ValueError:
+                QMessageBox.warning(self, 'Invalid Input', 'Please enter valid percentages')
+                return
+
+            if total_percentage > 100:
+                QMessageBox.warning(self, 'Invalid Input', 'Total percentage cannot exceed 100%')
+                return
+
+            self.accept()
+        except Exception as e:
+            QMessageBox.critical(self, 'Error', f'An error occurred: {e}')
+
+
+    def get_material(self):
+        material = {'name': self.name_edit.text()}
+        for i in range(self.element_layout.count()):
+            layout = self.element_layout.itemAt(i).layout()
+            element_combobox = layout.itemAt(0).widget()
+            percentage_edit = layout.itemAt(1).widget()
+            material[element_combobox.currentText()] = percentage_edit.text()
+        return material
+    
 
 def align_view_by_axis(axis: str, renderer: vtkRenderer, vtkWidget: QVTKRenderWindowInteractor):
     axis = axis.strip().lower()

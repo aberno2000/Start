@@ -9,6 +9,7 @@ DEFAULT_QLINEEDIT_STYLE = "QLineEdit { background-color: light gray; color: blac
 DEFAULT_COMBOBOX_STYLE = ""
 DEFAULT_DISABLED_QLINEEDIT_STYLE = "QLineEdit { background-color: gray; color: gray; }"
 DEFAULT_DISABLED_COMBOBOX_STYLE = "QComboBox { background-color: gray; color: gray; }"
+DEFAULT_DISABLED_BUTTON_STYLE = "background-color: lightgrey; color: grey;"
 
 DEFAULT_FONT_COLOR = 'white'
 

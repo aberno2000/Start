@@ -2357,6 +2357,9 @@ class GraphicalEditor(QFrame):
         dialog = AddMaterialDialog(self)
         if dialog.exec_() == QDialog.Accepted:
             selected_material = dialog.materials_combobox.currentText()
+            if not selected_material:
+                QMessageBox.warning(self, "Add Material", "Can't add material, you need to assign name to the material first")
+                return
             # TODO: Handle the selected material here (e.g., add it to the application)
             pass
     
