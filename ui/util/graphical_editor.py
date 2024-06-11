@@ -34,6 +34,7 @@ from .util import(
     ParticleSourceTypeDialog, BoundaryValueInputDialog,
     ArrowPropertiesDialog, MethodSelectionDialog,
     SurfaceAndArrowManager, AddMaterialDialog,
+    PeriodicTableWindow,
     pi
 )
 from util.util import(
@@ -2416,7 +2417,7 @@ class GraphicalEditor(QFrame):
         manager.set_particle_source_as_surface()
     
 
-    def add_material(self):
+    def add_material(self):        
         dialog = AddMaterialDialog(self)
         if dialog.exec_() == QDialog.Accepted:
             selected_material = dialog.materials_combobox.currentText()
@@ -2428,4 +2429,6 @@ class GraphicalEditor(QFrame):
     
 
     def test(self):
-        self.update_gmsh_files()
+        # self.update_gmsh_files()
+        periodic_table = PeriodicTableWindow()
+        periodic_table.show()

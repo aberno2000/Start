@@ -19,9 +19,9 @@ from PyQt5.QtWidgets import (
     QVBoxLayout, QMessageBox, QPushButton, QTableWidget,
     QTableWidgetItem, QSizePolicy, QLabel, QHBoxLayout,
     QWidget, QScrollArea, QComboBox, QTreeView, QSlider,
-    QFileDialog
+    QFileDialog, QGridLayout
 )
-from PyQt5.QtGui import QIntValidator, QDoubleValidator, QStandardItemModel, QStandardItem
+from PyQt5.QtGui import QIntValidator, QDoubleValidator, QStandardItemModel, QStandardItem, QFont
 from .converter import is_positive_real_number, is_real_number
 from os.path import exists, isfile
 from vtkmodules.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
@@ -1543,6 +1543,10 @@ class AddMaterialDialog(QDialog):
         self.save_materials_button.clicked.connect(self.save_materials_to_file)
         self.layout.addWidget(self.save_materials_button)
         
+        self.apply_material_button = QPushButton('Apply Material')
+        self.apply_material_button.clicked.connect(self.apply_material)
+        self.layout.addWidget(self.apply_material_button)
+        
         self.setLayout(self.layout)
         
         self.custom_materials = []
@@ -1595,6 +1599,9 @@ class AddMaterialDialog(QDialog):
         except Exception as e:
             QMessageBox.critical(self, 'Error', f'Failed to save materials: {e}')
 
+    def apply_material(self):
+        # TODO: implement
+        pass
 
     def load_materials_from_file(self):
         try:
@@ -1644,7 +1651,6 @@ class AddMaterialDialog(QDialog):
 
 
 
-
 class CustomMaterialDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -1652,6 +1658,7 @@ class CustomMaterialDialog(QDialog):
         self.setWindowTitle('Custom Material')
         self.setMinimumWidth(180)
         self.layout = QVBoxLayout()
+        self.ok_button = QPushButton('OK')
         
         self.name_label = QLabel('Name:')
         self.name_edit = QLineEdit()
@@ -1674,7 +1681,6 @@ class CustomMaterialDialog(QDialog):
         
         self.layout.addWidget(self.add_element_button)
         self.button_box = QHBoxLayout()
-        self.ok_button = QPushButton('OK')
         self.ok_button.clicked.connect(self.validate_and_accept)
         self.cancel_button = QPushButton('Cancel')
         self.cancel_button.clicked.connect(self.reject)
@@ -1687,74 +1693,75 @@ class CustomMaterialDialog(QDialog):
 
     def add_element_input(self):
         element_layout = QHBoxLayout()
-        element_combobox = QComboBox()
-
-        # Get the list of currently selected elements
-        selected_elements = set()
-        for i in range(self.element_layout.count()):
-            layout = self.element_layout.itemAt(i).layout()
-            combobox = layout.itemAt(0).widget()
-            selected_elements.add(combobox.currentText())
-
-        # Filter the elements to exclude the already selected ones
-        available_elements = [e for e in CHEMICAL_ELEMENTS if e not in selected_elements]
-        element_combobox.addItems(available_elements)
-        element_combobox.currentIndexChanged.connect(self.update_combo_boxes)
-        
+        select_element_button = QPushButton('Select Element')
+        element_label = QLabel('None')
         element_percentage = QLineEdit()
         element_percentage.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
         element_percentage.setValidator(QDoubleValidator(0, 100, 3))
         element_percentage.textChanged.connect(self.update_remaining_percentage)
+
+        delete_button = QPushButton('Delete')
+        delete_button.clicked.connect(lambda: self.remove_element_input(element_layout))
+
+        select_element_button.clicked.connect(lambda: self.open_periodic_table(element_label))
         
-        element_layout.addWidget(element_combobox)
+        element_layout.addWidget(select_element_button)
+        element_layout.addWidget(element_label)
         element_layout.addWidget(element_percentage)
+        element_layout.addWidget(delete_button)
         
         self.element_layout.addLayout(element_layout)
         self.update_remaining_percentage()
-        self.update_combo_boxes()
         
+    def open_periodic_table(self, element_label):
+        self.periodic_table = PeriodicTableWindow()
+        self.periodic_table.element_selected.connect(lambda element: self.set_element(element_label, element))
+        self.periodic_table.exec_()
+        
+    def remove_element_input(self, element_layout):
+        if self.element_layout.count() <= 1:
+            QMessageBox.warning(self, 'Invalid Operation', 'Cannot remove the last remaining element.')
+            return
+        
+        for i in reversed(range(element_layout.count())): 
+            widget = element_layout.itemAt(i).widget()
+            if widget is not None:
+                widget.setParent(None)
+        self.element_layout.removeItem(element_layout)
+        self.update_remaining_percentage()
+
+
+    def set_element(self, element_label, element):
+        # Check for duplicate elements
+        for i in range(self.element_layout.count()):
+            layout = self.element_layout.itemAt(i).layout()
+            existing_label = layout.itemAt(1).widget()
+            if existing_label.text() == element:
+                QMessageBox.warning(self, 'Invalid Input', 'Duplicate elements are not allowed.')
+                return
+        element_label.setText(element)
+        self.update_remaining_percentage()
+
+
     def update_combo_boxes(self):
         selected_elements = set()
         for i in range(self.element_layout.count()):
             layout = self.element_layout.itemAt(i).layout()
-            combobox = layout.itemAt(0).widget()
-            selected_elements.add(combobox.currentText())
+            element_label = layout.itemAt(1).widget()
+            selected_elements.add(element_label.text())
 
         for i in range(self.element_layout.count()):
             layout = self.element_layout.itemAt(i).layout()
-            combobox = layout.itemAt(0).widget()
-            current_element = combobox.currentText()
-            combobox.blockSignals(True)
-            combobox.clear()
+            element_label = layout.itemAt(1).widget()
+            current_element = element_label.text()
             available_elements = [e for e in CHEMICAL_ELEMENTS if e not in selected_elements or e == current_element]
-            combobox.addItems(available_elements)
-            combobox.setCurrentText(current_element)
-            combobox.blockSignals(False)
-
-    def update_elements(self):
-        selected_elements = set()
-        for i in range(self.element_layout.count()):
-            layout = self.element_layout.itemAt(i).layout()
-            combobox = layout.itemAt(0).widget()
-            selected_elements.add(combobox.currentText())
-        
-        for i in range(self.element_layout.count()):
-            layout = self.element_layout.itemAt(i).layout()
-            combobox = layout.itemAt(0).widget()
-            current_element = combobox.currentText()
-            combobox.blockSignals(True)
-            combobox.clear()
-            available_elements = [e for e in CHEMICAL_ELEMENTS if e not in selected_elements or e == current_element]
-            combobox.addItems(available_elements)
-            combobox.setCurrentText(current_element)
-            combobox.blockSignals(False)
 
     def update_remaining_percentage(self):
         try:
             total_percentage = 0
             for i in range(self.element_layout.count()):
                 layout = self.element_layout.itemAt(i).layout()
-                percentage_edit = layout.itemAt(1).widget()
+                percentage_edit = layout.itemAt(2).widget()
                 try:
                     total_percentage += float(percentage_edit.text())
                 except ValueError:
@@ -1770,41 +1777,49 @@ class CustomMaterialDialog(QDialog):
             else:
                 self.add_element_button.setDisabled(False)
                 self.add_element_button.setStyleSheet("")
+
+            # Enable or disable the OK button based on the remaining percentage
+            if self.remaining_percentage < 0:
+                self.ok_button.setDisabled(True)
+                self.ok_button.setStyleSheet("background-color: lightgrey; color: grey;")
+            else:
+                self.ok_button.setDisabled(False)
+                self.ok_button.setStyleSheet("")
+
         except Exception as e:
             QMessageBox.critical(self, 'Error', f'An error occurred: {e}')
-
 
 
     def validate_and_accept(self):
         try:
             material_name = self.name_edit.text().strip()
             
-            # Check if the name is empty
             if not material_name:
                 QMessageBox.warning(self, 'Invalid Input', 'The name field cannot be empty.')
                 return
 
-            # Check if the name is already taken
             parent_dialog = self.parent()
             if material_name in parent_dialog.material_names:
                 QMessageBox.warning(self, 'Invalid Input', f'The name "{material_name}" is already taken.')
                 return
             
             total_percentage = 0
-            try:
-                for i in range(self.element_layout.count()):
-                    layout = self.element_layout.itemAt(i).layout()
-                    percentage_edit = layout.itemAt(1).widget()
-                    total_percentage += float(percentage_edit.text())
-            except ValueError:
-                QMessageBox.warning(self, 'Invalid Input', 'Please enter valid percentages')
-                return
+            for i in range(self.element_layout.count()):
+                layout = self.element_layout.itemAt(i).layout()
+                element_label = layout.itemAt(1).widget()
+                if element_label.text() == 'None':
+                    QMessageBox.warning(self, 'Invalid Input', 'Element cannot be "None". Please select a valid element.')
+                    return
+                percentage_edit = layout.itemAt(2).widget()
+                total_percentage += float(percentage_edit.text())
 
-            if total_percentage > 100:
-                QMessageBox.warning(self, 'Invalid Input', 'Total percentage cannot exceed 100%')
+            if total_percentage != 100:
+                QMessageBox.warning(self, 'Invalid Input', 'Total percentage must be exactly 100%.')
                 return
 
             self.accept()
+        except ValueError:
+            QMessageBox.warning(self, 'Invalid Input', 'Please enter valid percentages')
         except Exception as e:
             QMessageBox.critical(self, 'Error', f'An error occurred: {e}')
 
@@ -1813,10 +1828,104 @@ class CustomMaterialDialog(QDialog):
         material = {'name': self.name_edit.text()}
         for i in range(self.element_layout.count()):
             layout = self.element_layout.itemAt(i).layout()
-            element_combobox = layout.itemAt(0).widget()
-            percentage_edit = layout.itemAt(1).widget()
-            material[element_combobox.currentText()] = percentage_edit.text()
+            element_label = layout.itemAt(1).widget()
+            percentage_edit = layout.itemAt(2).widget()
+            material[element_label.text()] = percentage_edit.text()
         return material
+  
+    
+class PeriodicTableWindow(QDialog):
+    element_selected = pyqtSignal(str)
+    
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Periodic Table")
+        self.setGeometry(100, 100, 800, 600)
+        self.layout = QGridLayout(self)
+        self.setLayout(self.layout)
+
+        self.element_colors = {
+            'alkali_metals': '#FF6666',            # Light Red
+            'alkaline_earth_metals': '#FFDEAD',    # Navajo White
+            'transition_metals': '#FFB6C1',        # Light Pink
+            'post_transition_metals': '#C0C0C0',   # Silver
+            'metalloids': '#DFFF00',               # Chartreuse Yellow
+            'non_metals': '#ADFF2F',               # Green Yellow
+            'halogens': '#FFFF66',                 # Light Yellow
+            'noble_gases': '#ADD8E6',              # Light Blue
+            'lanthanides': '#FFB6C1',              # Light Pink
+            'actinides': '#FFB6C1',                # Light Pink
+            'unknown': '#FFFFFF'                   # White
+        }
+
+        self.element_groups = {
+            'alkali_metals': ['Li', 'Na', 'K', 'Rb', 'Cs', 'Fr'],
+            'alkaline_earth_metals': ['Be', 'Mg', 'Ca', 'Sr', 'Ba', 'Ra'],
+            'transition_metals': ['Sc', 'Ti', 'V', 'Cr', 'Mn', 'Fe', 'Co', 'Ni', 'Cu', 'Zn',
+                                  'Y', 'Zr', 'Nb', 'Mo', 'Tc', 'Ru', 'Rh', 'Pd', 'Ag', 'Cd',
+                                  'Hf', 'Ta', 'W', 'Re', 'Os', 'Ir', 'Pt', 'Au', 'Hg', 'Rf',
+                                  'Db', 'Sg', 'Bh', 'Hs', 'Mt', 'Ds', 'Rg', 'Cn'],
+            'post_transition_metals': ['Al', 'Ga', 'In', 'Sn', 'Tl', 'Pb', 'Bi', 'Nh', 'Fl', 'Mc', 'Lv'],
+            'metalloids': ['B', 'Si', 'Ge', 'As', 'Sb', 'Te', 'Po'],
+            'non_metals': ['H', 'C', 'N', 'O', 'P', 'S', 'Se'],
+            'halogens': ['F', 'Cl', 'Br', 'I', 'At', 'Ts'],
+            'noble_gases': ['He', 'Ne', 'Ar', 'Kr', 'Xe', 'Rn', 'Og'],
+            'lanthanides': ['La', 'Ce', 'Pr', 'Nd', 'Pm', 'Sm', 'Eu', 'Gd', 'Tb', 'Dy', 'Ho', 'Er', 'Tm', 'Yb', 'Lu'],
+            'actinides': ['Ac', 'Th', 'Pa', 'U', 'Np', 'Pu', 'Am', 'Cm', 'Bk', 'Cf', 'Es', 'Fm', 'Md', 'No', 'Lr'],
+            'unknown': []
+        }
+
+        self.create_buttons()
+
+    def create_buttons(self):
+        # Coordinates for element placement
+        coordinates = {
+            'H': (0, 0), 'He': (0, 17),
+            'Li': (1, 0), 'Be': (1, 1), 'B': (1, 12), 'C': (1, 13), 'N': (1, 14), 'O': (1, 15), 'F': (1, 16), 'Ne': (1, 17),
+            'Na': (2, 0), 'Mg': (2, 1), 'Al': (2, 12), 'Si': (2, 13), 'P': (2, 14), 'S': (2, 15), 'Cl': (2, 16), 'Ar': (2, 17),
+            'K': (3, 0), 'Ca': (3, 1), 'Sc': (3, 2), 'Ti': (3, 3), 'V': (3, 4), 'Cr': (3, 5), 'Mn': (3, 6), 'Fe': (3, 7),
+            'Co': (3, 8), 'Ni': (3, 9), 'Cu': (3, 10), 'Zn': (3, 11), 'Ga': (3, 12), 'Ge': (3, 13), 'As': (3, 14), 'Se': (3, 15),
+            'Br': (3, 16), 'Kr': (3, 17),
+            'Rb': (4, 0), 'Sr': (4, 1), 'Y': (4, 2), 'Zr': (4, 3), 'Nb': (4, 4), 'Mo': (4, 5), 'Tc': (4, 6), 'Ru': (4, 7),
+            'Rh': (4, 8), 'Pd': (4, 9), 'Ag': (4, 10), 'Cd': (4, 11), 'In': (4, 12), 'Sn': (4, 13), 'Sb': (4, 14), 'Te': (4, 15),
+            'I': (4, 16), 'Xe': (4, 17),
+            'Cs': (5, 0), 'Ba': (5, 1), 'La': (5, 2), 'Hf': (5, 3), 'Ta': (5, 4), 'W': (5, 5), 'Re': (5, 6), 'Os': (5, 7),
+            'Ir': (5, 8), 'Pt': (5, 9), 'Au': (5, 10), 'Hg': (5, 11), 'Tl': (5, 12), 'Pb': (5, 13), 'Bi': (5, 14), 'Po': (5, 15),
+            'At': (5, 16), 'Rn': (5, 17),
+            'Fr': (6, 0), 'Ra': (6, 1), 'Ac': (6, 2), 'Rf': (6, 3), 'Db': (6, 4), 'Sg': (6, 5), 'Bh': (6, 6), 'Hs': (6, 7),
+            'Mt': (6, 8), 'Ds': (6, 9), 'Rg': (6, 10), 'Cn': (6, 11), 'Nh': (6, 12), 'Fl': (6, 13), 'Mc': (6, 14), 'Lv': (6, 15),
+            'Ts': (6, 16), 'Og': (6, 17),
+            'Ce': (7, 3), 'Pr': (7, 4), 'Nd': (7, 5), 'Pm': (7, 6), 'Sm': (7, 7), 'Eu': (7, 8), 'Gd': (7, 9), 'Tb': (7, 10),
+            'Dy': (7, 11), 'Ho': (7, 12), 'Er': (7, 13), 'Tm': (7, 14), 'Yb': (7, 15), 'Lu': (7, 16),
+            'Th': (8, 3), 'Pa': (8, 4), 'U': (8, 5), 'Np': (8, 6), 'Pu': (8, 7), 'Am': (8, 8), 'Cm': (8, 9), 'Bk': (8, 10),
+            'Cf': (8, 11), 'Es': (8, 12), 'Fm': (8, 13), 'Md': (8, 14), 'No': (8, 15), 'Lr': (8, 16)
+        }
+
+        for group, elements in self.element_groups.items():
+            for element in elements:
+                if element in coordinates:
+                    row, col = coordinates[element]
+                    color = self.element_colors.get(group, '#FFFFFF')
+                    self.create_element_button(element, row, col, color)
+
+    def create_element_button(self, element, row, col, color):
+        try:
+            button = QPushButton(element, self)
+            button.setFixedSize(QSize(70, 70))
+            button.setStyleSheet(f"background-color: {color}; border-radius: 10px;")
+            
+            font = QFont()
+            font.setPointSize(16)
+            button.setFont(font)
+            
+            button.clicked.connect(lambda _, el=element: self.on_element_clicked(el))
+            self.layout.addWidget(button, row, col)
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Failed to create button for {element}: {e}")
+
+    def on_element_clicked(self, element):
+        self.element_selected.emit(element)
+        self.close()
     
 
 def align_view_by_axis(axis: str, renderer: vtkRenderer, vtkWidget: QVTKRenderWindowInteractor):
