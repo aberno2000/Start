@@ -242,9 +242,9 @@ class WindowApp(QMainWindow):
         solution_menu.addAction('Run', self.start_simulation, shortcut='Ctrl+R') #  Run
         solution_menu.addAction('Stop', self.stop_simulation, shortcut='Ctrl+T') #  Terminate
         
-        # Help Menu
-        help_menu = menu_bar.addMenu('&Help')
-        help_menu.addAction('About', self.show_help, shortcut='F1')
+        # Help Menu: *No need help on this stage
+        # help_menu = menu_bar.addMenu('&Help')
+        # help_menu.addAction('About', self.show_help, shortcut='F1')
 
 
     def upload_mesh_file(self):
