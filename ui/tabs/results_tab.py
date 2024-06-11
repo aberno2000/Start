@@ -1,7 +1,8 @@
 from vtk import ( 
     vtkAxesActor, vtkOrientationMarkerWidget, vtkRenderer,
     vtkPoints, vtkPolyDataMapper, vtkActor,
-    vtkVertexGlyphFilter, vtkPolyData
+    vtkVertexGlyphFilter, vtkPolyData, vtkWindowToImageFilter,
+    vtkPNGWriter, vtkJPEGWriter
 )
 from PyQt5.QtWidgets import (
     QVBoxLayout, QHBoxLayout, QWidget, QPushButton, QSpacerItem, 
@@ -108,6 +109,13 @@ class ResultsTab(QWidget):
             icon_path="icons/settings.png",
             tooltip='Scalar bar settings',
             callback=self.show_context_menu,
+            layout=self.toolbarLayout
+        )
+        
+        self.savePictureButton = self.create_toolbar_button(
+            icon_path="icons/save-picture.png",
+            tooltip='Save results as screenshot',
+            callback=self.save_screenshot,
             layout=self.toolbarLayout
         )
         
@@ -387,3 +395,36 @@ class ResultsTab(QWidget):
             self.log_console.printError("There is nothing to show. Particles haven't been spawned or simulation hasn't been started")
             return
         self.animate_particle_movements(particles_movement)
+
+    def save_screenshot(self):
+        try:
+            options = QFileDialog.Options()
+            file_path, _ = QFileDialog.getSaveFileName(
+                self,
+                "Save Screenshot",
+                "",
+                "Images (*.png *.jpg *.jpeg)",
+                options=options
+            )
+            if file_path:
+                render_window = self.vtkWidget.GetRenderWindow()
+                w2i = vtkWindowToImageFilter()
+                w2i.SetInput(render_window)
+                w2i.Update()
+
+                writer = None
+                if file_path.endswith('.png'):
+                    writer = vtkPNGWriter()
+                elif file_path.endswith('.jpg') or file_path.endswith('.jpeg'):
+                    writer = vtkJPEGWriter()
+                else:
+                    raise ValueError("Unsupported file extension")
+
+                writer.SetFileName(file_path)
+                writer.SetInputConnection(w2i.GetOutputPort())
+                writer.Write()
+                
+                QMessageBox.information(self, "Success", f"Screenshot saved to {file_path}")
+
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Failed to save screenshot: {e}")
