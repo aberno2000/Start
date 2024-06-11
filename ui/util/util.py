@@ -1773,7 +1773,7 @@ class CustomMaterialDialog(QDialog):
             # Enable or disable the add element button and change its color
             if self.remaining_percentage <= 0:
                 self.add_element_button.setDisabled(True)
-                self.add_element_button.setStyleSheet("background-color: lightgrey; color: grey;")
+                self.add_element_button.setStyleSheet(DEFAULT_DISABLED_BUTTON_STYLE)
             else:
                 self.add_element_button.setDisabled(False)
                 self.add_element_button.setStyleSheet("")
@@ -1781,7 +1781,7 @@ class CustomMaterialDialog(QDialog):
             # Enable or disable the OK button based on the remaining percentage
             if self.remaining_percentage < 0:
                 self.ok_button.setDisabled(True)
-                self.ok_button.setStyleSheet("background-color: lightgrey; color: grey;")
+                self.ok_button.setStyleSheet(DEFAULT_DISABLED_BUTTON_STYLE)
             else:
                 self.ok_button.setDisabled(False)
                 self.ok_button.setStyleSheet("")
