@@ -100,7 +100,7 @@ class ConfigTab(QWidget):
 
         self.projective_input = QComboBox()
         self.gas_input = QComboBox()
-        gas_particles = ["Ar", "Ne", "He"]
+        gas_particles = ["O2", "Ar", "Ne", "He"]
         self.gas_input.addItems(gas_particles)
         particles_layout.addRow(QLabel("Gas:"), self.gas_input)
 

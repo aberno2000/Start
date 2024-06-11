@@ -64,7 +64,9 @@ std::string util::getStatusName(int status)
 
 ParticleType util::getParticleTypeFromStrRepresentation(std::string_view particle)
 {
-    if (particle == "Ar")
+    if (particle == "O2")
+        return O2;
+    else if (particle == "Ar")
         return Ar;
     else if (particle == "Ne")
         return Ne;
@@ -94,6 +96,8 @@ std::string util::getParticleType(ParticleType ptype)
 {
     switch (ptype)
     {
+    case O2:
+        return "O2";
     case Ar:
         return "Ar";
     case Ne:

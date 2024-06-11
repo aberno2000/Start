@@ -14,6 +14,7 @@ namespace constants
         static constinit const double J_eV{6.242e+18};                    ///< Conversion factor of J to eV (1 J  is ... eV).
 
         /*** Weight of particles in [kg]. ***/
+        static constinit const double O2_mass{53.1e-27}; // Book: The DSMC method G. A. Bird Version 1.2; 2013. 286 p. (Table A.1) - omega
         static constinit const double Ar_mass{6.6335209e-26};
         static constinit const double Ne_mass{3.3509177e-26};
         static constinit const double He_mass{6.6464731e-27};
@@ -28,6 +29,7 @@ namespace constants
 
         /*** Radii (empirical) of particles in [m]. ***/
         /// @link https://en.wikipedia.org/wiki/Atomic_radii_of_the_elements_(data_page)
+        static constinit const double O2_radius{2.035e-10}; // Book: The DSMC method G. A. Bird Version 1.2; 2013. 286 p. (Table A.1) - omega
         static constinit const double Ar_radius{71e-12};
         static constinit const double Ne_radius{160e-12};
         static constinit const double He_radius{120e-12};
@@ -44,6 +46,7 @@ namespace constants
     // Book: The DSMC method G. A. Bird Version 1.2; 2013. 286 p. (Table A.1) - omega
     namespace viscosity_temperature_index
     {
+        static constinit const float O2_VTI{0.77};
         static constinit const float Ar_VTI{0.81};
         static constinit const float Ne_VTI{0.66};
         static constinit const float He_VTI{0.66};
@@ -52,6 +55,7 @@ namespace constants
     // Book: The DSMC method G. A. Bird Version 1.2; 2013. 286 p. (Table A.2) - alpha
     namespace VSS_deflection_parameter
     {
+        static constinit const float O2_VSS_TI{1.40};
         static constinit const float Ar_VSS_TI{1.40};
         static constinit const float Ne_VSS_TI{1.31};
         static constinit const float He_VSS_TI{1.26};
@@ -61,6 +65,7 @@ namespace constants
     {
         enum ParticleType
         {
+            O2,
             Ar,
             Ne,
             He,
@@ -78,9 +83,10 @@ namespace constants
 
     namespace ion_charges
     {
-        static constinit const int Ar_charge{0}; ///< Argon is a noble gas and generally does not form ions.
-        static constinit const int Ne_charge{0}; ///< Neon is a noble gas and generally does not form ions.
-        static constinit const int He_charge{0}; ///< Helium is a noble gas and generally does not form ions.
+        static constinit const int O2_charge{-2}; ///< For O2^2- ion.
+        static constinit const int Ar_charge{0};  ///< Argon is a noble gas and generally does not form ions.
+        static constinit const int Ne_charge{0};  ///< Neon is a noble gas and generally does not form ions.
+        static constinit const int He_charge{0};  ///< Helium is a noble gas and generally does not form ions.
 
         static constinit const int Ti_2plus{2}; ///< Titanium typically forms a +2 ion.
         static constinit const int Ti_4plus{4}; ///< Titanium can also form a +4 ion.
@@ -98,6 +104,7 @@ namespace constants
 
     namespace ion_charges_coulombs
     {
+        static constinit const double O2_charge{-2 * physical_constants::e_charge};
         static constinit const double Ar_charge{0.0};
         static constinit const double Ne_charge{0.0};
         static constinit const double He_charge{0.0};
