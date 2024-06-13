@@ -1847,14 +1847,14 @@ class PeriodicTableWindow(QDialog):
         self.element_colors = {
             'alkali_metals': '#FF6666',            # Light Red
             'alkaline_earth_metals': '#FFDEAD',    # Navajo White
-            'transition_metals': '#FFB6C1',        # Light Pink
-            'post_transition_metals': '#C0C0C0',   # Silver
-            'metalloids': '#DFFF00',               # Chartreuse Yellow
-            'non_metals': '#ADFF2F',               # Green Yellow
-            'halogens': '#FFFF66',                 # Light Yellow
-            'noble_gases': '#ADD8E6',              # Light Blue
-            'lanthanides': '#FFB6C1',              # Light Pink
-            'actinides': '#FFB6C1',                # Light Pink
+            'transition_metals': '#FFC0C0',        # Light Pink
+            'post_transition_metals': '#CCCCCC',   # Silver
+            'metalloids': '#CCCC99',               # Chartreuse Yellow
+            'non_metals': '#A0FFA0',               # Green Yellow
+            'halogens': '#FFFF99',                 # Light Yellow
+            'noble_gases': '#C0FFFF',              # Light Blue
+            'lanthanides': '#FFBFFF',              # Light Pink
+            'actinides': '#FF99CC',                # Light Pink
             'unknown': '#FFFFFF'                   # White
         }
 
@@ -1889,10 +1889,10 @@ class PeriodicTableWindow(QDialog):
             'Rb': (4, 0), 'Sr': (4, 1), 'Y': (4, 2), 'Zr': (4, 3), 'Nb': (4, 4), 'Mo': (4, 5), 'Tc': (4, 6), 'Ru': (4, 7),
             'Rh': (4, 8), 'Pd': (4, 9), 'Ag': (4, 10), 'Cd': (4, 11), 'In': (4, 12), 'Sn': (4, 13), 'Sb': (4, 14), 'Te': (4, 15),
             'I': (4, 16), 'Xe': (4, 17),
-            'Cs': (5, 0), 'Ba': (5, 1), 'La': (5, 2), 'Hf': (5, 3), 'Ta': (5, 4), 'W': (5, 5), 'Re': (5, 6), 'Os': (5, 7),
+            'Cs': (5, 0), 'Ba': (5, 1), 'La': (7, 2), 'Hf': (5, 3), 'Ta': (5, 4), 'W': (5, 5), 'Re': (5, 6), 'Os': (5, 7),
             'Ir': (5, 8), 'Pt': (5, 9), 'Au': (5, 10), 'Hg': (5, 11), 'Tl': (5, 12), 'Pb': (5, 13), 'Bi': (5, 14), 'Po': (5, 15),
             'At': (5, 16), 'Rn': (5, 17),
-            'Fr': (6, 0), 'Ra': (6, 1), 'Ac': (6, 2), 'Rf': (6, 3), 'Db': (6, 4), 'Sg': (6, 5), 'Bh': (6, 6), 'Hs': (6, 7),
+            'Fr': (6, 0), 'Ra': (6, 1), 'Ac': (8, 2), 'Rf': (6, 3), 'Db': (6, 4), 'Sg': (6, 5), 'Bh': (6, 6), 'Hs': (6, 7),
             'Mt': (6, 8), 'Ds': (6, 9), 'Rg': (6, 10), 'Cn': (6, 11), 'Nh': (6, 12), 'Fl': (6, 13), 'Mc': (6, 14), 'Lv': (6, 15),
             'Ts': (6, 16), 'Og': (6, 17),
             'Ce': (7, 3), 'Pr': (7, 4), 'Nd': (7, 5), 'Pm': (7, 6), 'Sm': (7, 7), 'Eu': (7, 8), 'Gd': (7, 9), 'Tb': (7, 10),
