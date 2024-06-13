@@ -165,8 +165,6 @@ class WindowApp(QMainWindow):
                                     "Process Finished",
                                     f"The simulation has completed in {exec_time:.3f}s\n\nScalar bar:\nLeft side - particles count.\nRight side - normalized value.\n\n*Normalized Value = (Scalar Value - Range Min) / (Range Max - Range Min)")
             
-            # Removing boundary conditions after finishing the simulation
-            self.remove_boundary_conditions()
         elif exitStatus == QProcess.CrashExit and exitCode == 11:
             self.results_tab.clear_plot()
             
@@ -441,35 +439,11 @@ class WindowApp(QMainWindow):
         elif self.config_tab.mesh_file.endswith('.vtk'):
             self.hdf5_filename = self.config_tab.mesh_file.replace('.vtk', '.hdf5')
         args = f"{self.config_tab.config_file_path}"
-        
-        self.geditor.update_gmsh_files()
 
         # Measure execution time
         self.run_cpp(args)
         self.progress_bar.setRange(0, 100)
     
-    def remove_boundary_conditions(self):
-        try:
-            with open(self.config_tab.config_file_path, 'r') as file:
-                data = json.load(file)
-        except FileNotFoundError:
-            QMessageBox.warning(self, "File Error", f"Configuration file '{self.config_tab.config_file_path}' not found.")
-            return
-        except json.JSONDecodeError as e:
-            QMessageBox.critical(self, "Error", f"Error parsing JSON file '{self.config_tab.config_file_path}': {e}")
-            return
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"An error occurred while reading the configuration file '{self.config_tab.config_file_path}': {e}")
-            return
-
-        if "Boundary Conditions" in data:
-            del data["Boundary Conditions"]
-
-        try:
-            with open(self.config_tab.config_file_path, 'w') as file:
-                json.dump(data, file, indent=4)
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"Failed to save configuration: {e}")
         
     def stop_simulation(self):
         if self.process.state() == QProcess.Running:
