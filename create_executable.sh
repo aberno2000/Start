@@ -7,5 +7,5 @@ output_name="nia_start_$current_date"
 pyinstaller --onefile --add-binary='./nia_start:.' --add-data='./icons:icons' --paths=./ui --name "$output_name" ui/main.py
 pyinstaller nia_start.spec
 
-cp -rv icons/ "dist/icons"
-cp -v nia_start "dist/nia_start"
+cp -rv icons/ dist/icons
+cp -v nia_start dist/nia_start
