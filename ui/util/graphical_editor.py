@@ -471,7 +471,6 @@ class GraphicalEditor(QFrame):
         self.vtkWidget.GetRenderWindow().Render()
 
 
-
     def update_tree_item_visibility(self, actor, visible):
         rows = self.get_rows_by_actor(actor)
         if rows:
@@ -480,11 +479,30 @@ class GraphicalEditor(QFrame):
             if index.isValid():
                 item = self.treeView.model().itemFromIndex(index)
                 if item:
+                    original_name = item.text()
                     if visible:
+                        if original_name.endswith(" (hidden)"):
+                            item.setText(original_name[:-9])  # Remove " (hidden)"
                         item.setForeground(QBrush(DEFAULT_TREE_VIEW_ROW_COLOR))
                     else:
+                        if not original_name.endswith(" (hidden)"):
+                            item.setText(original_name + " (hidden)")  # Add " (hidden)"
                         item.setForeground(QBrush(DEFAULT_TREE_VIEW_ROW_COLOR_HIDED_ACTOR))
 
+
+    def rename_tree_item(self, rows, new_name):
+        """
+        Rename a tree view item identified by the provided rows.
+
+        :param rows: A tuple containing the external and internal rows.
+        :param new_name: The new name to set for the tree view item.
+        """
+        external_row, internal_row = rows
+        index = self.get_index_from_rows(external_row, internal_row)
+        if index.isValid():
+            item = self.treeView.model().itemFromIndex(index)
+            if item:
+                item.setText(new_name)
     
     
     def get_filename_from_dialog(self) -> str:
