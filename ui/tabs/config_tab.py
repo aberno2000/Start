@@ -652,7 +652,6 @@ class ConfigTab(QWidget):
         try:
             with open(config_file_path, 'r') as file:
                 config = load(file)
-                print(f"Config after loading: {config}")
         except FileNotFoundError:
             QMessageBox.warning(self, "Warning", f"File not found: {config_file_path}")
             return None
