@@ -372,12 +372,7 @@ void ParticleTracker::processSurfaceCollisionTracker(size_t start_index, size_t 
                               // Adding only those particles which are inside tetrahedron mesh.
                               // There is no need to spawn large count of particles and load PC, fixed count must be enough.
                               if (cubicGrid->isInsideTetrahedronMesh(prev))
-                              {
-                                  // Limiting particles visualisation by constant.
-                                  if (m_particlesMovement.size() >= kdefault_max_numparticles_to_anim)
-                                      return;
                                   m_particlesMovement[particle.getId()].emplace_back(prev);
-                              }
                           }
 
                           particle.updatePosition(m_config.getTimeStep());
