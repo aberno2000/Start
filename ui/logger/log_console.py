@@ -186,6 +186,7 @@ class LogConsole(QWidget):
     
     def printInfo(self, message):
         self.appendLog("Info: " + str(message))
+        self.addNewLine()
         
     def getAllLogs(self) -> str:
         return self.log_console.toPlainText()        

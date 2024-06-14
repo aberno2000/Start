@@ -1298,7 +1298,6 @@ class SurfaceAndArrowManager:
         
         self.particle_source_dialog = ParticleSourceDialog(self.parent)
         self.particle_source_dialog.accepted_signal.connect(lambda params: self.handle_particle_source_surface_accepted(params, self.data))
-        self.particle_source_dialog.show()
 
     def handle_particle_source_surface_accepted(self, particle_params, surface_and_normals_dict):
         try:
@@ -1387,6 +1386,7 @@ class SurfaceAndArrowManager:
         if confirmed:
             self.populate_data(self.arrows_outside, self.data)
             self.finalize_surface_selection()
+            self.particle_source_dialog.show()
         else:
             self.remove_arrows(self.arrows_outside)
             self.add_arrows(self.arrows_inside)
@@ -1401,6 +1401,7 @@ class SurfaceAndArrowManager:
         if confirmed:
             self.populate_data(self.arrows_inside, self.data)
             self.finalize_surface_selection()
+            self.particle_source_dialog.show()
         else:
             self.remove_arrows(self.arrows_inside)
 

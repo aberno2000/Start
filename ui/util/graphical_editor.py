@@ -65,7 +65,7 @@ ACTION_ACTOR_CREATING = 'create_actor'
 ACTION_ACTOR_TRANSFORMATION = 'transform'
 
 class GraphicalEditor(QFrame):    
-    def __init__(self, log_console: LogConsole, config_tab: ConfigTab, parent=None):
+    def __init__(self, log_console: LogConsole, config_tab: ConfigTab, parent=None):        
         super().__init__(parent)
         self.config_tab = config_tab
         
@@ -79,6 +79,8 @@ class GraphicalEditor(QFrame):
         self.actor_nodes = {}          # Key = actor               |  value = list of nodes
         self.actor_matrix = {}         # Key = actor               |  value = transformation matrix: pair(initial, current)
         self.meshfile_actors = {}      # Key = mesh filename       |  value = list of actors
+        
+        self.simple_definitions = [] # List to store simple objects
         
         self.treeView = QTreeView()
         self.model = QStandardItemModel()
@@ -550,7 +552,6 @@ class GraphicalEditor(QFrame):
             self.add_actors_and_populate_tree_view(pointMap, filename, 'point')
             
             self.log_console.printInfo(f'Successfully created point: ({x}, {y}, {z})')
-            self.log_console.addNewLine()
             
             
     def create_line(self):
@@ -612,7 +613,6 @@ class GraphicalEditor(QFrame):
                 self.add_actors_and_populate_tree_view(lineMap, filename, 'line')
                 
                 self.log_console.printInfo(f'Successfully created line:\n{tmp}')
-                self.log_console.addNewLine()
 
     
     def create_surface(self):
@@ -674,7 +674,6 @@ class GraphicalEditor(QFrame):
                 self.add_actors_and_populate_tree_view(surfaceMap, filename, 'surface')
                 
                 self.log_console.printInfo(f'Successfully created surface:\n{tmp}')
-                self.log_console.addNewLine()
                 
 
     
@@ -716,32 +715,19 @@ class GraphicalEditor(QFrame):
             self.add_actors_and_populate_tree_view(sphereMap, filename, 'volume')
             
             self.log_console.printInfo(f'Successfully created sphere:\n{tmp}')
-            self.log_console.addNewLine()
             
 
 
     def create_box(self):
-        def create_box_with_gmsh(mesh_size: float):
+        def create_box_with_gmsh(x, y, z, length, width, height):
             gmsh.initialize()
             gmsh.model.occ.add_box(x, y, z, length, width, height)
-            gmsh.option.setNumber("Mesh.MeshSizeMax", mesh_size)
-            gmsh.option.setNumber("Mesh.MeshSizeMin", mesh_size)
             gmsh.model.occ.synchronize()
-            gmsh.model.mesh.generate(3)
-            
-            boxMap = getTreeDict()
-            filename = self.get_filename_from_dialog()
-            if not filename:
-                return None
-            
-            gmsh.write(filename)
             gmsh.finalize()
-            return boxMap, filename
         
         dialog = BoxDialog(self)
         if dialog.exec_() == QDialog.Accepted and dialog.getValues() is not None:
-            values, mesh_size = dialog.getValues()
-            x, y, z, length, width, height = values
+            x, y, z, length, width, height = dialog.getValues()
             
             box_data_str = []
             box_data_str.append(f'Primary Point: ({x}, {y}, {z})')
@@ -750,15 +736,31 @@ class GraphicalEditor(QFrame):
             box_data_str.append(f'Height: {height}')
             tmp = '\n'.join(box_data_str)
             
-            res = create_box_with_gmsh(mesh_size)
-            if not res:
-                return
-            boxMap, filename = res
-            self.add_actors_and_populate_tree_view(boxMap, filename, 'volume')
+            create_box_with_gmsh(x, y, z, length, width, height)
+            self.simple_definitions.append(('box', (x, y, z, length, width, height)))
             
             self.log_console.printInfo(f'Successfully created box:\n{tmp}')
-            self.log_console.addNewLine()
+    
+    
+    def save_and_mesh_objects(self):
+        gmsh.initialize()
+        
+        for objType, objSimple in self.simple_definitions:
+            x, y, z, length, width, height = objSimple
             
+            if objType == 'box':
+                gmsh.model.occ.addBox(x, y, z, length, width, height)
+        
+        gmsh.option.setNumber("Mesh.MeshSizeMin", 0.1)
+        gmsh.option.setNumber("Mesh.MeshSizeMax", 0.1)
+        gmsh.model.occ.synchronize()
+        gmsh.model.mesh.generate(3)
+        
+        filename = self.get_filename_from_dialog()
+        if filename:
+            gmsh.write(filename)
+            self.log_console.printInfo(f'Successfully saved and meshed boxes into file: {filename}')
+        gmsh.finalize()
 
 
     def create_cylinder(self):
@@ -799,7 +801,6 @@ class GraphicalEditor(QFrame):
             self.add_actors_and_populate_tree_view(cylinderMap, filename, 'volume')
             
             self.log_console.printInfo(f'Successfully created cylinder:\n{tmp}')
-            self.log_console.addNewLine()
             
     
     
@@ -2050,7 +2051,6 @@ class GraphicalEditor(QFrame):
                                     f"Particle Type: {particle_type}\n"
                                     f"Energy: {energy} eV\n"
                                     f"Number of Particles: {num_particles}")
-            self.log_console.addNewLine()
 
             self.resetParticleSourceArrow()
         except Exception as e:
@@ -2447,6 +2447,4 @@ class GraphicalEditor(QFrame):
     
 
     def test(self):
-        # self.update_gmsh_files()
-        periodic_table = PeriodicTableWindow()
-        periodic_table.show()
+        self.save_and_mesh_objects()

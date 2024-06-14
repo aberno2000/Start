@@ -4,16 +4,15 @@ from PyQt5.QtWidgets import (
     QGroupBox, QFileDialog, QPushButton,
     QSizePolicy, QSpacerItem, QDialog
 )
-from PyQt5.QtGui import QIntValidator, QRegExpValidator
+from PyQt5.QtGui import QIntValidator, QDoubleValidator, QRegExpValidator
 import gmsh
-from pathlib import Path
 from os.path import dirname
 from PyQt5 import QtCore
 from PyQt5.QtCore import QSize, pyqtSignal, QRegExp
 from json import load, dump, JSONDecodeError
 from multiprocessing import cpu_count
 from platform import platform
-from util.converter import Converter, is_positive_real_number
+from util.converter import Converter
 from util.mesh_dialog import MeshDialog
 from util import is_file_valid
 from util.util import(
@@ -79,9 +78,7 @@ class ConfigTab(QWidget):
         button_layout.addWidget(nextButton)
         self.layout.addLayout(button_layout)
         
-    
     def next_button_on_clicked(self):
-        self.validate_input_with_highlight()
         self.save_config_to_file()
         
     def setup_mesh_group(self):
@@ -180,18 +177,23 @@ class ConfigTab(QWidget):
 
         # Thread count
         self.thread_count_input, _, _ = self.create_simulation_field("Thread count:", QLineEdit)
+        self.thread_count_input.setValidator(QIntValidator(1, get_thread_count()))
 
         # Time Step with units
         self.time_step_input, self.time_step_units, self.time_step_converted = self.create_simulation_field("Time Step:", QLineEdit, ["ns", "μs", "ms", "s", "min"], "ms", "0.0")
+        self.time_step_input.setValidator(QDoubleValidator(0.0, float('inf'), 9))
 
         # Simulation time with units
         self.simulation_time_input, self.simulation_time_units, self.simulation_time_converted = self.create_simulation_field("Simulation Time:", QLineEdit, ["ns", "μs", "ms", "s", "min"], "s", "0.0")
+        self.simulation_time_input.setValidator(QDoubleValidator(0.0, float('inf'), 9))
 
         # Temperature with units
         self.temperature_input, self.temperature_units, self.temperature_converted = self.create_simulation_field("Temperature:", QLineEdit, ["K", "F", "C"], "K", "0.0")
+        self.temperature_input.setValidator(QDoubleValidator(0.0, float('inf'), 9))
 
         # Pressure with units
         self.pressure_input, self.pressure_units, self.pressure_converted = self.create_simulation_field("Pressure:", QLineEdit, ["mPa", "Pa", "kPa", "psi"], "Pa", "0.0")
+        self.pressure_input.setValidator(QDoubleValidator(0.0, MAX_PRESSURE, 9))
 
         simulation_group_box.setLayout(self.simulation_layout)
         
@@ -419,190 +421,6 @@ class ConfigTab(QWidget):
                     elif isinstance(self.solver_parameters[param][1], QComboBox):
                         self.solver_parameters[param][1].setStyleSheet(DEFAULT_COMBOBOX_STYLE)
 
-
-    def check_validity_of_params(self):
-        if not self.thread_count or \
-            int(self.thread_count) > get_thread_count() or \
-            int(self.thread_count) < 1:
-            QMessageBox.warning(self, "Invalid thread count",
-                                f"Thread count can't be {self.thread_count} (less or equal 0). Your system has {get_thread_count()} threads.")
-            return None
-        
-        if not (
-            is_positive_real_number(self.time_step)
-            and is_positive_real_number(self.simulation_time)
-            and self.time_step >= MIN_TIME  # Time limitations
-            and self.simulation_time >= MIN_TIME
-        ):
-            QMessageBox.warning(
-                self,
-                "Warning",
-                f"Please enter valid numeric values for particles count, time step, and time interval.\n"
-                f"Time can't be less than {MIN_TIME}.",
-            )
-            return None
-        
-        if not is_positive_real_number(self.pressure):
-            QMessageBox.warning(self, "Warning", f"Pressure can't be less than 0. Your value is {self.pressure}.")
-            return None
-        if self.pressure > MAX_PRESSURE:
-            QMessageBox.warning(self, "Warning", f"It might be overhead to start the simulation with pressure value > {MAX_PRESSURE} Pa. Your value is {self.pressure}")
-
-        try:
-            config = {
-                "Mesh File": self.mesh_file,
-                "Threads": int(self.thread_count),
-                "Time Step": float(self.time_step),
-                "Simulation Time": float(self.simulation_time),
-                "T": float(self.temperature),
-                "P": float(self.pressure),
-                "Gas": self.gas_input.currentText(),
-                "Model": self.model_input.currentText(),
-            }
-        except ValueError as e:
-            QMessageBox.critical(self, "Invalid Input", f"Error in input fields: Exception: {e}")
-            return None
-        return config
-        
-
-    def validate_input(self):     
-        self.thread_count = self.thread_count_input.text()
-        self.time_step = self.converter.to_seconds(
-            self.time_step_input.text(), self.time_step_units.currentText()
-        )
-        self.simulation_time = self.converter.to_seconds(
-            self.simulation_time_input.text(), self.simulation_time_units.currentText()
-        )
-        self.temperature = self.converter.to_kelvin(
-            self.temperature_input.text(), self.temperature_units.currentText()
-        )
-        self.pressure = self.converter.to_pascal(
-            self.pressure_input.text(), self.pressure_units.currentText()
-        )
-
-        if self.time_step > self.simulation_time:
-            QMessageBox.warning(self, "Invalid Time",
-                                f"Time step can't be greater than total simulation time: {self.time_step} > {self.simulation_time}")
-            return None
-
-        empty_fields = []
-        if not self.time_step:
-            empty_fields.append("Time Step")
-        if not self.simulation_time:
-            empty_fields.append("Simulation Time")
-        if not self.temperature:
-            empty_fields.append("Temperature")
-        if not self.pressure:
-            empty_fields.append("Pressure")
-
-        # If there are any empty fields, alert the user and abort the save
-        if empty_fields:
-            QMessageBox.warning(
-                self,
-                "Incomplete Configuration",
-                "Please fill in the following fields before saving:\n"
-                + "\n".join(empty_fields),
-            )
-            return None
-
-        return self.check_validity_of_params()
-    
-    
-    def validate_input_with_highlight(self):
-        # Reset styles before validation
-        self.reset_input_styles()
-
-        all_valid = True
-        self.invalid_fields = []
-
-        # Validate thread count input
-        thread_count = self.thread_count_input.text()
-        if not thread_count.isdigit() or int(thread_count) < 1 or int(thread_count) > get_thread_count():
-            self.highlight_invalid(self.thread_count_input)
-            self.invalid_fields.append('Thread Count')
-            all_valid = False
-
-        # Validate numeric inputs
-        if not self.validate_and_convert_numbers():
-            all_valid = False
-            
-        if self.invalid_fields:
-            QMessageBox.warning(
-                self,
-                "Incomplete Configuration",
-                "Please fill in the following fields before starting the simulation:\n"
-                + "\n".join(self.invalid_fields),
-            )
-            return None
-        else:
-            if not self.mesh_file:
-                QMessageBox.information(self,
-                                        "Mesh File",
-                                        "Firstly, You need to select the mesh file")
-                self.upload_mesh_file()
-
-            QMessageBox.information(self,
-                                    "Value Checker",
-                                    "All fields are valid. Staring the simulation...")
-            self.requestToMoveToTheNextTab.emit()
-            self.requestToStartSimulation.emit()
-
-        return all_valid
-            
-            
-    def highlight_invalid(self, widget):
-        widget.setStyleSheet("""
-            QLineEdit {
-                border: 0.5px solid red;
-                border-radius: 2px;
-                background-color: light gray;
-                color: black;
-            }
-        """)
-    
-            
-    def reset_input_styles(self):
-        self.thread_count_input.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
-        self.time_step_input.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
-        self.simulation_time_input.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
-        self.temperature_input.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
-        self.pressure_input.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
-    
-    
-    def validate_and_convert_numbers(self):        
-        # Initialize validation status
-        valid = True
-
-        # Validate and convert time step
-        time_step_value = self.converter.to_seconds(self.time_step_input.text(), self.time_step_units.currentText())
-        if time_step_value is None or time_step_value < MIN_TIME or not self.time_step_input.text():
-            self.highlight_invalid(self.time_step_input)
-            self.invalid_fields.append('Time Step')
-            valid = False
-
-        # Validate and convert simulation time
-        simulation_time_value = self.converter.to_seconds(self.simulation_time_input.text(), self.simulation_time_units.currentText())
-        if simulation_time_value is None or simulation_time_value < MIN_TIME or not self.simulation_time_input.text():
-            self.highlight_invalid(self.simulation_time_input)
-            self.invalid_fields.append('Simulation Time')
-            valid = False
-
-        # Temperature validation
-        temperature_value = self.converter.to_kelvin(self.temperature_input.text(), self.temperature_units.currentText())
-        if temperature_value is None or not self.temperature_input.text():
-            self.highlight_invalid(self.temperature_input)
-            self.invalid_fields.append('Temperature')
-            valid = False
-
-        # Pressure validation
-        pressure_value = self.converter.to_pascal(self.pressure_input.text(), self.pressure_units.currentText())
-        if pressure_value is None or pressure_value < 0 or pressure_value > MAX_PRESSURE or not self.pressure_input.text():
-            self.highlight_invalid(self.pressure_input)
-            self.invalid_fields.append('Pressure')
-            valid = False
-
-        return valid
-    
     
     def upload_config_with_filename(self, configFile: str):
         self.config_file_path = configFile
@@ -667,31 +485,34 @@ class ConfigTab(QWidget):
     def apply_config(self, config):
         try:
             self.mesh_file = config.get('Mesh File', '')
-            self.thread_count = int(config.get('Threads', ''))
-            self.time_step = float(config.get('Time Step', ''))
-            self.simulation_time = float(config.get('Simulation Time', ''))
-            self.temperature = float(config.get('T', ''))
-            self.pressure = float(config.get('P', ''))
-            
-            gas_text = config.get("Gas")
-            gas_index = self.gas_input.findText(gas_text, QtCore.Qt.MatchFixedString)
-            self.gas_input.setCurrentIndex(gas_index)
-            
-            config = self.check_validity_of_params()
-            if not config:
-                return None
-            
             self.mesh_file_label.setText(f"Selected: {self.mesh_file}")
+
             self.thread_count_input.setText(str(config.get('Threads', '')))
             self.time_step_input.setText(str(config.get('Time Step', '')))
             self.simulation_time_input.setText(str(config.get('Simulation Time', '')))
             self.temperature_input.setText(str(config.get('T', '')))
             self.pressure_input.setText(str(config.get('P', '')))
 
-            model_index = self.model_input.findText(
-                config.get('Model', ''), QtCore.Qt.MatchFixedString)
+            gas_text = config.get("Gas")
+            gas_index = self.gas_input.findText(gas_text, QtCore.Qt.MatchFixedString)
+            if gas_index >= 0:
+                self.gas_input.setCurrentIndex(gas_index)
+
+            model_index = self.model_input.findText(config.get('Model', ''), QtCore.Qt.MatchFixedString)
             if model_index >= 0:
                 self.model_input.setCurrentIndex(model_index)
+
+            self.pic_input.setText(config.get('EdgeSize', ''))
+            self.fem_input.setText(config.get('DesiredAccuracy', ''))
+
+            for key, (input_field, units_combobox) in self.solver_parameters.items():
+                if key in config:
+                    if isinstance(input_field, QLineEdit):
+                        input_field.setText(config[key])
+                    elif isinstance(input_field, QComboBox):
+                        index = input_field.findText(config[key], QtCore.Qt.MatchFixedString)
+                        if index >= 0:
+                            input_field.setCurrentIndex(index)
 
             # Applying all measurement to SI (International System of Units)
             self.time_step_units.setCurrentIndex(3)
@@ -701,8 +522,9 @@ class ConfigTab(QWidget):
 
         except Exception as e:
             QMessageBox.critical(self, "Error Applying Configuration",
-                                 f"An error occurred while applying the configuration: Exception: {e}")
+                                f"An error occurred while applying the configuration: Exception: {e}")
             return None
+
 
     def save_solver_params_to_dict(self):
         solver_params = {}
@@ -738,17 +560,7 @@ class ConfigTab(QWidget):
 
         return boundary_conditions
 
-    
-    def combine_all_settings(self, config_content, config_file_path: str):
-        config_content.update(self.save_solver_params_to_dict())
-        config_content.update(self.save_picfem_params_to_dict())
-    
-        boundary_conditions = self.save_boundary_conditions_to_dict(config_file_path)
-        if boundary_conditions:
-            config_content["Boundary Conditions"] = boundary_conditions
-
-
-    def check_and_save_sources(self, config_file_path):
+    def check_particle_sources(self, config_file_path):
         sources = {}
         try:
             with open(config_file_path, 'r') as file:
@@ -760,103 +572,57 @@ class ConfigTab(QWidget):
                     sources["ParticleSourceSurface"] = data["ParticleSourceSurface"]
 
                 if not sources:
-                    QMessageBox.warning(self, "Warning", "No particle source defined in the configuration file.")
-                    return None
+                    QMessageBox.warning(self, "Particle Sources", f'Warning: No particle source defined in the configuration file: {config_file_path}\n')
+                    self.log_console.printWarning(f'Warning: No particle source defined in the configuration file: {config_file_path}\n')
+                    return
         except FileNotFoundError:
             QMessageBox.warning(self, "Warning", f"Configuration file not found: {config_file_path}")
-            return None
+            return
         except JSONDecodeError as e:
             QMessageBox.critical(self, "Error", f"Error parsing JSON file '{config_file_path}': {e}")
-            return None
+            return
         except Exception as e:
             QMessageBox.critical(self, "Error", f"An error occurred while reading the configuration file '{config_file_path}': {e}")
-            return None
-
-        return sources
+            return
 
 
-    def save_config_to_file_with_filename(self, configFile: str):
+    def save_config_to_file(self, config_file_path=None):
+        config_content = self.read_ui_values()
+        if not config_content:
+            QMessageBox.critical(self, "Error", "Failed to save configuration")
+            return
+
+        if config_file_path is None:
+            options = QFileDialog.Options()
+            options |= QFileDialog.DontUseNativeDialog
+            config_file_path, _ = QFileDialog.getSaveFileName(
+                self,
+                "Save Configuration",
+                "",
+                "JSON (*.json)",
+                options=options,
+            )
+            
+            if not config_file_path:
+                return
+            
+            if not config_file_path.endswith('.json'):
+                config_file_path += '.json'
+
         if not is_file_valid(self.mesh_file) or not is_path_accessable(self.mesh_file):
             QMessageBox.warning(self, "File Error", f"Mesh file '{self.mesh_file}' can't be selected. Check path or existence of it")
             return
         
-        config_content = self.validate_input()
-        if not config_content:
-            QMessageBox.critical(self, "Error", "Failed to save configuration")
-            return
-        
-        Path.touch(configFile)
         try:
-            # Combine all parameter dictionaries into one
-            self.combine_all_settings(config_content=config_content, config_file_path=configFile)
+            self.check_particle_sources(config_file_path)
+            with open(config_file_path, "w") as file:
+                dump(config_content, file, indent=4)
             
-            # Check and save existing sources
-            sources = self.check_and_save_sources(configFile)
-            if sources is None:
-                QMessageBox.warning(self, "Particle Sources", f'Warning: No particle source defined in the configuration file: {self.config_file_path}\n')
-                self.log_console.printWarning(f'Warning: No particle source defined in the configuration file: {self.config_file_path}\n')
-                return
-            
-            config_content.update(sources)
-            
-            # Save to the specified file
-            with open(configFile, "w") as file:
-                dump(config_content, file, indent=4)  # Serialize dict to JSON
-            
-            self.log_console.logSignal.emit(f'Successfully saved data to new config: {configFile}\n')
+            QMessageBox.information(self, "Success", f"Configuration saved to {config_file_path}")
+            self.log_console.logSignal.emit(f'Successfully saved data to new config: {config_file_path}\n')
         except Exception as e:
-            self.log_console.logSignal.emit(f'Error: Failed to save configuration to {configFile}: Exception: {e}\n')
-            
-
-    def save_config_to_file(self):
-        config_content = self.validate_input()
-        if not config_content:
-            QMessageBox.critical(self, "Error", "Failed to save configuration")
-            return
-
-        # Ask the user where to save the file
-        options = QFileDialog.Options()
-        options |= QFileDialog.DontUseNativeDialog
-        self.config_file_path, _ = QFileDialog.getSaveFileName(
-            self,
-            "Save Configuration",
-            "",  # Start directory
-            "JSON (*.json)",
-            options=options,
-        )
-        
-        # If string is empty - making name with temporary constant 
-        if not self.config_file_path:
-            self.config_file_path = DEFAULT_TEMP_CONFIG_FILE
-        
-        # Adding extension if needed
-        if not self.config_file_path.endswith('.json'):
-            self.config_file_path += '.json'
-        
-        Path.touch(self.config_file_path)
-        if self.config_file_path:
-            try:
-                # Combine all parameter dictionaries into one
-                self.combine_all_settings(config_content=config_content, config_file_path=self.config_file_path)
-                
-                # Check and save existing sources
-                sources = self.check_and_save_sources(self.config_file_path)
-                if sources is None:
-                    QMessageBox.warning(self, "Particle Sources", f'Warning: No particle source defined in the configuration file: {self.config_file_path}\n')
-                    self.log_console.printWarning(f'Warning: No particle source defined in the configuration file: {self.config_file_path}\n')
-                    return
-                
-                config_content.update(sources)
-                
-                # Save to the specified file
-                with open(self.config_file_path, "w") as file:
-                    dump(config_content, file, indent=4)  # Serialize dict to JSON
-                
-                QMessageBox.information(self, "Success", f"Configuration saved to {self.config_file_path}")
-                self.log_console.logSignal.emit(f'Successfully saved data to new config: {self.config_file_path}\n')
-            except Exception as e:
-                QMessageBox.critical(self, "Error", f"Failed to save configuration: Exception: {e}")
-                self.log_console.logSignal.emit(f'Error: Failed to save configuration to {self.config_file_path}: Exception: {e}\n')
+            QMessageBox.critical(self, "Error", f"Failed to save configuration: Exception: {e}")
+            self.log_console.logSignal.emit(f'Error: Failed to save configuration to {config_file_path}: Exception: {e}\n')
 
     
     def upload_mesh_file_with_filename(self, meshfilename):
@@ -988,3 +754,82 @@ class ConfigTab(QWidget):
 
     def emit_select_boundary_conditions_signal(self):
         self.selectBoundaryConditionsSignal.emit()
+
+    def sync_config_with_ui(self):
+        try:
+            with open(self.config_file_path, 'r') as file:
+                config_data = load(file)
+        except FileNotFoundError:
+            QMessageBox.warning(self, "Warning", f"Configuration file not found: {self.config_file_path}")
+            return
+        except JSONDecodeError as e:
+            QMessageBox.critical(self, "Error", f"Error parsing JSON file '{self.config_file_path}': {e}")
+            return
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"An error occurred while reading the configuration file '{self.config_file_path}': {e}")
+            return
+
+        updated = False
+
+        # Helper function to update config and mark as updated
+        def update_config(key, value):
+            nonlocal updated
+            if config_data.get(key) != value:
+                config_data[key] = value
+                updated = True
+
+        # Compare and update config values
+        update_config("Mesh File", self.mesh_file)
+        update_config("Threads", int(self.thread_count_input.text()))
+        update_config("Time Step", self.converter.to_seconds(self.time_step_input.text(), self.time_step_units.currentText()))
+        update_config("Simulation Time", self.converter.to_seconds(self.simulation_time_input.text(), self.simulation_time_units.currentText()))
+        update_config("T", self.converter.to_kelvin(self.temperature_input.text(), self.temperature_units.currentText()))
+        update_config("P", self.converter.to_pascal(self.pressure_input.text(), self.pressure_units.currentText()))
+        update_config("Gas", self.gas_input.currentText())
+        update_config("Model", self.model_input.currentText())
+        update_config("EdgeSize", self.pic_input.text())
+        update_config("DesiredAccuracy", self.fem_input.text())
+        update_config("solverName", self.solver_selection.currentText())
+
+        # Update solver parameters
+        for key, (input_field, units_combobox) in self.solver_parameters.items():
+            if isinstance(input_field, QLineEdit):
+                update_config(key, input_field.text())
+            elif isinstance(input_field, QComboBox):
+                update_config(key, input_field.currentText())
+
+        # Save updated config if there were any changes
+        if updated:
+            try:
+                with open(self.config_file_path, 'w') as file:
+                    dump(config_data, file, indent=4)
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"An error occurred while writing to the configuration file '{self.config_file_path}': {e}")
+    
+
+    def read_ui_values(self):
+        try:
+            config_content = {
+                "Mesh File": self.mesh_file,
+                "Threads": int(self.thread_count_input.text()),
+                "Time Step": self.converter.to_seconds(self.time_step_input.text(), self.time_step_units.currentText()),
+                "Simulation Time": self.converter.to_seconds(self.simulation_time_input.text(), self.simulation_time_units.currentText()),
+                "T": self.converter.to_kelvin(self.temperature_input.text(), self.temperature_units.currentText()),
+                "P": self.converter.to_pascal(self.pressure_input.text(), self.pressure_units.currentText()),
+                "Gas": self.gas_input.currentText(),
+                "Model": self.model_input.currentText(),
+                "EdgeSize": self.pic_input.text(),
+                "DesiredAccuracy": self.fem_input.text(),
+                "solverName": self.solver_selection.currentText()
+            }
+
+            for key, (input_field, units_combobox) in self.solver_parameters.items():
+                if isinstance(input_field, QLineEdit):
+                    config_content[key] = input_field.text()
+                elif isinstance(input_field, QComboBox):
+                    config_content[key] = input_field.currentText()
+
+            return config_content
+        except ValueError as e:
+            QMessageBox.critical(self, "Invalid Input", f"Error in input fields: Exception: {e}")
+            return None

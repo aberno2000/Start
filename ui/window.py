@@ -55,7 +55,7 @@ class WindowApp(QMainWindow):
         self.log_console.runSimulationSignal.connect(self.start_simulation_from_CLI)
         self.log_console.uploadMeshSignal.connect(self.config_tab.upload_mesh_file_with_filename)
         self.log_console.uploadConfigSignal.connect(self.config_tab.upload_config_with_filename)
-        self.log_console.saveConfigSignal.connect(self.config_tab.save_config_to_file_with_filename)
+        self.log_console.saveConfigSignal.connect(self.config_tab.save_config_to_file)
 
         # Setup Tabs
         self.setup_tabs()
@@ -433,7 +433,7 @@ class WindowApp(QMainWindow):
             self.config_tab.save_config_to_file()
             return
         else:
-            self.config_tab.save_config_to_file_with_filename(self.config_tab.config_file_path)
+            self.config_tab.sync_config_with_ui()
         
         if self.config_tab.mesh_file.endswith('.msh'):
             self.hdf5_filename = self.config_tab.mesh_file.replace('.msh', '.hdf5')
