@@ -693,14 +693,14 @@ class ExpansionAngleDialogNonModal(QDialog):
         try:
             theta = float(self.theta_input.text())
             self.accepted_signal.emit(radians(theta))
-            self.close()
-            self.resetArrowActor()            
+            self.resetArrowActor() 
+            self.close()           
         except ValueError:
             QMessageBox.warning(self, "Invalid input", "Please enter a valid numerical value.")
     
     def handle_reject(self):
-        self.close()
         self.resetArrowActor()
+        self.close()
         
     def closeEvent(self, event):
         self.resetArrowActor()

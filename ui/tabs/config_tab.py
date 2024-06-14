@@ -273,12 +273,12 @@ class ConfigTab(QWidget):
         solver_group_box.setLayout(additional_layout)
 
         # Solver selection
-        self.solver_selection = QComboBox()
-        self.solver_selection.setFixedWidth(DEFAULT_LINE_EDIT_WIDTH)
-        self.solver_selection.addItems([
+        self.solvername_input = QComboBox()
+        self.solvername_input.setFixedWidth(DEFAULT_LINE_EDIT_WIDTH)
+        self.solvername_input.addItems([
             "CG", "Block CG", "GMRES", "Block GMRES", "LSQR", "MINRES"
         ])
-        self.solver_selection.setToolTip(
+        self.solvername_input.setToolTip(
             "CG (Conjugate Gradient): Used for solving systems of linear equations with symmetric positive-definite matrices.\n"
             "Block CG: A variant of CG that handles multiple right-hand sides simultaneously.\n"
             "GMRES (Generalized Minimal Residual): Suitable for non-symmetric or indefinite matrices, minimizes the residual over a Krylov subspace.\n"
@@ -287,8 +287,8 @@ class ConfigTab(QWidget):
             "MINRES (Minimal Residual): Solves symmetric linear systems, particularly effective for symmetric indefinite systems.\n"
             "For a more detailed description, see the corresponding Internet resources."
         )
-        self.solver_selection.currentIndexChanged.connect(self.update_solver_parameters)
-        additional_layout_left.addRow(QLabel("Solver:"), self.solver_selection)
+        self.solvername_input.currentIndexChanged.connect(self.update_solver_parameters)
+        additional_layout_left.addRow(QLabel("Solver:"), self.solvername_input)
 
         # Parameters for solvers
         self.solver_parameters = {}
@@ -304,7 +304,7 @@ class ConfigTab(QWidget):
         self.solver_parameters["orthogonalization"] = self.create_solver_params_field(additional_layout_right, "Orthogonalization:", ["ICGS", "IMGS"], is_combobox=True)
         self.solver_parameters["adaptiveBlockSize"] = self.create_solver_params_field(additional_layout_right, "Adaptive Block Size:", ["false", "true"], is_combobox=True)
         self.solver_parameters["convergenceTestFrequency"] = self.create_solver_params_field(additional_layout_right, "Convergence Test Frequency:", "-1")
-        self.solver_selection.setCurrentIndex(2) # By default using GMRES
+        self.solvername_input.setCurrentIndex(2) # By default using GMRES
         
         # Applying validators to different fields
         exp_regexp = QRegExp(r'1e-([1-9]|[1-4][0-9]|50)|1e-1')
@@ -370,7 +370,7 @@ class ConfigTab(QWidget):
             f"{self.converter.to_pascal(self.pressure_input.text(), self.pressure_units.currentText())} Pa")
 
     def update_solver_parameters(self):
-        solver = self.solver_selection.currentText()
+        solver = self.solvername_input.currentText()
 
         # Disable all fields initially and apply disabled style
         for param in self.solver_parameters.values():
@@ -472,6 +472,11 @@ class ConfigTab(QWidget):
             self.simulation_time_input.setText(str(config.get('Simulation Time', '')))
             self.temperature_input.setText(str(config.get('T', '')))
             self.pressure_input.setText(str(config.get('P', '')))
+            
+            solvername_text = config.get("solverName")
+            solvername_index = self.solvername_input.findText(solvername_text, QtCore.Qt.MatchFixedString)
+            if solvername_index >= 0:
+                self.solvername_input.setCurrentIndex(solvername_index)
 
             gas_text = config.get("Gas")
             gas_index = self.gas_input.findText(gas_text, QtCore.Qt.MatchFixedString)
@@ -513,7 +518,7 @@ class ConfigTab(QWidget):
                 solver_params[key] = input_field.text()
             elif isinstance(input_field, QComboBox):
                 solver_params[key] = input_field.currentText()
-        solver_params["solverName"] = self.solver_selection.currentText()
+        solver_params["solverName"] = self.solvername_input.currentText()
         return solver_params
 
     def save_picfem_params_to_dict(self):
@@ -738,7 +743,7 @@ class ConfigTab(QWidget):
         update_config("Model", self.model_input.currentText())
         update_config("EdgeSize", self.pic_input.text())
         update_config("DesiredAccuracy", self.fem_input.text())
-        update_config("solverName", self.solver_selection.currentText())
+        update_config("solverName", self.solvername_input.currentText())
 
         # Update solver parameters
         for key, (input_field, units_combobox) in self.solver_parameters.items():
@@ -771,7 +776,7 @@ class ConfigTab(QWidget):
                 "Model": self.model_input.currentText(),
                 "EdgeSize": self.pic_input.text(),
                 "DesiredAccuracy": self.fem_input.text(),
-                "solverName": self.solver_selection.currentText()
+                "solverName": self.solvername_input.currentText()
             }
 
             for key, (input_field, units_combobox) in self.solver_parameters.items():
