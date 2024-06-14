@@ -53,8 +53,8 @@ class WindowApp(QMainWindow):
         
         # Connecting signal to tun the simulation from the CLI
         self.log_console.runSimulationSignal.connect(self.start_simulation_from_CLI)
-        self.log_console.uploadMeshSignal.connect(self.config_tab.upload_mesh_file_with_filename)
-        self.log_console.uploadConfigSignal.connect(self.config_tab.upload_config_with_filename)
+        self.log_console.uploadMeshSignal.connect(self.config_tab.upload_mesh_file)
+        self.log_console.uploadConfigSignal.connect(self.config_tab.upload_config)
         self.log_console.saveConfigSignal.connect(self.config_tab.save_config_to_file)
 
         # Setup Tabs
@@ -360,7 +360,7 @@ class WindowApp(QMainWindow):
                 return
         
         self.geditor.load_scene(self.log_console, self.setupFontColor, paths[2], paths[1])
-        self.config_tab.upload_config_with_filename(paths[0])
+        self.config_tab.upload_config(paths[0])
     
     
     def save_project(self):
@@ -415,7 +415,7 @@ class WindowApp(QMainWindow):
 
 
     def start_simulation_from_CLI(self, configFile):
-        self.config_tab.upload_config_with_filename(configFile)
+        self.config_tab.upload_config(configFile)
         if self.config_tab.mesh_file.endswith('.msh'):
             self.hdf5_filename = self.config_tab.mesh_file.replace('.msh', '.hdf5')
         elif self.config_tab.mesh_file.endswith('.vtk'):
@@ -433,7 +433,8 @@ class WindowApp(QMainWindow):
             self.config_tab.save_config_to_file()
             return
         else:
-            self.config_tab.sync_config_with_ui()
+            if self.config_tab.sync_config_with_ui() != 1:
+                return
         
         if self.config_tab.mesh_file.endswith('.msh'):
             self.hdf5_filename = self.config_tab.mesh_file.replace('.msh', '.hdf5')

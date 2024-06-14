@@ -276,18 +276,13 @@ class ConfigTab(QWidget):
         self.solver_selection = QComboBox()
         self.solver_selection.setFixedWidth(DEFAULT_LINE_EDIT_WIDTH)
         self.solver_selection.addItems([
-            "CG", "Block CG", "GMRES", "Block GMRES", "Pseudo-block GMRES",
-            "Block Flexible GMRES", "GCRO-DR", "Pseudo-block CG", "LSQR", "MINRES"
+            "CG", "Block CG", "GMRES", "Block GMRES", "LSQR", "MINRES"
         ])
         self.solver_selection.setToolTip(
             "CG (Conjugate Gradient): Used for solving systems of linear equations with symmetric positive-definite matrices.\n"
             "Block CG: A variant of CG that handles multiple right-hand sides simultaneously.\n"
             "GMRES (Generalized Minimal Residual): Suitable for non-symmetric or indefinite matrices, minimizes the residual over a Krylov subspace.\n"
             "Block GMRES: A block version of GMRES for multiple right-hand sides.\n"
-            "Pseudo-block GMRES: A variant of GMRES that improves performance for multiple right-hand sides.\n"
-            "Block Flexible GMRES: Allows variable preconditioning within the GMRES algorithm, handling multiple right-hand sides.\n"
-            "GCRO-DR (Generalized Conjugate Residual with Deflated Restarting): Combines GMRES with a deflation technique to accelerate convergence.\n"
-            "Pseudo-block CG: Similar to CG but handles multiple right-hand sides more efficiently.\n"
             "LSQR: An iterative method for solving sparse linear equations and sparse least squares problems.\n"
             "MINRES (Minimal Residual): Solves symmetric linear systems, particularly effective for symmetric indefinite systems.\n"
             "For a more detailed description, see the corresponding Internet resources."
@@ -398,10 +393,6 @@ class ConfigTab(QWidget):
             "Block CG": ["maxIterations", "convergenceTolerance", "outputFrequency", "blockSize", "adaptiveBlockSize"],
             "GMRES": ["maxIterations", "convergenceTolerance", "outputFrequency", "numBlocks", "maxRestarts", "orthogonalization", "flexibleGMRES"],
             "Block GMRES": ["maxIterations", "convergenceTolerance", "outputFrequency", "numBlocks", "maxRestarts", "orthogonalization", "adaptiveBlockSize", "convergenceTestFrequency"],
-            "Pseudo-block GMRES": ["maxIterations", "convergenceTolerance", "outputFrequency", "numBlocks", "maxRestarts", "orthogonalization"],
-            "Block Flexible GMRES": ["maxIterations", "convergenceTolerance", "outputFrequency", "numBlocks", "maxRestarts", "orthogonalization", "adaptiveBlockSize"],
-            "GCRO-DR": ["maxIterations", "convergenceTolerance", "outputFrequency", "numBlocks", "maxRestarts", "orthogonalization", "adaptiveBlockSize", "convergenceTestFrequency"],
-            "Pseudo-block CG": ["maxIterations", "convergenceTolerance", "outputFrequency", "blockSize"],
             "LSQR": ["maxIterations", "convergenceTolerance", "outputFrequency"],
             "MINRES": ["maxIterations", "convergenceTolerance", "outputFrequency"]
         }
@@ -422,49 +413,38 @@ class ConfigTab(QWidget):
                         self.solver_parameters[param][1].setStyleSheet(DEFAULT_COMBOBOX_STYLE)
 
     
-    def upload_config_with_filename(self, configFile: str):
-        self.config_file_path = configFile
-        if is_file_valid(self.config_file_path):  # If a file was selected
-            if self.read_config_file(self.config_file_path) == 1:
-                return
-            
-            if not is_path_accessable(self.mesh_file):
-                QMessageBox.warning(self,
-                                    "File Error",
-                                    f"Your file {self.mesh_file} is unaccessable. Check the path or permissons to this path: {dirname(self.config_file_path)}")
-                return
-            
-            self.meshFileSelected.emit(self.mesh_file)
-            self.log_console.logSignal.emit(f'Selected configuration: {self.config_file_path}\n')
+    def upload_config(self, config_file: str = None):
+        if config_file:
+            self.config_file_path = config_file
         else:
-            QMessageBox.warning(
-                self, "No Configuration File Selected", "No configuration file was uploaded.")
-            return
+            options = QFileDialog.Options()
+            options |= QFileDialog.DontUseNativeDialog
+            self.config_file_path, _ = QFileDialog.getOpenFileName(
+                self, "Select Configuration File", "",
+                "JSON (*.json);;All Files (*)", options=options)
 
+        if self.config_file_path:
+            if not is_file_valid(self.config_file_path):
+                QMessageBox.warning(
+                    self, "Invalid File", "The selected file is invalid or cannot be accessed.")
+                return
 
-    def upload_config(self):                
-        options = QFileDialog.Options()
-        options |= QFileDialog.DontUseNativeDialog
-        self.config_file_path, _ = QFileDialog.getOpenFileName(
-            self, "Select Configuration File", "",
-            "JSON (*.json);;All Files (*)", options=options)
-
-        if self.config_file_path:  # If a file was selected
             if self.read_config_file(self.config_file_path) == 1:
                 return
 
             if not is_path_accessable(self.mesh_file):
                 QMessageBox.warning(self,
                                     "File Error",
-                                    f"Your file {self.mesh_file} is unaccessable. Check the path or permissons to this path: {dirname(self.config_file_path)}")
+                                    f"Your file {self.mesh_file} is unaccessible. Check the path or permissions to this path: {dirname(self.config_file_path)}")
                 return
-            
+
             self.meshFileSelected.emit(self.mesh_file)
             self.log_console.logSignal.emit(f'Selected configuration: {self.config_file_path}\n')
         else:
             QMessageBox.warning(
                 self, "No Configuration File Selected", "No configuration file was uploaded.")
             return
+    
 
     def read_config_file(self, config_file_path):
         config = str()
@@ -575,6 +555,9 @@ class ConfigTab(QWidget):
                     QMessageBox.warning(self, "Particle Sources", f'Warning: No particle source defined in the configuration file: {config_file_path}\n')
                     self.log_console.printWarning(f'Warning: No particle source defined in the configuration file: {config_file_path}\n')
                     return
+            
+                return 1
+            
         except FileNotFoundError:
             QMessageBox.warning(self, "Warning", f"Configuration file not found: {config_file_path}")
             return
@@ -586,16 +569,15 @@ class ConfigTab(QWidget):
             return
 
 
-    def save_config_to_file(self, config_file_path=None):
+    def save_config_to_file(self):
         config_content = self.read_ui_values()
         if not config_content:
-            QMessageBox.critical(self, "Error", "Failed to save configuration")
             return
 
-        if config_file_path is None:
+        if not self.config_file_path:
             options = QFileDialog.Options()
             options |= QFileDialog.DontUseNativeDialog
-            config_file_path, _ = QFileDialog.getSaveFileName(
+            self.config_file_path, _ = QFileDialog.getSaveFileName(
                 self,
                 "Save Configuration",
                 "",
@@ -603,82 +585,51 @@ class ConfigTab(QWidget):
                 options=options,
             )
             
-            if not config_file_path:
+            if not self.config_file_path:
                 return
             
-            if not config_file_path.endswith('.json'):
-                config_file_path += '.json'
+            if not self.config_file_path.endswith('.json'):
+                self.config_file_path += '.json'
 
         if not is_file_valid(self.mesh_file) or not is_path_accessable(self.mesh_file):
             QMessageBox.warning(self, "File Error", f"Mesh file '{self.mesh_file}' can't be selected. Check path or existence of it")
             return
         
         try:
-            self.check_particle_sources(config_file_path)
-            with open(config_file_path, "w") as file:
+            with open(self.config_file_path, "w") as file:
                 dump(config_content, file, indent=4)
+            self.check_particle_sources(self.config_file_path)
             
-            QMessageBox.information(self, "Success", f"Configuration saved to {config_file_path}")
-            self.log_console.logSignal.emit(f'Successfully saved data to new config: {config_file_path}\n')
+            QMessageBox.information(self, "Success", f"Configuration saved to {self.config_file_path}")
+            self.log_console.logSignal.emit(f'Successfully saved data to new config: {self.config_file_path}\n')
+            
+            self.upload_mesh_file(False)
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to save configuration: Exception: {e}")
-            self.log_console.logSignal.emit(f'Error: Failed to save configuration to {config_file_path}: Exception: {e}\n')
+            self.log_console.logSignal.emit(f'Error: Failed to save configuration to {self.config_file_path}: Exception: {e}\n')
 
     
-    def upload_mesh_file_with_filename(self, meshfilename):
-        if meshfilename:
-            self.mesh_file = meshfilename
-            self.mesh_file_label.setText(f"Selected: {meshfilename}")
-            QMessageBox.information(
-                self, "Mesh File Selected", f"File: {self.mesh_file}"
+    def upload_mesh_file(self, need_to_create_actor: bool = True):
+        if not self.mesh_file:
+            # Open a file dialog when the button is clicked and filter for .msh files
+            options = QFileDialog.Options()
+            options |= QFileDialog.DontUseNativeDialog
+            self.mesh_file, _ = QFileDialog.getOpenFileName(
+                self,
+                "Select Mesh File",
+                "",
+                "Mesh Files (*.msh);;Step Files(*.stp);;VTK (*.vtk);;All Files (*)",
+                options=options,
             )
 
-        if meshfilename.endswith('.stp'):
-            # Show dialog for user input
-            dialog = MeshDialog(self)
-            if dialog.exec() == QDialog.Accepted:
-                mesh_size, mesh_dim = dialog.get_values()
-                
-                try:
-                    mesh_size = float(mesh_size)
-                    mesh_dim = int(mesh_dim)
-                    if mesh_dim not in [2, 3]:
-                        raise ValueError("Mesh dimensions must be 2 or 3.")
-                    self.convert_stp_to_msh(meshfilename, mesh_size, mesh_dim)
-                except ValueError as e:
-                    QMessageBox.warning(self, "Invalid Input", str(e))
-                    return None
-            else:
-                QMessageBox.critical(self, "Error", "Dialog was closed by user. Invalid mesh size or mesh dimensions")
-                return
-        else:
-            self.mesh_file = meshfilename
-        
-        if self.config_file_path.endswith('.stp'):
-            self.mesh_file.replace('.stp', '.msh')
-        if self.config_file_path.endswith('.vtk'):
-            self.mesh_file.replace('.vtk', '.msh')
-        self.meshFileSelected.emit(self.mesh_file)
-        self.log_console.logSignal.emit(f'Uploaded mesh: {self.mesh_file}\n')
-                
-    
-    def upload_mesh_file(self):
-        # Open a file dialog when the button is clicked and filter for .msh files
-        options = QFileDialog.Options()
-        options |= QFileDialog.DontUseNativeDialog
-        fileName, _ = QFileDialog.getOpenFileName(
-            self,
-            "Select Mesh File",
-            "",
-            "Mesh Files (*.msh);;Step Files(*.stp);;VTK (*.vtk);;All Files (*)",
-            options=options,
-            )
-        if fileName:
-            self.mesh_file = fileName
-            self.mesh_file_label.setText(f"Selected: {fileName}")
-            QMessageBox.information(self, "Mesh File Selected", f"File: {self.mesh_file}")
+        if not self.mesh_file:
+            QMessageBox.warning(self, "No Mesh File Selected", "No mesh file was uploaded.")
+            return
 
-        if fileName.endswith('.stp'):
+        self.mesh_file_label.setText(f"Selected: {self.mesh_file}")
+        QMessageBox.information(self, "Mesh File Selected", f"File: {self.mesh_file}")
+
+        if self.mesh_file.endswith('.stp'):
             # Show dialog for user input
             dialog = MeshDialog(self)
             if dialog.exec() == QDialog.Accepted:
@@ -688,26 +639,22 @@ class ConfigTab(QWidget):
                     mesh_dim = int(mesh_dim)
                     if mesh_dim not in [2, 3]:
                         raise ValueError("Mesh dimensions must be 2 or 3.")
-                    self.convert_stp_to_msh(fileName, mesh_size, mesh_dim)
+                    self.convert_stp_to_msh(self.mesh_file, mesh_size, mesh_dim)
                 except ValueError as e:
                     QMessageBox.warning(self, "Invalid Input", str(e))
                     return None
             else:
                 QMessageBox.critical(self, "Error", "Dialog was closed by user. Invalid mesh size or mesh dimensions")
                 return None
-        else:
-            self.mesh_file = fileName
-        
-        if self.config_file_path.endswith('.stp'):
-            self.mesh_file.replace('.stp', '.msh')
-        if self.config_file_path.endswith('.vtk'):
-            self.mesh_file.replace('.vtk', '.msh')
-        
-        if self.mesh_file:
+
+        if self.mesh_file.endswith('.stp'):
+            self.mesh_file = self.mesh_file.replace('.stp', '.msh')
+        if self.mesh_file.endswith('.vtk'):
+            self.mesh_file = self.mesh_file.replace('.vtk', '.msh')
+
+        if need_to_create_actor:
             self.meshFileSelected.emit(self.mesh_file)
-            self.log_console.logSignal.emit(f'Uploaded mesh: {self.mesh_file}\n')
-        
-        return 1
+        self.log_console.logSignal.emit(f'Uploaded mesh: {self.mesh_file}\n')
 
     def ask_to_upload_mesh_file(self):
         if self.mesh_file:
@@ -716,12 +663,11 @@ class ConfigTab(QWidget):
                                         QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
             if reply == QMessageBox.Yes:
                 self.upload_mesh_file()
-                self.log_console.logSignal.emit(f'Uploaded mesh: {self.mesh_file}\n')
             else:
                 pass
         else:
             self.upload_mesh_file()
-            self.log_console.logSignal.emit(f'Uploaded mesh: {self.mesh_file}\n')
+            
 
     def convert_stp_to_msh(self, file_path, mesh_size, mesh_dim):
         try:
@@ -756,6 +702,9 @@ class ConfigTab(QWidget):
         self.selectBoundaryConditionsSignal.emit()
 
     def sync_config_with_ui(self):
+        if self.check_particle_sources(self.config_file_path) != 1:
+            return
+            
         try:
             with open(self.config_file_path, 'r') as file:
                 config_data = load(file)
@@ -805,6 +754,8 @@ class ConfigTab(QWidget):
                     dump(config_data, file, indent=4)
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"An error occurred while writing to the configuration file '{self.config_file_path}': {e}")
+                
+        return 1
     
 
     def read_ui_values(self):

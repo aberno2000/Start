@@ -300,6 +300,8 @@ class GraphicalEditor(QFrame):
     
     def upload_mesh_file(self, file_path):        
         if exists(file_path) and isfile(file_path):
+            self.clear_scene_and_tree_view()
+            
             self.mesh_file = file_path
             self.initialize_tree()
             gmsh.initialize()
@@ -1754,9 +1756,17 @@ class GraphicalEditor(QFrame):
             
     def load_scene(self, logConsole, fontColor, actors_file='scene_actors_meshTab.vtk', camera_file='scene_camera_meshTab.json'):
         load_scene(self.vtkWidget, self.renderer, logConsole, fontColor, actors_file, camera_file)
+        
+    
+    def get_total_count_of_actors(self):
+        return self.renderer.GetActors().GetNumberOfItems()
     
     
     def clear_scene_and_tree_view(self):
+        # There is no need to ask about assurance of deleting when len(actors) = 0
+        if self.get_total_count_of_actors() == 0:
+            return
+        
         msgBox = QMessageBox()
         msgBox.setIcon(QMessageBox.Warning)
         msgBox.setWindowTitle("Deleting All The Data")
