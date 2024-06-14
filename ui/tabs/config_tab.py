@@ -833,6 +833,7 @@ class ConfigTab(QWidget):
         if not self.config_file_path.endswith('.json'):
             self.config_file_path += '.json'
         
+        Path.touch(self.config_file_path)
         if self.config_file_path:
             try:
                 # Combine all parameter dictionaries into one
