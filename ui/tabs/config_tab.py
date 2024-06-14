@@ -6,6 +6,7 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtGui import QIntValidator, QRegExpValidator
 import gmsh
+from pathlib import Path
 from os.path import dirname
 from PyQt5 import QtCore
 from PyQt5.QtCore import QSize, pyqtSignal, QRegExp
@@ -784,6 +785,7 @@ class ConfigTab(QWidget):
             QMessageBox.critical(self, "Error", "Failed to save configuration")
             return
         
+        Path.touch(configFile)
         try:
             # Combine all parameter dictionaries into one
             self.combine_all_settings(config_content=config_content, config_file_path=configFile)
