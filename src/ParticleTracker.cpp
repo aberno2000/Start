@@ -133,8 +133,7 @@ void ParticleTracker::saveParticleMovements() const
         }
 
         json j;
-        int particle_count{};
-        for (const auto &[id, movements] : m_particlesMovement | std::views::take(kdefault_max_numparticles_to_anim))
+        for (auto const &[id, movements] : m_particlesMovement)
         {
             if (movements.size() > 1)
             {
@@ -143,8 +142,6 @@ void ParticleTracker::saveParticleMovements() const
                     positions.push_back({{"x", point.x()}, {"y", point.y()}, {"z", point.z()}});
                 j[std::to_string(id)] = positions;
             }
-            particle_count++;
-            if (particle_count >= kdefault_max_numparticles_to_anim) break;
         }
 
         std::string filepath("particles_movements.json");
@@ -374,7 +371,7 @@ void ParticleTracker::processSurfaceCollisionTracker(size_t start_index, size_t 
 
                               // Adding only those particles which are inside tetrahedron mesh.
                               // There is no need to spawn large count of particles and load PC, fixed count must be enough.
-                              if (cubicGrid->isInsideTetrahedronMesh(prev))
+                              if (cubicGrid->isInsideTetrahedronMesh(prev) && m_particlesMovement.size() <= kdefault_max_numparticles_to_anim)
                                   m_particlesMovement[particle.getId()].emplace_back(prev);
                           }
 
