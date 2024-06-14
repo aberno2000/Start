@@ -221,6 +221,7 @@ class WindowApp(QMainWindow):
         bg_color_menu.addAction('Custom', lambda: self.change_background_color('custom'))
         
         edit_menu.addAction('Show Shortcuts', self.show_shortcuts)
+        edit_menu.addAction('Change FPS (for animation)', self.results_tab.edit_fps)
 
         # Configurations Menu
         configurations_menu = menu_bar.addMenu('&Configurations')
