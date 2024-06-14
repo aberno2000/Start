@@ -133,7 +133,8 @@ void ParticleTracker::saveParticleMovements() const
         }
 
         json j;
-        for (const auto &[id, movements] : m_particlesMovement)
+        int particle_count{};
+        for (const auto &[id, movements] : m_particlesMovement | std::views::take(kdefault_max_numparticles_to_anim))
         {
             if (movements.size() > 1)
             {
@@ -142,6 +143,8 @@ void ParticleTracker::saveParticleMovements() const
                     positions.push_back({{"x", point.x()}, {"y", point.y()}, {"z", point.z()}});
                 j[std::to_string(id)] = positions;
             }
+            particle_count++;
+            if (particle_count >= kdefault_max_numparticles_to_anim) break;
         }
 
         std::string filepath("particles_movements.json");
