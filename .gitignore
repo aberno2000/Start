@@ -74,3 +74,4 @@ dist/
 
 # My project directories
 proj*/*
+compile_commands.json
