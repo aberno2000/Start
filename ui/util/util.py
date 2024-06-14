@@ -659,10 +659,10 @@ class AxisSelectionDialog(QDialog):
 class ExpansionAngleDialogNonModal(QDialog):
     accepted_signal = pyqtSignal(float)
 
-    def __init__(self, vtkWidget: QVTKRenderWindowInteractor, renderer: vtkRenderer, arrowActor: vtkActor, parent=None):
+    def __init__(self, vtkWidget: QVTKRenderWindowInteractor, renderer: vtkRenderer, parent=None):
         super(ExpansionAngleDialogNonModal, self).__init__(parent)
         
-        self.arrowActor = arrowActor
+        self.parent = parent
         self.vtkWidget = vtkWidget
         self.renderer = renderer
         
@@ -684,10 +684,7 @@ class ExpansionAngleDialogNonModal(QDialog):
         layout.addWidget(button_box)
         
     def resetArrowActor(self):
-        self.renderer.RemoveActor(self.arrowActor)
-        self.renderer.ResetCamera()
-        self.vtkWidget.GetRenderWindow().Render()
-        self.arrowActor = None
+        self.parent.resetParticleSourceArrow()
     
     def handle_accept(self):
         try:

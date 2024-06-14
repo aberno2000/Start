@@ -2361,6 +2361,10 @@ class GraphicalEditor(QFrame):
 
 
     def set_particle_source(self):
+        if not self.config_tab.config_file_path:
+            QMessageBox.warning(self, "Setting Particle Source", "First you need to upload mesh/config, then you can set particle source")
+            return
+        
         dialog = ParticleSourceTypeDialog(self)
         if dialog.exec_() == QDialog.Accepted:
             selected_source_type = dialog.getSelectedSourceType()
@@ -2371,7 +2375,7 @@ class GraphicalEditor(QFrame):
                 self.set_particle_source_as_surface()
 
 
-    def set_particle_source_as_point(self):
+    def set_particle_source_as_point(self):        
         if not self.particleSourceArrowActor:
             method_dialog = MethodSelectionDialog(self)
             if method_dialog.exec_() == QDialog.Accepted:
@@ -2383,7 +2387,7 @@ class GraphicalEditor(QFrame):
                 elif method == "interactive":
                     self.create_direction_arrow_interactively()
                     
-                    self.expansion_angle_dialog = ExpansionAngleDialogNonModal(self.vtkWidget, self.renderer, self.particleSourceArrowActor, self)
+                    self.expansion_angle_dialog = ExpansionAngleDialogNonModal(self.vtkWidget, self.renderer, self)
                     self.expansion_angle_dialog.accepted_signal.connect(self.handle_theta_signal)
                     self.expansion_angle_dialog.show()
                 else:
@@ -2394,7 +2398,7 @@ class GraphicalEditor(QFrame):
     def on_arrow_properties_accepted(self, properties):
         x, y, z, angle_x, angle_y, angle_z, arrow_size = properties
         theta, phi = calculate_thetaPhi_with_angles(x, y, z, angle_x, angle_y, angle_z)
-        self.expansion_angle_dialog = ExpansionAngleDialogNonModal(self.vtkWidget, self.renderer, self.particleSourceArrowActor, self)
+        self.expansion_angle_dialog = ExpansionAngleDialogNonModal(self.vtkWidget, self.renderer, self)
         self.expansion_angle_dialog.accepted_signal.connect(lambda thetaMax: self.handle_theta_signal_with_thetaPhi(x, y, z, thetaMax, theta, phi))
         self.expansion_angle_dialog.show()
 
