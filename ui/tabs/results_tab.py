@@ -7,7 +7,7 @@ from vtk import (
 from PyQt5.QtWidgets import (
     QVBoxLayout, QHBoxLayout, QWidget, QPushButton, QSpacerItem, 
     QSizePolicy, QMenu, QAction, QFontDialog, QDialog, QLabel, 
-    QLineEdit, QMessageBox, QColorDialog, QFileDialog
+    QLineEdit, QMessageBox, QColorDialog, QFileDialog, QInputDialog
 )
 import json
 from PyQt5.QtCore import QSize, QTimer
@@ -17,11 +17,15 @@ from data.hdf5handler import HDF5Handler
 from vtkmodules.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 from vtkmodules.vtkInteractionStyle import vtkInteractorStyleTrackballCamera
 from util.util import align_view_by_axis, Point
-from util.styles import DEFAULT_QLINEEDIT_STYLE
+from util.styles import(
+    DEFAULT_QLINEEDIT_STYLE, DEFAULT_PARTICLE_ACTOR_COLOR, DEFAULT_PARTICLE_ACTOR_SIZE
+)
 from logger.log_console import LogConsole
 
 
 class ResultsTab(QWidget):
+    FPS = 120
+    
     def __init__(self, log_console: LogConsole, parent=None):
         super().__init__(parent)
         self.layout = QVBoxLayout()
@@ -39,7 +43,7 @@ class ResultsTab(QWidget):
         self.current_iteration = 0
         self.max_iterations = 0
         self.repeat_count = 0
-        self.max_repeats = 3
+        self.max_repeats = 1
         
 
     def setup_axes(self):
@@ -272,7 +276,7 @@ class ResultsTab(QWidget):
         self.mesh_renderer.setup_default_scalarbar_properties()
         self.apply_divs(str(self.mesh_renderer.default_num_labels))
         self.vtkWidget.GetRenderWindow().Render()
-        
+    
     
     def create_particle_actor(self, points):
         points_vtk = vtkPoints()
@@ -291,79 +295,137 @@ class ResultsTab(QWidget):
 
         actor = vtkActor()
         actor.SetMapper(mapper)
-        actor.GetProperty().SetColor(1, 0, 0)
-        actor.GetProperty().SetPointSize(5)
+        actor.GetProperty().SetColor(DEFAULT_PARTICLE_ACTOR_COLOR)
+        actor.GetProperty().SetPointSize(DEFAULT_PARTICLE_ACTOR_SIZE)
 
         return actor
-    
+
     
     def animate_particle_movements(self, particles_movement):
         self.particles_movement = particles_movement
         self.current_iteration = 0
         self.repeat_count = 0
-        self.settled_actors = {} 
-        
+        self.settled_actors = {}
+
         # Determine the maximum number of iterations
         self.max_iterations = max(len(movements) for movements in particles_movement.values())
-        self.animation_timer.start(1000)  # Update every second
-
+        
+        # Initialize vtkPoints with the correct number of points
+        num_particles = len(particles_movement)
+        self.particle_points = vtkPoints()
+        self.particle_points.SetNumberOfPoints(num_particles)
+        
+        # Initialize points to a default position
+        for i in range(num_particles):
+            self.particle_points.SetPoint(i, [0.0, 0.0, 0.0])
+        
+        # Create an actor for the points
+        self.particle_polydata = vtkPolyData()
+        self.particle_polydata.SetPoints(self.particle_points)
+        
+        self.vertex_filter = vtkVertexGlyphFilter()
+        self.vertex_filter.SetInputData(self.particle_polydata)
+        self.vertex_filter.Update()
+        
+        self.particle_mapper = vtkPolyDataMapper()
+        self.particle_mapper.SetInputConnection(self.vertex_filter.GetOutputPort())
+        
+        self.particle_actor = vtkActor()
+        self.particle_actor.SetMapper(self.particle_mapper)
+        self.particle_actor.GetProperty().SetColor(DEFAULT_PARTICLE_ACTOR_COLOR)
+        self.particle_actor.GetProperty().SetPointSize(DEFAULT_PARTICLE_ACTOR_SIZE)
+        
+        self.renderer.AddActor(self.particle_actor)
+        
+        # Set the timer to update every 1/FPS second
+        self.animation_timer.start(1000 / self.FPS)
     
     def update_animation(self):
-        if self.current_iteration >= self.max_iterations:
+        if self.current_iteration >= self.max_iterations * self.FPS:
             self.repeat_count += 1
             if self.repeat_count >= self.max_repeats:
-                self.animation_timer.stop()
+                self.stop_animation()
                 return
             self.current_iteration = 0   # Reset iteration to start over
             self.remove_all_particles()  # Clear all particles and stop the animation
-        self.remove_all_particles()
 
-        # Collect points for the current iteration
-        points = []
-        for particle_id, movements in self.particles_movement.items():
-            if self.current_iteration < len(movements):
-                points.append(movements[self.current_iteration])
+        # Calculate frame within the current time step
+        time_step = self.current_iteration // self.FPS
+        frame_within_step = self.current_iteration % self.FPS
+
+        # Interpolation factor
+        t = 0 if self.FPS == 1 else frame_within_step / (self.FPS - 1)
+
+        # Move or create particle actors
+        for i, (particle_id, movements) in enumerate(self.particles_movement.items()):
+            if time_step < len(movements) - 1:
+                pos1 = movements[time_step]
+                pos2 = movements[time_step + 1]
+
+                # Calculate the new interpolated position
+                new_position = [
+                    pos1.x + t * (pos2.x - pos1.x),
+                    pos1.y + t * (pos2.y - pos1.y),
+                    pos1.z + t * (pos2.z - pos1.z)
+                ]
+                
+                # Update the position of the particle in vtkPoints
+                self.particle_points.SetPoint(i, new_position)
+            
             else:
-                # If particle has settled, ensure it has an actor
                 if particle_id not in self.settled_actors:
-                    actor = self.create_particle_actor([movements[-1]])
-                    self.renderer.AddActor(actor)
-                    self.settled_actors[particle_id] = actor
+                    settled_position = [
+                        movements[-1].x,
+                        movements[-1].y,
+                        movements[-1].z
+                    ]
+                    self.particle_points.SetPoint(i, settled_position)
+                    self.settled_actors[particle_id] = True
 
-        # Add new actors for the current iteration
-        if points:
-            actor = self.create_particle_actor(points)
-            self.renderer.AddActor(actor)
-            self.particle_actors[self.current_iteration] = actor
-
+        self.particle_points.Modified()
+        self.particle_polydata.Modified()
         self.vtkWidget.GetRenderWindow().Render()
         self.current_iteration += 1
-        
-        
+
+    
     def remove_all_particles(self):
-        """
-        Clear all actors from the previous animation.
-        """
-        # Clear all actors from the renderer
-        for actor in self.particle_actors.values():
-            if actor and actor in self.renderer.GetActors():
-                self.renderer.RemoveActor(actor)
-        self.particle_actors.clear()
-
-        # Also clear settled actors if necessary
-        for actor in self.settled_actors.values():
-            if actor and actor in self.renderer.GetActors():
-                self.renderer.RemoveActor(actor)
-        self.settled_actors.clear()
-
+        if hasattr(self, 'particle_points') and self.particle_points is not None:
+            self.particle_points.Reset()
+        if hasattr(self, 'particle_polydata') and self.particle_polydata is not None:
+            self.particle_polydata.Modified()
+        if hasattr(self, 'vertex_filter') and self.vertex_filter is not None:
+            self.vertex_filter.Update()
+        if hasattr(self, 'particle_mapper') and self.particle_mapper is not None:
+            self.particle_mapper.Update()
         self.vtkWidget.GetRenderWindow().Render()
-        
+
     
     def stop_animation(self):
         # Stop the animation timer
         self.animation_timer.stop()
         self.remove_all_particles()
-            
+    
+    
+    def show_animation(self):
+        particles_movement = self.load_particle_movements()
+        if not particles_movement:
+            self.log_console.printError("There is nothing to show. Particles haven't been spawned or simulation hasn't been started")
+            return
+        self.animate_particle_movements(particles_movement)
+        
+    
+    def edit_fps(self):
+        fps_dialog = QInputDialog(self)
+        fps_dialog.setInputMode(QInputDialog.IntInput)
+        fps_dialog.setLabelText("Please enter FPS value (1-300):")
+        fps_dialog.setIntRange(1, 300)
+        fps_dialog.setIntStep(1)
+        fps_dialog.setIntValue(self.FPS)
+        fps_dialog.setWindowTitle("Set FPS")
+        
+        if fps_dialog.exec_() == QDialog.Accepted:
+            self.FPS = fps_dialog.intValue()
+    
     
     def load_particle_movements(self, filename="particles_movements.json"):
         """
@@ -387,14 +449,7 @@ class ResultsTab(QWidget):
         except json.JSONDecodeError:
             self.log_console.printError("Error: The file is not a valid JSON.")
         except Exception as e:
-            self.log_console.printError(f"Unexpected error: {e}") 
-
-    def show_animation(self):
-        particles_movement = self.load_particle_movements()
-        if not particles_movement:
-            self.log_console.printError("There is nothing to show. Particles haven't been spawned or simulation hasn't been started")
-            return
-        self.animate_particle_movements(particles_movement)
+            self.log_console.printError(f"Unexpected error: {e}")
 
     def save_screenshot(self):
         try:

@@ -485,7 +485,6 @@ class BoxDialog(QDialog):
         self.lengthInput = QLineEdit("5.0")
         self.widthInput = QLineEdit("5.0")
         self.heightInput = QLineEdit("5.0")
-        self.meshSizeInput = QLineEdit("1.0")
         
         self.xInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
         self.yInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
@@ -493,7 +492,6 @@ class BoxDialog(QDialog):
         self.lengthInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
         self.widthInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
         self.heightInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
-        self.meshSizeInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
         
         formLayout.addRow("Center X:", self.xInput)
         formLayout.addRow("Center Y:", self.yInput)
@@ -501,7 +499,6 @@ class BoxDialog(QDialog):
         formLayout.addRow("Length:", self.lengthInput)
         formLayout.addRow("Width:", self.widthInput)
         formLayout.addRow("Height:", self.heightInput)
-        formLayout.addRow("Mesh size:", self.meshSizeInput)
         
         layout.addLayout(formLayout)
         
@@ -532,14 +529,8 @@ class BoxDialog(QDialog):
             return None
         values = (float(self.xInput.text()), float(self.yInput.text()), float(self.zInput.text()),
                 float(self.lengthInput.text()), float(self.widthInput.text()), float(self.heightInput.text()))
-        
-        mesh_size = 1.0
-        if not is_real_number(self.meshSizeInput.text()):
-            QMessageBox.warning(self, "Invalid input", "Mesh size must be floating point number.")
-            return None
-        mesh_size = float(self.meshSizeInput.text())
 
-        return values, mesh_size
+        return values
 
 
 class CylinderDialog(QDialog):
