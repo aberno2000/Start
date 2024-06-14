@@ -652,6 +652,7 @@ class ConfigTab(QWidget):
         try:
             with open(config_file_path, 'r') as file:
                 config = load(file)
+                print(f"Config after loading: {config}")
         except FileNotFoundError:
             QMessageBox.warning(self, "Warning", f"File not found: {config_file_path}")
             return None
@@ -672,6 +673,10 @@ class ConfigTab(QWidget):
             self.temperature = float(config.get('T', ''))
             self.pressure = float(config.get('P', ''))
             
+            gas_text = config.get("Gas")
+            gas_index = self.gas_input.findText(gas_text, QtCore.Qt.MatchFixedString)
+            self.gas_input.setCurrentIndex(gas_index)
+            
             config = self.check_validity_of_params()
             if not config:
                 return None
@@ -682,10 +687,6 @@ class ConfigTab(QWidget):
             self.simulation_time_input.setText(str(config.get('Simulation Time', '')))
             self.temperature_input.setText(str(config.get('T', '')))
             self.pressure_input.setText(str(config.get('P', '')))
-
-            gas_text = config.get("Gas")
-            gas_index = self.gas_input.findText(gas_text, QtCore.Qt.MatchFixedString)
-            self.gas_input.setCurrentIndex(gas_index)
 
             model_index = self.model_input.findText(
                 config.get('Model', ''), QtCore.Qt.MatchFixedString)
