@@ -1,14 +1,5 @@
-from re import compile, split
-
-ANSI_COLOR_REGEX = compile(r'\033\[(\d+)(;\d+)*m')
-ANSI_TO_QCOLOR = {
-    '31': 'red',
-    '33': 'yellow',
-    '32': 'green',
-    '35': 'purple',
-    '37': 'white',
-    '0': 'light gray'
-}
+from re import split
+from constants import *
 
 def is_real_number(value: str):
     try:
@@ -16,7 +7,7 @@ def is_real_number(value: str):
         return True
     except ValueError:
         return False
-    
+
 
 def is_positive_real_number(value: str):
     try:
@@ -26,7 +17,7 @@ def is_positive_real_number(value: str):
         return True
     except ValueError:
         return False
-    
+
 
 def is_positive_natural_number(value: str):
     try:
@@ -35,12 +26,14 @@ def is_positive_natural_number(value: str):
     except ValueError:
         return False
 
+
 def is_mesh_dims(value: str):
     try:
         num = int(value)
-        return num > 0 and num < 4 
+        return num > 0 and num < 4
     except ValueError:
         return False
+
 
 def ansi_to_segments(text: str):
     segments = []
@@ -57,11 +50,13 @@ def ansi_to_segments(text: str):
         if not part:  # Skip empty strings
             continue
         if part.startswith('\033['):
-            codes = part[2:-1].split(';')  # Remove leading '\033[' and trailing 'm', then split
+            # Remove leading '\033[' and trailing 'm', then split
+            codes = part[2:-1].split(';')
             for code in codes:
                 if code in ANSI_TO_QCOLOR:
                     current_color = ANSI_TO_QCOLOR[code]
-                    append_segment(buffer, current_color)  # Append the current buffer with the current color
+                    # Append the current buffer with the current color
+                    append_segment(buffer, current_color)
                     buffer = ""  # Reset buffer
                     break  # Only apply the first matching color
         else:
@@ -90,7 +85,8 @@ class Converter:
         if not is_positive_real_number(value):
             return 0.0
         value = float(value)
-        unit_factors = {"ns": 1e-9, "μs": 1e-6, "ms": 1e-3, "s": 1.0, "min": 60}
+        unit_factors = {"ns": 1e-9, "μs": 1e-6,
+                        "ms": 1e-3, "s": 1.0, "min": 60}
         return value * unit_factors.get(unit, 0)
 
     @staticmethod
@@ -124,15 +120,15 @@ class Converter:
         if not is_positive_real_number(value):
             return 0.0
         value = float(value)
-        
+
         # Conversion factors to joules
         unit_factors = {
             "eV": 1.602176634e-19,  # 1 eV to Joules
-            "keV": 1.602176634e-16, # 1 keV to Joules
+            "keV": 1.602176634e-16,  # 1 keV to Joules
             "J": 1.,                # 1 Joule to Joules
             "kJ": 1e3,              # 1 kilojoule to Joules
             "cal": 4.184,           # 1 calorie to Joules
         }
-        
-        return value * unit_factors.get(unit, 0)  # Default to 0 if unit is unsupported
 
+        # Default to 0 if unit is unsupported
+        return value * unit_factors.get(unit, 0)
