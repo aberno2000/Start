@@ -5,3 +5,4 @@ from .logger import *
 from .styles import *
 from .tabs import *
 from .util import *
+from .validators import *   

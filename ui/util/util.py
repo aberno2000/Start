@@ -3,6 +3,7 @@ import tempfile
 import meshio
 import numpy as np
 from math import pi
+from re import split
 from datetime import datetime
 from os import remove
 from vtk import (
@@ -48,6 +49,40 @@ def is_path_accessable(path):
         return False
 
 
+def is_real_number(value: str):
+    try:
+        float(value)
+        return True
+    except ValueError:
+        return False
+
+
+def is_positive_real_number(value: str):
+    try:
+        float(value)
+        if float(value) < 0:
+            return False
+        return True
+    except ValueError:
+        return False
+
+
+def is_positive_natural_number(value: str):
+    try:
+        num = int(value)
+        return num > 0
+    except ValueError:
+        return False
+
+
+def is_mesh_dims(value: str):
+    try:
+        num = int(value)
+        return num > 0 and num < 4
+    except ValueError:
+        return False
+
+
 def convert_msh_to_vtk(msh_filename: str):
     if not msh_filename.endswith('.msh'):
         return None
@@ -88,34 +123,34 @@ def convert_vtk_to_msh(vtk_filename: str):
         return None
 
 
-class CustomDoubleValidator(QDoubleValidator):
-    def __init__(self, bottom, top, decimals, parent=None):
-        super().__init__(bottom, top, decimals, parent)
+def ansi_to_segments(text: str):
+    segments = []
+    current_color = 'light gray'  # Default color
+    buffer = ""
 
-    def validate(self, input_str, pos):
-        if not input_str:
-            return (self.Intermediate, input_str, pos)
+    def append_segment(text, color):
+        if text:  # Only append non-empty segments
+            segments.append((text, color))
 
-        if '.' in input_str:
-            try:
-                value = float(input_str)
-                if self.bottom() <= value <= self.top():
-                    return (self.Acceptable, input_str, pos)
-                else:
-                    return (self.Invalid, input_str, pos)
-            except ValueError:
-                return (self.Invalid, input_str, pos)
+    # Split the text by ANSI escape codes
+    parts = split(r'(\033\[\d+(?:;\d+)*m)', text)
+    for part in parts:
+        if not part:  # Skip empty strings
+            continue
+        if part.startswith('\033['):
+            # Remove leading '\033[' and trailing 'm', then split
+            codes = part[2:-1].split(';')
+            for code in codes:
+                if code in ANSI_TO_QCOLOR:
+                    current_color = ANSI_TO_QCOLOR[code]
+                    # Append the current buffer with the current color
+                    append_segment(buffer, current_color)
+                    buffer = ""  # Reset buffer
+                    break  # Only apply the first matching color
         else:
-            try:
-                value = int(input_str)
-                if self.bottom() <= value <= self.top():
-                    return (self.Acceptable, input_str, pos)
-                else:
-                    return (self.Invalid, input_str, pos)
-            except ValueError:
-                return (self.Invalid, input_str, pos)
-
-        return (self.Intermediate, input_str, pos)
+            buffer += part  # Add text to the buffer
+    append_segment(buffer, current_color)  # Append any remaining text
+    return segments
 
 
 class Point:
@@ -126,64 +161,6 @@ class Point:
 
     def __repr__(self):
         return f"Point(x={self.x}, y={self.y}, z={self.z})"
-
-
-class ActionHistory:
-    def __init__(self):
-        self.id = 0           # Counter for the current ID of objects
-        self.undo_stack = {}  # Stack to keep track of undo actions
-        self.redo_stack = {}  # Stack to keep track of redo actions
-
-    def add_action(self, object_on_stack):
-        """
-        Add a new action to the history. This clears the redo stack.
-        """
-        self.undo_stack[self.id] = object_on_stack
-
-    def undo(self):
-        """
-        Undo the last action.
-        Returns the row_id and actors for the undone action.
-        """
-        if not self.undo_stack:
-            return None
-        last_id = max(self.undo_stack.keys())
-        object_on_stack = self.undo_stack.pop(last_id)
-        self.redo_stack[last_id] = object_on_stack
-        return object_on_stack
-
-    def redo(self):
-        """
-        Redo the last undone action.
-        Returns the row_id and actors for the redone action.
-        """
-        if not self.redo_stack:
-            return None
-        last_id = max(self.redo_stack.keys())
-        object_on_stack = self.redo_stack.pop(last_id)
-        self.undo_stack[last_id] = object_on_stack
-        return object_on_stack
-
-    def remove_by_id(self, id: int):
-        """
-        Remove action by ID from both undo and redo stacks.
-        """
-        if id in self.undo_stack:
-            del self.undo_stack[id]
-        if id in self.redo_stack:
-            del self.redo_stack[id]
-
-    def get_id(self):
-        return self.id
-
-    def decrementIndex(self):
-        self.id -= 1
-
-    def incrementIndex(self):
-        self.id += 1
-
-    def clearIndex(self):
-        self.id = 0
 
 
 def align_view_by_axis(axis: str, renderer: vtkRenderer, vtkWidget: QVTKRenderWindowInteractor):

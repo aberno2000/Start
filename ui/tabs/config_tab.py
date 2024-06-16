@@ -2,6 +2,7 @@ import gmsh
 from os.path import dirname
 from json import load, dump, JSONDecodeError
 from util import *
+from validators import CustomDoubleValidator
 from styles import *
 from dialogs import MeshDialog
 from PyQt5.QtWidgets import (
@@ -25,7 +26,7 @@ class ConfigTab(QWidget):
         super().__init__(parent)
         self.layout = QVBoxLayout(self)
 
-        self.converter = Converter()
+        self.converter = PhysicalMeasurementUnitsConverter()
         self.setup_ui()
         self.mesh_file = ""
         self.config_file_path = ""

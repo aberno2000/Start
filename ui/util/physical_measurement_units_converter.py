@@ -1,71 +1,8 @@
-from re import split
 from constants import *
-
-def is_real_number(value: str):
-    try:
-        float(value)
-        return True
-    except ValueError:
-        return False
+from util import *
 
 
-def is_positive_real_number(value: str):
-    try:
-        float(value)
-        if float(value) < 0:
-            return False
-        return True
-    except ValueError:
-        return False
-
-
-def is_positive_natural_number(value: str):
-    try:
-        num = int(value)
-        return num > 0
-    except ValueError:
-        return False
-
-
-def is_mesh_dims(value: str):
-    try:
-        num = int(value)
-        return num > 0 and num < 4
-    except ValueError:
-        return False
-
-
-def ansi_to_segments(text: str):
-    segments = []
-    current_color = 'light gray'  # Default color
-    buffer = ""
-
-    def append_segment(text, color):
-        if text:  # Only append non-empty segments
-            segments.append((text, color))
-
-    # Split the text by ANSI escape codes
-    parts = split(r'(\033\[\d+(?:;\d+)*m)', text)
-    for part in parts:
-        if not part:  # Skip empty strings
-            continue
-        if part.startswith('\033['):
-            # Remove leading '\033[' and trailing 'm', then split
-            codes = part[2:-1].split(';')
-            for code in codes:
-                if code in ANSI_TO_QCOLOR:
-                    current_color = ANSI_TO_QCOLOR[code]
-                    # Append the current buffer with the current color
-                    append_segment(buffer, current_color)
-                    buffer = ""  # Reset buffer
-                    break  # Only apply the first matching color
-        else:
-            buffer += part  # Add text to the buffer
-    append_segment(buffer, current_color)  # Append any remaining text
-    return segments
-
-
-class Converter:
+class PhysicalMeasurementUnitsConverter:
     @staticmethod
     def to_kelvin(value, unit):
         if not is_positive_real_number(value):
