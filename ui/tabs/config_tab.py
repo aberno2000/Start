@@ -721,6 +721,8 @@ class ConfigTab(QWidget):
             )
 
     def upload_mesh_file(self, need_to_create_actor: bool = True):
+        self.mesh_file = None
+
         if not self.mesh_file:
             # Open a file dialog when the button is clicked and filter for .msh files
             options = QFileDialog.Options()
