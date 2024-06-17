@@ -1,6 +1,5 @@
-import io
 from PyQt5.QtWidgets import QDialog, QLineEdit, QPushButton, QVBoxLayout, QLabel
-from .util import DEFAULT_QLINEEDIT_STYLE
+from styles import *
 
 
 class MeshDialog(QDialog):

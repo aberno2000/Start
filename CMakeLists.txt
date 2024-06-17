@@ -72,7 +72,6 @@ endif()
 include_directories(${Trilinos_INCLUDE_DIRS})
 link_directories(${Trilinos_LIBRARY_DIRS})
 
-# Adding support of TBB library if some OS requires it
 find_package(TBB)
 if (TBB_FOUND)
     set(TBB_NAMESPACE TBB::tbb)
@@ -81,15 +80,11 @@ endif()
 include_directories(${TBB_INCLUDE_DIRS})
 
 if (MSVC)
-    # Using Visual C++ compiler (MSVC)
-    add_compile_options(/W4)  # Equivalent to -Wall in GCC/Clang
-
-    # Separate the optimization flags for Release build
+    add_compile_options(/W4)
     string(REPLACE "/RTC1" "" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
     string(REPLACE "/O2" "" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /O2")
 else()
-    # Assuming GCC/Clang compiler
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wpedantic -Wextra -pthread -O3")
 endif()
 
@@ -106,27 +101,15 @@ endif()
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+include_directories(${CMAKE_SOURCE_DIR}/include)
+
+add_subdirectory(src)
+
 set(SOURCES
     src/main.cpp
-    src/CollisionTracker.cpp
-    src/ConfigParser.cpp
-    src/Grid3D.cpp
-    src/GSMatrixAssemblier.cpp
-    src/HDF5Handler.cpp
-    src/MathVector.cpp
-    src/MatrixEquationSolver.cpp
-    src/Mesh.cpp
-    src/Particle.cpp
-    src/ParticleInCellTracker.cpp
     src/ParticleTracker.cpp
-    src/RayTriangleIntersection.cpp
-    src/RealNumberGenerator.cpp
-    src/SolutionVector.cpp
-    src/Utilities.cpp
-    src/VolumeCreator.cpp
-    src/VolumetricMeshData.cpp
 )
-include_directories(${CMAKE_SOURCE_DIR}/include)
+
 add_executable(nia_start ${SOURCES})
 
 set_target_properties(nia_start PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}")
@@ -141,4 +124,11 @@ target_link_libraries(nia_start PRIVATE
     ${TBB_LIBRARIES}
     ${MPI_LIBRARIES}
     ${Trilinos_LIBRARIES}
+    DataHandling
+    FiniteElementMethod
+    Generators
+    Geometry
+    ParticleInCell
+    Particles
+    Utilities
 )

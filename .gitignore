@@ -63,6 +63,7 @@ all_tests
 *.config
 *.cfg
 config*.json
+*.json
 
 # Drawings
 *.vtk

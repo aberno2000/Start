@@ -1,0 +1,7 @@
+add_subdirectory(DataHandling)
+add_subdirectory(FiniteElementMethod)
+add_subdirectory(Generators)
+add_subdirectory(Geometry)
+add_subdirectory(ParticleInCell)
+add_subdirectory(Particles)
+add_subdirectory(Utilities)
