@@ -110,17 +110,6 @@ def ansi_to_segments(text: str):
     return segments
 
 
-class Point:
-
-    def __init__(self, x, y, z):
-        self.x = x
-        self.y = y
-        self.z = z
-
-    def __repr__(self):
-        return f"Point(x={self.x}, y={self.y}, z={self.z})"
-
-
 def align_view_by_axis(axis: str, renderer: vtkRenderer,
                        vtkWidget: QVTKRenderWindowInteractor):
     axis = axis.strip().lower()
@@ -1173,5 +1162,17 @@ def pretty_function_details() -> str:
     return f"{function_file}: {function_name}({formatted_args})"
 
 
+def get_warning_none_result():
+    return f"Warning, {pretty_function_details()} returned {None} result"
+
+
 def print_warning_none_result():
-    print(f"Warning, {pretty_function_details()} returned {None} result")
+    print(get_warning_none_result())
+
+
+def get_warning_none_result_with_exception_msg(exmsg: str):
+    return f"Warning, {pretty_function_details()} returned {None} result. Exception: {exmsg}"
+    
+
+def print_warning_none_result_with_exception_msg(exmsg: str):
+    print(get_warning_none_result_with_exception_msg(exmsg))

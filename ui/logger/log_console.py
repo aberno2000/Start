@@ -7,7 +7,7 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt, pyqtSignal, QTimer
 from PyQt5.QtGui import QTextCharFormat, QTextCursor, QColor, QTextDocument
 from util import is_file_valid
-from logger.cli_history import CommandLineHistory
+from .cli_history import CommandLineHistory
 from vtk import vtkLogger
 from os import remove
 

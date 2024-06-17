@@ -8,6 +8,7 @@ from logger import LogConsole
 from tabs import *
 from styles import *
 from util import *
+from dialogs import ShortcutsInfoDialog
 from PyQt5.QtWidgets import (
     QMainWindow, QTabWidget,
     QVBoxLayout, QWidget,
@@ -17,7 +18,6 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtGui import QColor, QTextCharFormat
 from PyQt5.QtCore import QProcess, pyqtSlot
-from dialogs import ShortcutsInfoDialog
 
 
 class WindowApp(QMainWindow):
