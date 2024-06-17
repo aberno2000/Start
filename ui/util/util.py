@@ -6,14 +6,12 @@ from math import pi
 from re import split
 from datetime import datetime
 from os import remove
-from vtk import (
-    vtkRenderer, vtkPolyData, vtkPolyDataWriter, vtkAppendPolyData,
-    vtkPolyDataReader, vtkPolyDataMapper, vtkActor, vtkPolyDataWriter,
-    vtkUnstructuredGrid, vtkGeometryFilter, vtkTransform, vtkCellArray,
-    vtkTriangle, vtkPoints, vtkDelaunay2D, vtkPolyLine, vtkVertexGlyphFilter,
-    vtkUnstructuredGridWriter,
-    VTK_TRIANGLE
-)
+from vtk import (vtkRenderer, vtkPolyData, vtkPolyDataWriter,
+                 vtkAppendPolyData, vtkPolyDataReader, vtkPolyDataMapper,
+                 vtkActor, vtkPolyDataWriter, vtkUnstructuredGrid,
+                 vtkGeometryFilter, vtkTransform, vtkCellArray, vtkTriangle,
+                 vtkPoints, vtkDelaunay2D, vtkPolyLine, vtkVertexGlyphFilter,
+                 vtkUnstructuredGridWriter, VTK_TRIANGLE)
 from PyQt5.QtCore import QModelIndex
 from PyQt5.QtWidgets import QTreeView
 from PyQt5.QtGui import QDoubleValidator, QStandardItemModel, QStandardItem
@@ -32,7 +30,6 @@ def get_thread_count():
 
 def get_os_info():
     return platform()
-
 
 
 def is_mesh_dims(value: str):
@@ -114,6 +111,7 @@ def ansi_to_segments(text: str):
 
 
 class Point:
+
     def __init__(self, x, y, z):
         self.x = x
         self.y = y
@@ -123,7 +121,8 @@ class Point:
         return f"Point(x={self.x}, y={self.y}, z={self.z})"
 
 
-def align_view_by_axis(axis: str, renderer: vtkRenderer, vtkWidget: QVTKRenderWindowInteractor):
+def align_view_by_axis(axis: str, renderer: vtkRenderer,
+                       vtkWidget: QVTKRenderWindowInteractor):
     axis = axis.strip().lower()
 
     if axis not in ['x', 'y', 'z', 'center']:
@@ -149,15 +148,24 @@ def align_view_by_axis(axis: str, renderer: vtkRenderer, vtkWidget: QVTKRenderWi
     vtkWidget.GetRenderWindow().Render()
 
 
-def save_scene(renderer: vtkRenderer, logConsole, fontColor, actors_file='scene_actors.vtk', camera_file='scene_camera.json'):
+def save_scene(renderer: vtkRenderer,
+               logConsole,
+               fontColor,
+               actors_file='scene_actors.vtk',
+               camera_file='scene_camera.json'):
     if save_actors(renderer, logConsole, fontColor, actors_file) is not None and \
             save_camera_settings(renderer, logConsole, fontColor, camera_file) is not None:
 
         logConsole.insert_colored_text('Successfully: ', 'green')
-        logConsole.insert_colored_text(f'Saved scene from to the files: {actors_file} and {camera_file}\n', fontColor)
+        logConsole.insert_colored_text(
+            f'Saved scene from to the files: {actors_file} and {camera_file}\n',
+            fontColor)
 
 
-def save_actors(renderer: vtkRenderer, logConsole, fontColor, actors_file='scene_actors.vtk'):
+def save_actors(renderer: vtkRenderer,
+                logConsole,
+                fontColor,
+                actors_file='scene_actors.vtk'):
     try:
         append_filter = vtkAppendPolyData()
         actors_collection = renderer.GetActors()
@@ -178,17 +186,20 @@ def save_actors(renderer: vtkRenderer, logConsole, fontColor, actors_file='scene
         writer.Write()
 
         logConsole.insert_colored_text('Info: ', 'blue')
-        logConsole.insert_colored_text(
-            f'Saved all actors to {actors_file}\n', fontColor)
+        logConsole.insert_colored_text(f'Saved all actors to {actors_file}\n',
+                                       fontColor)
         return 1
     except Exception as e:
         logConsole.insert_colored_text('Error: ', 'red')
-        logConsole.insert_colored_text(
-            f'Failed to save actors: {e}\n', fontColor)
+        logConsole.insert_colored_text(f'Failed to save actors: {e}\n',
+                                       fontColor)
         return None
 
 
-def save_camera_settings(renderer: vtkRenderer, logConsole, fontColor, camera_file='scene_camera.json'):
+def save_camera_settings(renderer: vtkRenderer,
+                         logConsole,
+                         fontColor,
+                         camera_file='scene_camera.json'):
     try:
         camera = renderer.GetActiveCamera()
         camera_settings = {
@@ -208,16 +219,26 @@ def save_camera_settings(renderer: vtkRenderer, logConsole, fontColor, camera_fi
         return None
 
 
-def load_scene(vtkWidget: QVTKRenderWindowInteractor, renderer: vtkRenderer, logConsole, fontColor, actors_file='scene_actors.vtk', camera_file='scene_camera.json'):
+def load_scene(vtkWidget: QVTKRenderWindowInteractor,
+               renderer: vtkRenderer,
+               logConsole,
+               fontColor,
+               actors_file='scene_actors.vtk',
+               camera_file='scene_camera.json'):
     if load_actors(renderer, logConsole, fontColor, actors_file) is not None and \
             load_camera_settings(renderer, logConsole, fontColor, camera_file) is not None:
 
         vtkWidget.GetRenderWindow().Render()
         logConsole.insert_colored_text('Successfully: ', 'green')
-        logConsole.insert_colored_text(f'Loaded scene from the files: {actors_file} and {camera_file}\n', fontColor)
+        logConsole.insert_colored_text(
+            f'Loaded scene from the files: {actors_file} and {camera_file}\n',
+            fontColor)
 
 
-def load_actors(renderer: vtkRenderer, logConsole, fontColor, actors_file='scene_actors.vtk'):
+def load_actors(renderer: vtkRenderer,
+                logConsole,
+                fontColor,
+                actors_file='scene_actors.vtk'):
     try:
         reader = vtkPolyDataReader()
         reader.SetFileName(actors_file)
@@ -232,17 +253,20 @@ def load_actors(renderer: vtkRenderer, logConsole, fontColor, actors_file='scene
         renderer.ResetCamera()
 
         logConsole.insert_colored_text('Info: ', 'blue')
-        logConsole.insert_colored_text(
-            f'Loaded actors from {actors_file}\n', fontColor)
+        logConsole.insert_colored_text(f'Loaded actors from {actors_file}\n',
+                                       fontColor)
         return 1
     except Exception as e:
         logConsole.insert_colored_text('Error: ', 'red')
-        logConsole.insert_colored_text(
-            f'Failed to load actors: {e}\n', fontColor)
+        logConsole.insert_colored_text(f'Failed to load actors: {e}\n',
+                                       fontColor)
         return None
 
 
-def load_camera_settings(renderer: vtkRenderer, logConsole, fontColor, camera_file='scene_camera.json'):
+def load_camera_settings(renderer: vtkRenderer,
+                         logConsole,
+                         fontColor,
+                         camera_file='scene_camera.json'):
     try:
         with open(camera_file, 'r') as f:
             camera_settings = load(f)
@@ -302,7 +326,8 @@ def is_conversion_success(polyData):
         return False  # Conversion failed to produce meaningful polyData
 
 
-def convert_vtkUnstructuredGrid_to_vtkPolyData_helper(ugrid: vtkUnstructuredGrid):
+def convert_vtkUnstructuredGrid_to_vtkPolyData_helper(
+        ugrid: vtkUnstructuredGrid):
     geometryFilter = vtkGeometryFilter()
     geometryFilter.SetInputData(ugrid)
 
@@ -426,10 +451,11 @@ def calculate_thetaPhi(base, tip):
 
 
 def calculate_thetaPhi_with_angles(x, y, z, angle_x, angle_y, angle_z):
-    direction_vector = np.array([np.cos(np.radians(angle_y)) * np.cos(np.radians(angle_z)),
-                                 np.sin(np.radians(angle_x)) *
-                                 np.sin(np.radians(angle_z)),
-                                 np.cos(np.radians(angle_x)) * np.cos(np.radians(angle_y))])
+    direction_vector = np.array([
+        np.cos(np.radians(angle_y)) * np.cos(np.radians(angle_z)),
+        np.sin(np.radians(angle_x)) * np.sin(np.radians(angle_z)),
+        np.cos(np.radians(angle_x)) * np.cos(np.radians(angle_y))
+    ])
     norm = np.linalg.norm(direction_vector)
     theta = np.arccos(direction_vector[2] / norm)
     phi = np.arctan2(direction_vector[1], direction_vector[0])
@@ -458,8 +484,8 @@ def transform_coordinates(points, matrix):
     transform.SetMatrix(matrix)
     transformed_points = []
     for point in points:
-        transformed_point = transform.TransformPoint(
-            point[0], point[1], point[2])
+        transformed_point = transform.TransformPoint(point[0], point[1],
+                                                     point[2])
         transformed_points.append(transformed_point)
     return transformed_points
 
@@ -482,12 +508,17 @@ def getTreeDict(mesh_filename: str = None, obj_type: str = 'volume') -> dict:
 
     # Getting all the nodes and their coordinates
     all_node_tags, all_node_coords, _ = gmsh.model.mesh.getNodes()
-    node_coords_map = {tag: (all_node_coords[i * 3], all_node_coords[i * 3 + 1], all_node_coords[i * 3 + 2])
-                       for i, tag in enumerate(all_node_tags)}
+    node_coords_map = {
+        tag: (all_node_coords[i * 3], all_node_coords[i * 3 + 1],
+              all_node_coords[i * 3 + 2])
+        for i, tag in enumerate(all_node_tags)
+    }
 
     if obj_type == 'point':
-        point_map = {f'Point[{tag}]': coords for tag,
-                     coords in node_coords_map.items()}
+        point_map = {
+            f'Point[{tag}]': coords
+            for tag, coords in node_coords_map.items()
+        }
         return point_map
 
     if obj_type == 'line':
@@ -498,15 +529,15 @@ def getTreeDict(mesh_filename: str = None, obj_type: str = 'volume') -> dict:
             element_types, element_tags, node_tags = gmsh.model.mesh.getElements(
                 line_dim, line_tag)
 
-            for elem_type, elem_tags, elem_node_tags in zip(element_types, element_tags, node_tags):
+            for elem_type, elem_tags, elem_node_tags in zip(
+                    element_types, element_tags, node_tags):
                 if elem_type == 1:  # 1st type for lines
                     for i in range(len(elem_tags)):
                         node_indices = elem_node_tags[i * 2:(i + 1) * 2]
-                        line = [
-                            (node_indices[0],
-                             node_coords_map[node_indices[0]]),
-                            (node_indices[1], node_coords_map[node_indices[1]])
-                        ]
+                        line = [(node_indices[0],
+                                 node_coords_map[node_indices[0]]),
+                                (node_indices[1],
+                                 node_coords_map[node_indices[1]])]
                         line_map[f'Line[{elem_tags[i]}]'] = line
         return line_map
 
@@ -519,17 +550,17 @@ def getTreeDict(mesh_filename: str = None, obj_type: str = 'volume') -> dict:
                 surf_dim, surf_tag)
 
             triangles = []
-            for elem_type, elem_tags, elem_node_tags in zip(element_types, element_tags, node_tags):
+            for elem_type, elem_tags, elem_node_tags in zip(
+                    element_types, element_tags, node_tags):
                 if elem_type == 2:  # 2nd type for the triangles
                     for i in range(len(elem_tags)):
                         node_indices = elem_node_tags[i * 3:(i + 1) * 3]
-                        triangle = [
-                            (node_indices[0],
-                             node_coords_map[node_indices[0]]),
-                            (node_indices[1],
-                             node_coords_map[node_indices[1]]),
-                            (node_indices[2], node_coords_map[node_indices[2]])
-                        ]
+                        triangle = [(node_indices[0],
+                                     node_coords_map[node_indices[0]]),
+                                    (node_indices[1],
+                                     node_coords_map[node_indices[1]]),
+                                    (node_indices[2],
+                                     node_coords_map[node_indices[2]])]
                         triangles.append((elem_tags[i], triangle))
             surface_map[surf_tag] = triangles
         return surface_map
@@ -542,7 +573,8 @@ def getTreeDict(mesh_filename: str = None, obj_type: str = 'volume') -> dict:
 
         for dim, tag in entities:
             surfaces = gmsh.model.getBoundary(
-                [(dim, tag)], oriented=False, recursive=False) if volumes else [(dim, tag)]
+                [(dim, tag)], oriented=False,
+                recursive=False) if volumes else [(dim, tag)]
 
             surface_map = {}
             for surf_dim, surf_tag in surfaces:
@@ -550,18 +582,17 @@ def getTreeDict(mesh_filename: str = None, obj_type: str = 'volume') -> dict:
                     surf_dim, surf_tag)
 
                 triangles = []
-                for elem_type, elem_tags, elem_node_tags in zip(element_types, element_tags, node_tags):
+                for elem_type, elem_tags, elem_node_tags in zip(
+                        element_types, element_tags, node_tags):
                     if elem_type == 2:  # 2nd type for the triangles
                         for i in range(len(elem_tags)):
                             node_indices = elem_node_tags[i * 3:(i + 1) * 3]
-                            triangle = [
-                                (node_indices[0],
-                                 node_coords_map[node_indices[0]]),
-                                (node_indices[1],
-                                 node_coords_map[node_indices[1]]),
-                                (node_indices[2],
-                                 node_coords_map[node_indices[2]])
-                            ]
+                            triangle = [(node_indices[0],
+                                         node_coords_map[node_indices[0]]),
+                                        (node_indices[1],
+                                         node_coords_map[node_indices[1]]),
+                                        (node_indices[2],
+                                         node_coords_map[node_indices[2]])]
                             triangles.append((elem_tags[i], triangle))
                 surface_map[surf_tag] = triangles
             treedict[tag] = surface_map
@@ -773,7 +804,9 @@ def createActorsFromTreeDict(treedict: dict, objType: str) -> list:
     return actors
 
 
-def populateTreeView(treedict: dict, object_idx: int, tree_model: QStandardItemModel, tree_view: QTreeView, type: str) -> int:
+def populateTreeView(treedict: dict, object_idx: int,
+                     tree_model: QStandardItemModel, tree_view: QTreeView,
+                     type: str) -> int:
     """
     Populate the tree model with the hierarchical structure of the object map.
 
@@ -813,11 +846,8 @@ def populateTreeView(treedict: dict, object_idx: int, tree_model: QStandardItemM
                     surface_item.appendRow(triangle_item)
 
                     # Generate lines for the triangle
-                    lines = [
-                        (nodes[0], nodes[1]),
-                        (nodes[1], nodes[2]),
-                        (nodes[2], nodes[0])
-                    ]
+                    lines = [(nodes[0], nodes[1]), (nodes[1], nodes[2]),
+                             (nodes[2], nodes[0])]
 
                     for line_idx, (start, end) in enumerate(lines, start=1):
                         # Add the line node under the triangle node
@@ -849,11 +879,8 @@ def populateTreeView(treedict: dict, object_idx: int, tree_model: QStandardItemM
                 surface_item.appendRow(triangle_item)
 
                 # Generate lines for the triangle
-                lines = [
-                    (nodes[0], nodes[1]),
-                    (nodes[1], nodes[2]),
-                    (nodes[2], nodes[0])
-                ]
+                lines = [(nodes[0], nodes[1]), (nodes[1], nodes[2]),
+                         (nodes[2], nodes[0])]
 
                 for line_idx, (start, end) in enumerate(lines, start=1):
                     # Add the line node under the triangle node
@@ -1122,7 +1149,8 @@ def compute_distance_between_points(coord1, coord2):
     """
     try:
         result = np.sqrt((coord1[0] - coord2[0])**2 +
-                         (coord1[1] - coord2[1])**2 + (coord1[2] - coord2[2])**2)
+                         (coord1[1] - coord2[1])**2 +
+                         (coord1[2] - coord2[2])**2)
     except Exception as e:
         print_warning_none_result()
         return None
