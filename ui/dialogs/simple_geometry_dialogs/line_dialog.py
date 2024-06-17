@@ -1,14 +1,15 @@
-from PyQt5.QtWidgets import (
-    QDialog, QVBoxLayout, QFormLayout, QLineEdit,
-    QDialogButtonBox, QMessageBox, QScrollArea,
-    QWidget, QPushButton, QHBoxLayout, QLabel
-)
+from PyQt5.QtWidgets import (QDialog, QVBoxLayout, QFormLayout, QLineEdit,
+                             QDialogButtonBox, QMessageBox, QScrollArea,
+                             QWidget, QPushButton, QHBoxLayout, QLabel)
 from PyQt5.QtCore import QSize
+from field_validators import CustomSignedDoubleValidator
+from PyQt5.QtGui import QDoubleValidator
 from styles import *
-from util import is_real_number
+from tabs.graphical_editor.simple_geometry.simple_geometry_constraints import *
 
 
 class LineDialog(QDialog):
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setMinimumSize(400, 300)
@@ -43,7 +44,7 @@ class LineDialog(QDialog):
 
         self.buttons = QDialogButtonBox(
             QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self)
-        self.buttons.accepted.connect(self.accept)
+        self.buttons.accepted.connect(self.validate_and_accept)
         self.buttons.rejected.connect(self.reject)
 
         # Add dialog buttons to the main layout
@@ -57,6 +58,19 @@ class LineDialog(QDialog):
         x_input = QLineEdit("0.0")
         y_input = QLineEdit("0.0")
         z_input = QLineEdit("0.0")
+
+        x_input.setValidator(
+            CustomSignedDoubleValidator(SIMPLE_GEOMETRY_LINE_XMIN,
+                                        SIMPLE_GEOMETRY_LINE_XMAX,
+                                        SIMPLE_GEOMETRY_LINE_FIELD_PRECISION))
+        y_input.setValidator(
+            CustomSignedDoubleValidator(SIMPLE_GEOMETRY_LINE_YMIN,
+                                        SIMPLE_GEOMETRY_LINE_YMAX,
+                                        SIMPLE_GEOMETRY_LINE_FIELD_PRECISION))
+        z_input.setValidator(
+            CustomSignedDoubleValidator(SIMPLE_GEOMETRY_LINE_ZMIN,
+                                        SIMPLE_GEOMETRY_LINE_ZMAX,
+                                        SIMPLE_GEOMETRY_LINE_FIELD_PRECISION))
 
         x_input.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
         y_input.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
@@ -77,9 +91,23 @@ class LineDialog(QDialog):
         containerWidget.setLayout(hLayout)
         self.formLayout.addRow(containerWidget)
 
-    def getValues(self):
-        if not all(is_real_number(input_field.text()) for input_field in self.inputs):
+    def validate_and_accept(self):
+        all_valid = True
+
+        for input_field in self.inputs:
+            if input_field.validator().validate(
+                    input_field.text(), 0)[0] != QDoubleValidator.Acceptable:
+                input_field.setStyleSheet(INVALID_QLINEEDIT_STYLE)
+                all_valid = False
+            else:
+                input_field.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
+
+        if all_valid:
+            self.accept()
+        else:
             QMessageBox.warning(self, "Invalid input",
-                                "All coordinates must be real numbers.")
-            return None
-        return [float(field.text()) for field in self.inputs]
+                                "Please correct the highlighted fields.")
+
+    def getValues(self):
+        values = [float(field.text()) for field in self.inputs]
+        return values

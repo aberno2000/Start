@@ -1,12 +1,13 @@
-from PyQt5.QtWidgets import (
-    QDialog, QVBoxLayout, QFormLayout, QLineEdit,
-    QDialogButtonBox, QMessageBox
-)
+from PyQt5.QtWidgets import (QDialog, QVBoxLayout, QFormLayout, QLineEdit,
+                             QDialogButtonBox, QMessageBox)
+from field_validators import CustomSignedDoubleValidator
+from PyQt5.QtGui import QDoubleValidator
 from styles import *
-from util import is_real_number
+from tabs.graphical_editor.simple_geometry.simple_geometry_constraints import *
 
 
 class BoxDialog(QDialog):
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Create Box")
@@ -20,6 +21,31 @@ class BoxDialog(QDialog):
         self.lengthInput = QLineEdit("5.0")
         self.widthInput = QLineEdit("5.0")
         self.heightInput = QLineEdit("5.0")
+
+        self.xInput.setValidator(
+            CustomSignedDoubleValidator(SIMPLE_GEOMETRY_BOX_XMIN,
+                                        SIMPLE_GEOMETRY_BOX_XMAX,
+                                        SIMPLE_GEOMETRY_BOX_FIELD_PRECISION))
+        self.yInput.setValidator(
+            CustomSignedDoubleValidator(SIMPLE_GEOMETRY_BOX_YMIN,
+                                        SIMPLE_GEOMETRY_BOX_YMAX,
+                                        SIMPLE_GEOMETRY_BOX_FIELD_PRECISION))
+        self.zInput.setValidator(
+            CustomSignedDoubleValidator(SIMPLE_GEOMETRY_BOX_ZMIN,
+                                        SIMPLE_GEOMETRY_BOX_ZMAX,
+                                        SIMPLE_GEOMETRY_BOX_FIELD_PRECISION))
+        self.lengthInput.setValidator(
+            CustomSignedDoubleValidator(SIMPLE_GEOMETRY_BOX_LENGTH_MIN,
+                                        SIMPLE_GEOMETRY_BOX_LENGTH_MAX,
+                                        SIMPLE_GEOMETRY_BOX_FIELD_PRECISION))
+        self.widthInput.setValidator(
+            CustomSignedDoubleValidator(SIMPLE_GEOMETRY_BOX_WIDTH_MIN,
+                                        SIMPLE_GEOMETRY_BOX_WIDTH_MAX,
+                                        SIMPLE_GEOMETRY_BOX_FIELD_PRECISION))
+        self.heightInput.setValidator(
+            CustomSignedDoubleValidator(SIMPLE_GEOMETRY_BOX_HEIGHT_MIN,
+                                        SIMPLE_GEOMETRY_BOX_HEIGHT_MAX,
+                                        SIMPLE_GEOMETRY_BOX_FIELD_PRECISION))
 
         self.xInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
         self.yInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
@@ -39,37 +65,36 @@ class BoxDialog(QDialog):
 
         self.buttons = QDialogButtonBox(
             QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self)
-        self.buttons.accepted.connect(self.accept)
+        self.buttons.accepted.connect(self.validate_and_accept)
         self.buttons.rejected.connect(self.reject)
 
         layout.addWidget(self.buttons)
 
+    def validate_and_accept(self):
+        inputs = [
+            self.xInput, self.yInput, self.zInput, self.lengthInput,
+            self.widthInput, self.heightInput
+        ]
+        all_valid = True
+
+        for input_field in inputs:
+            if input_field.validator().validate(
+                    input_field.text(), 0)[0] != QDoubleValidator.Acceptable:
+                input_field.setStyleSheet(INVALID_QLINEEDIT_STYLE)
+                all_valid = False
+            else:
+                input_field.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
+
+        if all_valid:
+            self.accept()
+        else:
+            QMessageBox.warning(self, "Invalid input",
+                                "Please correct the highlighted fields.")
+
     def getValues(self):
-        if not is_real_number(self.xInput.text()):
-            QMessageBox.warning(self, "Invalid input", 
-                                f"{self.xInput.text()} isn't a real number")
-            return None
-        if not is_real_number(self.yInput.text()):
-            QMessageBox.warning(self, "Invalid input", 
-                                f"{self.yInput.text()} isn't a real number")
-            return None
-        if not is_real_number(self.zInput.text()):
-            QMessageBox.warning(self, "Invalid input", 
-                                f"{self.zInput.text()} isn't a real number")
-            return None
-        if not is_real_number(self.lengthInput.text()):
-            QMessageBox.warning(self, "Invalid input", 
-                                f"{self.lengthInput.text()} isn't a real number")
-            return None
-        if not is_real_number(self.widthInput.text()):
-            QMessageBox.warning(self, "Invalid input", 
-                                f"{self.widthInput.text()} isn't a real number")
-            return None
-        if not is_real_number(self.heightInput.text()):
-            QMessageBox.warning(self, "Invalid input", 
-                                f"{self.heightInput.text()} isn't a real number")
-            return None
-        values = (float(self.xInput.text()), float(self.yInput.text()), float(self.zInput.text()),
-                  float(self.lengthInput.text()), float(self.widthInput.text()), float(self.heightInput.text()))
+        values = (float(self.xInput.text()), float(self.yInput.text()),
+                  float(self.zInput.text()), float(self.lengthInput.text()),
+                  float(self.widthInput.text()),
+                  float(self.heightInput.text()))
 
         return values

@@ -3,7 +3,7 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtCore import Qt
 from .config_tab import ConfigTab
-from graphical_editor import GraphicalEditor
+from .graphical_editor import GraphicalEditor
 from logger import LogConsole
 
 

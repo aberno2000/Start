@@ -16,7 +16,7 @@ from util.mesh_renderer import MeshRenderer
 from data.hdf5handler import HDF5Handler
 from vtkmodules.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 from vtkmodules.vtkInteractionStyle import vtkInteractorStyleTrackballCamera
-from util.util import align_view_by_axis, Point
+from util.util import align_view_by_axis
 from logger.log_console import LogConsole
 from styles import *
 
@@ -434,6 +434,15 @@ class ResultsTab(QWidget):
         :return: Dictionary with particle ID as keys and list of Point objects as values.
         """
         try:
+            class PointForTracking:
+                def __init__(self, x, y, z):
+                    self.x = x
+                    self.y = y
+                    self.z = z
+
+                def __repr__(self):
+                    return f"Point(x={self.x}, y={self.y}, z={self.z})"
+            
             with open(filename, 'r') as file:
                 data = json.load(file)
 
@@ -441,7 +450,7 @@ class ResultsTab(QWidget):
             for particle_id, movements in data.items():
                 particle_id = int(particle_id)
                 particles_movement[particle_id] = [
-                    Point(movement['x'], movement['y'], movement['z']) for movement in movements]
+                    PointForTracking(movement['x'], movement['y'], movement['z']) for movement in movements]
             return particles_movement
 
         except FileNotFoundError:

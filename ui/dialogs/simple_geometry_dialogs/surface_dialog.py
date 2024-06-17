@@ -1,14 +1,15 @@
-from PyQt5.QtWidgets import (
-    QDialog, QVBoxLayout, QFormLayout, QLineEdit,
-    QDialogButtonBox, QMessageBox, QScrollArea,
-    QWidget, QPushButton, QHBoxLayout, QLabel
-)
+from PyQt5.QtWidgets import (QDialog, QVBoxLayout, QFormLayout, QLineEdit,
+                             QDialogButtonBox, QMessageBox, QScrollArea,
+                             QWidget, QPushButton, QHBoxLayout, QLabel)
 from PyQt5.QtCore import QSize
+from field_validators import CustomSignedDoubleValidator
+from PyQt5.QtGui import QDoubleValidator
 from styles import *
-from util import is_real_number
+from tabs.graphical_editor.simple_geometry.simple_geometry_constraints import *
 
 
 class SurfaceDialog(QDialog):
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setMinimumSize(400, 300)
@@ -41,17 +42,9 @@ class SurfaceDialog(QDialog):
         self.mainLayout.addWidget(self.scrollArea)
         self.mainLayout.addWidget(self.addButton)
 
-        self.meshSizeInput = QLineEdit("1.0")
-        self.meshSizeInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
-        self.meshSizeLabel = QLabel("Mesh size:")
-        meshLayout = QHBoxLayout()
-        meshLayout.addWidget(self.meshSizeLabel)
-        meshLayout.addWidget(self.meshSizeInput)
-        self.mainLayout.addLayout(meshLayout)
-
         self.buttons = QDialogButtonBox(
             QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self)
-        self.buttons.accepted.connect(self.accept)
+        self.buttons.accepted.connect(self.validate_and_accept)
         self.buttons.rejected.connect(self.reject)
 
         # Add dialog buttons to the main layout
@@ -65,6 +58,19 @@ class SurfaceDialog(QDialog):
         x_input = QLineEdit("0.0")
         y_input = QLineEdit("0.0")
         z_input = QLineEdit("0.0")
+
+        x_input.setValidator(
+            CustomSignedDoubleValidator(
+                SIMPLE_GEOMETRY_SURFACE_XMIN, SIMPLE_GEOMETRY_SURFACE_XMAX,
+                SIMPLE_GEOMETRY_SURFACE_FIELD_PRECISION))
+        y_input.setValidator(
+            CustomSignedDoubleValidator(
+                SIMPLE_GEOMETRY_SURFACE_YMIN, SIMPLE_GEOMETRY_SURFACE_YMAX,
+                SIMPLE_GEOMETRY_SURFACE_FIELD_PRECISION))
+        z_input.setValidator(
+            CustomSignedDoubleValidator(
+                SIMPLE_GEOMETRY_SURFACE_ZMIN, SIMPLE_GEOMETRY_SURFACE_ZMAX,
+                SIMPLE_GEOMETRY_SURFACE_FIELD_PRECISION))
 
         x_input.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
         y_input.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
@@ -85,18 +91,23 @@ class SurfaceDialog(QDialog):
         containerWidget.setLayout(hLayout)
         self.formLayout.addRow(containerWidget)
 
+    def validate_and_accept(self):
+        all_valid = True
+
+        for input_field in self.inputs:
+            if input_field.validator().validate(
+                    input_field.text(), 0)[0] != QDoubleValidator.Acceptable:
+                input_field.setStyleSheet(INVALID_QLINEEDIT_STYLE)
+                all_valid = False
+            else:
+                input_field.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
+
+        if all_valid:
+            self.accept()
+        else:
+            QMessageBox.warning(self, "Invalid input",
+                                "Please correct the highlighted fields.")
+
     def getValues(self):
-        if not all(is_real_number(input_field.text()) for input_field in self.inputs):
-            QMessageBox.warning(self, "Invalid input",
-                                "All coordinates must be real numbers.")
-            return None
         values = [float(field.text()) for field in self.inputs]
-
-        mesh_size = 1.0
-        if not is_real_number(self.meshSizeInput.text()):
-            QMessageBox.warning(self, "Invalid input",
-                                "Mesh size must be floating point number.")
-            return None
-        mesh_size = float(self.meshSizeInput.text())
-
-        return values, mesh_size
+        return values

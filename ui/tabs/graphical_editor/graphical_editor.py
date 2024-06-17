@@ -1,5 +1,6 @@
 import gmsh
 import json
+import dialogs
 from numpy import cross
 from os import remove
 from os.path import isfile, exists
@@ -27,16 +28,15 @@ from PyQt5.QtWidgets import (
     QListWidget, QListWidgetItem, QAbstractItemView,
 )
 from PyQt5.QtGui import QCursor, QStandardItemModel, QBrush
-from dialogs import *
 from util import *
 from styles import *
 from constants import *
+from .simple_geometry import *
 from logger import LogConsole
-from tabs.config_tab import ConfigTab
 
 
 class GraphicalEditor(QFrame):
-    def __init__(self, log_console: LogConsole, config_tab: ConfigTab, parent=None):
+    def __init__(self, log_console: LogConsole, config_tab, parent=None):
         super().__init__(parent)
         self.config_tab = config_tab
 
@@ -45,15 +45,13 @@ class GraphicalEditor(QFrame):
         # Tree dictionary (treedict) - own invented dictionary that stores data to fill the mesh tree
         self.externRow_treedict = {}   # Key = external row        |  value = treedict
         self.externRow_actors = {}     # Key = external row        |  value = list of actors
-        # Key = actor               |  value = pair(external row, internal row)
-        self.actor_rows = {}
+        self.actor_rows = {}           # Key = actor               |  value = pair(external row, internal row)
         self.actor_color = {}          # Key = actor               |  value = color
         self.actor_nodes = {}          # Key = actor               |  value = list of nodes
-        # Key = actor               |  value = transformation matrix: pair(initial, current)
-        self.actor_matrix = {}
+        self.actor_matrix = {}         # Key = actor               |  value = transformation matrix: pair(initial, current)
         self.meshfile_actors = {}      # Key = mesh filename       |  value = list of actors
 
-        self.simple_definitions = []  # List to store simple objects
+        self.simple_geometry_objects = []  # List to store simple objects
 
         self.treeView = QTreeView()
         self.model = QStandardItemModel()
@@ -514,296 +512,81 @@ class GraphicalEditor(QFrame):
         return filename
 
     def create_point(self):
-        def create_point_with_gmsh(x, y, z, mesh_size):
-            gmsh.initialize()
-            gmsh.model.add("point")
-            gmsh.model.geo.addPoint(x, y, z, meshSize=mesh_size, tag=1)
-            gmsh.option.setNumber("Mesh.MeshSizeMax", mesh_size)
-            gmsh.option.setNumber("Mesh.MeshSizeMin", mesh_size)
-            gmsh.model.geo.synchronize()
-            gmsh.model.mesh.generate(3)
-
-            pointMap = getTreeDict(obj_type='point')
-            filename = self.get_filename_from_dialog()
-            if not filename:
-                return None
-
-            gmsh.write(filename)
-            gmsh.finalize()
-            return pointMap, filename
-
-        dialog = PointDialog(self)
+        dialog = dialogs.PointDialog(self)
         if dialog.exec_() == QDialog.Accepted and dialog.getValues() is not None:
             x, y, z = dialog.getValues()
 
-            # Prepare the point data for Gmsh
-            mesh_size = 1.0  # Default mesh size for point
-            res = create_point_with_gmsh(x, y, z, mesh_size)
-            if not res:
-                return
-            pointMap, filename = res
-            self.add_actors_and_populate_tree_view(pointMap, filename, 'point')
-
-            self.log_console.printInfo(
-                f'Successfully created point: ({x}, {y}, {z})')
+            try:
+                point_actor = SimpleGeometryManager.create_point(self.log_console, x, y, z)
+                if point_actor:
+                    self.add_actor(point_actor)
+            except ValueError as e:
+                QMessageBox.warning(self, "Create Point", str(e))
 
     def create_line(self):
-        def create_line_with_gmsh(points, mesh_size):
-            gmsh.initialize()
-            gmsh.model.add("line")
-
-            for idx, (x, y, z) in enumerate(points, start=1):
-                gmsh.model.geo.addPoint(x, y, z, meshSize=mesh_size, tag=idx)
-            for i in range(len(points) - 1):
-                gmsh.model.geo.addLine(i + 1, i + 2)
-
-            gmsh.option.setNumber("Mesh.MeshSizeMax", mesh_size)
-            gmsh.option.setNumber("Mesh.MeshSizeMin", mesh_size)
-
-            gmsh.model.geo.synchronize()
-            gmsh.model.mesh.generate(3)
-
-            lineMap = getTreeDict(obj_type='line')
-            filename = self.get_filename_from_dialog()
-            if not filename:
-                return None
-
-            gmsh.write(filename)
-            gmsh.finalize()
-            return lineMap, filename
-
-        dialog = LineDialog(self)
+        dialog = dialogs.LineDialog(self)
         if dialog.exec_() == QDialog.Accepted:
             values = dialog.getValues()
             if values is not None and len(values) >= 6:
-                points = vtkPoints()
-                points_str_list = []
+                points = [(values[i], values[i + 1], values[i + 2]) for i in range(0, len(values), 3)]
 
-                # Insert points into vtkPoints
-                pid = 1
-                for i in range(0, len(values), 3):
-                    points.InsertNextPoint(
-                        values[i], values[i + 1], values[i + 2])
-                    points_str_list.append(
-                        f'Point{pid}: ({values[i]}, {values[i + 1]}, {values[i + 2]})')
-                    pid += 1
-                tmp = '\n'.join(points_str_list)
-
-                # Prepare point data for Gmsh
-                point_data = []
-                for i in range(0, len(values), 3):
-                    point_data.append(
-                        (values[i], values[i + 1], values[i + 2]))
-
-                # Check if the line can be created with the specified points
-                if not can_create_line(point_data):
-                    self.log_console.printWarning(
-                        f"Can't create line with specified points:\n{tmp}")
-                    QMessageBox.warning(
-                        self, "Create Line", f"Can't create line with specified points")
-                    return
-
-                mesh_size = 1.0  # Default mesh size for line
-                res = create_line_with_gmsh(point_data, mesh_size)
-                if not res:
-                    return
-                lineMap, filename = res
-                self.add_actors_and_populate_tree_view(
-                    lineMap, filename, 'line')
-
-                self.log_console.printInfo(
-                    f'Successfully created line:\n{tmp}')
+                try:
+                    line_actor = SimpleGeometryManager.create_line(self.log_console, points)
+                    if line_actor:
+                        self.add_actor(line_actor)
+                except ValueError as e:
+                    QMessageBox.warning(self, "Create Line", str(e))
 
     def create_surface(self):
-        def create_surface_with_gmsh(points, mesh_size):
-            gmsh.initialize()
-            gmsh.model.add("surface")
-            for idx, (x, y, z) in enumerate(points, start=1):
-                gmsh.model.geo.addPoint(x, y, z, meshSize=mesh_size, tag=idx)
-            for i in range(len(points)):
-                gmsh.model.geo.addLine(i + 1, ((i + 1) % len(points)) + 1)
-            loop = gmsh.model.geo.addCurveLoop(list(range(1, len(points) + 1)))
-            gmsh.model.geo.addPlaneSurface([loop])
-            gmsh.option.setNumber("Mesh.MeshSizeMax", mesh_size)
-            gmsh.option.setNumber("Mesh.MeshSizeMin", mesh_size)
-            gmsh.model.geo.synchronize()
-            gmsh.model.mesh.generate(3)
-
-            surfaceMap = getTreeDict(obj_type='surface')
-            filename = self.get_filename_from_dialog()
-            if not filename:
-                return None
-
-            gmsh.write(filename)
-            gmsh.finalize()
-            return surfaceMap, filename
-
-        dialog = SurfaceDialog(self)
+        dialog = dialogs.SurfaceDialog(self)
         if dialog.exec_() == QDialog.Accepted:
-            values, mesh_size = dialog.getValues()
+            values = dialog.getValues()
 
-            # Check if the meshing option is provided and valid
-            if values is not None and len(values) >= 9 and mesh_size:
-                points = vtkPoints()
-                points_str_list = []
+            if values is not None and len(values) >= 9:
+                points = [(values[i], values[i + 1], values[i + 2]) for i in range(0, len(values), 3)]
 
-                # Insert points into vtkPoints
-                pid = 1
-                for i in range(0, len(values), 3):
-                    points.InsertNextPoint(values[i], values[i+1], values[i+2])
-                    points_str_list.append(
-                        f'Point{pid}: ({values[i]}, {values[i+1]}, {values[i+2]})')
-                    pid += 1
-                tmp = '\n'.join(points_str_list)
-
-                # Prepare point data for Gmsh
-                point_data = []
-                for i in range(0, len(values), 3):
-                    point_data.append((values[i], values[i+1], values[i+2]))
-
-                # Checking of availability to create surface with specified points
-                if not can_create_surface(point_data):
-                    self.log_console.printWarning(
-                        f"Can't create surface with specified points:\n{tmp}")
-                    QMessageBox.warning(
-                        self, "Create Surface", f"Can't create surface with specified points")
-                    return
-
-                res = create_surface_with_gmsh(point_data, mesh_size)
-                if not res:
-                    return
-                surfaceMap, filename = res
-                self.add_actors_and_populate_tree_view(
-                    surfaceMap, filename, 'surface')
-
-                self.log_console.printInfo(
-                    f'Successfully created surface:\n{tmp}')
+                try:
+                    surface_actor = SimpleGeometryManager.create_surface(self.log_console, points)
+                    if surface_actor:
+                        self.add_actor(surface_actor)
+                except ValueError as e:
+                    QMessageBox.warning(self, "Create Surface", str(e))
 
     def create_sphere(self):
-        def create_sphere_with_gmsh(mesh_size: float):
-            gmsh.initialize()
-            gmsh.model.add('custom_sphere')
-            gmsh.model.occ.add_sphere(x, y, z, radius)
-            gmsh.option.setNumber("Mesh.MeshSizeMax", mesh_size)
-            gmsh.option.setNumber("Mesh.MeshSizeMin", mesh_size)
-            gmsh.model.occ.synchronize()
-            gmsh.model.mesh.generate(3)
-
-            sphereMap = getTreeDict()
-            filename = self.get_filename_from_dialog()
-            if not filename:
-                return None
-
-            gmsh.write(filename)
-            gmsh.finalize()
-            return sphereMap, filename
-
-        dialog = SphereDialog(self)
+        dialog = dialogs.SphereDialog(self)
         if dialog.exec_() == QDialog.Accepted and dialog.getValues() is not None:
-            values, mesh_size = dialog.getValues()
-            if mesh_size == 0.0:
-                mesh_size = 1.0
-            x, y, z, radius = values
+            x, y, z, radius, phi_resolution, theta_resolution = dialog.getValues()
 
-            sphere_data_str = []
-            sphere_data_str.append(f'Center: ({x}, {y}, {z})')
-            sphere_data_str.append(f'Radius: {radius}')
-            tmp = '\n'.join(sphere_data_str)
-
-            res = create_sphere_with_gmsh(mesh_size)
-            if not res:
-                return
-            sphereMap, filename = res
-            self.add_actors_and_populate_tree_view(
-                sphereMap, filename, 'volume')
-
-            self.log_console.printInfo(f'Successfully created sphere:\n{tmp}')
+            try:
+                sphere_actor = SimpleGeometryManager.create_sphere(self.log_console, x, y, z, radius, phi_resolution, theta_resolution)
+                if sphere_actor:
+                    self.add_actor(sphere_actor)
+            except ValueError as e:
+                QMessageBox.warning(self, "Create Sphere", str(e))
 
     def create_box(self):
-        def create_box_with_gmsh(x, y, z, length, width, height):
-            gmsh.initialize()
-            gmsh.model.occ.add_box(x, y, z, length, width, height)
-            gmsh.model.occ.synchronize()
-            gmsh.finalize()
-
-        dialog = BoxDialog(self)
+        dialog = dialogs.BoxDialog(self)
         if dialog.exec_() == QDialog.Accepted and dialog.getValues() is not None:
             x, y, z, length, width, height = dialog.getValues()
 
-            box_data_str = []
-            box_data_str.append(f'Primary Point: ({x}, {y}, {z})')
-            box_data_str.append(f'Length: {length}')
-            box_data_str.append(f'Width: {width}')
-            box_data_str.append(f'Height: {height}')
-            tmp = '\n'.join(box_data_str)
-
-            create_box_with_gmsh(x, y, z, length, width, height)
-            self.simple_definitions.append(
-                ('box', (x, y, z, length, width, height)))
-
-            self.log_console.printInfo(f'Successfully created box:\n{tmp}')
-
-    def save_and_mesh_objects(self):
-        gmsh.initialize()
-
-        for objType, objSimple in self.simple_definitions:
-            x, y, z, length, width, height = objSimple
-
-            if objType == 'box':
-                gmsh.model.occ.addBox(x, y, z, length, width, height)
-
-        gmsh.option.setNumber("Mesh.MeshSizeMin", 0.1)
-        gmsh.option.setNumber("Mesh.MeshSizeMax", 0.1)
-        gmsh.model.occ.synchronize()
-        gmsh.model.mesh.generate(3)
-
-        filename = self.get_filename_from_dialog()
-        if filename:
-            gmsh.write(filename)
-            self.log_console.printInfo(
-                f'Successfully saved and meshed boxes into file: {filename}')
-        gmsh.finalize()
+            try:
+                box_actor = SimpleGeometryManager.create_box(self.log_console, x, y, z, length, width, height)
+                if box_actor:
+                    self.add_actor(box_actor)
+            except ValueError as e:
+                QMessageBox.warning(self, "Create Box", str(e))
 
     def create_cylinder(self):
-        def create_cylinder_with_gmsh(mesh_size: float):
-            gmsh.initialize()
-            gmsh.model.add('custom_cylinder')
-            gmsh.model.occ.add_cylinder(x, y, z, dx, dy, dz, radius)
-            gmsh.option.setNumber("Mesh.MeshSizeMax", mesh_size)
-            gmsh.option.setNumber("Mesh.MeshSizeMin", mesh_size)
-            gmsh.model.occ.synchronize()
-            gmsh.model.mesh.generate(3)
-
-            cylinderMap = getTreeDict()
-            filename = self.get_filename_from_dialog()
-            if not filename:
-                return None
-
-            gmsh.write(filename)
-            gmsh.finalize()
-            return cylinderMap, filename
-
-        dialog = CylinderDialog(self)
+        dialog = dialogs.CylinderDialog(self)
         if dialog.exec_() == QDialog.Accepted and dialog.getValues() is not None:
-            values, mesh_size = dialog.getValues()
-            x, y, z, radius, dx, dy, dz = values
-            cylinder_data_str = []
-            cylinder_data_str.append(f'Primary Point: ({x}, {y}, {z})')
-            cylinder_data_str.append(f'Radius: {radius}')
-            cylinder_data_str.append(f'Length: {dx}')
-            cylinder_data_str.append(f'Width: {dy}')
-            cylinder_data_str.append(f'Height: {dz}')
-            tmp = '\n'.join(cylinder_data_str)
+            x, y, z, radius, dx, dy, dz, resolution = dialog.getValues()
 
-            res = create_cylinder_with_gmsh(mesh_size)
-            if not res:
-                return
-            cylinderMap, filename = res
-            self.add_actors_and_populate_tree_view(
-                cylinderMap, filename, 'volume')
-
-            self.log_console.printInfo(
-                f'Successfully created cylinder:\n{tmp}')
+            try:
+                cylinder_actor = SimpleGeometryManager.create_cylinder(self.log_console, x, y, z, radius, dx, dy, dz, resolution)
+                if cylinder_actor:
+                    self.add_actor(cylinder_actor)
+            except ValueError as e:
+                QMessageBox.warning(self, "Create Cylinder", str(e))
 
     def upload_custom(self):
         options = QFileDialog.Options()
@@ -821,7 +604,7 @@ class GraphicalEditor(QFrame):
 
         # If the selected file is a STEP file, prompt for conversion parameters.
         if file_name.endswith('.stp'):
-            dialog = MeshDialog(self)
+            dialog = dialogs.MeshDialog(self)
             if dialog.exec() == QDialog.Accepted:
                 mesh_size, mesh_dim = dialog.get_values()
                 try:
@@ -1598,7 +1381,7 @@ class GraphicalEditor(QFrame):
             self.log_console.printError(f"Error in deselect: {e}")
 
     def move_actors(self):
-        dialog = MoveActorDialog(self)
+        dialog = dialogs.MoveActorDialog(self)
         if dialog.exec_() == QDialog.Accepted:
             offsets = dialog.getValues()
             if offsets:
@@ -1729,7 +1512,7 @@ class GraphicalEditor(QFrame):
                 self.actor_rows[actor] = (vol_row, index_mapping[surf_row])
 
     def rotate_actors(self):
-        dialog = AngleDialog(self)
+        dialog = dialogs.AngleDialog(self)
         if dialog.exec_() == QDialog.Accepted:
             angles = dialog.getValues()
             if angles:
@@ -1878,7 +1661,7 @@ class GraphicalEditor(QFrame):
         direction = [point2[i] - point1[i]
                      for i in range(3)]  # Direction vector of the line
 
-        dialog = AxisSelectionDialog(self)
+        dialog = dialogs.AxisSelectionDialog(self)
         if dialog.exec_() == QDialog.Accepted:
             selectedAxis = dialog.getSelectedAxis()
             plane = vtkPlane()
@@ -1978,7 +1761,7 @@ class GraphicalEditor(QFrame):
                     for source in sources_to_remove:
                         del config_data[source]
 
-            self.particle_source_dialog = ParticleSourceDialog(self)
+            self.particle_source_dialog = dialogs.ParticleSourceDialog(self)
             self.particle_source_dialog.accepted_signal.connect(lambda params: self.handle_particle_source_point_accepted(
                 params, config_file, config_data, theta, phi, base_coords))
             self.particle_source_dialog.rejected_signal.connect(
@@ -2023,7 +1806,7 @@ class GraphicalEditor(QFrame):
                     for source in sources_to_remove:
                         del config_data[source]
 
-            self.particle_source_dialog = ParticleSourceDialog(self)
+            self.particle_source_dialog = dialogs.ParticleSourceDialog(self)
             self.particle_source_dialog.accepted_signal.connect(lambda params: self.handle_particle_source_point_accepted(
                 params, config_file, config_data, theta, phi, [x, y, z]))
             self.particle_source_dialog.rejected_signal.connect(
@@ -2316,7 +2099,7 @@ class GraphicalEditor(QFrame):
                                     "There is no selected surfaces to apply boundary conditions on them")
             return
 
-        dialog = BoundaryValueInputDialog(self)
+        dialog = dialogs.BoundaryValueInputDialog(self)
         if dialog.exec_() == QDialog.Accepted:
             value, ok = dialog.get_value()
             if not ok:
@@ -2392,7 +2175,7 @@ class GraphicalEditor(QFrame):
                                 "First you need to upload mesh/config, then you can set particle source")
             return
 
-        dialog = ParticleSourceTypeDialog(self)
+        dialog = dialogs.ParticleSourceTypeDialog(self)
         if dialog.exec_() == QDialog.Accepted:
             selected_source_type = dialog.getSelectedSourceType()
 
@@ -2403,11 +2186,11 @@ class GraphicalEditor(QFrame):
 
     def set_particle_source_as_point(self):
         if not self.particleSourceArrowActor:
-            method_dialog = ArrowMethodSelectionDialog(self)
+            method_dialog = dialogs.ArrowMethodSelectionDialog(self)
             if method_dialog.exec_() == QDialog.Accepted:
                 method = method_dialog.get_selected_method()
                 if method == "manual":
-                    dialog = ArrowPropertiesDialog(
+                    dialog = dialogs.ArrowPropertiesDialog(
                         self.vtkWidget, self.renderer, self.particleSourceArrowActor, self)
                     dialog.properties_accepted.connect(
                         self.on_arrow_properties_accepted)
@@ -2415,7 +2198,7 @@ class GraphicalEditor(QFrame):
                 elif method == "interactive":
                     self.create_direction_arrow_interactively()
 
-                    self.expansion_angle_dialog = ExpansionAngleDialogNonModal(
+                    self.expansion_angle_dialog = dialogs.ExpansionAngleDialogNonModal(
                         self.vtkWidget, self.renderer, self)
                     self.expansion_angle_dialog.accepted_signal.connect(
                         self.handle_theta_signal)
@@ -2431,7 +2214,7 @@ class GraphicalEditor(QFrame):
         x, y, z, angle_x, angle_y, angle_z, arrow_size = properties
         theta, phi = calculate_thetaPhi_with_angles(
             x, y, z, angle_x, angle_y, angle_z)
-        self.expansion_angle_dialog = ExpansionAngleDialogNonModal(
+        self.expansion_angle_dialog = dialogs.ExpansionAngleDialogNonModal(
             self.vtkWidget, self.renderer, self)
         self.expansion_angle_dialog.accepted_signal.connect(
             lambda thetaMax: self.handle_theta_signal_with_thetaPhi(x, y, z, thetaMax, theta, phi))
@@ -2481,13 +2264,34 @@ class GraphicalEditor(QFrame):
                 f"Exception while assigning expansion angle θ: {e}\n")
             return
 
+    def save_and_mesh_objects(self):
+        gmsh.initialize()
+
+        for objType, objSimple in self.simple_geometry_objects:
+            x, y, z, length, width, height = objSimple
+
+            if objType == 'box':
+                gmsh.model.occ.addBox(x, y, z, length, width, height)
+
+        gmsh.option.setNumber("Mesh.MeshSizeMin", 0.1)
+        gmsh.option.setNumber("Mesh.MeshSizeMax", 0.1)
+        gmsh.model.occ.synchronize()
+        gmsh.model.mesh.generate(3)
+
+        filename = self.get_filename_from_dialog()
+        if filename:
+            gmsh.write(filename)
+            self.log_console.printInfo(
+                f'Successfully saved and meshed boxes into file: {filename}')
+        gmsh.finalize()
+
     def set_particle_source_as_surface(self):
-        manager = SurfaceAndArrowManager(
+        manager = dialogs.SurfaceAndArrowManager(
             self.vtkWidget, self.renderer, self.log_console, self.selected_actors, self)
         manager.set_particle_source_as_surface()
 
     def add_material(self):
-        dialog = AddMaterialDialog(self)
+        dialog = dialogs.AddMaterialDialog(self)
         if dialog.exec_() == QDialog.Accepted:
             selected_material = dialog.materials_combobox.currentText()
             if not selected_material:
