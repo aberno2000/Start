@@ -15,7 +15,6 @@ void MatrixEquationSolver::initialize()
 MatrixEquationSolver::MatrixEquationSolver(std::shared_ptr<GSMatrixAssemblier> assemblier, std::shared_ptr<SolutionVector> solutionVector)
     : m_assemblier(assemblier), m_solutionVector(solutionVector) { initialize(); }
 
-
 void MatrixEquationSolver::setRHS(const Teuchos::RCP<TpetraVectorType> &rhs) { m_rhs = rhs; }
 
 Scalar MatrixEquationSolver::getScalarFieldValueFromX(size_t nodeID) const
@@ -192,13 +191,12 @@ Teuchos::RCP<Teuchos::ParameterList> MatrixEquationSolver::createSolverParams(st
     Teuchos::RCP<Teuchos::ParameterList> params{Teuchos::parameterList()};
     try
     {
-        params->set("Solver Name", solverName);
         params->set("Maximum Iterations", maxIterations);
         params->set("Convergence Tolerance", convergenceTolerance);
         params->set("Verbosity", verbosity);
         params->set("Output Frequency", outputFrequency);
 
-        if (solverName == "GMRES" || solverName == "Block GMRES" || solverName == "Pseudo-block GMRES" || solverName == "Block Flexible GMRES")
+        if (solverName == "GMRES" || solverName == "Block GMRES")
         {
             params->set("Num Blocks", numBlocks);
             params->set("Block Size", blockSize);
@@ -209,7 +207,7 @@ Teuchos::RCP<Teuchos::ParameterList> MatrixEquationSolver::createSolverParams(st
             if (convergenceTestFrequency >= 0)
                 params->set("Convergence Test Frequency", convergenceTestFrequency);
         }
-        else if (solverName == "CG" || solverName == "Block CG" || solverName == "Pseudo-block CG")
+        else if (solverName == "CG" || solverName == "Block CG")
         {
             params->set("Block Size", blockSize);
             params->set("Convergence Tolerance", convergenceTolerance);
@@ -222,14 +220,6 @@ Teuchos::RCP<Teuchos::ParameterList> MatrixEquationSolver::createSolverParams(st
         }
         else if (solverName == "MINRES")
         {
-            params->set("Convergence Tolerance", convergenceTolerance);
-            params->set("Maximum Iterations", maxIterations);
-        }
-        else if (solverName == "GCRO-DR")
-        {
-            params->set("Num Blocks", numBlocks);
-            params->set("Block Size", blockSize);
-            params->set("Maximum Restarts", maxRestarts);
             params->set("Convergence Tolerance", convergenceTolerance);
             params->set("Maximum Iterations", maxIterations);
         }
@@ -291,7 +281,7 @@ std::pair<std::string, Teuchos::RCP<Teuchos::ParameterList>> MatrixEquationSolve
         if (j.contains("outputFrequency"))
             params->set("Output Frequency", std::stoi(j.at("outputFrequency").get<std::string>()));
         if (j.contains("numBlocks"))
-            params->set("Number of Blocks", std::stoi(j.at("numBlocks").get<std::string>()));
+            params->set("Num Blocks", std::stoi(j.at("numBlocks").get<std::string>()));
         if (j.contains("blockSize"))
             params->set("Block Size", std::stoi(j.at("blockSize").get<std::string>()));
         if (j.contains("maxRestarts"))

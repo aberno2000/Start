@@ -3,22 +3,22 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtCore import Qt
 from .config_tab import ConfigTab
-from util.graphical_editor import GraphicalEditor
+from graphical_editor import GraphicalEditor
+from logger import LogConsole
 
 
 class GraphicalEditorTab(QWidget):
-    def __init__(self, config_tab: ConfigTab, log_console, parent=None):
+    def __init__(self, config_tab: ConfigTab, log_console: LogConsole, parent=None):
         super().__init__(parent)
         self.layout = QVBoxLayout(self)
         self.config_tab = config_tab
         self.log_console = log_console
         self.setup_ui()
 
-
     def setup_ui(self):
         # Initialize a placeholder for the graphical editor
         self.geditor = GraphicalEditor(self.log_console, self.config_tab)
-        
+
         # Initialize an empty QTreeView
         self.treeView = self.geditor.treeView
         self.model = self.geditor.model
@@ -36,6 +36,5 @@ class GraphicalEditorTab(QWidget):
         self.layout.addWidget(self.splitter)
         self.setLayout(self.layout)
 
-    
     def clear_scene_and_tree_view(self):
         self.geditor.clear_scene_and_tree_view()

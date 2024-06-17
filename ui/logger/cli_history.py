@@ -1,6 +1,7 @@
 from PyQt5.QtWidgets import QLineEdit
 from PyQt5.QtCore import Qt
 
+
 class CommandLineHistory(QLineEdit):
     def __init__(self, *args, **kwargs):
         super(CommandLineHistory, self).__init__(*args, **kwargs)

@@ -7,8 +7,7 @@ RUN apt-get update && \
     pip install numpy matplotlib vtk h5py gmsh PyQt5 nlohmann-json
 
 # Copy all the necessary files and directories
-COPY ./dist/nia_start /app/
-COPY ./icons /app/icons
+COPY ./dist/ /app/
 COPY ./results /app/results
 COPY ./*.json /app/
 

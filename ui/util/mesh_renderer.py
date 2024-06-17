@@ -1,4 +1,4 @@
-from vtk import(
+from vtk import (
     vtkRenderer, vtkRenderWindow, vtkRenderWindowInteractor,
     vtkLookupTable, vtkPoints, vtkPolyData, vtkCellArray, vtkTriangle,
     vtkFloatArray, vtkPolyDataMapper, vtkActor, vtkScalarBarActor,
@@ -6,23 +6,24 @@ from vtk import(
 )
 from numpy import round, linspace
 
+
 class MeshRenderer:
     def __init__(self, mesh):
         self.mesh = mesh
         self.renderer = vtkRenderer()
         self.renderWindow = vtkRenderWindow()
         self.renderWindow.AddRenderer(self.renderer)
-        
+
         self.interactor = vtkRenderWindowInteractor()
         self.interactor.SetRenderWindow(self.renderWindow)
-        
+
         self.scalarBar = vtkScalarBarActor()
-        self.default_num_labels = 5 # Default labels count
+        self.default_num_labels = 5  # Default labels count
         self.setup_colormap()
-        
+
         # Setting default style of the scalar bar
         self.setup_default_scalarbar_properties()
-        
+
     def setup_default_scalarbar_properties(self):
         self.scalarBar.SetWidth(0.1)
         self.scalarBar.SetHeight(0.75)
@@ -39,7 +40,6 @@ class MeshRenderer:
         title_text_property.SetBold(True)
         title_text_property.SetItalic(False)
         title_text_property.SetColor(0, 0, 0)
-    
 
     def setup_colormap(self):
         self.max_count = max(triangle[5] for triangle in self.mesh)
@@ -51,34 +51,32 @@ class MeshRenderer:
             self.lookupTable.SetTableValue(i, ratio, 0, 1 - ratio)
         self.lookupTable.Build()
         self.set_annotations(self.default_num_labels)
-        
-        
+
     def set_annotations(self, num_labels=5):
         valuesArray = vtkFloatArray()
         annotationsArray = vtkStringArray()
         unique_values = sorted(set(triangle[5] for triangle in self.mesh))
-        
+
         # Function to pick N evenly spaced elements including the first and the last
         def pick_n_uniformly(lst, n):
             if n >= len(lst):
                 return lst
             indeces = round(linspace(0, len(lst) - 1, n)).astype(int)
             return [lst[index] for index in indeces]
-    
+
         uniform_values = pick_n_uniformly(unique_values, num_labels)
         for value in uniform_values:
             valuesArray.InsertNextValue(value)
             annotationsArray.InsertNextValue(f"{value}")
-        
-        self.lookupTable.SetAnnotations(valuesArray, annotationsArray)
 
+        self.lookupTable.SetAnnotations(valuesArray, annotationsArray)
 
     def render_mesh(self):
         points = vtkPoints()
         cells = vtkCellArray()
         scalars = vtkFloatArray()
         scalars.SetNumberOfComponents(1)
-        
+
         for meshTriangle in self.mesh:
             point_ids = []
             for vertex in meshTriangle[1:4]:
@@ -109,21 +107,19 @@ class MeshRenderer:
         self.actor.SetMapper(mapper)
         self.renderer.AddActor(self.actor)
 
-        
-    def add_colorbar(self, title='Color Scale', range=None): 
+    def add_colorbar(self, title='Color Scale', range=None):
         self.scalarBar.SetTitle(title)
         self.scalarBar.SetNumberOfLabels(self.default_num_labels)
 
         if range:
-            self.actor.GetMapper().GetLookupTable().SetRange(range[0], range[1])
+            self.actor.GetMapper().GetLookupTable().SetRange(
+                range[0], range[1])
 
         self.scalarBar.SetLookupTable(self.actor.GetMapper().GetLookupTable())
         self.renderer.AddActor2D(self.scalarBar)
-
 
     def show(self):
         self.render_mesh()
         self.add_scalar_bar()
         self.renderWindow.Render()
         self.interactor.Start()
-        

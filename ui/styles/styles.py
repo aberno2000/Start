@@ -1,3 +1,4 @@
+from PyQt5.QtCore import Qt
 APPSTYLE_DARK = "QWidget { background-color: #333; color: white; }"
 APPSTYLE_LIGHT = "QWidget { background-color: #eee; color: black; }"
 APPSTYLE_NIGHT = "QWidget { background-color: #000; color: green; }"
@@ -14,14 +15,13 @@ DEFAULT_DISABLED_BUTTON_STYLE = "background-color: lightgrey; color: grey;"
 DEFAULT_FONT_COLOR = 'white'
 
 DEFAULT_ACTOR_COLOR = [1, 1, 0]
-SELECTED_ACTOR_COLOR = [1.0, 0.5, 0.0]
+DEFAULT_SELECTED_ACTOR_COLOR = [1.0, 0.5, 0.0]
 
 DEFAULT_PARTICLE_ACTOR_COLOR = [1, 0, 0]
 DEFAULT_PARTICLE_ACTOR_SIZE = 3
 
-ARROW_ACTOR_COLOR = [0.5, 0.0, 0.5]
-ARROW_DEFAULT_SCALE = [5, 5, 5]
+DEFAULT_ARROW_ACTOR_COLOR = [0.5, 0.0, 0.5]
+DEFAULT_ARROW_SCALE = [5, 5, 5]
 
-from PyQt5.QtCore import Qt 
 DEFAULT_TREE_VIEW_ROW_COLOR = Qt.white
 DEFAULT_TREE_VIEW_ROW_COLOR_HIDED_ACTOR = Qt.lightGray
