@@ -31,38 +31,26 @@ from constants import *
 from dialogs import *
 from .simple_geometry import *
 from .interactor import *
+from .particle_source_manager import ParticleSourceManager
 
 
 class GraphicalEditor(QFrame):
     def __init__(self, log_console: LogConsole, config_tab, parent=None):
         super().__init__(parent)
+        
         self.config_tab = config_tab
-
-        # External row - is the 1st row in the tree view (volume, excluding objects like: line, point)
-        # Internal row - is the 2nd row in the tree view (surface)
-        # Tree dictionary (treedict) - own invented dictionary that stores data to fill the mesh tree
-        self.externRow_treedict = {}   # Key = external row        |  value = treedict
-        self.externRow_actors = {}     # Key = external row        |  value = list of actors
-        self.actor_rows = {}           # Key = actor               |  value = pair(external row, internal row)
-        self.actor_color = {}          # Key = actor               |  value = color
-        self.actor_nodes = {}          # Key = actor               |  value = list of nodes
-        self.actor_matrix = {}         # Key = actor               |  value = transformation matrix: pair(initial, current)
-        self.meshfile_actors = {}      # Key = mesh filename       |  value = list of actors
-
-        self.treeView = QTreeView()
-        self.model = QStandardItemModel()
-        self.model.setHorizontalHeaderLabels(['Mesh Tree'])
+        self.log_console = log_console
         self.mesh_file = None
 
-        self.selected_actors = set()
-
-        self.picker = vtkCellPicker()
-        self.picker.SetTolerance(0.005)
-        self.log_console = log_console
-
+        self.setup_dicts()
+        self.setup_tree_view()
+        self.setup_selected_actors()
+        self.setup_picker(log_console)
         self.setup_toolbar()
         self.setup_ui()
         self.setup_interaction()
+        self.setup_status_bar()
+        self.setup_particle_source_manager()
         self.setup_axes()
 
         self.objectsAddingHistory = ActionHistory()
@@ -77,8 +65,115 @@ class GraphicalEditor(QFrame):
         self.crossSectionLinePoints = []  # To store points for the cross-section line
         self.isDrawingLine = False        # To check if currently drawing the line
         self.tempLineActor = None         # Temporary actor for the line visualization
+        
+    def setup_dicts(self):
+        # External row - is the 1st row in the tree view (volume, excluding objects like: line, point)
+        # Internal row - is the 2nd row in the tree view (surface)
+        # Tree dictionary (treedict) - own invented dictionary that stores data to fill the mesh tree
+        self.externRow_treedict = {}   # Key = external row        |  value = treedict
+        self.externRow_actors = {}     # Key = external row        |  value = list of actors
+        self.actor_rows = {}           # Key = actor               |  value = pair(external row, internal row)
+        self.actor_color = {}          # Key = actor               |  value = color
+        self.actor_nodes = {}          # Key = actor               |  value = list of nodes
+        self.actor_matrix = {}         # Key = actor               |  value = transformation matrix: pair(initial, current)
+        self.meshfile_actors = {}      # Key = mesh filename       |  value = list of actors
+        
+    def setup_tree_view(self):
+        self.treeView = QTreeView()
+        self.model = QStandardItemModel()
+        self.model.setHorizontalHeaderLabels(['Mesh Tree'])
+    
+    def setup_selected_actors(self):
+        self.selected_actors = set()
 
-        self.particleSourceArrowActor = None
+    def setup_picker(self, log_console):
+        self.picker = vtkCellPicker()
+        self.picker.SetTolerance(0.005)
+        self.log_console = log_console
+        
+    def setup_toolbar(self):
+        self.layout = QVBoxLayout()  # Main layout
+        self.toolbarLayout = QHBoxLayout()  # Layout for the toolbar
+
+        # Create buttons for the toolbar
+        self.createPointButton = self.create_button('icons/point.png', 'Point')
+        self.createLineButton = self.create_button('icons/line.png', 'Line')
+        self.createSurfaceButton = self.create_button('icons/surface.png', 'Surface')
+        self.createSphereButton = self.create_button('icons/sphere.png', 'Sphere')
+        self.createBoxButton = self.create_button('icons/box.png', 'Box')
+        self.createCylinderButton = self.create_button('icons/cylinder.png', 'Cylinder')
+        self.uploadCustomButton = self.create_button('icons/custom.png', 'Upload mesh object')
+        self.eraseAllObjectsButton = self.create_button('icons/eraser.png', 'Erase all')
+        self.xAxisButton = self.create_button('icons/x-axis.png', 'Set camera view to X-axis')
+        self.yAxisButton = self.create_button('icons/y-axis.png', 'Set camera view to Y-axis')
+        self.zAxisButton = self.create_button('icons/z-axis.png', 'Set camera view to Z-axis')
+        self.centerAxisButton = self.create_button('icons/center-axis.png', 'Set camera view to center of axes')
+        self.subtractObjectsButton = self.create_button('icons/subtract.png', 'Subtract objects')
+        self.unionObjectsButton = self.create_button('icons/union.png', 'Combine (union) objects')
+        self.intersectObjectsButton = self.create_button('icons/intersection.png', 'Intersection of two objects')
+        self.crossSectionButton = self.create_button('icons/cross-section.png', 'Cross section of the object')
+        self.setBoundaryConditionsSurfaceButton = self.create_button('icons/boundary-conditions-surface.png', 'Turning on mode to select boundary nodes on surface')
+        self.setParticleSourceButton = self.create_button('icons/particle-source.png', 'Set particle source as surface')
+        self.meshCreatedObjectsButton = self.create_button('icons/mesh-objects.png', 'Mesh created objects. WARNING: After this action list of the created objects will be zeroed up')
+
+        self.spacer = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
+        self.toolbarLayout.addSpacerItem(self.spacer)
+
+        # Connect buttons to methods
+        self.createPointButton.clicked.connect(self.create_point)
+        self.createLineButton.clicked.connect(self.create_line)
+        self.createSurfaceButton.clicked.connect(self.create_surface)
+        self.createSphereButton.clicked.connect(self.create_sphere)
+        self.createBoxButton.clicked.connect(self.create_box)
+        self.createCylinderButton.clicked.connect(self.create_cylinder)
+        self.uploadCustomButton.clicked.connect(self.upload_custom)
+        self.eraseAllObjectsButton.clicked.connect(self.clear_scene_and_tree_view)
+        self.xAxisButton.clicked.connect(lambda: self.align_view_by_axis('x'))
+        self.yAxisButton.clicked.connect(lambda: self.align_view_by_axis('y'))
+        self.zAxisButton.clicked.connect(lambda: self.align_view_by_axis('z'))
+        self.centerAxisButton.clicked.connect(lambda: self.align_view_by_axis('center'))
+        self.subtractObjectsButton.clicked.connect(self.subtract_button_clicked)
+        self.unionObjectsButton.clicked.connect(self.combine_button_clicked)
+        self.intersectObjectsButton.clicked.connect(self.intersection_button_clicked)
+        self.crossSectionButton.clicked.connect(self.cross_section_button_clicked)
+        self.setBoundaryConditionsSurfaceButton.clicked.connect(self.activate_selection_boundary_conditions_mode_for_surface)
+        self.setParticleSourceButton.clicked.connect(self.set_particle_source)
+        self.meshCreatedObjectsButton.clicked.connect(self.save_and_mesh_objects)
+
+        self.tmpButton = self.create_button('', '')
+        self.tmpButton.clicked.connect(self.test)
+        
+    def setup_ui(self):
+        self.vtkWidget = QVTKRenderWindowInteractor(self)
+        self.layout.addLayout(self.toolbarLayout)
+        self.layout.addWidget(self.vtkWidget)
+        self.setLayout(self.layout)
+
+        self.renderer = vtkRenderer()
+        self.vtkWidget.GetRenderWindow().AddRenderer(self.renderer)
+
+        self.treeView.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.treeView.customContextMenuRequested.connect(self.on_treeView_context_menu)
+    
+    def setup_interaction(self):
+        self.change_interactor(INTERACTOR_STYLE_TRACKBALL_CAMERA)
+        self.interactor.AddObserver(vtkCommand.KeyPressEvent, self.on_key_press)
+        
+    def setup_status_bar(self):
+        self.statusBar = QStatusBar()
+        self.layout.addWidget(self.statusBar)
+
+    def setup_particle_source_manager(self):
+        self.particle_source_manager = ParticleSourceManager(self.vtkWidget, self.renderer, self.log_console, self.config_tab, self.selected_actors, self.statusBar, self)
+        
+    def setup_axes(self):
+        self.axes_actor = vtkAxesActor()
+        self.axes_widget = vtkOrientationMarkerWidget()
+        self.axes_widget.SetOrientationMarker(self.axes_actor)
+        self.axes_widget.SetInteractor(self.vtkWidget.GetRenderWindow().GetInteractor())
+        self.axes_widget.SetViewport(0.0, 0.0, 0.2, 0.2)
+        self.axes_widget.EnabledOn()
+        self.axes_widget.InteractiveOff()
 
     def get_treedict_by_extern_row(self, extern_row):
         return self.externRow_treedict.get(extern_row, None)
@@ -257,70 +352,6 @@ class GraphicalEditor(QFrame):
         self.toolbarLayout.addWidget(button)
         return button
 
-    def setup_toolbar(self):
-        self.layout = QVBoxLayout()  # Main layout
-        self.toolbarLayout = QHBoxLayout()  # Layout for the toolbar
-
-        # Create buttons for the toolbar
-        self.createPointButton = self.create_button('icons/point.png', 'Point')
-        self.createLineButton = self.create_button('icons/line.png', 'Line')
-        self.createSurfaceButton = self.create_button('icons/surface.png', 'Surface')
-        self.createSphereButton = self.create_button('icons/sphere.png', 'Sphere')
-        self.createBoxButton = self.create_button('icons/box.png', 'Box')
-        self.createCylinderButton = self.create_button('icons/cylinder.png', 'Cylinder')
-        self.uploadCustomButton = self.create_button('icons/custom.png', 'Upload mesh object')
-        self.eraseAllObjectsButton = self.create_button('icons/eraser.png', 'Erase all')
-        self.xAxisButton = self.create_button('icons/x-axis.png', 'Set camera view to X-axis')
-        self.yAxisButton = self.create_button('icons/y-axis.png', 'Set camera view to Y-axis')
-        self.zAxisButton = self.create_button('icons/z-axis.png', 'Set camera view to Z-axis')
-        self.centerAxisButton = self.create_button('icons/center-axis.png', 'Set camera view to center of axes')
-        self.subtractObjectsButton = self.create_button('icons/subtract.png', 'Subtract objects')
-        self.unionObjectsButton = self.create_button('icons/union.png', 'Combine (union) objects')
-        self.intersectObjectsButton = self.create_button('icons/intersection.png', 'Intersection of two objects')
-        self.crossSectionButton = self.create_button('icons/cross-section.png', 'Cross section of the object')
-        self.setBoundaryConditionsSurfaceButton = self.create_button('icons/boundary-conditions-surface.png', 'Turning on mode to select boundary nodes on surface')
-        self.setParticleSourceButton = self.create_button('icons/particle-source.png', 'Set particle source as surface')
-        self.meshCreatedObjectsButton = self.create_button('icons/mesh-objects.png', 'Mesh created objects. WARNING: After this action list of the created objects will be zeroed up')
-
-        self.spacer = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
-        self.toolbarLayout.addSpacerItem(self.spacer)
-
-        # Connect buttons to methods
-        self.createPointButton.clicked.connect(self.create_point)
-        self.createLineButton.clicked.connect(self.create_line)
-        self.createSurfaceButton.clicked.connect(self.create_surface)
-        self.createSphereButton.clicked.connect(self.create_sphere)
-        self.createBoxButton.clicked.connect(self.create_box)
-        self.createCylinderButton.clicked.connect(self.create_cylinder)
-        self.uploadCustomButton.clicked.connect(self.upload_custom)
-        self.eraseAllObjectsButton.clicked.connect(self.clear_scene_and_tree_view)
-        self.xAxisButton.clicked.connect(lambda: self.align_view_by_axis('x'))
-        self.yAxisButton.clicked.connect(lambda: self.align_view_by_axis('y'))
-        self.zAxisButton.clicked.connect(lambda: self.align_view_by_axis('z'))
-        self.centerAxisButton.clicked.connect(lambda: self.align_view_by_axis('center'))
-        self.subtractObjectsButton.clicked.connect(self.subtract_button_clicked)
-        self.unionObjectsButton.clicked.connect(self.combine_button_clicked)
-        self.intersectObjectsButton.clicked.connect(self.intersection_button_clicked)
-        self.crossSectionButton.clicked.connect(self.cross_section_button_clicked)
-        self.setBoundaryConditionsSurfaceButton.clicked.connect(self.activate_selection_boundary_conditions_mode_for_surface)
-        self.setParticleSourceButton.clicked.connect(self.set_particle_source)
-        self.meshCreatedObjectsButton.clicked.connect(self.save_and_mesh_objects)
-
-        self.tmpButton = self.create_button('', '')
-        self.tmpButton.clicked.connect(self.test)
-
-    def setup_ui(self):
-        self.vtkWidget = QVTKRenderWindowInteractor(self)
-        self.layout.addLayout(self.toolbarLayout)
-        self.layout.addWidget(self.vtkWidget)
-        self.setLayout(self.layout)
-
-        self.renderer = vtkRenderer()
-        self.vtkWidget.GetRenderWindow().AddRenderer(self.renderer)
-
-        self.treeView.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.treeView.customContextMenuRequested.connect(self.on_treeView_context_menu)
-
     def on_treeView_context_menu(self, position):
         indexes = self.treeView.selectedIndexes()
         if not indexes:
@@ -364,8 +395,7 @@ class GraphicalEditor(QFrame):
 
     def hide_actors(self):
         action = self.sender()
-        all_visible = all(actor.GetVisibility(
-        ) for actor in self.selected_actors if actor and isinstance(actor, vtkActor))
+        all_visible = all(actor.GetVisibility() for actor in self.selected_actors if actor and isinstance(actor, vtkActor))
 
         for actor in self.selected_actors:
             if actor and isinstance(actor, vtkActor):
@@ -429,7 +459,7 @@ class GraphicalEditor(QFrame):
         return filename
 
     def create_point(self):
-        dialog = dialogs.PointDialog(self)
+        dialog = PointDialog(self)
         if dialog.exec_() == QDialog.Accepted and dialog.getValues() is not None:
             x, y, z = dialog.getValues()
 
@@ -441,7 +471,7 @@ class GraphicalEditor(QFrame):
                 QMessageBox.warning(self, "Create Point", str(e))
 
     def create_line(self):
-        dialog = dialogs.LineDialog(self)
+        dialog = LineDialog(self)
         if dialog.exec_() == QDialog.Accepted:
             values = dialog.getValues()
             if values is not None and len(values) >= 6:
@@ -455,7 +485,7 @@ class GraphicalEditor(QFrame):
                     QMessageBox.warning(self, "Create Line", str(e))
 
     def create_surface(self):
-        dialog = dialogs.SurfaceDialog(self)
+        dialog = SurfaceDialog(self)
         if dialog.exec_() == QDialog.Accepted:
             values = dialog.getValues()
 
@@ -470,7 +500,7 @@ class GraphicalEditor(QFrame):
                     QMessageBox.warning(self, "Create Surface", str(e))
 
     def create_sphere(self):
-        dialog = dialogs.SphereDialog(self)
+        dialog = SphereDialog(self)
         if dialog.exec_() == QDialog.Accepted and dialog.getValues() is not None:
             x, y, z, radius, phi_resolution, theta_resolution = dialog.getValues()
 
@@ -482,7 +512,7 @@ class GraphicalEditor(QFrame):
                 QMessageBox.warning(self, "Create Sphere", str(e))
 
     def create_box(self):
-        dialog = dialogs.BoxDialog(self)
+        dialog = BoxDialog(self)
         if dialog.exec_() == QDialog.Accepted and dialog.getValues() is not None:
             x, y, z, length, width, height = dialog.getValues()
 
@@ -494,7 +524,7 @@ class GraphicalEditor(QFrame):
                 QMessageBox.warning(self, "Create Box", str(e))
 
     def create_cylinder(self):
-        dialog = dialogs.CylinderDialog(self)
+        dialog = CylinderDialog(self)
         if dialog.exec_() == QDialog.Accepted and dialog.getValues() is not None:
             x, y, z, radius, dx, dy, dz, resolution = dialog.getValues()
 
@@ -521,7 +551,7 @@ class GraphicalEditor(QFrame):
 
         # If the selected file is a STEP file, prompt for conversion parameters.
         if file_name.endswith('.stp'):
-            dialog = dialogs.MeshDialog(self)
+            dialog = MeshDialog(self)
             if dialog.exec() == QDialog.Accepted:
                 mesh_size, mesh_dim = dialog.get_values()
                 try:
@@ -567,16 +597,6 @@ class GraphicalEditor(QFrame):
             gmsh.finalize()
             return output_file
 
-    def setup_axes(self):
-        self.axes_actor = vtkAxesActor()
-        self.axes_widget = vtkOrientationMarkerWidget()
-        self.axes_widget.SetOrientationMarker(self.axes_actor)
-        self.axes_widget.SetInteractor(
-            self.vtkWidget.GetRenderWindow().GetInteractor())
-        self.axes_widget.SetViewport(0.0, 0.0, 0.2, 0.2)
-        self.axes_widget.EnabledOn()
-        self.axes_widget.InteractiveOff()
-
     def add_actor(self, actor: vtkActor):
         self.renderer.AddActor(actor)
         actor.GetProperty().SetColor(DEFAULT_ACTOR_COLOR)
@@ -619,14 +639,12 @@ class GraphicalEditor(QFrame):
                 if actor and isinstance(actor, vtkActor):
                     row = self.get_volume_row(actor)
                     if row is None:
-                        self.log_console.printInternalError(
-                            f"Can't find tree view row [{row}] by actor <{hex(id(actor))}>")
+                        self.log_console.printInternalError(f"Can't find tree view row [{row}] by actor <{hex(id(actor))}>")
                         return
 
                     actors = self.get_actor_from_volume_row(row)
                     if not actors:
-                        self.log_console.printInternalError(
-                            f"Can't find actors <{hex(id(actors))}> by tree view row [{row}]>")
+                        self.log_console.printInternalError(f"Can't find actors <{hex(id(actors))}> by tree view row [{row}]>")
                         return
 
                     self.remove_row_from_tree(row)
@@ -647,8 +665,6 @@ class GraphicalEditor(QFrame):
             self.deselect()
 
     def remove_all_actors(self):
-        self.particleSourceArrowActor = None
-
         actors = self.renderer.GetActors()
         actors.InitTraversal()
         for i in range(actors.GetNumberOfItems()):
@@ -1091,13 +1107,6 @@ class GraphicalEditor(QFrame):
                     rows_to_select = (volume_row, surface_row)
                     break
 
-            # Highlight the actor if it is the arrow actor
-            if actor == self.particleSourceArrowActor:
-                self.set_color(actor, DEFAULT_SELECTED_ACTOR_COLOR)
-                self.selected_actors.add(actor)
-                self.render_editor_window_without_resetting_camera()
-                return
-
             # Select the rows in the tree view if rows_to_select is not empty
             if rows_to_select:
                 index = self.model.index(
@@ -1140,11 +1149,6 @@ class GraphicalEditor(QFrame):
                 self.isPerformOperation = (False, None)
                 self.statusBar.clearMessage()
 
-    def setup_interaction(self):        
-        self.original_color = None
-        self.change_interactor(INTERACTOR_STYLE_TRACKBALL_CAMERA)
-        self.interactor.AddObserver(vtkCommand.KeyPressEvent, self.on_key_press)
-
     def on_left_button_press(self, obj, event):
         if self.isDrawingLine:
             self.handle_drawing_line()
@@ -1158,7 +1162,6 @@ class GraphicalEditor(QFrame):
         actor = self.picker.GetActor()
         if actor:
             self.selected_actors.add(actor)
-            self.original_color = actor.GetProperty().GetColor()
             self.context_menu()
 
     def on_key_press(self, obj, event):
@@ -1232,6 +1235,12 @@ class GraphicalEditor(QFrame):
         except:
             self.log_console.printInternalError(f"Can't set color [{color}] to actor <{hex(id(actor))}>")
             return
+        
+    def set_particle_source(self):
+        self.particle_source_manager.set_particle_source()
+
+    def reset_particle_source_arrow(self):
+        self.particle_source_manager.reset_particle_source_arrow()
 
     def deselect(self):
         try:
@@ -1249,7 +1258,7 @@ class GraphicalEditor(QFrame):
             self.log_console.printError(f"Error in deselect: {e}")
 
     def move_actors(self):
-        dialog = dialogs.MoveActorDialog(self)
+        dialog = MoveActorDialog(self)
         if dialog.exec_() == QDialog.Accepted:
             offsets = dialog.getValues()
             if offsets:
@@ -1325,8 +1334,7 @@ class GraphicalEditor(QFrame):
             return
 
         # Extracting indices for the actors to be merged
-        volume_row, surface_indices = self.extract_indices(
-            self.selected_actors)
+        volume_row, surface_indices = self.extract_indices(self.selected_actors)
         if not surface_indices or volume_row is None:
             self.log_console.printError(
                 "No valid surface indices found for selected actors")
@@ -1403,7 +1411,7 @@ class GraphicalEditor(QFrame):
                 self.actor_rows[actor] = (vol_row, index_mapping[surf_row])
 
     def rotate_actors(self):
-        dialog = dialogs.AngleDialog(self)
+        dialog = AngleDialog(self)
         if dialog.exec_() == QDialog.Accepted:
             angles = dialog.getValues()
             if angles:
@@ -1439,8 +1447,7 @@ class GraphicalEditor(QFrame):
         msgBox = QMessageBox()
         msgBox.setIcon(QMessageBox.Warning)
         msgBox.setWindowTitle("Deleting All The Data")
-        msgBox.setText(
-            "Are you sure you want to delete all the objects? They will be permanently deleted.")
+        msgBox.setText("Are you sure you want to delete all the objects? They will be permanently deleted.")
         msgBox.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
 
         choice = msgBox.exec()
@@ -1543,15 +1550,14 @@ class GraphicalEditor(QFrame):
 
     def create_cross_section(self):
         if len(self.crossSectionLinePoints) != 2:
-            QMessageBox.warning(
-                self, "Warning", "Please define two points for the cross-section.")
+            QMessageBox.warning(self, "Warning", "Please define two points for the cross-section.")
             return
 
         point1, point2 = self.crossSectionLinePoints
         direction = [point2[i] - point1[i]
                      for i in range(3)]  # Direction vector of the line
 
-        dialog = dialogs.AxisSelectionDialog(self)
+        dialog = AxisSelectionDialog(self)
         if dialog.exec_() == QDialog.Accepted:
             selectedAxis = dialog.getSelectedAxis()
             plane = vtkPlane()
@@ -1609,210 +1615,7 @@ class GraphicalEditor(QFrame):
 
         # Adding 2 new objects
 
-        self.log_console.printInfo("Successfully created a cross-section")
-
-    def save_point_particle_source_to_config(self):
-        try:
-            base_coords = self.get_particle_source_base_coords()
-            if base_coords is None:
-                raise ValueError("Base coordinates are not defined")
-
-            if not self.expansion_angle:
-                self.log_console.printError("Expansion angle θ is undefined")
-                raise ValueError("Expansion angle θ is undefined")
-
-            if self.get_particle_source_direction() is None:
-                return
-            theta, phi = self.get_particle_source_direction()
-
-            config_file = self.config_tab.config_file_path
-            if not config_file:
-                QMessageBox.warning(self, "Saving Particle Source as Point",
-                                    "Can't save pointed particle source, first you need to choose a configuration file, then set the source")
-                self.reset_particle_source_arrow()
-                return
-
-            # Read the existing configuration file
-            with open(config_file, 'r') as file:
-                config_data = json.load(file)
-
-            # Check for existing sources and ask user if they want to remove them
-            sources_to_remove = []
-            if "ParticleSourcePoint" in config_data:
-                sources_to_remove.append("ParticleSourcePoint")
-            if "ParticleSourceSurface" in config_data:
-                sources_to_remove.append("ParticleSourceSurface")
-
-            if sources_to_remove:
-                reply = QMessageBox.question(self, "Remove Existing Sources",
-                                             f"The configuration file contains existing sources: {', '.join(sources_to_remove)}. Do you want to remove them?",
-                                             QMessageBox.Yes | QMessageBox.No)
-                if reply == QMessageBox.Yes:
-                    for source in sources_to_remove:
-                        del config_data[source]
-
-            self.particle_source_dialog = dialogs.ParticleSourceDialog(self)
-            self.particle_source_dialog.accepted_signal.connect(lambda params: self.handle_particle_source_point_accepted(
-                params, config_file, config_data, theta, phi, base_coords))
-            self.particle_source_dialog.rejected_signal.connect(
-                self.reset_particle_source_arrow)
-            self.particle_source_dialog.show()
-
-        except Exception as e:
-            self.log_console.printError(f"Error defining particle source. {e}")
-            QMessageBox.warning(self, "Particle Source",
-                                f"Error defining particle source. {e}")
-            return None
-
-    def save_point_particle_source_to_config_with_theta_phi(self, x, y, z, theta, phi):
-        try:
-            if not self.expansion_angle:
-                self.log_console.printError("Expansion angle θ is undefined")
-                raise ValueError("Expansion angle θ is undefined")
-
-            config_file = self.config_tab.config_file_path
-            if not config_file:
-                QMessageBox.warning(self, "Saving Particle Source as Point",
-                                    "Can't save pointed particle source, first you need to choose a configuration file, then set the source")
-                self.reset_particle_source_arrow()
-                return
-
-            # Read the existing configuration file
-            with open(config_file, 'r') as file:
-                config_data = json.load(file)
-
-            # Check for existing sources and ask user if they want to remove them
-            sources_to_remove = []
-            if "ParticleSourcePoint" in config_data:
-                sources_to_remove.append("ParticleSourcePoint")
-            if "ParticleSourceSurface" in config_data:
-                sources_to_remove.append("ParticleSourceSurface")
-
-            if sources_to_remove:
-                reply = QMessageBox.question(self, "Remove Existing Sources",
-                                             f"The configuration file contains existing sources: {', '.join(sources_to_remove)}. Do you want to remove them?",
-                                             QMessageBox.Yes | QMessageBox.No)
-                if reply == QMessageBox.Yes:
-                    for source in sources_to_remove:
-                        del config_data[source]
-
-            self.particle_source_dialog = dialogs.ParticleSourceDialog(self)
-            self.particle_source_dialog.accepted_signal.connect(lambda params: self.handle_particle_source_point_accepted(
-                params, config_file, config_data, theta, phi, [x, y, z]))
-            self.particle_source_dialog.rejected_signal.connect(
-                self.reset_particle_source_arrow)
-            self.particle_source_dialog.show()
-
-        except Exception as e:
-            self.log_console.printError(f"Error defining particle source. {e}")
-            QMessageBox.warning(self, "Particle Source",
-                                f"Error defining particle source. {e}")
-            return None
-
-    def handle_particle_source_point_accepted(self, particle_params, config_file, config_data, theta, phi, base_coords):
-        try:
-            particle_type = particle_params["particle_type"]
-            energy = particle_params["energy"]
-            num_particles = particle_params["num_particles"]
-
-            # Prepare new ParticleSourcePoint entry
-            if "ParticleSourcePoint" not in config_data:
-                config_data["ParticleSourcePoint"] = {}
-
-            new_point_index = str(len(config_data["ParticleSourcePoint"]) + 1)
-            config_data["ParticleSourcePoint"][new_point_index] = {
-                "Type": particle_type,
-                "Count": num_particles,
-                "Energy": energy,
-                "phi": phi,
-                "theta": theta,
-                "expansionAngle": self.expansion_angle,
-                "BaseCoordinates": [base_coords[0], base_coords[1], base_coords[2]]
-            }
-
-            # Write the updated configuration back to the file
-            with open(config_file, 'w') as file:
-                json.dump(config_data, file, indent=4)
-
-            self.statusBar.showMessage(
-                "Successfully set particle source as point source and calculated direction angles")
-            self.log_console.printInfo(f"Successfully written coordinates of the particle source:\n"
-                                       f"Base: {base_coords}\n"
-                                       f"Expansion angle θ: {self.expansion_angle} ({rad_to_degree(self.expansion_angle)}°)\n"
-                                       f"Polar (colatitude) angle θ: {theta} ({rad_to_degree(theta)}°)\n"
-                                       f"Azimuthal angle φ: {phi} ({rad_to_degree(phi)}°)\n"
-                                       f"Particle Type: {particle_type}\n"
-                                       f"Energy: {energy} eV\n"
-                                       f"Number of Particles: {num_particles}")
-
-            self.reset_particle_source_arrow()
-        except Exception as e:
-            self.log_console.printError(f"Error saving particle source. {e}")
-            QMessageBox.warning(self, "Particle Source",
-                                f"Error saving particle source. {e}")
-            return None
-
-    def reset_particle_source_arrow(self):
-        self.remove_actor(self.particleSourceArrowActor)
-        self.particleSourceArrowActor = None
-
-    def get_particle_source_base_coords(self):
-        if not self.particleSourceArrowActor or not isinstance(self.particleSourceArrowActor, vtkActor):
-            return None
-        return self.particleSourceArrowActor.GetPosition()
-
-    def get_particle_source_arrow_tip_coords(self):
-        if not self.particleSourceArrowActor:
-            return
-
-        transform = extract_transform_from_actor(self.particleSourceArrowActor)
-        init_tip_coords = [0, 0, 1]
-        global_tip_coords = transform.TransformPoint(init_tip_coords)
-
-        return global_tip_coords
-
-    def get_particle_source_direction(self):
-        if not self.particleSourceArrowActor:
-            return
-
-        base_coords = self.get_particle_source_base_coords()
-        tip_coords = self.get_particle_source_arrow_tip_coords()
-
-        try:
-            theta, phi = calculate_thetaPhi(base_coords, tip_coords)
-        except Exception as e:
-            self.log_console.printError(
-                f"An error occured when calculating polar (colatitude) θ and azimuthal φ: {e}\n")
-            QMessageBox.warning(
-                self, "Invalid Angles", f"An error occured when calculating polar (colatitude) θ and azimuthal φ: {e}")
-            return None
-
-        return theta, phi
-
-    def create_direction_arrow_interactively(self):
-        arrowSource = vtkArrowSource()
-        arrowSource.SetTipLength(0.25)
-        arrowSource.SetTipRadius(0.1)
-        arrowSource.SetShaftRadius(0.01)
-        arrowSource.Update()
-        arrowSource.SetTipResolution(100)
-
-        arrowTransform = vtkTransform()
-        arrowTransform.RotateX(90)
-        arrowTransform.RotateWXYZ(90, 0, 0, 1)  # Initial direction by Z-axis.
-        arrowTransform.Scale(DEFAULT_ARROW_SCALE)
-        arrowTransformFilter = vtkTransformPolyDataFilter()
-        arrowTransformFilter.SetTransform(arrowTransform)
-        arrowTransformFilter.SetInputConnection(arrowSource.GetOutputPort())
-        arrowTransformFilter.Update()
-
-        mapper = vtkPolyDataMapper()
-        mapper.SetInputConnection(arrowTransformFilter.GetOutputPort())
-
-        self.particleSourceArrowActor = vtkActor()
-        self.particleSourceArrowActor.SetMapper(mapper)
-        self.particleSourceArrowActor.GetProperty().SetColor(DEFAULT_ARROW_ACTOR_COLOR)
-        self.add_actor(self.particleSourceArrowActor)
+        self.log_console.printInfo("Successfully created a cross-section")        
 
     def save_boundary_conditions(self, node_ids, value):
         try:
@@ -1848,7 +1651,7 @@ class GraphicalEditor(QFrame):
                                     "There is no selected surfaces to apply boundary conditions on them")
             return
 
-        dialog = dialogs.BoundaryValueInputDialog(self)
+        dialog = BoundaryValueInputDialog(self)
         if dialog.exec_() == QDialog.Accepted:
             value, ok = dialog.get_value()
             if not ok:
@@ -1865,104 +1668,10 @@ class GraphicalEditor(QFrame):
                 self.log_console.printInfo(f"Object: {hex(id(actor))}, Nodes: {nodes}, Value: {value}")
         self.deselect()
 
-    def set_particle_source(self):
-        if not self.config_tab.mesh_file:
-            QMessageBox.warning(self, "Setting Particle Source",
-                                "First you need to upload mesh/config, then you can set particle source")
-            return
-
-        dialog = dialogs.ParticleSourceTypeDialog(self)
-        if dialog.exec_() == QDialog.Accepted:
-            selected_source_type = dialog.getSelectedSourceType()
-
-            if selected_source_type == "Point Source with Conical Distribution":
-                self.set_particle_source_as_point()
-            elif selected_source_type == "Surface Source":
-                self.set_particle_source_as_surface()
-
-    def set_particle_source_as_point(self):
-        if not self.particleSourceArrowActor:
-            method_dialog = dialogs.ArrowMethodSelectionDialog(self)
-            if method_dialog.exec_() == QDialog.Accepted:
-                method = method_dialog.get_selected_method()
-                if method == "manual":
-                    dialog = dialogs.ArrowPropertiesDialog(
-                        self.vtkWidget, self.renderer, self.particleSourceArrowActor, self)
-                    dialog.properties_accepted.connect(
-                        self.on_arrow_properties_accepted)
-                    dialog.show()
-                elif method == "interactive":
-                    self.create_direction_arrow_interactively()
-
-                    self.expansion_angle_dialog = dialogs.ExpansionAngleDialogNonModal(
-                        self.vtkWidget, self.renderer, self)
-                    self.expansion_angle_dialog.accepted_signal.connect(
-                        self.handle_theta_signal)
-                    self.expansion_angle_dialog.show()
-                else:
-                    QMessageBox.information(self, 
-                                            "Pointed Particle Source", 
-                                            f"Can't apply method {method} to the pointed particle source")
-                    self.reset_particle_source_arrow()
-                    return
-
-    def on_arrow_properties_accepted(self, properties):
-        x, y, z, angle_x, angle_y, angle_z, arrow_size = properties
-        theta, phi = calculate_thetaPhi_with_angles(
-            x, y, z, angle_x, angle_y, angle_z)
-        self.expansion_angle_dialog = dialogs.ExpansionAngleDialogNonModal(
-            self.vtkWidget, self.renderer, self)
-        self.expansion_angle_dialog.accepted_signal.connect(
-            lambda thetaMax: self.handle_theta_signal_with_thetaPhi(x, y, z, thetaMax, theta, phi))
-        self.expansion_angle_dialog.show()
-
-    def handle_theta_signal(self, thetaMax):
-        try:
-            self.expansion_angle = thetaMax
-
-            if self.get_particle_source_direction() is None:
-                self.reset_particle_source_arrow()
-                return
-            _, phi = self.get_particle_source_direction()
-
-            if thetaMax > pi / 2.:
-                self.log_console.printWarning(f"The θ angle exceeds 90°, so some particles can distribute in the opposite direction\nθ = {thetaMax} ({thetaMax * 180. / pi}°)")
-            self.log_console.printInfo(f"Successfully assigned values to the expansion angle and calculated φ angle\nθ = {thetaMax} ({thetaMax * 180. / pi}°)\nφ = {phi} ({phi * 180. / pi}°)\n")
-
-            self.save_point_particle_source_to_config()
-            self.log_console.printInfo("Particle source set")
-
-        except Exception as e:
-            self.reset_particle_source_arrow()
-            QMessageBox.critical(
-                self, "Scattering angles", f"Exception while assigning expansion angle θ: {e}")
-            self.log_console.printError(
-                f"Exception while assigning expansion angle θ: {e}\n")
-            return
-
-    def handle_theta_signal_with_thetaPhi(self, x, y, z, thetaMax, theta, phi):
-        try:
-            self.expansion_angle = thetaMax
-
-            if thetaMax > pi / 2.:
-                self.log_console.printWarning(f"The θ angle exceeds 90°, so some particles can distribute in the opposite direction\nθ = {thetaMax} ({thetaMax * 180. / pi}°)")
-            self.log_console.printInfo(f"Successfully assigned values to the expansion angle and calculated φ angle\nθ = {thetaMax} ({thetaMax * 180. / pi}°)\nφ = {phi} ({phi * 180. / pi}°)\n")
-
-            self.save_point_particle_source_to_config_with_theta_phi(
-                x, y, z, theta, phi)
-            self.log_console.printInfo("Particle source set")
-
-        except Exception as e:
-            self.reset_particle_source_arrow()
-            QMessageBox.critical(
-                self, "Scattering angles", f"Exception while assigning expansion angle θ: {e}")
-            self.log_console.printError(f"Exception while assigning expansion angle θ: {e}\n")
-            return
-
     def save_and_mesh_objects(self):
         mesh_filename = self.get_filename_from_dialog()
         if mesh_filename:
-            dialog = dialogs.mesh_dialog.MeshDialog(self)
+            dialog = mesh_dialog.MeshDialog(self)
             if dialog.exec_() == QDialog.Accepted:
                 mesh_size, mesh_dim = dialog.get_values()
                 success = SimpleGeometryManager.save_and_mesh_objects(self.log_console, mesh_filename, mesh_size, mesh_dim)
@@ -1973,14 +1682,9 @@ class GraphicalEditor(QFrame):
                 else:
                     self.log_console.printInfo("Deleting objects from the list of the created objects...")
                     SimpleGeometryManager.clear_geometry_objects()
-            
-    def set_particle_source_as_surface(self):
-        manager = dialogs.SurfaceAndArrowManager(
-            self.vtkWidget, self.renderer, self.log_console, self.selected_actors, self)
-        manager.set_particle_source_as_surface()
 
     def add_material(self):
-        dialog = dialogs.AddMaterialDialog(self)
+        dialog = AddMaterialDialog(self)
         if dialog.exec_() == QDialog.Accepted:
             selected_material = dialog.materials_combobox.currentText()
             if not selected_material:
