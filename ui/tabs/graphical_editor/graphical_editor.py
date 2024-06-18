@@ -31,6 +31,7 @@ from PyQt5.QtGui import QCursor, QStandardItemModel, QBrush
 from util import *
 from styles import *
 from constants import *
+from dialogs import *
 from .simple_geometry import *
 from logger import LogConsole
 
@@ -50,8 +51,6 @@ class GraphicalEditor(QFrame):
         self.actor_nodes = {}          # Key = actor               |  value = list of nodes
         self.actor_matrix = {}         # Key = actor               |  value = transformation matrix: pair(initial, current)
         self.meshfile_actors = {}      # Key = mesh filename       |  value = list of actors
-
-        self.simple_geometry_objects = []  # List to store simple objects
 
         self.treeView = QTreeView()
         self.model = QStandardItemModel()
@@ -320,42 +319,26 @@ class GraphicalEditor(QFrame):
         # Create buttons for the toolbar
         self.createPointButton = self.create_button('icons/point.png', 'Point')
         self.createLineButton = self.create_button('icons/line.png', 'Line')
-        self.createSurfaceButton = self.create_button(
-            'icons/surface.png', 'Surface')
-        self.createSphereButton = self.create_button(
-            'icons/sphere.png', 'Sphere')
+        self.createSurfaceButton = self.create_button('icons/surface.png', 'Surface')
+        self.createSphereButton = self.create_button('icons/sphere.png', 'Sphere')
         self.createBoxButton = self.create_button('icons/box.png', 'Box')
-        self.createCylinderButton = self.create_button(
-            'icons/cylinder.png', 'Cylinder')
-        self.uploadCustomButton = self.create_button(
-            'icons/custom.png', 'Upload mesh object')
-        self.eraseAllObjectsButton = self.create_button(
-            'icons/eraser.png', 'Erase all')
-        self.xAxisButton = self.create_button(
-            'icons/x-axis.png', 'Set camera view to X-axis')
-        self.yAxisButton = self.create_button(
-            'icons/y-axis.png', 'Set camera view to Y-axis')
-        self.zAxisButton = self.create_button(
-            'icons/z-axis.png', 'Set camera view to Z-axis')
-        self.centerAxisButton = self.create_button(
-            'icons/center-axis.png', 'Set camera view to center of axes')
-        self.subtractObjectsButton = self.create_button(
-            'icons/subtract.png', 'Subtract objects')
-        self.unionObjectsButton = self.create_button(
-            'icons/union.png', 'Combine (union) objects')
-        self.intersectObjectsButton = self.create_button(
-            'icons/intersection.png', 'Intersection of two objects')
-        self.crossSectionButton = self.create_button(
-            'icons/cross-section.png', 'Cross section of the object')
-        self.setBoundaryConditionsButton = self.create_button(
-            'icons/boundary-conditions.png', 'Turning on mode to select boundary nodes')
-        self.setBoundaryConditionsSurfaceButton = self.create_button(
-            'icons/boundary-conditions-surface.png', 'Turning on mode to select boundary nodes on surface')
-        self.setParticleSourceButton = self.create_button(
-            'icons/particle-source.png', 'Set particle source as surface')
+        self.createCylinderButton = self.create_button('icons/cylinder.png', 'Cylinder')
+        self.uploadCustomButton = self.create_button('icons/custom.png', 'Upload mesh object')
+        self.eraseAllObjectsButton = self.create_button('icons/eraser.png', 'Erase all')
+        self.xAxisButton = self.create_button('icons/x-axis.png', 'Set camera view to X-axis')
+        self.yAxisButton = self.create_button('icons/y-axis.png', 'Set camera view to Y-axis')
+        self.zAxisButton = self.create_button('icons/z-axis.png', 'Set camera view to Z-axis')
+        self.centerAxisButton = self.create_button('icons/center-axis.png', 'Set camera view to center of axes')
+        self.subtractObjectsButton = self.create_button('icons/subtract.png', 'Subtract objects')
+        self.unionObjectsButton = self.create_button('icons/union.png', 'Combine (union) objects')
+        self.intersectObjectsButton = self.create_button('icons/intersection.png', 'Intersection of two objects')
+        self.crossSectionButton = self.create_button('icons/cross-section.png', 'Cross section of the object')
+        self.setBoundaryConditionsButton = self.create_button('icons/boundary-conditions.png', 'Turning on mode to select boundary nodes')
+        self.setBoundaryConditionsSurfaceButton = self.create_button('icons/boundary-conditions-surface.png', 'Turning on mode to select boundary nodes on surface')
+        self.setParticleSourceButton = self.create_button('icons/particle-source.png', 'Set particle source as surface')
+        self.meshCreatedObjectsButton = self.create_button('icons/mesh-objects.png', 'Mesh created objects. WARNING: After this action list of the created objects will be zeroed up')
 
-        self.spacer = QSpacerItem(
-            40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
+        self.spacer = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
         self.toolbarLayout.addSpacerItem(self.spacer)
 
         # Connect buttons to methods
@@ -366,25 +349,19 @@ class GraphicalEditor(QFrame):
         self.createBoxButton.clicked.connect(self.create_box)
         self.createCylinderButton.clicked.connect(self.create_cylinder)
         self.uploadCustomButton.clicked.connect(self.upload_custom)
-        self.eraseAllObjectsButton.clicked.connect(
-            self.clear_scene_and_tree_view)
+        self.eraseAllObjectsButton.clicked.connect(self.clear_scene_and_tree_view)
         self.xAxisButton.clicked.connect(lambda: self.align_view_by_axis('x'))
         self.yAxisButton.clicked.connect(lambda: self.align_view_by_axis('y'))
         self.zAxisButton.clicked.connect(lambda: self.align_view_by_axis('z'))
-        self.centerAxisButton.clicked.connect(
-            lambda: self.align_view_by_axis('center'))
-        self.subtractObjectsButton.clicked.connect(
-            self.subtract_button_clicked)
+        self.centerAxisButton.clicked.connect(lambda: self.align_view_by_axis('center'))
+        self.subtractObjectsButton.clicked.connect(self.subtract_button_clicked)
         self.unionObjectsButton.clicked.connect(self.combine_button_clicked)
-        self.intersectObjectsButton.clicked.connect(
-            self.intersection_button_clicked)
-        self.crossSectionButton.clicked.connect(
-            self.cross_section_button_clicked)
-        self.setBoundaryConditionsButton.clicked.connect(
-            self.activate_selection_boundary_conditions_mode)
-        self.setBoundaryConditionsSurfaceButton.clicked.connect(
-            self.activate_selection_boundary_conditions_mode_for_surface)
+        self.intersectObjectsButton.clicked.connect(self.intersection_button_clicked)
+        self.crossSectionButton.clicked.connect(self.cross_section_button_clicked)
+        self.setBoundaryConditionsButton.clicked.connect(self.activate_selection_boundary_conditions_mode)
+        self.setBoundaryConditionsSurfaceButton.clicked.connect(self.activate_selection_boundary_conditions_mode_for_surface)
         self.setParticleSourceButton.clicked.connect(self.set_particle_source)
+        self.meshCreatedObjectsButton.clicked.connect(self.save_and_mesh_objects)
 
         self.tmpButton = self.create_button('', '')
         self.tmpButton.clicked.connect(self.test)
@@ -461,7 +438,7 @@ class GraphicalEditor(QFrame):
         else:
             action.setText('Hide')
 
-        self.vtkWidget.GetRenderWindow().Render()
+        self.render_editor_window_without_resetting_camera()
 
     def update_tree_item_visibility(self, actor, visible):
         rows = self.get_rows_by_actor(actor)
@@ -1040,14 +1017,14 @@ class GraphicalEditor(QFrame):
         try:
             for actor, color in self.actor_color.items():
                 actor.GetProperty().SetColor(color)
-            self.vtkWidget.GetRenderWindow().Render()
+            self.render_editor_window_without_resetting_camera()
         except Exception as e:
             self.log_console.printError(f"Error in restore_actor_colors: {e}")
 
     def highlight_actors(self, actors):
         for actor in actors:
             actor.GetProperty().SetColor(DEFAULT_SELECTED_ACTOR_COLOR)
-        self.vtkWidget.GetRenderWindow().Render()
+        self.render_editor_window_without_resetting_camera()
 
     def unhighlight_actors(self):
         self.restore_actor_colors()
@@ -1177,9 +1154,9 @@ class GraphicalEditor(QFrame):
 
             # Highlight the actor if it is the arrow actor
             if actor == self.particleSourceArrowActor:
-                actor.GetProperty().SetColor(DEFAULT_SELECTED_ACTOR_COLOR)
+                self.set_color(actor, DEFAULT_SELECTED_ACTOR_COLOR)
                 self.selected_actors.add(actor)
-                self.vtkWidget.GetRenderWindow().Render()
+                self.render_editor_window_without_resetting_camera()
                 return
 
             # Select the rows in the tree view if rows_to_select is not empty
@@ -1188,12 +1165,11 @@ class GraphicalEditor(QFrame):
                     rows_to_select[1], 0, self.model.index(rows_to_select[0], 0))
                 self.treeView.selectionModel().select(
                     index, QItemSelectionModel.Select | QItemSelectionModel.Rows)
-                self.selected_actors.add(actor)
-                actor.GetProperty().SetColor(DEFAULT_SELECTED_ACTOR_COLOR)
-                self.vtkWidget.GetRenderWindow().Render()
-            else:
-                QMessageBox.warning(
-                    self, "Selection Error", "Selected actor not found in the actor rows mapping.")
+            
+            actor.GetProperty().SetColor(DEFAULT_SELECTED_ACTOR_COLOR)
+            self.selected_actors.add(actor)
+            self.render_editor_window_without_resetting_camera()
+                
 
         # Check if boundary node selection mode is active
         if self.isBoundaryNodeSelectionMode:
@@ -1360,10 +1336,20 @@ class GraphicalEditor(QFrame):
 
     def reset_selection_treeview(self):
         self.treeView.clearSelection()
+        
+    def render_editor_window_without_resetting_camera(self):
+        self.vtkWidget.GetRenderWindow().Render()
 
     def render_editor_window(self):
         self.renderer.ResetCamera()
-        self.vtkWidget.GetRenderWindow().Render()
+        self.render_editor_window_without_resetting_camera()
+    
+    def set_color(self, actor: vtkActor, color):
+        try:
+            actor.GetProperty().SetColor(color)
+        except:
+            self.log_console.printInternalError(f"Can't set color [{color}] to actor <{hex(id(actor))}>")
+            return
 
     def deselect(self):
         try:
@@ -2170,7 +2156,7 @@ class GraphicalEditor(QFrame):
             f"Particle source surface added to configuration file: {config_file}")
 
     def set_particle_source(self):
-        if not self.config_tab.config_file_path:
+        if not self.config_tab.mesh_file:
             QMessageBox.warning(self, "Setting Particle Source",
                                 "First you need to upload mesh/config, then you can set particle source")
             return
@@ -2260,31 +2246,24 @@ class GraphicalEditor(QFrame):
             self.resetParticleSourceArrow()
             QMessageBox.critical(
                 self, "Scattering angles", f"Exception while assigning expansion angle θ: {e}")
-            self.log_console.printError(
-                f"Exception while assigning expansion angle θ: {e}\n")
+            self.log_console.printError(f"Exception while assigning expansion angle θ: {e}\n")
             return
 
     def save_and_mesh_objects(self):
-        gmsh.initialize()
-
-        for objType, objSimple in self.simple_geometry_objects:
-            x, y, z, length, width, height = objSimple
-
-            if objType == 'box':
-                gmsh.model.occ.addBox(x, y, z, length, width, height)
-
-        gmsh.option.setNumber("Mesh.MeshSizeMin", 0.1)
-        gmsh.option.setNumber("Mesh.MeshSizeMax", 0.1)
-        gmsh.model.occ.synchronize()
-        gmsh.model.mesh.generate(3)
-
-        filename = self.get_filename_from_dialog()
-        if filename:
-            gmsh.write(filename)
-            self.log_console.printInfo(
-                f'Successfully saved and meshed boxes into file: {filename}')
-        gmsh.finalize()
-
+        mesh_filename = self.get_filename_from_dialog()
+        if mesh_filename:
+            dialog = dialogs.mesh_dialog.MeshDialog(self)
+            if dialog.exec_() == QDialog.Accepted:
+                mesh_size, mesh_dim = dialog.get_values()
+                success = SimpleGeometryManager.save_and_mesh_objects(self.log_console, mesh_filename, mesh_size, mesh_dim)
+                
+                if not success:
+                    self.log_console.printWarning("Something went wrong while saving and meshing created objects")
+                    return
+                else:
+                    self.log_console.printInfo("Deleting objects from the list of the created objects...")
+                    SimpleGeometryManager.clear_geometry_objects()
+            
     def set_particle_source_as_surface(self):
         manager = dialogs.SurfaceAndArrowManager(
             self.vtkWidget, self.renderer, self.log_console, self.selected_actors, self)
