@@ -1707,9 +1707,9 @@ class GraphicalEditor(QFrame):
 
         self.log_console.printInfo("Successfully created a cross-section")
 
-    def savePointParticleSourceToConfig(self):
+    def save_point_particle_source_to_config(self):
         try:
-            base_coords = self.getParticleSourceBaseCoords()
+            base_coords = self.get_particle_source_base_coords()
             if base_coords is None:
                 raise ValueError("Base coordinates are not defined")
 
@@ -1717,15 +1717,15 @@ class GraphicalEditor(QFrame):
                 self.log_console.printError("Expansion angle θ is undefined")
                 raise ValueError("Expansion angle θ is undefined")
 
-            if self.getParticleSourceDirection() is None:
+            if self.get_particle_source_direction() is None:
                 return
-            theta, phi = self.getParticleSourceDirection()
+            theta, phi = self.get_particle_source_direction()
 
             config_file = self.config_tab.config_file_path
             if not config_file:
                 QMessageBox.warning(self, "Saving Particle Source as Point",
                                     "Can't save pointed particle source, first you need to choose a configuration file, then set the source")
-                self.resetParticleSourceArrow()
+                self.reset_particle_source_arrow()
                 return
 
             # Read the existing configuration file
@@ -1751,7 +1751,7 @@ class GraphicalEditor(QFrame):
             self.particle_source_dialog.accepted_signal.connect(lambda params: self.handle_particle_source_point_accepted(
                 params, config_file, config_data, theta, phi, base_coords))
             self.particle_source_dialog.rejected_signal.connect(
-                self.resetParticleSourceArrow)
+                self.reset_particle_source_arrow)
             self.particle_source_dialog.show()
 
         except Exception as e:
@@ -1760,7 +1760,7 @@ class GraphicalEditor(QFrame):
                                 f"Error defining particle source. {e}")
             return None
 
-    def savePointParticleSourceToConfigWithThetaPhi(self, x, y, z, theta, phi):
+    def save_point_particle_source_to_config_with_theta_phi(self, x, y, z, theta, phi):
         try:
             if not self.expansion_angle:
                 self.log_console.printError("Expansion angle θ is undefined")
@@ -1770,7 +1770,7 @@ class GraphicalEditor(QFrame):
             if not config_file:
                 QMessageBox.warning(self, "Saving Particle Source as Point",
                                     "Can't save pointed particle source, first you need to choose a configuration file, then set the source")
-                self.resetParticleSourceArrow()
+                self.reset_particle_source_arrow()
                 return
 
             # Read the existing configuration file
@@ -1796,7 +1796,7 @@ class GraphicalEditor(QFrame):
             self.particle_source_dialog.accepted_signal.connect(lambda params: self.handle_particle_source_point_accepted(
                 params, config_file, config_data, theta, phi, [x, y, z]))
             self.particle_source_dialog.rejected_signal.connect(
-                self.resetParticleSourceArrow)
+                self.reset_particle_source_arrow)
             self.particle_source_dialog.show()
 
         except Exception as e:
@@ -1841,23 +1841,23 @@ class GraphicalEditor(QFrame):
                                        f"Energy: {energy} eV\n"
                                        f"Number of Particles: {num_particles}")
 
-            self.resetParticleSourceArrow()
+            self.reset_particle_source_arrow()
         except Exception as e:
             self.log_console.printError(f"Error saving particle source. {e}")
             QMessageBox.warning(self, "Particle Source",
                                 f"Error saving particle source. {e}")
             return None
 
-    def resetParticleSourceArrow(self):
+    def reset_particle_source_arrow(self):
         self.remove_actor(self.particleSourceArrowActor)
         self.particleSourceArrowActor = None
 
-    def getParticleSourceBaseCoords(self):
+    def get_particle_source_base_coords(self):
         if not self.particleSourceArrowActor or not isinstance(self.particleSourceArrowActor, vtkActor):
             return None
         return self.particleSourceArrowActor.GetPosition()
 
-    def getParticleSourceArrowTipCoords(self):
+    def get_particle_source_arrow_tip_coords(self):
         if not self.particleSourceArrowActor:
             return
 
@@ -1867,12 +1867,12 @@ class GraphicalEditor(QFrame):
 
         return global_tip_coords
 
-    def getParticleSourceDirection(self):
+    def get_particle_source_direction(self):
         if not self.particleSourceArrowActor:
             return
 
-        base_coords = self.getParticleSourceBaseCoords()
-        tip_coords = self.getParticleSourceArrowTipCoords()
+        base_coords = self.get_particle_source_base_coords()
+        tip_coords = self.get_particle_source_arrow_tip_coords()
 
         try:
             theta, phi = calculate_thetaPhi(base_coords, tip_coords)
@@ -1931,14 +1931,14 @@ class GraphicalEditor(QFrame):
         self.setBoundaryNodeValuesButton.setToolTip(
             'Check this tab and move to the next with starting the simulation')
         self.setBoundaryNodeValuesButton.clicked.connect(
-            self.setBoundaryNodeValuesButtonClicked)
+            self.set_boundary_node_values_button_clicked)
 
         self.resetNodeSelectionButton = QPushButton('Cancel')
         self.resetNodeSelectionButton.setVisible(False)
         self.resetNodeSelectionButton.setFixedSize(QSize(80, 27.5))
         self.resetNodeSelectionButton.setToolTip(
             'Cancel selection of the nodes')
-        self.resetNodeSelectionButton.clicked.connect(self.cancelNodeSelection)
+        self.resetNodeSelectionButton.clicked.connect(self.cancel_node_selection)
 
         self.layout.addWidget(self.nodeListWidget)
 
@@ -1952,7 +1952,7 @@ class GraphicalEditor(QFrame):
 
         self.layout.addLayout(hlayout)
 
-    def cancelNodeSelection(self):
+    def cancel_node_selection(self):
         self.reset_selection_nodes()
 
     def reset_selection_nodes(self):
@@ -1971,7 +1971,7 @@ class GraphicalEditor(QFrame):
         self.resetNodeSelectionButton.setVisible(False)
         self.change_interactor(INTERACTOR_STYLE_TRACKBALL_CAMERA)
 
-    def setBoundaryNodeValuesButtonClicked(self):
+    def set_boundary_node_values_button_clicked(self):
         if not self.selected_node_ids:
             QMessageBox.warning(self, "No Selection",
                                 "Please select at least one node")
@@ -1985,11 +1985,11 @@ class GraphicalEditor(QFrame):
             formatted_nodes = ", ".join(map(str, self.selected_node_ids))
             self.log_console.printInfo(
                 f"Applying value {value} to nodes: ({formatted_nodes})")
-            self.saveBoundaryConditions(self.selected_node_ids, value)
+            self.save_boundary_conditions(self.selected_node_ids, value)
 
         self.reset_selection_nodes()
 
-    def saveBoundaryConditions(self, node_ids, value):
+    def save_boundary_conditions(self, node_ids, value):
         try:
             with open(self.config_tab.config_file_path, 'r') as file:
                 data = json.load(file)
@@ -2069,7 +2069,6 @@ class GraphicalEditor(QFrame):
 
         for node_id, data in self.nodeMap.items():
             actor = data['actor']
-            # Yellow color for unselected nodes
             actor.GetProperty().SetColor(DEFAULT_ACTOR_COLOR)
 
         for node_id in self.selected_node_ids:
@@ -2098,62 +2097,9 @@ class GraphicalEditor(QFrame):
         for actor in self.selected_actors:
             if actor in self.actor_nodes:
                 nodes = self.actor_nodes[actor]
-                self.saveBoundaryConditions(nodes, value)
+                self.save_boundary_conditions(nodes, value)
                 self.log_console.printInfo(f"Object: {hex(id(actor))}, Nodes: {nodes}, Value: {value}")
         self.deselect()
-
-    def update_config_with_particle_source(self, particle_params, surface_and_normals_dict):
-        config_file = self.config_tab.config_file_path
-        if not config_file:
-            QMessageBox.warning(self, "Configuration File",
-                                "No configuration file selected.")
-            return
-
-        # Read the existing configuration file
-        with open(config_file, 'r') as file:
-            config_data = json.load(file)
-
-        # Check for existing sources
-        sources_to_remove = []
-        if "ParticleSourcePoint" in config_data:
-            sources_to_remove.append("ParticleSourcePoint")
-        if "ParticleSourceSurface" in config_data:
-            sources_to_remove.append("ParticleSourceSurface")
-
-        # Ask user if they want to remove existing sources
-        if sources_to_remove:
-            reply = QMessageBox.question(self, "Remove Existing Sources",
-                                         f"The configuration file contains existing sources: {', '.join(sources_to_remove)}. Do you want to remove them?",
-                                         QMessageBox.Yes | QMessageBox.No)
-            if reply == QMessageBox.Yes:
-                for source in sources_to_remove:
-                    del config_data[source]
-
-        # Prepare new ParticleSourceSurface entry
-        if "ParticleSourceSurface" not in config_data:
-            config_data["ParticleSourceSurface"] = {}
-
-        new_surface_row = str(len(config_data["ParticleSourceSurface"]) + 1)
-        config_data["ParticleSourceSurface"][new_surface_row] = {
-            "Type": particle_params["particle_type"],
-            "Count": particle_params["num_particles"],
-            "Energy": particle_params["energy"],
-            "BaseCoordinates": {}
-        }
-
-        # Add cell center coordinates and normals to the entry
-        for arrow_address, values in surface_and_normals_dict.items():
-            cell_center = values['cell_center']
-            normal = values['normal']
-            coord_key = f"{cell_center[0]:.2f}, {cell_center[1]:.2f}, {cell_center[2]:.2f}"
-            config_data["ParticleSourceSurface"][new_surface_row]["BaseCoordinates"][coord_key] = normal
-
-        # Write the updated configuration back to the file
-        with open(config_file, 'w') as file:
-            json.dump(config_data, file, indent=4)
-
-        self.log_console.printInfo(
-            f"Particle source surface added to configuration file: {config_file}")
 
     def set_particle_source(self):
         if not self.config_tab.mesh_file:
@@ -2193,7 +2139,7 @@ class GraphicalEditor(QFrame):
                     QMessageBox.information(self, 
                                             "Pointed Particle Source", 
                                             f"Can't apply method {method} to the pointed particle source")
-                    self.resetParticleSourceArrow()
+                    self.reset_particle_source_arrow()
                     return
 
     def on_arrow_properties_accepted(self, properties):
@@ -2210,20 +2156,20 @@ class GraphicalEditor(QFrame):
         try:
             self.expansion_angle = thetaMax
 
-            if self.getParticleSourceDirection() is None:
-                self.resetParticleSourceArrow()
+            if self.get_particle_source_direction() is None:
+                self.reset_particle_source_arrow()
                 return
-            _, phi = self.getParticleSourceDirection()
+            _, phi = self.get_particle_source_direction()
 
             if thetaMax > pi / 2.:
                 self.log_console.printWarning(f"The θ angle exceeds 90°, so some particles can distribute in the opposite direction\nθ = {thetaMax} ({thetaMax * 180. / pi}°)")
             self.log_console.printInfo(f"Successfully assigned values to the expansion angle and calculated φ angle\nθ = {thetaMax} ({thetaMax * 180. / pi}°)\nφ = {phi} ({phi * 180. / pi}°)\n")
 
-            self.savePointParticleSourceToConfig()
+            self.save_point_particle_source_to_config()
             self.log_console.printInfo("Particle source set")
 
         except Exception as e:
-            self.resetParticleSourceArrow()
+            self.reset_particle_source_arrow()
             QMessageBox.critical(
                 self, "Scattering angles", f"Exception while assigning expansion angle θ: {e}")
             self.log_console.printError(
@@ -2238,12 +2184,12 @@ class GraphicalEditor(QFrame):
                 self.log_console.printWarning(f"The θ angle exceeds 90°, so some particles can distribute in the opposite direction\nθ = {thetaMax} ({thetaMax * 180. / pi}°)")
             self.log_console.printInfo(f"Successfully assigned values to the expansion angle and calculated φ angle\nθ = {thetaMax} ({thetaMax * 180. / pi}°)\nφ = {phi} ({phi * 180. / pi}°)\n")
 
-            self.savePointParticleSourceToConfigWithThetaPhi(
+            self.save_point_particle_source_to_config_with_theta_phi(
                 x, y, z, theta, phi)
             self.log_console.printInfo("Particle source set")
 
         except Exception as e:
-            self.resetParticleSourceArrow()
+            self.reset_particle_source_arrow()
             QMessageBox.critical(
                 self, "Scattering angles", f"Exception while assigning expansion angle θ: {e}")
             self.log_console.printError(f"Exception while assigning expansion angle θ: {e}\n")

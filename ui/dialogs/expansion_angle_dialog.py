@@ -79,7 +79,7 @@ class ExpansionAngleDialogNonModal(QDialog):
         layout.addWidget(button_box)
 
     def resetArrowActor(self):
-        self.parent.resetParticleSourceArrow()
+        self.parent.reset_particle_source_arrow()
 
     def handle_accept(self):
         try:
