@@ -17,10 +17,6 @@ ANSI_TO_QCOLOR = {
     '0': 'light gray'
 }
 
-INTERACTOR_STYLE_TRACKBALL_CAMERA = 'trackball_camera'
-INTERACTOR_STYLE_TRACKBALL_ACTOR = 'trackball_actor'
-INTERACTOR_STYLE_RUBBER_AND_PICK = 'rubber_and_pick'
-
 ACTION_ACTOR_CREATING = 'create_actor'
 ACTION_ACTOR_TRANSFORMATION = 'transform_actor'
 

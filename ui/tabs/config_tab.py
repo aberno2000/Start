@@ -257,25 +257,17 @@ class ConfigTab(QWidget):
         fem_layout.addRow(QLabel("FEM calculation accuracy:"), h1_layout)
 
         # Add Load Magnetic Induction button
-        self.load_magnetic_induction_button = QPushButton(
-            "Load Magnetic Induction")
-        self.load_magnetic_induction_button.setToolTip(
-            HINT_CONFIG_LOAD_MAGNETIC_INDUCTION)
-        self.load_magnetic_induction_button.setFixedWidth(
-            DEFAULT_LINE_EDIT_WIDTH)
-        self.load_magnetic_induction_button.clicked.connect(
-            self.load_magnetic_induction)
+        self.load_magnetic_induction_button = QPushButton("Load Magnetic Induction")
+        self.load_magnetic_induction_button.setToolTip(HINT_CONFIG_LOAD_MAGNETIC_INDUCTION)
+        self.load_magnetic_induction_button.setFixedWidth(DEFAULT_LINE_EDIT_WIDTH)
+        self.load_magnetic_induction_button.clicked.connect(self.load_magnetic_induction)
         fem_layout.addRow(self.load_magnetic_induction_button)
 
         # Add Select Boundary Conditions button
-        self.select_boundary_conditions_button = QPushButton(
-            "Select Boundary Conditions")
-        self.select_boundary_conditions_button.setToolTip(
-            HINT_CONFIG_SELECT_BOUNDARY_CONDITIONS)
-        self.select_boundary_conditions_button.setFixedWidth(
-            DEFAULT_LINE_EDIT_WIDTH)
-        self.select_boundary_conditions_button.clicked.connect(
-            self.emit_select_boundary_conditions_signal)
+        self.select_boundary_conditions_button = QPushButton("Select Boundary Conditions")
+        self.select_boundary_conditions_button.setToolTip(HINT_CONFIG_SELECT_BOUNDARY_CONDITIONS)
+        self.select_boundary_conditions_button.setFixedWidth(DEFAULT_LINE_EDIT_WIDTH)
+        self.select_boundary_conditions_button.clicked.connect(self.emit_select_boundary_conditions_signal)
         fem_layout.addRow(self.select_boundary_conditions_button)
 
         # Create additional fields group box
@@ -819,7 +811,7 @@ class ConfigTab(QWidget):
     def load_magnetic_induction(self):
         # TODO: Implement the functionality to load and parse the generated magnetic induction file from Ansys
         pass
-
+    
     def emit_select_boundary_conditions_signal(self):
         self.selectBoundaryConditionsSignal.emit()
 
