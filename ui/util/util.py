@@ -495,83 +495,56 @@ def getTreeDict(mesh_filename: str = None, obj_type: str = 'volume') -> dict:
 
     Returns:
     dict: A dictionary representing the object map.
+
+    Raises:
+    ValueError: If the obj_type is invalid.
+    RuntimeError: If there is an error opening the mesh file or processing the Gmsh data.
     """
-    if mesh_filename:
-        gmsh.open(mesh_filename)
+    try:
+        if mesh_filename:
+            gmsh.open(mesh_filename)
 
-    gmsh.model.occ.synchronize()
+        gmsh.model.occ.synchronize()
 
-    # Getting all the nodes and their coordinates
-    all_node_tags, all_node_coords, _ = gmsh.model.mesh.getNodes()
-    node_coords_map = {
-        tag: (all_node_coords[i * 3], all_node_coords[i * 3 + 1],
-              all_node_coords[i * 3 + 2])
-        for i, tag in enumerate(all_node_tags)
-    }
-
-    if obj_type == 'point':
-        point_map = {
-            f'Point[{tag}]': coords
-            for tag, coords in node_coords_map.items()
+        # Getting all the nodes and their coordinates
+        all_node_tags, all_node_coords, _ = gmsh.model.mesh.getNodes()
+        node_coords_map = {
+            tag: (all_node_coords[i * 3], all_node_coords[i * 3 + 1],
+                  all_node_coords[i * 3 + 2])
+            for i, tag in enumerate(all_node_tags)
         }
-        return point_map
 
-    if obj_type == 'line':
-        lines = gmsh.model.getEntities(dim=1)
-        line_map = {}
+        if obj_type == 'point':
+            point_map = {
+                f'Point[{tag}]': coords
+                for tag, coords in node_coords_map.items()
+            }
+            return point_map
 
-        for line_dim, line_tag in lines:
-            element_types, element_tags, node_tags = gmsh.model.mesh.getElements(
-                line_dim, line_tag)
+        if obj_type == 'line':
+            lines = gmsh.model.getEntities(dim=1)
+            line_map = {}
 
-            for elem_type, elem_tags, elem_node_tags in zip(
-                    element_types, element_tags, node_tags):
-                if elem_type == 1:  # 1st type for lines
-                    for i in range(len(elem_tags)):
-                        node_indices = elem_node_tags[i * 2:(i + 1) * 2]
-                        line = [(node_indices[0],
-                                 node_coords_map[node_indices[0]]),
-                                (node_indices[1],
-                                 node_coords_map[node_indices[1]])]
-                        line_map[f'Line[{elem_tags[i]}]'] = line
-        return line_map
+            for line_dim, line_tag in lines:
+                element_types, element_tags, node_tags = gmsh.model.mesh.getElements(
+                    line_dim, line_tag)
 
-    if obj_type == 'surface':
-        surfaces = gmsh.model.getEntities(dim=2)
-        surface_map = {}
-
-        for surf_dim, surf_tag in surfaces:
-            element_types, element_tags, node_tags = gmsh.model.mesh.getElements(
-                surf_dim, surf_tag)
-
-            triangles = []
-            for elem_type, elem_tags, elem_node_tags in zip(
-                    element_types, element_tags, node_tags):
-                if elem_type == 2:  # 2nd type for the triangles
-                    for i in range(len(elem_tags)):
-                        node_indices = elem_node_tags[i * 3:(i + 1) * 3]
-                        triangle = [(node_indices[0],
+                for elem_type, elem_tags, elem_node_tags in zip(
+                        element_types, element_tags, node_tags):
+                    if elem_type == 1:  # 1st type for lines
+                        for i in range(len(elem_tags)):
+                            node_indices = elem_node_tags[i * 2:(i + 1) * 2]
+                            line = [(node_indices[0],
                                      node_coords_map[node_indices[0]]),
                                     (node_indices[1],
-                                     node_coords_map[node_indices[1]]),
-                                    (node_indices[2],
-                                     node_coords_map[node_indices[2]])]
-                        triangles.append((elem_tags[i], triangle))
-            surface_map[surf_tag] = triangles
-        return surface_map
+                                     node_coords_map[node_indices[1]])]
+                            line_map[f'Line[{elem_tags[i]}]'] = line
+            return line_map
 
-    if obj_type == 'volume':
-        volumes = gmsh.model.getEntities(dim=3)
-        treedict = {}
-
-        entities = volumes if volumes else gmsh.model.getEntities(dim=2)
-
-        for dim, tag in entities:
-            surfaces = gmsh.model.getBoundary(
-                [(dim, tag)], oriented=False,
-                recursive=False) if volumes else [(dim, tag)]
-
+        if obj_type == 'surface':
+            surfaces = gmsh.model.getEntities(dim=2)
             surface_map = {}
+
             for surf_dim, surf_tag in surfaces:
                 element_types, element_tags, node_tags = gmsh.model.mesh.getElements(
                     surf_dim, surf_tag)
@@ -590,8 +563,45 @@ def getTreeDict(mesh_filename: str = None, obj_type: str = 'volume') -> dict:
                                          node_coords_map[node_indices[2]])]
                             triangles.append((elem_tags[i], triangle))
                 surface_map[surf_tag] = triangles
-            treedict[tag] = surface_map
-        return treedict
+            return surface_map
+
+        if obj_type == 'volume':
+            volumes = gmsh.model.getEntities(dim=3)
+            treedict = {}
+
+            entities = volumes if volumes else gmsh.model.getEntities(dim=2)
+
+            for dim, tag in entities:
+                surfaces = gmsh.model.getBoundary(
+                    [(dim, tag)], oriented=False,
+                    recursive=False) if volumes else [(dim, tag)]
+
+                surface_map = {}
+                for surf_dim, surf_tag in surfaces:
+                    element_types, element_tags, node_tags = gmsh.model.mesh.getElements(
+                        surf_dim, surf_tag)
+
+                    triangles = []
+                    for elem_type, elem_tags, elem_node_tags in zip(
+                            element_types, element_tags, node_tags):
+                        if elem_type == 2:  # 2nd type for the triangles
+                            for i in range(len(elem_tags)):
+                                node_indices = elem_node_tags[i * 3:(i + 1) * 3]
+                                triangle = [(node_indices[0],
+                                             node_coords_map[node_indices[0]]),
+                                            (node_indices[1],
+                                             node_coords_map[node_indices[1]]),
+                                            (node_indices[2],
+                                             node_coords_map[node_indices[2]])]
+                                triangles.append((elem_tags[i], triangle))
+                    surface_map[surf_tag] = triangles
+                treedict[tag] = surface_map
+            return treedict
+
+        raise ValueError("Invalid obj_type. Must be one of 'point', 'line', 'surface', 'volume'.")
+
+    except Exception as e:
+        raise RuntimeError(f"An error occurred while processing the Gmsh data: {e}")
 
 
 def write_treedict_to_vtk(treedict: dict, filename: str) -> bool:
