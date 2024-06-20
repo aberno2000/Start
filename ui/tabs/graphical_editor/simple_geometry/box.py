@@ -1,5 +1,7 @@
+import meshio
+import numpy as np
 from gmsh import initialize, finalize, model, isInitialized
-from vtk import vtkCubeSource, vtkPolyDataMapper, vtkActor
+from vtk import vtkCubeSource, vtkPolyDataMapper, vtkActor, vtkTriangleFilter, vtkLinearSubdivisionFilter, vtkIdList, vtkFeatureEdges
 from logger import LogConsole
 from util import get_cur_datetime
 
@@ -75,18 +77,33 @@ class Box:
             cube_source.SetXLength(self.length)
             cube_source.SetYLength(self.width)
             cube_source.SetZLength(self.height)
-            cube_source.SetCenter(self.x + self.length / 2,
-                                  self.y + self.width / 2,
-                                  self.z + self.height / 2)
+            cube_source.SetCenter(self.length / 2, self.width / 2, self.height / 2)
             cube_source.Update()
 
+            triangle_filter = vtkTriangleFilter()
+            triangle_filter.SetInputConnection(cube_source.GetOutputPort())
+            triangle_filter.Update()
+
+            subdivision_filter = vtkLinearSubdivisionFilter()
+            subdivision_filter.SetInputConnection(triangle_filter.GetOutputPort())
+            subdivision_filter.SetNumberOfSubdivisions(3)
+            subdivision_filter.Update()
+
             mapper = vtkPolyDataMapper()
-            mapper.SetInputConnection(cube_source.GetOutputPort())
+            mapper.SetInputConnection(subdivision_filter.GetOutputPort())
 
             actor = vtkActor()
             actor.SetMapper(mapper)
+            actor.SetPosition(self.x, self.y, self.z) 
+
+            print("CREATING")
+            print(f"Created <{hex(id(actor))}> cube. Entered coords: ({self.x}, {self.y}, {self.z})")
+            print(f"Position: {actor.GetPosition()}")
+            print(f"Center: {actor.GetCenter()}")
+            print(f"Origin: {actor.GetOrigin()}")
 
             return actor
+
         except Exception as e:
             self.log_console.printError(
                 f"An error occurred while creating the box with VTK: {e}")

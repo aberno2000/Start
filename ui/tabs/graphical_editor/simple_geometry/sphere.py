@@ -1,5 +1,5 @@
 from gmsh import initialize, finalize, model, isInitialized
-from vtk import vtkSphereSource, vtkPolyDataMapper, vtkActor
+from vtk import vtkSphereSource, vtkPolyDataMapper, vtkActor, vtkTriangleFilter, vtkLinearSubdivisionFilter
 from logger import LogConsole
 from util import get_cur_datetime
 from .simple_geometry_constants import *
@@ -84,9 +84,18 @@ class Sphere:
             sphere_source.Update()
             sphere_source.SetPhiResolution(self.phi_resolution)
             sphere_source.SetThetaResolution(self.theta_resolution)
+            
+            triangle_filter = vtkTriangleFilter()
+            triangle_filter.SetInputConnection(sphere_source.GetOutputPort())
+            triangle_filter.Update()
+            
+            subdivision_filter = vtkLinearSubdivisionFilter()
+            subdivision_filter.SetInputConnection(triangle_filter.GetOutputPort())
+            subdivision_filter.SetNumberOfSubdivisions(1)
+            subdivision_filter.Update()
 
             mapper = vtkPolyDataMapper()
-            mapper.SetInputConnection(sphere_source.GetOutputPort())
+            mapper.SetInputConnection(subdivision_filter.GetOutputPort())
 
             actor = vtkActor()
             actor.SetMapper(mapper)

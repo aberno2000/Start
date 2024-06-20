@@ -73,6 +73,12 @@ def convert_vtk_to_msh(vtk_filename: str):
     msh_filename = msh_filename.replace('.msh.msh', '.msh')
     try:
         mesh = meshio.read(vtk_filename)
+        
+        for cell_block in mesh.cells:
+            cell_block.data = cell_block.data
+            mesh.cell_data.setdefault("gmsh:physical", []).append([1] * len(cell_block.data))
+            mesh.cell_data.setdefault("gmsh:geometrical", []).append([1] * len(cell_block.data))
+        
         meshio.write(msh_filename, mesh, file_format="gmsh22")
         return msh_filename
     except Exception as e:

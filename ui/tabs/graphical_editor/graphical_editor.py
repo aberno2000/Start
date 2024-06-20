@@ -1,6 +1,5 @@
 import gmsh
 import json
-import dialogs
 from numpy import cross
 from os import remove
 from os.path import isfile, exists
@@ -10,13 +9,10 @@ from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import QSize, Qt, pyqtSlot, QItemSelectionModel
 from vtk import (
     vtkRenderer, vtkPoints, vtkPolyData, vtkPolyLine, vtkCellArray, vtkPolyDataMapper,
-    vtkActor, vtkAxesActor, vtkOrientationMarkerWidget,
-    vtkGenericDataObjectReader, vtkDataSetMapper, vtkCellPicker,
-    vtkCleanPolyData, vtkPlane, vtkClipPolyData, vtkTransform, vtkTransformPolyDataFilter,
-    vtkArrowSource, vtkCommand, vtkMatrix4x4,
-    vtkInteractorStyleTrackballCamera,
-    vtkInteractorStyleTrackballActor,
-    vtkInteractorStyleRubberBandPick
+    vtkActor, vtkAxesActor, vtkOrientationMarkerWidget, vtkGenericDataObjectReader, 
+    vtkDataSetMapper, vtkCellPicker, vtkCleanPolyData, vtkPlane, vtkClipPolyData,
+    vtkCommand, vtkMatrix4x4, vtkInteractorStyleTrackballCamera, vtkInteractorStyleTrackballActor,
+    vtkInteractorStyleRubberBandPick, vtkTransformPolyDataFilter
 )
 from PyQt5.QtWidgets import (
     QFrame, QVBoxLayout, QHBoxLayout, QTreeView,
@@ -45,6 +41,7 @@ class GraphicalEditor(QFrame):
         self.setup_dicts()
         self.setup_tree_view()
         self.setup_selected_actors()
+        self.setup_difficult_geometry_actors()
         self.setup_picker(log_console)
         self.setup_toolbar()
         self.setup_ui()
@@ -85,6 +82,9 @@ class GraphicalEditor(QFrame):
     
     def setup_selected_actors(self):
         self.selected_actors = set()
+        
+    def setup_difficult_geometry_actors(self):
+        self.difficult_geometries = set()
 
     def setup_picker(self, log_console):
         self.picker = vtkCellPicker()
@@ -378,8 +378,7 @@ class GraphicalEditor(QFrame):
         hide_action.triggered.connect(self.hide_actors)
 
         # Determine if all selected actors are visible or not
-        all_visible = all(actor.GetVisibility(
-        ) for actor in self.selected_actors if actor and isinstance(actor, vtkActor))
+        all_visible = all(actor.GetVisibility() for actor in self.selected_actors if actor and isinstance(actor, vtkActor))
         hide_action.setText('Hide' if all_visible else 'Show')
 
         menu.addAction(move_action)
@@ -520,6 +519,7 @@ class GraphicalEditor(QFrame):
                 box_actor = SimpleGeometryManager.create_box(self.log_console, x, y, z, length, width, height)
                 if box_actor:
                     self.add_actor(box_actor)
+                    
             except ValueError as e:
                 QMessageBox.warning(self, "Create Box", str(e))
 
@@ -639,7 +639,7 @@ class GraphicalEditor(QFrame):
                 if actor and isinstance(actor, vtkActor):
                     row = self.get_volume_row(actor)
                     if row is None:
-                        self.log_console.printInternalError(f"Can't find tree view row [{row}] by actor <{hex(id(actor))}>")
+                        self.remove_actor(actor)
                         return
 
                     actors = self.get_actor_from_volume_row(row)
@@ -1123,27 +1123,27 @@ class GraphicalEditor(QFrame):
 
         if self.isPerformOperation[0]:
             operationDescription = self.isPerformOperation[1]
-
+            
             if not self.firstObjectToPerformOperation:
-                self.firstObjectToPerformOperation = self.selected_actors[0]
+                self.firstObjectToPerformOperation = list(self.selected_actors)[0]
                 self.statusBar.showMessage(f"With which object to perform {operationDescription}?")
             else:
-                secondObjectToPerformOperation = self.selected_actors[0]
+                secondObjectToPerformOperation = list(self.selected_actors)[0]
                 if self.firstObjectToPerformOperation and secondObjectToPerformOperation:
                     operationType = self.isPerformOperation[1]
 
+                    print("OPERATION HELPER:")
+                    print(f"1st actor pos: {self.firstObjectToPerformOperation.GetPosition()}")
+                    print(f"2nd actor pos: {secondObjectToPerformOperation.GetPosition()}")
+
                     if operationType == 'subtract':
-                        self.subtract_objects(
-                            self.firstObjectToPerformOperation, secondObjectToPerformOperation)
+                        self.subtract_objects(self.firstObjectToPerformOperation, secondObjectToPerformOperation)
                     elif operationType == 'union':
-                        self.combine_objects(
-                            self.firstObjectToPerformOperation, secondObjectToPerformOperation)
+                        self.combine_objects(self.firstObjectToPerformOperation, secondObjectToPerformOperation)
                     elif operationType == 'intersection':
-                        self.intersect_objects(
-                            self.firstObjectToPerformOperation, secondObjectToPerformOperation)
+                        self.intersect_objects(self.firstObjectToPerformOperation, secondObjectToPerformOperation)
                 else:
-                    QMessageBox.warning(
-                        self, "Warning", "No objects have been selected for the operation.")
+                    QMessageBox.warning(self, "Warning", "No objects have been selected for the operation.")
 
                 self.firstObjectToPerformOperation = None
                 self.isPerformOperation = (False, None)
@@ -1263,15 +1263,32 @@ class GraphicalEditor(QFrame):
             offsets = dialog.getValues()
             if offsets:
                 x_offset, y_offset, z_offset = offsets
+                print("MOVING")
+                print(f"Offsets are: {offsets}")
 
                 for actor in self.selected_actors:
                     if actor and isinstance(actor, vtkActor):
+                        print(f"Init <{hex(id(actor))}> pos: {actor.GetPosition()}")
+                        print(f"Init <{hex(id(actor))}> centre: {actor.GetCenter()}")
+                        print(f"Init <{hex(id(actor))}> origin: {actor.GetOrigin()}")
+                        
                         position = actor.GetPosition()
-                        new_position = (
-                            position[0] + x_offset, position[1] + y_offset, position[2] + z_offset)
+                        new_position = (position[0] + x_offset, position[1] + y_offset, position[2] + z_offset)
                         actor.SetPosition(new_position)
+                        actor.Modified()
+                        
+                        transform = vtkTransform()
+                        transform.Translate(x_offset, y_offset, z_offset)
+                        transform_filter = vtkTransformPolyDataFilter()
+                        transform_filter.SetTransform(transform)
+                        transform_filter.SetInputData(actor.GetMapper().GetInput())
+                        transform_filter.Update()
 
-        self.deselect()
+                        print(f"After <{hex(id(actor))}> pos: {actor.GetPosition()}")
+                        print(f"After <{hex(id(actor))}> centre: {actor.GetCenter()}")
+                        print(f"After <{hex(id(actor))}> origin: {actor.GetOrigin()}")
+                        
+            self.deselect()
 
     def adjust_actors_size(self):
         scale_factor, ok = QInputDialog.getDouble(
@@ -1475,22 +1492,25 @@ class GraphicalEditor(QFrame):
         self.operationType = 'intersection'
 
     def cross_section_button_clicked(self):
-        if not self.selected_actors[0]:
-            QMessageBox.warning(
-                self, "Warning", "You need to select object first")
+        if not list(self.selected_actors)[0]:
+            QMessageBox.warning(self, "Warning", "You need to select object first")
             return
 
         self.start_line_drawing()
-        self.statusBar.showMessage(
-            "Click two points to define the cross-section plane.")
+        self.statusBar.showMessage("Click two points to define the cross-section plane.")
 
     def object_operation_executor_helper(self, obj_from: vtkActor, obj_to: vtkActor, operation: vtkBooleanOperationPolyDataFilter):
-        # TODO: fix
         try:
-            obj_from_subtract_polydata = convert_unstructured_grid_to_polydata(
-                obj_from)
-            obj_to_subtract_polydata = convert_unstructured_grid_to_polydata(
-                obj_to)
+            print(f"<{hex(id(obj_from))}> pos: {obj_from.GetPosition()}")
+            print(f"<{hex(id(obj_from))}> centre: {obj_from.GetCenter()}")
+            print(f"<{hex(id(obj_from))}> origin: {obj_from.GetOrigin()}")
+            
+            print(f"<{hex(id(obj_to))}> pos: {obj_to.GetPosition()}")
+            print(f"<{hex(id(obj_to))}> centre: {obj_to.GetCenter()}")
+            print(f"<{hex(id(obj_to))}> origin: {obj_to.GetOrigin()}")
+            
+            obj_from_subtract_polydata = convert_unstructured_grid_to_polydata(obj_from)
+            obj_to_subtract_polydata = convert_unstructured_grid_to_polydata(obj_to)
 
             cleaner1 = vtkCleanPolyData()
             cleaner1.SetInputData(obj_from_subtract_polydata)
@@ -1511,8 +1531,7 @@ class GraphicalEditor(QFrame):
 
             # Check if subtraction was successful
             if resultPolyData is None or resultPolyData.GetNumberOfPoints() == 0:
-                QMessageBox.warning(self, "Operation Failed",
-                                    "No result from the operation operation.")
+                QMessageBox.warning(self, "Operation Failed", "No result from the operation operation.")
                 return
 
             mapper = vtkPolyDataMapper()
@@ -1525,7 +1544,11 @@ class GraphicalEditor(QFrame):
             # Removing subtracting objects only after adding resulting object
             self.remove_actor(obj_from)
             self.remove_actor(obj_to)
+            
+            self.difficult_geometries.add(actor)
+            
             return actor
+        
         except Exception as e:
             self.log_console.printError(str(e))
             return None
@@ -1533,20 +1556,17 @@ class GraphicalEditor(QFrame):
     def subtract_objects(self, obj_from: vtkActor, obj_to: vtkActor):
         booleanOperation = vtkBooleanOperationPolyDataFilter()
         booleanOperation.SetOperationToDifference()
-        self.object_operation_executor_helper(
-            obj_from, obj_to, booleanOperation)
+        self.object_operation_executor_helper(obj_from, obj_to, booleanOperation)
 
     def combine_objects(self, obj_from: vtkActor, obj_to: vtkActor):
         booleanOperation = vtkBooleanOperationPolyDataFilter()
         booleanOperation.SetOperationToUnion()
-        self.object_operation_executor_helper(
-            obj_from, obj_to, booleanOperation)
+        self.object_operation_executor_helper(obj_from, obj_to, booleanOperation)
 
     def intersect_objects(self, obj_from: vtkActor, obj_to: vtkActor):
         booleanOperation = vtkBooleanOperationPolyDataFilter()
         booleanOperation.SetOperationToIntersection()
-        self.object_operation_executor_helper(
-            obj_from, obj_to, booleanOperation)
+        self.object_operation_executor_helper(obj_from, obj_to, booleanOperation)
 
     def create_cross_section(self):
         if len(self.crossSectionLinePoints) != 2:
@@ -1554,8 +1574,7 @@ class GraphicalEditor(QFrame):
             return
 
         point1, point2 = self.crossSectionLinePoints
-        direction = [point2[i] - point1[i]
-                     for i in range(3)]  # Direction vector of the line
+        direction = [point2[i] - point1[i] for i in range(3)]  # Direction vector of the line
 
         dialog = AxisSelectionDialog(self)
         if dialog.exec_() == QDialog.Accepted:
@@ -1580,7 +1599,7 @@ class GraphicalEditor(QFrame):
 
     def perform_cut(self, plane):
         polydata = convert_unstructured_grid_to_polydata(
-            self.selected_actors[0])
+            list(self.selected_actors)[0])
         if not polydata:
             QMessageBox.warning(
                 self, "Error", "Selected object is not suitable for cross-section.")
@@ -1610,10 +1629,9 @@ class GraphicalEditor(QFrame):
         actor2.SetMapper(mapper2)
         actor2.GetProperty().SetColor(0.8, 0.3, 0.3)
 
-        # Removing actor and corresponding row in a tree view
-        self.remove_actor(self.selected_actors[0])
-
-        # Adding 2 new objects
+        self.remove_actor(list(self.selected_actors)[0])
+        self.add_actor(actor1)
+        self.add_actor(actor2)
 
         self.log_console.printInfo("Successfully created a cross-section")        
 
@@ -1695,4 +1713,6 @@ class GraphicalEditor(QFrame):
             pass
 
     def test(self):
-        self.save_and_mesh_objects()
+        actor = list(self.selected_actors)[0]
+        polydata = get_polydata_from_actor(actor)
+    
