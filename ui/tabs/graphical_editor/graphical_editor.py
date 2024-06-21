@@ -27,7 +27,7 @@ from dialogs import *
 from .simple_geometry import *
 from .interactor import *
 from .particle_source_manager import ParticleSourceManager
-from .mesh_tree import MeshTreeManager
+from .mesh_tree_manager import MeshTreeManager
 
 
 class GraphicalEditor(QFrame):
