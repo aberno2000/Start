@@ -1,33 +1,34 @@
-from gmsh import initialize, finalize, isInitialized, model, option
-import json
-from os import remove
-from os.path import isfile, exists
+from gmsh import initialize, finalize, isInitialized, write, model, option
 from vtkmodules.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
-from vtkmodules.vtkFiltersGeneral import vtkBooleanOperationPolyDataFilter
-from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import QSize, Qt, pyqtSlot, QItemSelectionModel
-from vtk import (
-    vtkRenderer, vtkPoints, vtkPolyData, vtkPolyLine, vtkCellArray, vtkPolyDataMapper,
-    vtkActor, vtkAxesActor, vtkOrientationMarkerWidget, vtkGenericDataObjectReader, 
-    vtkDataSetMapper, vtkCellPicker, vtkCleanPolyData, vtkPlane, vtkClipPolyData,
-    vtkCommand, vtkMatrix4x4, vtkInteractorStyleTrackballCamera, vtkInteractorStyleTrackballActor,
-    vtkInteractorStyleRubberBandPick, vtkTransformPolyDataFilter
-)
+from PyQt5.QtGui import QCursor, QStandardItemModel, QBrush, QIcon
 from PyQt5.QtWidgets import (
     QFrame, QVBoxLayout, QHBoxLayout, QTreeView,
     QPushButton, QDialog, QSpacerItem, QColorDialog,
     QSizePolicy, QMessageBox, QFileDialog,
     QMenu, QAction, QInputDialog, QStatusBar, QAbstractItemView,
 )
-from PyQt5.QtGui import QCursor, QStandardItemModel, QBrush
-from util import *
+from vtk import (
+    vtkRenderer, vtkPoints, vtkPolyData, vtkPolyLine, vtkCellArray, vtkPolyDataMapper,
+    vtkActor, vtkAxesActor, vtkOrientationMarkerWidget, vtkGenericDataObjectReader, 
+    vtkDataSetMapper, vtkCellPicker, vtkPlane, vtkClipPolyData,
+    vtkCommand, vtkMatrix4x4, vtkInteractorStyleTrackballCamera, vtkInteractorStyleTrackballActor,
+    vtkInteractorStyleRubberBandPick
+)
+from util import (
+    convert_unstructured_grid_to_polydata, compare_matrices, convert_vtk_to_msh,
+    merge_actors, align_view_by_axis, get_polydata_from_actor,
+    ActionHistory, ProjectManager
+)
+from logger import LogConsole
+from .simple_geometry import SimpleGeometryManager, SimpleGeometryTransformer
+from .particle_source_manager import ParticleSourceManager
+from .mesh_tree_manager import MeshTreeManager
+from .simple_geometry.simple_geometry_constants import *
 from styles import *
 from constants import *
 from dialogs import *
-from .simple_geometry import *
 from .interactor import *
-from .particle_source_manager import ParticleSourceManager
-from .mesh_tree_manager import MeshTreeManager
 
 
 class GraphicalEditor(QFrame):
@@ -101,6 +102,7 @@ class GraphicalEditor(QFrame):
         self.createSurfaceButton = self.create_button('icons/surface.png', 'Surface')
         self.createSphereButton = self.create_button('icons/sphere.png', 'Sphere')
         self.createBoxButton = self.create_button('icons/box.png', 'Box')
+        self.createConeButton = self.create_button('icons/cone.png', 'Cone')
         self.createCylinderButton = self.create_button('icons/cylinder.png', 'Cylinder')
         self.uploadCustomButton = self.create_button('icons/custom.png', 'Upload mesh object')
         self.eraseAllObjectsButton = self.create_button('icons/eraser.png', 'Erase all')
@@ -125,6 +127,7 @@ class GraphicalEditor(QFrame):
         self.createSurfaceButton.clicked.connect(self.create_surface)
         self.createSphereButton.clicked.connect(self.create_sphere)
         self.createBoxButton.clicked.connect(self.create_box)
+        self.createConeButton.clicked.connect(self.create_cone)
         self.createCylinderButton.clicked.connect(self.create_cylinder)
         self.uploadCustomButton.clicked.connect(self.upload_custom)
         self.eraseAllObjectsButton.clicked.connect(self.clear_scene_and_tree_view)
@@ -304,6 +307,8 @@ class GraphicalEditor(QFrame):
             self.on_tree_selection_changed)
 
     def upload_mesh_file(self, file_path):
+        from os.path import exists, isfile
+        
         if exists(file_path) and isfile(file_path):
             self.clear_scene_and_tree_view()
             self.mesh_file = file_path
@@ -363,7 +368,7 @@ class GraphicalEditor(QFrame):
 
         move_action = QAction('Move', self)
         rotate_action = QAction('Rotate', self)
-        adjust_size_action = QAction('Adjust size', self)
+        adjust_size_action = QAction('Scale', self)
         remove_action = QAction('Remove', self)
         colorize_action = QAction('Colorize', self)
         merge_surfaces_action = QAction('Merge surfaces', self)
@@ -372,7 +377,7 @@ class GraphicalEditor(QFrame):
 
         move_action.triggered.connect(self.move_actors)
         rotate_action.triggered.connect(self.rotate_actors)
-        adjust_size_action.triggered.connect(self.adjust_actors_size)
+        adjust_size_action.triggered.connect(self.scale_actors)
         remove_action.triggered.connect(self.permanently_remove_actors)
         colorize_action.triggered.connect(self.colorize_actors)
         merge_surfaces_action.triggered.connect(self.merge_surfaces)
@@ -503,10 +508,10 @@ class GraphicalEditor(QFrame):
     def create_sphere(self):
         dialog = SphereDialog(self)
         if dialog.exec_() == QDialog.Accepted and dialog.getValues() is not None:
-            x, y, z, radius, phi_resolution, theta_resolution = dialog.getValues()
+            x, y, z, radius, mesh_resolution, phi_resolution, theta_resolution = dialog.getValues()
 
             try:
-                sphere_actor = SimpleGeometryManager.create_sphere(self.log_console, x, y, z, radius, phi_resolution, theta_resolution)
+                sphere_actor = SimpleGeometryManager.create_sphere(self.log_console, x, y, z, radius, mesh_resolution, phi_resolution, theta_resolution)
                 if sphere_actor:
                     self.add_actor(sphere_actor)
             except ValueError as e:
@@ -515,23 +520,36 @@ class GraphicalEditor(QFrame):
     def create_box(self):
         dialog = BoxDialog(self)
         if dialog.exec_() == QDialog.Accepted and dialog.getValues() is not None:
-            x, y, z, length, width, height = dialog.getValues()
+            x, y, z, length, width, height, mesh_resolution = dialog.getValues()
 
             try:
-                box_actor = SimpleGeometryManager.create_box(self.log_console, x, y, z, length, width, height)
+                box_actor = SimpleGeometryManager.create_box(self.log_console, x, y, z, length, width, height, mesh_resolution)
                 if box_actor:
                     self.add_actor(box_actor)
                     
             except ValueError as e:
                 QMessageBox.warning(self, "Create Box", str(e))
 
+    def create_cone(self):        
+        dialog = ConeDialog(self)
+        if dialog.exec_() == QDialog.Accepted and dialog.getValues() is not None:
+            x, y, z, dx, dy, dz, height, r, resolution, mesh_resolution = dialog.getValues()
+
+            try:
+                cone_actor = SimpleGeometryManager.create_cone(self.log_console, x, y, z, dx, dy, dz, height, r, resolution, mesh_resolution)
+                if cone_actor:
+                    self.add_actor(cone_actor)
+            
+            except ValueError as e:
+                QMessageBox.warning(self, "Create Cone", str(e))
+    
     def create_cylinder(self):
         dialog = CylinderDialog(self)
         if dialog.exec_() == QDialog.Accepted and dialog.getValues() is not None:
-            x, y, z, radius, dx, dy, dz, resolution = dialog.getValues()
+            x, y, z, radius, dx, dy, dz, resolution, mesh_resolution = dialog.getValues()
 
             try:
-                cylinder_actor = SimpleGeometryManager.create_cylinder(self.log_console, x, y, z, radius, dx, dy, dz, resolution)
+                cylinder_actor = SimpleGeometryManager.create_cylinder(self.log_console, x, y, z, radius, dx, dy, dz, mesh_resolution, resolution)
                 if cylinder_actor:
                     self.add_actor(cylinder_actor)
             except ValueError as e:
@@ -778,6 +796,8 @@ class GraphicalEditor(QFrame):
         """
         Update Gmsh files for all transformed actors.
         """
+        from os import remove
+        
         transformed_actors = self.get_transformed_actors()
         if not transformed_actors:
             return
@@ -1141,10 +1161,6 @@ class GraphicalEditor(QFrame):
                 if self.firstObjectToPerformOperation and secondObjectToPerformOperation:
                     operationType = self.isPerformOperation[1]
 
-                    print("OPERATION HELPER:")
-                    print(f"1st actor pos: {self.firstObjectToPerformOperation.GetPosition()}")
-                    print(f"2nd actor pos: {secondObjectToPerformOperation.GetPosition()}")
-
                     if operationType == 'subtract':
                         self.subtract_objects(self.firstObjectToPerformOperation, secondObjectToPerformOperation)
                     elif operationType == 'union':
@@ -1203,7 +1219,7 @@ class GraphicalEditor(QFrame):
         menu.addAction(change_angle_action)
 
         adjust_size_action = QAction('Adjust size', self)
-        adjust_size_action.triggered.connect(self.adjust_actors_size)
+        adjust_size_action.triggered.connect(self.scale_actors)
         menu.addAction(adjust_size_action)
 
         remove_object_action = QAction('Remove', self)
@@ -1272,40 +1288,22 @@ class GraphicalEditor(QFrame):
             offsets = dialog.getValues()
             if offsets:
                 x_offset, y_offset, z_offset = offsets
-                print("MOVING")
-                print(f"Offsets are: {offsets}")
-
-                for actor in self.selected_actors:
-                    if actor and isinstance(actor, vtkActor):
-                        print(f"Init <{hex(id(actor))}> pos: {actor.GetPosition()}")
-                        print(f"Init <{hex(id(actor))}> centre: {actor.GetCenter()}")
-                        print(f"Init <{hex(id(actor))}> origin: {actor.GetOrigin()}")
-                        
-                        position = actor.GetPosition()
-                        new_position = (position[0] + x_offset, position[1] + y_offset, position[2] + z_offset)
-                        actor.SetPosition(new_position)
-                        actor.Modified()
-                        
-                        transform = vtkTransform()
-                        transform.Translate(x_offset, y_offset, z_offset)
-                        transform_filter = vtkTransformPolyDataFilter()
-                        transform_filter.SetTransform(transform)
-                        transform_filter.SetInputData(actor.GetMapper().GetInput())
-                        transform_filter.Update()
-
-                        print(f"After <{hex(id(actor))}> pos: {actor.GetPosition()}")
-                        print(f"After <{hex(id(actor))}> centre: {actor.GetCenter()}")
-                        print(f"After <{hex(id(actor))}> origin: {actor.GetOrigin()}")
-                        
+                SimpleGeometryTransformer.transform_actors(SIMPLE_GEOMETRY_TRANSFORMATION_MOVE, self.selected_actors, x_offset, y_offset, z_offset)
             self.deselect()
-
-    def adjust_actors_size(self):
-        scale_factor, ok = QInputDialog.getDouble(
-            self, "Adjust size", "Scale:", 1.0, 0.01, 100.0, 2)
+            
+    def rotate_actors(self):
+        dialog = AngleDialog(self)
+        if dialog.exec_() == QDialog.Accepted:
+            angles = dialog.getValues()
+            if angles:
+                angle_x, angle_y, angle_z = angles
+                SimpleGeometryTransformer.transform_actors(SIMPLE_GEOMETRY_TRANSFORMATION_ROTATE, self.selected_actors, angle_x, angle_y, angle_z)    
+            self.deselect()
+    
+    def scale_actors(self):
+        scale_factor, ok = QInputDialog.getDouble(self, "Scale", "Scale:", 1.0, 0.01, 100.0, 9)
         if ok:
-            for actor in self.selected_actors:
-                if actor and isinstance(actor, vtkActor):
-                    actor.SetScale(scale_factor, scale_factor, scale_factor)
+            SimpleGeometryTransformer.transform_actors(SIMPLE_GEOMETRY_TRANSFORMATION_SCALE, self.selected_actors, scale_factor)
             self.deselect()
             
     def change_interactor(self, style: str):
@@ -1384,21 +1382,7 @@ class GraphicalEditor(QFrame):
 
     def update_tree_view(self, volume_row, surface_indices, merged_actor):
         model = self.treeView.model()
-        surface_indices = sorted(surface_indices)
-        MeshTreeManager.rename_first_selected_row(model, volume_row, surface_indices)
-        parent_index = model.index(volume_row, 0)
-
-        # Copying the hierarchy from the rest of the selected rows to the first selected row
-        for surface_index in surface_indices[1:]:
-            child_index = model.index(surface_index, 0, parent_index)
-            child_item = model.itemFromIndex(child_index)
-            MeshTreeManager.copy_children(child_item, model.itemFromIndex(
-                model.index(surface_indices[0], 0, parent_index)))
-
-        # Deleting the rest of the selected rows from the tree view
-        for surface_index in surface_indices[1:][::-1]:
-            child_index = model.index(surface_index, 0, parent_index)
-            model.removeRow(child_index.row(), parent_index)
+        MeshTreeManager.update_tree_view(model, volume_row, surface_indices)
 
         # Updating the actor_rows dictionary with the new internal row index
         self.actor_rows[merged_actor] = (volume_row, surface_indices[0])
@@ -1435,21 +1419,6 @@ class GraphicalEditor(QFrame):
         for actor, (vol_row, surf_row) in list(self.actor_rows.items()):
             if vol_row == volume_row and surf_row in index_mapping:
                 self.actor_rows[actor] = (vol_row, index_mapping[surf_row])
-
-    def rotate_actors(self):
-        dialog = AngleDialog(self)
-        if dialog.exec_() == QDialog.Accepted:
-            angles = dialog.getValues()
-            if angles:
-                angle_x, angle_y, angle_z = angles
-
-                for actor in self.selected_actors:
-                    if actor and isinstance(actor, vtkActor):
-                        actor.RotateX(angle_x)
-                        actor.RotateY(angle_y)
-                        actor.RotateZ(angle_z)
-
-        self.deselect()
 
     def align_view_by_axis(self, axis: str):
         align_view_by_axis(axis, self.renderer, self.vtkWidget)
@@ -1506,74 +1475,32 @@ class GraphicalEditor(QFrame):
         self.start_line_drawing()
         self.statusBar.showMessage("Click two points to define the cross-section plane.")
 
-    def object_operation_executor_helper(self, obj_from: vtkActor, obj_to: vtkActor, operation: vtkBooleanOperationPolyDataFilter):
-        try:
-            print(f"<{hex(id(obj_from))}> pos: {obj_from.GetPosition()}")
-            print(f"<{hex(id(obj_from))}> centre: {obj_from.GetCenter()}")
-            print(f"<{hex(id(obj_from))}> origin: {obj_from.GetOrigin()}")
-            
-            print(f"<{hex(id(obj_to))}> pos: {obj_to.GetPosition()}")
-            print(f"<{hex(id(obj_to))}> centre: {obj_to.GetCenter()}")
-            print(f"<{hex(id(obj_to))}> origin: {obj_to.GetOrigin()}")
-            
-            obj_from_subtract_polydata = convert_unstructured_grid_to_polydata(obj_from)
-            obj_to_subtract_polydata = convert_unstructured_grid_to_polydata(obj_to)
-
-            cleaner1 = vtkCleanPolyData()
-            cleaner1.SetInputData(obj_from_subtract_polydata)
-            cleaner1.Update()
-            cleaner2 = vtkCleanPolyData()
-            cleaner2.SetInputData(obj_to_subtract_polydata)
-            cleaner2.Update()
-
-            # Set the input objects for the operation
-            operation.SetInputData(0, cleaner1.GetOutput())
-            operation.SetInputData(1, cleaner2.GetOutput())
-
-            # Update the filter to perform the subtraction
-            operation.Update()
-
-            # Retrieve the result of the subtraction
-            resultPolyData = operation.GetOutput()
-
-            # Check if subtraction was successful
-            if resultPolyData is None or resultPolyData.GetNumberOfPoints() == 0:
-                QMessageBox.warning(self, "Operation Failed", "No result from the operation operation.")
-                return
-
-            mapper = vtkPolyDataMapper()
-            mapper.SetInputData(resultPolyData)
-
-            actor = vtkActor()
-            actor.SetMapper(mapper)
-            self.add_actor(actor)
-
-            # Removing subtracting objects only after adding resulting object
-            self.remove_actor(obj_from)
-            self.remove_actor(obj_to)
-            
-            self.difficult_geometries.add(actor)
-            
-            return actor
-        
-        except Exception as e:
-            self.log_console.printError(str(e))
-            return None
-
     def subtract_objects(self, obj_from: vtkActor, obj_to: vtkActor):
-        booleanOperation = vtkBooleanOperationPolyDataFilter()
-        booleanOperation.SetOperationToDifference()
-        self.object_operation_executor_helper(obj_from, obj_to, booleanOperation)
+        result_actor = SimpleGeometryTransformer.subtract(obj_from, obj_to)
+        if not result_actor:
+            return
+        
+        self.remove_actor(obj_from)
+        self.remove_actor(obj_to)
+        self.add_actor(result_actor)
 
     def combine_objects(self, obj_from: vtkActor, obj_to: vtkActor):
-        booleanOperation = vtkBooleanOperationPolyDataFilter()
-        booleanOperation.SetOperationToUnion()
-        self.object_operation_executor_helper(obj_from, obj_to, booleanOperation)
+        result_actor = SimpleGeometryTransformer.combine(obj_from, obj_to)
+        if not result_actor:
+            return
+
+        self.remove_actor(obj_from)
+        self.remove_actor(obj_to)
+        self.add_actor(result_actor)
 
     def intersect_objects(self, obj_from: vtkActor, obj_to: vtkActor):
-        booleanOperation = vtkBooleanOperationPolyDataFilter()
-        booleanOperation.SetOperationToIntersection()
-        self.object_operation_executor_helper(obj_from, obj_to, booleanOperation)
+        result_actor = SimpleGeometryTransformer.intersect(obj_from, obj_to)
+        if not result_actor:
+            return
+
+        self.remove_actor(obj_from)
+        self.remove_actor(obj_to)
+        self.add_actor(result_actor)
 
     def create_cross_section(self):
         from numpy import cross
@@ -1607,8 +1534,7 @@ class GraphicalEditor(QFrame):
         self.perform_cut(plane)
 
     def perform_cut(self, plane):
-        polydata = convert_unstructured_grid_to_polydata(
-            list(self.selected_actors)[0])
+        polydata = convert_unstructured_grid_to_polydata(list(self.selected_actors)[0])
         if not polydata:
             QMessageBox.warning(
                 self, "Error", "Selected object is not suitable for cross-section.")
@@ -1645,12 +1571,14 @@ class GraphicalEditor(QFrame):
         self.log_console.printInfo("Successfully created a cross-section")        
 
     def save_boundary_conditions(self, node_ids, value):
+        from json import dump, load, JSONDecodeError
+        
         try:
             with open(self.config_tab.config_file_path, 'r') as file:
-                data = json.load(file)
+                data = load(file)
         except FileNotFoundError:
             data = {}
-        except json.JSONDecodeError as e:
+        except JSONDecodeError as e:
             QMessageBox.critical(self, "Error", 
                                  f"Error parsing JSON file '{self.config_tab.config_file_path}': {e}")
             return
@@ -1667,7 +1595,7 @@ class GraphicalEditor(QFrame):
 
         try:
             with open(self.config_tab.config_file_path, 'w') as file:
-                json.dump(data, file, indent=4)
+                dump(data, file, indent=4)
         except Exception as e:
             QMessageBox.critical(
                 self, "Error", f"Failed to save configuration: {e}")

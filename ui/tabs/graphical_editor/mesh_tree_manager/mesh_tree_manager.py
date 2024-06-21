@@ -531,6 +531,24 @@ class MeshTreeManager:
         first_child_index = model.index(first_surface_index, 0, parent_index)
         first_item = model.itemFromIndex(first_child_index)
         first_item.setText(merged_surface_name)
+        
+    @staticmethod
+    def update_tree_view(model, volume_row, surface_indices):
+        surface_indices = sorted(surface_indices)
+        MeshTreeManager.rename_first_selected_row(model, volume_row, surface_indices)
+        parent_index = model.index(volume_row, 0)
+
+        # Copying the hierarchy from the rest of the selected rows to the first selected row
+        for surface_index in surface_indices[1:]:
+            child_index = model.index(surface_index, 0, parent_index)
+            child_item = model.itemFromIndex(child_index)
+            MeshTreeManager.copy_children(child_item, model.itemFromIndex(
+                model.index(surface_indices[0], 0, parent_index)))
+
+        # Deleting the rest of the selected rows from the tree view
+        for surface_index in surface_indices[1:][::-1]:
+            child_index = model.index(surface_index, 0, parent_index)
+            model.removeRow(child_index.row(), parent_index)
 
     @staticmethod
     def print_tree_structure(tree_view: QTreeView):

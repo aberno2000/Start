@@ -1,7 +1,7 @@
 from gmsh import initialize, finalize, isInitialized, model, option, write
 from . import *
 from vtk import vtkActor
-from logger import LogConsole
+from logger import LogConsole, InternalLogger
 from styles import DEFAULT_ACTOR_COLOR
 from util import get_cur_datetime
 
@@ -10,6 +10,7 @@ LINE_OBJ_STR = 'line'
 SURFACE_OBJ_STR = 'surface'
 SPHERE_OBJ_STR = 'sphere'
 BOX_OBJ_STR = 'box'
+CONE_OBJ_STR = 'cone'
 CYLINDER_OBJ_STR = 'cylinder'
 
 
@@ -70,19 +71,18 @@ class SimpleGeometryManager:
         try:
             point = Point(log_console, x, y, z)
             point_data_str = repr(point)
-
             point.create_point_with_gmsh()
             point_actor = point.create_point_with_vtk()
 
-            SimpleGeometryManager.simple_geometry_objects.append(
-                (POINT_OBJ_STR, (x, y, z)))
-            log_console.printInfo(
-                f'Successfully created point: {point_data_str}')
-
+            SimpleGeometryManager.simple_geometry_objects.append((POINT_OBJ_STR, (x, y, z)))
             SimpleGeometryManager.colorize_actor(point_actor, color)
+            
+            log_console.printInfo(f'Successfully created point: {point_data_str}')
 
             return point_actor
+        
         except ValueError as e:
+            print(InternalLogger.get_warning_none_result_with_exception_msg(e))
             return None
 
     @staticmethod
@@ -91,20 +91,19 @@ class SimpleGeometryManager:
                     color=DEFAULT_ACTOR_COLOR) -> vtkActor:
         try:
             line = Line(log_console, points)
-
             line_data_str = repr(line)
             line.create_line_with_gmsh()
-
             line_actor = line.create_line_with_vtk()
-            SimpleGeometryManager.simple_geometry_objects.append(
-                (LINE_OBJ_STR, points))
-            log_console.printInfo(
-                f'Successfully created line:\n{line_data_str}')
-
+            
+            SimpleGeometryManager.simple_geometry_objects.append((LINE_OBJ_STR, points))
             SimpleGeometryManager.colorize_actor(line_actor, color)
+            
+            log_console.printInfo(f'Successfully created line:\n{line_data_str}')
 
             return line_actor
+        
         except ValueError as e:
+            print(InternalLogger.get_warning_none_result_with_exception_msg(e))
             return None
 
     @staticmethod
@@ -113,20 +112,19 @@ class SimpleGeometryManager:
                        color=DEFAULT_ACTOR_COLOR) -> vtkActor:
         try:
             surface = Surface(log_console, points)
-
             surface_data_str = repr(surface)
             surface.create_surface_with_gmsh()
-
             surface_actor = surface.create_surface_with_vtk()
-            SimpleGeometryManager.simple_geometry_objects.append(
-                (SURFACE_OBJ_STR, points))
-            log_console.printInfo(
-                f'Successfully created surface:\n{surface_data_str}')
-
+            
+            SimpleGeometryManager.simple_geometry_objects.append((SURFACE_OBJ_STR, points))
             SimpleGeometryManager.colorize_actor(surface_actor, color)
+            
+            log_console.printInfo(f'Successfully created surface:\n{surface_data_str}')
 
             return surface_actor
+        
         except ValueError as e:
+            print(InternalLogger.get_warning_none_result_with_exception_msg(e))
             return None
 
     @staticmethod
@@ -135,27 +133,25 @@ class SimpleGeometryManager:
                       y: float,
                       z: float,
                       radius: float,
+                      mesh_resolution: int,
                       phi_resolution: int = DEFAULT_SPHERE_PHI_RESOLUTION,
                       theta_resolution: int = DEFAULT_SPHERE_THETA_RESOLUTION,
                       color=DEFAULT_ACTOR_COLOR) -> vtkActor:
         try:
-            sphere = Sphere(log_console, x, y, z, radius, phi_resolution,
-                            theta_resolution)
-
+            sphere = Sphere(log_console, x, y, z, radius, mesh_resolution, phi_resolution, theta_resolution)
             sphere_data_str = repr(sphere)
             sphere.create_sphere_with_gmsh()
-
             sphere_actor = sphere.create_sphere_with_vtk()
-            SimpleGeometryManager.simple_geometry_objects.append(
-                (SPHERE_OBJ_STR, (x, y, z, radius, phi_resolution,
-                                  theta_resolution)))
-            log_console.printInfo(
-                f'Successfully created sphere:\n{sphere_data_str}')
-
+            
+            SimpleGeometryManager.simple_geometry_objects.append((SPHERE_OBJ_STR, (x, y, z, radius, phi_resolution, theta_resolution)))
             SimpleGeometryManager.colorize_actor(sphere_actor, color)
+            
+            log_console.printInfo(f'Successfully created sphere:\n{sphere_data_str}')
 
             return sphere_actor
+        
         except ValueError as e:
+            print(InternalLogger.get_warning_none_result_with_exception_msg(e))
             return None
 
     @staticmethod
@@ -166,21 +162,42 @@ class SimpleGeometryManager:
                    length: float,
                    width: float,
                    height: float,
+                   mesh_resolution: int,
                    color=DEFAULT_ACTOR_COLOR) -> vtkActor:
         try:
-            box = Box(log_console, x, y, z, length, width, height)
-
+            box = Box(log_console, x, y, z, length, width, height, mesh_resolution)
             box_data_str = repr(box)
             box.create_box_with_gmsh()
             box_actor = box.create_box_with_vtk()
-            SimpleGeometryManager.simple_geometry_objects.append(
-                (BOX_OBJ_STR, (x, y, z, length, width, height)))
+            
+            SimpleGeometryManager.simple_geometry_objects.append((BOX_OBJ_STR, (x, y, z, length, width, height)))
+            SimpleGeometryManager.colorize_actor(box_actor, color)
+            
             log_console.printInfo(f'Successfully created box:\n{box_data_str}')
 
-            SimpleGeometryManager.colorize_actor(box_actor, color)
-
             return box_actor
+
         except ValueError as e:
+            print(InternalLogger.get_warning_none_result_with_exception_msg(e))
+            return None
+        
+    @staticmethod
+    def create_cone(log_console: LogConsole, x: float, y: float, z: float, dx: float, dy: float, dz: float, height: float, r: float, resolution: float, mesh_resolution: int, color=DEFAULT_ACTOR_COLOR) -> vtkActor:
+        try:
+            cone = Cone(log_console, x, y, z, dx, dy, dz, height, r, resolution, mesh_resolution)
+            cone_data_str = repr(cone)
+            cone.create_cone_with_gmsh()
+            cone_actor = cone.create_cone_with_vtk()
+            
+            SimpleGeometryManager.simple_geometry_objects.append((CONE_OBJ_STR, (x, y, z, dx, dy, dz, r, mesh_resolution)))
+            SimpleGeometryManager.colorize_actor(cone_actor, color)
+            
+            log_console.printInfo(f'Successfully created cone:\n{cone_data_str}')
+
+            return cone_actor
+
+        except ValueError as e:
+            print(InternalLogger.get_warning_none_result_with_exception_msg(e))
             return None
 
     @staticmethod
@@ -192,25 +209,25 @@ class SimpleGeometryManager:
                         dx: float,
                         dy: float,
                         dz: float,
+                        mesh_resolution: int,
                         resolution: int = DEFAULT_CYLINDER_RESOLUTION,
                         color=DEFAULT_ACTOR_COLOR) -> vtkActor:
         try:
-            cylinder = Cylinder(log_console, x, y, z, radius, dx, dy, dz,
-                                resolution)
+            cylinder = Cylinder(log_console, x, y, z, radius, dx, dy, dz, mesh_resolution, resolution)
 
             cylinder_data_str = repr(cylinder)
             cylinder.create_cylinder_with_gmsh()
-
             cylinder_actor = cylinder.create_cylinder_with_vtk()
-            SimpleGeometryManager.simple_geometry_objects.append(
-                (CYLINDER_OBJ_STR, (x, y, z, radius, dx, dy, dz)))
-            log_console.printInfo(
-                f'Successfully created cylinder:\n{cylinder_data_str}')
-
+            
+            SimpleGeometryManager.simple_geometry_objects.append((CYLINDER_OBJ_STR, (x, y, z, radius, dx, dy, dz)))
             SimpleGeometryManager.colorize_actor(cylinder_actor, color)
+        
+            log_console.printInfo(f'Successfully created cylinder:\n{cylinder_data_str}')
 
             return cylinder_actor
+        
         except ValueError as e:
+            print(InternalLogger.get_warning_none_result_with_exception_msg(e))
             return None
 
     @staticmethod
@@ -225,9 +242,13 @@ class SimpleGeometryManager:
         color : tuple or list, optional
             The RGB color values to set. If None, DEFAULT_ACTOR_COLOR is used.
         """
-        if color is None:
-            color = DEFAULT_ACTOR_COLOR
-        actor.GetProperty().SetColor(color)
+        try:
+            if color is None:
+                color = DEFAULT_ACTOR_COLOR
+            actor.GetProperty().SetColor(color)
+        except Exception as e:
+            print(InternalLogger.get_warning_none_result_with_exception_msg(e))
+            return None
 
     @staticmethod
     def colorize_actor_with_rgb(actor: vtkActor, r: float, g: float, b: float):
@@ -245,7 +266,11 @@ class SimpleGeometryManager:
         b : float
             Blue component (0-1).
         """
-        actor.GetProperty().SetColor(r, g, b)
+        try:
+            actor.GetProperty().SetColor(r, g, b)
+        except Exception as e:
+            print(InternalLogger.get_warning_none_result_with_exception_msg(e))
+            return None
 
     @staticmethod
     def save_and_mesh_objects(log_console: LogConsole, mesh_filename: str,

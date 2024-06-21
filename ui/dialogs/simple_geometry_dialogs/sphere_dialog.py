@@ -25,8 +25,8 @@ class SphereDialog(QDialog):
         self.zInput = QLineEdit("0.0")
         self.radiusInput = QLineEdit("5.0")
         self.phiResolutionInput = QLineEdit(str(DEFAULT_SPHERE_PHI_RESOLUTION))
-        self.thetaResolutionInput = QLineEdit(
-            str(DEFAULT_SPHERE_THETA_RESOLUTION))
+        self.thetaResolutionInput = QLineEdit(str(DEFAULT_SPHERE_THETA_RESOLUTION))
+        self.meshResolutionInput = QLineEdit(f"{SIMPLE_GEOMETRY_MESH_RESOLUTION_SPHERE_VALUE}")
 
         self.xInput.setValidator(
             CustomSignedDoubleValidator(
@@ -51,6 +51,9 @@ class SphereDialog(QDialog):
         self.thetaResolutionInput.setValidator(
             CustomIntValidator(SIMPLE_GEOMETRY_SPHERE_MIN_THETA_RESOLUTION,
                                SIMPLE_GEOMETRY_SPHERE_MAX_THETA_RESOLUTION))
+        self.meshResolutionInput.setValidator(
+            CustomIntValidator(SIMPLE_GEOMETRY_BOX_MESH_RESOLUTION_MIN,
+                               SIMPLE_GEOMETRY_BOX_MESH_RESOLUTION_MAX))
 
         self.xInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
         self.yInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
@@ -58,24 +61,24 @@ class SphereDialog(QDialog):
         self.radiusInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
         self.phiResolutionInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
         self.thetaResolutionInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
+        self.meshResolutionInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
 
-        self.phiResolutionInput.setToolTip(
-            SIMPLE_GEOMETRY_SPHERE_PHI_RESOLUTION_HINT)
-        self.thetaResolutionInput.setToolTip(
-            SIMPLE_GEOMETRY_SPHERE_THETA_RESOLUTION_HINT)
+        self.phiResolutionInput.setToolTip(SIMPLE_GEOMETRY_SPHERE_PHI_RESOLUTION_HINT)
+        self.thetaResolutionInput.setToolTip(SIMPLE_GEOMETRY_SPHERE_THETA_RESOLUTION_HINT)
+        self.meshResolutionInput.setToolTip(SIMPLE_GEOMETRY_MESH_RESOLUTION_HINT)
 
         formLayout.addRow("Center X:", self.xInput)
         formLayout.addRow("Center Y:", self.yInput)
         formLayout.addRow("Center Z:", self.zInput)
         formLayout.addRow("Radius:", self.radiusInput)
+        formLayout.addRow("Mesh resolution: ", self.meshResolutionInput)
         formLayout.addRow("Phi Resolution:", self.phiResolutionInput)
         formLayout.addRow("Theta Resolution:", self.thetaResolutionInput)
 
         layout.addLayout(formLayout)
 
         # Dialog buttons
-        self.buttons = QDialogButtonBox(
-            QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self)
+        self.buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self)
         self.buttons.accepted.connect(self.validate_and_accept)
         self.buttons.rejected.connect(self.reject)
 
@@ -91,15 +94,13 @@ class SphereDialog(QDialog):
         for input_field in inputs:
             validator = input_field.validator()
             if isinstance(validator, CustomSignedDoubleValidator):
-                if validator.validate(input_field.text(),
-                                      0)[0] != QDoubleValidator.Acceptable:
+                if validator.validate(input_field.text(), 0)[0] != QDoubleValidator.Acceptable:
                     input_field.setStyleSheet(INVALID_QLINEEDIT_STYLE)
                     all_valid = False
                 else:
                     input_field.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
             elif isinstance(validator, CustomIntValidator):
-                if validator.validate(input_field.text(),
-                                      0)[0] != QDoubleValidator.Acceptable:
+                if validator.validate(input_field.text(), 0)[0] != QDoubleValidator.Acceptable:
                     input_field.setStyleSheet(INVALID_QLINEEDIT_STYLE)
                     all_valid = False
                 else:
@@ -114,6 +115,7 @@ class SphereDialog(QDialog):
     def getValues(self):
         values = (float(self.xInput.text()), float(self.yInput.text()),
                   float(self.zInput.text()), float(self.radiusInput.text()),
+                  int(self.meshResolutionInput.text()),
                   int(self.phiResolutionInput.text()),
                   int(self.thetaResolutionInput.text()))
 

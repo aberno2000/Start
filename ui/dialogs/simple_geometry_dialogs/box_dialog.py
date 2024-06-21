@@ -1,9 +1,10 @@
 from PyQt5.QtWidgets import (QDialog, QVBoxLayout, QFormLayout, QLineEdit,
                              QDialogButtonBox, QMessageBox)
-from field_validators import CustomSignedDoubleValidator
-from PyQt5.QtGui import QDoubleValidator
+from field_validators import CustomIntValidator, CustomSignedDoubleValidator
+from PyQt5.QtGui import QIntValidator, QDoubleValidator
 from styles import *
 from tabs.graphical_editor.simple_geometry.simple_geometry_constraints import *
+from tabs.graphical_editor.simple_geometry.simple_geometry_constants import SIMPLE_GEOMETRY_MESH_RESOLUTION_HINT, SIMPLE_GEOMETRY_MESH_RESOLUTION_VALUE
 
 
 class BoxDialog(QDialog):
@@ -21,6 +22,7 @@ class BoxDialog(QDialog):
         self.lengthInput = QLineEdit("5.0")
         self.widthInput = QLineEdit("5.0")
         self.heightInput = QLineEdit("5.0")
+        self.meshResolutionInput = QLineEdit(f"{SIMPLE_GEOMETRY_MESH_RESOLUTION_VALUE}")
 
         self.xInput.setValidator(
             CustomSignedDoubleValidator(SIMPLE_GEOMETRY_BOX_XMIN,
@@ -46,6 +48,9 @@ class BoxDialog(QDialog):
             CustomSignedDoubleValidator(SIMPLE_GEOMETRY_BOX_HEIGHT_MIN,
                                         SIMPLE_GEOMETRY_BOX_HEIGHT_MAX,
                                         SIMPLE_GEOMETRY_BOX_FIELD_PRECISION))
+        self.meshResolutionInput.setValidator(
+            CustomIntValidator(SIMPLE_GEOMETRY_BOX_MESH_RESOLUTION_MIN,
+                               SIMPLE_GEOMETRY_BOX_MESH_RESOLUTION_MAX))
 
         self.xInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
         self.yInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
@@ -53,6 +58,8 @@ class BoxDialog(QDialog):
         self.lengthInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
         self.widthInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
         self.heightInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
+        self.meshResolutionInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
+        self.meshResolutionInput.setToolTip(SIMPLE_GEOMETRY_MESH_RESOLUTION_HINT)
 
         formLayout.addRow("Center X:", self.xInput)
         formLayout.addRow("Center Y:", self.yInput)
@@ -60,11 +67,11 @@ class BoxDialog(QDialog):
         formLayout.addRow("Length:", self.lengthInput)
         formLayout.addRow("Width:", self.widthInput)
         formLayout.addRow("Height:", self.heightInput)
+        formLayout.addRow("Mesh resolution: ", self.meshResolutionInput)
 
         layout.addLayout(formLayout)
 
-        self.buttons = QDialogButtonBox(
-            QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self)
+        self.buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self)
         self.buttons.accepted.connect(self.validate_and_accept)
         self.buttons.rejected.connect(self.reject)
 
@@ -73,28 +80,31 @@ class BoxDialog(QDialog):
     def validate_and_accept(self):
         inputs = [
             self.xInput, self.yInput, self.zInput, self.lengthInput,
-            self.widthInput, self.heightInput
+            self.widthInput, self.heightInput, self.meshResolutionInput
         ]
         all_valid = True
 
         for input_field in inputs:
-            if input_field.validator().validate(
-                    input_field.text(), 0)[0] != QDoubleValidator.Acceptable:
-                input_field.setStyleSheet(INVALID_QLINEEDIT_STYLE)
-                all_valid = False
-            else:
-                input_field.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
+            validator = input_field.validator()
+            state, _, _ = validator.validate(input_field.text(), 0)
+
+            if isinstance(validator, QDoubleValidator) or isinstance(validator, QIntValidator):
+                if state != QDoubleValidator.Acceptable:
+                    input_field.setStyleSheet(INVALID_QLINEEDIT_STYLE)
+                    all_valid = False
+                else:
+                    input_field.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
 
         if all_valid:
             self.accept()
         else:
-            QMessageBox.warning(self, "Invalid input",
-                                "Please correct the highlighted fields.")
+            QMessageBox.warning(self, "Invalid input", "Please correct the highlighted fields.")
 
     def getValues(self):
         values = (float(self.xInput.text()), float(self.yInput.text()),
                   float(self.zInput.text()), float(self.lengthInput.text()),
                   float(self.widthInput.text()),
-                  float(self.heightInput.text()))
+                  float(self.heightInput.text()),
+                  int(self.meshResolutionInput.text()))
 
         return values
