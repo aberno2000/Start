@@ -1,7 +1,7 @@
 from gmsh import initialize, finalize, model, isInitialized
-from vtk import vtkPoints, vtkPolygon, vtkCellArray, vtkPolyData, vtkPolyDataMapper, vtkActor
+from vtk import vtkPoints, vtkPolygon, vtkCellArray, vtkPolyData, vtkPolyDataMapper, vtkActor, vtkDelaunay2D
 from logger import LogConsole
-from util import can_create_surface, get_cur_datetime
+from util import get_cur_datetime
 
 
 class Surface:
@@ -41,9 +41,8 @@ class Surface:
         self.log_console = log_console
         self.points = points
 
-        if not can_create_surface(self.points):
-            self.log_console.printWarning(
-                f"Can't create surface with specified points:\n{self.points}")
+        if not Surface.can_create_surface(self.points):
+            self.log_console.printWarning(f"Can't create surface with specified points:\n{self.points}")
             raise ValueError("Invalid points for creating a surface.")
 
     def create_surface_with_vtk(self) -> vtkActor:
@@ -122,3 +121,37 @@ class Surface:
             for i, (x, y, z) in enumerate(self.points)
         ]
         return '\n'.join(points_str)
+    
+    @staticmethod
+    def can_create_surface(point_data):
+        """
+        Check if a surface can be created from the given set of points using VTK.
+
+        Parameters:
+        point_data (list of tuples): List of (x, y, z) coordinates of the points.
+
+        Returns:
+        bool: True if the surface can be created, False otherwise.
+        """
+        # Create a vtkPoints object and add the points
+        points = vtkPoints()
+        for x, y, z in point_data:
+            points.InsertNextPoint(x, y, z)
+
+        # Create a polydata object and set the points
+        poly_data = vtkPolyData()
+        poly_data.SetPoints(points)
+
+        # Create a Delaunay2D object and set the input
+        delaunay = vtkDelaunay2D()
+        delaunay.SetInputData(poly_data)
+
+        # Try to create the surface
+        delaunay.Update()
+
+        # Check if the surface was created
+        output = delaunay.GetOutput()
+        if output.GetNumberOfCells() > 0:
+            return True
+        else:
+            return False

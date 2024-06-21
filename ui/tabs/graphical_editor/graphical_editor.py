@@ -1,6 +1,5 @@
-import gmsh
+from gmsh import initialize, finalize, isInitialized, model, option
 import json
-from numpy import cross
 from os import remove
 from os.path import isfile, exists
 from vtkmodules.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
@@ -28,6 +27,7 @@ from dialogs import *
 from .simple_geometry import *
 from .interactor import *
 from .particle_source_manager import ParticleSourceManager
+from .mesh_tree import MeshTreeManager
 
 
 class GraphicalEditor(QFrame):
@@ -306,16 +306,18 @@ class GraphicalEditor(QFrame):
     def upload_mesh_file(self, file_path):
         if exists(file_path) and isfile(file_path):
             self.clear_scene_and_tree_view()
-
             self.mesh_file = file_path
             self.initialize_tree()
-            gmsh.initialize()
-            treedict = getTreeDict(self.mesh_file)
-            gmsh.finalize()
+            
+            if not isInitialized():
+                initialize()
+            treedict = MeshTreeManager.get_tree_dict(self.mesh_file)
+            if isInitialized():
+                finalize()
+            
             self.add_actors_and_populate_tree_view(treedict, file_path)
         else:
-            QMessageBox.warning(
-                self, "Warning", f"Unable to open file {file_path}")
+            QMessageBox.warning(self, "Warning", f"Unable to open file {file_path}")
             return None
 
     def erase_all_from_tree_view(self):
@@ -575,26 +577,29 @@ class GraphicalEditor(QFrame):
 
     def convert_stp_to_msh(self, filename, mesh_size, mesh_dim):
         try:
-            gmsh.initialize()
-            gmsh.model.add("model")
-            gmsh.model.occ.importShapes(filename)
-            gmsh.model.occ.synchronize()
-            gmsh.option.setNumber("Mesh.MeshSizeMin", mesh_size)
-            gmsh.option.setNumber("Mesh.MeshSizeMax", mesh_size)
+            if not isInitialized():
+                initialize()
+            
+            initialize()
+            model.add("model")
+            model.occ.importShapes(filename)
+            model.occ.synchronize()
+            option.setNumber("Mesh.MeshSizeMin", mesh_size)
+            option.setNumber("Mesh.MeshSizeMax", mesh_size)
 
             if mesh_dim == 2:
-                gmsh.model.mesh.generate(2)
+                model.mesh.generate(2)
             elif mesh_dim == 3:
-                gmsh.model.mesh.generate(3)
+                model.mesh.generate(3)
 
             output_file = filename.replace(".stp", ".msh")
-            gmsh.write(output_file)
+            write(output_file)
         except Exception as e:
             QMessageBox.critical(
                 self, "Error", f"An error occurred during conversion: {str(e)}")
             return None
         finally:
-            gmsh.finalize()
+            finalize()
             return output_file
 
     def add_actor(self, actor: vtkActor):
@@ -674,11 +679,11 @@ class GraphicalEditor(QFrame):
         self.render_editor_window()
 
     def add_custom(self, meshfilename: str):
-        gmsh.initialize()
-        customTreeDict = getTreeDict(meshfilename)
+        initialize()
+        customTreeDict = MeshTreeManager.get_tree_dict(meshfilename)
         self.add_actors_and_populate_tree_view(
             customTreeDict, meshfilename, 'volume')
-        gmsh.finalize()
+        finalize()
 
     def global_undo(self):
         if not self.global_undo_stack:
@@ -778,18 +783,22 @@ class GraphicalEditor(QFrame):
             return
 
         for actor, key, filename in transformed_actors:
-            gmsh.initialize()
-            treedict = getTreeDict(filename)
+            if not isInitialized():
+                initialize()
+            
+            treedict = MeshTreeManager.get_tree_dict(filename)
             if not treedict:
                 continue
 
-            success, vtk_filename = write_treedict_to_vtk(treedict, filename)
+            success, vtk_filename = MeshTreeManager.write_treedict_to_vtk(treedict, filename)
             if not success:
                 self.log_console.printWarning(
                     f"Failed to update Gmsh file for temporary filename {vtk_filename}")
                 QMessageBox.warning(
                     self, "Gmsh Update Warning", f"Failed to update Gmsh file for temporary filename {vtk_filename}")
-                gmsh.finalize()
+                
+                if isInitialized():
+                    finalize()
                 return
             else:
                 self.log_console.printInfo(f"Object in temporary mesh file {vtk_filename} was successfully written")
@@ -799,7 +808,8 @@ class GraphicalEditor(QFrame):
                 self.log_console.printWarning(f"Failed to write data from the {vtk_filename} to {msh_filename}")
                 QMessageBox.warning(self, "Gmsh Update Warning", 
                                     f"Failed to write data from the {vtk_filename} to {msh_filename}")
-                gmsh.finalize()
+                if isInitialized():
+                    finalize()
                 return
 
             self.log_console.printInfo(
@@ -807,14 +817,13 @@ class GraphicalEditor(QFrame):
 
             try:
                 remove(vtk_filename)
-                self.log_console.printInfo(
-                    f"Successfully removed temporary vtk mesh file: {vtk_filename}")
+                self.log_console.printInfo(f"Successfully removed temporary vtk mesh file: {vtk_filename}")
             except Exception as e:
-                self.log_console.printError(
-                    f"Can't remove temporary vtk mesh file {vtk_filename}: {e}")
-                gmsh.finalize()
+                self.log_console.printError(f"Can't remove temporary vtk mesh file {vtk_filename}: {e}")
+            finally:
+                if isInitialized():
+                    finalize()
 
-            gmsh.finalize()
 
     def fill_dicts(self, row, actors, objType: str, filename: str):
         """
@@ -940,15 +949,15 @@ class GraphicalEditor(QFrame):
             self.actor_nodes = {}
 
         # Update the actor_nodes with the new data
-        self.actor_nodes.update(formActorNodesDictionary(treedict, self.actor_rows, objType))
+        self.actor_nodes.update(MeshTreeManager.form_actor_nodes_dictionary(treedict, self.actor_rows, objType))
 
     def populate_tree(self, treedict: dict, objType: str, filename: str) -> list:
-        row = populateTreeView(
+        row = MeshTreeManager.populate_tree_view(
             treedict, self.objectsAddingHistory.id, self.model, self.treeView, objType)
         self.treeView.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self.treeView.selectionModel().selectionChanged.connect(
             self.on_tree_selection_changed)
-        actors = createActorsFromTreeDict(treedict, objType)
+        actors = MeshTreeManager.create_actors_from_tree_dict(treedict, objType)
 
         self.fill_dicts(row, actors, objType, filename)
         self.fill_actor_nodes(treedict, objType)
@@ -1376,14 +1385,14 @@ class GraphicalEditor(QFrame):
     def update_tree_view(self, volume_row, surface_indices, merged_actor):
         model = self.treeView.model()
         surface_indices = sorted(surface_indices)
-        rename_first_selected_row(model, volume_row, surface_indices)
+        MeshTreeManager.rename_first_selected_row(model, volume_row, surface_indices)
         parent_index = model.index(volume_row, 0)
 
         # Copying the hierarchy from the rest of the selected rows to the first selected row
         for surface_index in surface_indices[1:]:
             child_index = model.index(surface_index, 0, parent_index)
             child_item = model.itemFromIndex(child_index)
-            copy_children(child_item, model.itemFromIndex(
+            MeshTreeManager.copy_children(child_item, model.itemFromIndex(
                 model.index(surface_indices[0], 0, parent_index)))
 
         # Deleting the rest of the selected rows from the tree view
@@ -1446,12 +1455,10 @@ class GraphicalEditor(QFrame):
         align_view_by_axis(axis, self.renderer, self.vtkWidget)
 
     def save_scene(self, logConsole, fontColor, actors_file='scene_actors_meshTab.vtk', camera_file='scene_camera_meshTab.json'):
-        save_scene(self.renderer, logConsole,
-                   fontColor, actors_file, camera_file)
+        ProjectManager.save_scene(self.renderer, logConsole, fontColor, actors_file, camera_file)
 
     def load_scene(self, logConsole, fontColor, actors_file='scene_actors_meshTab.vtk', camera_file='scene_camera_meshTab.json'):
-        load_scene(self.vtkWidget, self.renderer, logConsole,
-                   fontColor, actors_file, camera_file)
+        ProjectManager.load_scene(self.vtkWidget, self.renderer, logConsole, fontColor, actors_file, camera_file)
 
     def get_total_count_of_actors(self):
         return self.renderer.GetActors().GetNumberOfItems()
@@ -1569,6 +1576,8 @@ class GraphicalEditor(QFrame):
         self.object_operation_executor_helper(obj_from, obj_to, booleanOperation)
 
     def create_cross_section(self):
+        from numpy import cross
+        
         if len(self.crossSectionLinePoints) != 2:
             QMessageBox.warning(self, "Warning", "Please define two points for the cross-section.")
             return
