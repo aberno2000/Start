@@ -3,6 +3,7 @@ from PyQt5.QtWidgets import (
     QDialogButtonBox, QMessageBox
 )
 from styles import *
+from field_validators import CustomSignedDoubleValidator
 
 
 class MoveActorDialog(QDialog):
@@ -17,6 +18,10 @@ class MoveActorDialog(QDialog):
         self.xOffsetInput = QLineEdit("0.0")
         self.yOffsetInput = QLineEdit("0.0")
         self.zOffsetInput = QLineEdit("0.0")
+        
+        self.xOffsetInput.setValidator(CustomSignedDoubleValidator(float('-inf'), float('inf'), 10))
+        self.yOffsetInput.setValidator(CustomSignedDoubleValidator(float('-inf'), float('inf'), 10))
+        self.zOffsetInput.setValidator(CustomSignedDoubleValidator(float('-inf'), float('inf'), 10))
 
         self.xOffsetInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
         self.yOffsetInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)

@@ -1,5 +1,5 @@
 from gmsh import initialize, finalize, model, isInitialized
-from vtk import vtkCylinderSource, vtkPolyDataMapper, vtkActor
+from vtk import vtkCylinderSource, vtkPolyDataMapper, vtkActor, vtkTriangleFilter, vtkLinearSubdivisionFilter
 from logger import LogConsole
 from util import get_cur_datetime
 from .simple_geometry_constants import DEFAULT_CYLINDER_RESOLUTION
@@ -27,6 +27,8 @@ class Cylinder:
         The length of the cylinder along the y-axis.
     dz : float
         The length of the cylinder along the z-axis.
+    mesh_resolution : int
+        The triangle vtkLinearSubdivisionFilter count of the subdivisions.
 
     Methods
     -------
@@ -47,6 +49,7 @@ class Cylinder:
                  dx: float,
                  dy: float,
                  dz: float,
+                 mesh_resolution: int,
                  resolution: int = DEFAULT_CYLINDER_RESOLUTION):
         """
         Constructs all the necessary attributes for the cylinder object.
@@ -69,6 +72,8 @@ class Cylinder:
                 The length of the cylinder along the y-axis.
             dz : float
                 The length of the cylinder along the z-axis.
+            mesh_resolution : int
+                The triangle vtkLinearSubdivisionFilter count of the subdivisions.
         """
         self.log_console = log_console
         self.x = x
@@ -79,6 +84,7 @@ class Cylinder:
         self.dy = dy
         self.dz = dz
         self.resolution = resolution
+        self.mesh_resolution = mesh_resolution
 
     def create_cylinder_with_vtk(self) -> vtkActor:
         """
@@ -97,13 +103,23 @@ class Cylinder:
             cylinder_source.SetResolution(self.resolution)
             cylinder_source.Update()
 
+            triangle_filter = vtkTriangleFilter()
+            triangle_filter.SetInputConnection(cylinder_source.GetOutputPort())
+            triangle_filter.Update()
+
+            subdivision_filter = vtkLinearSubdivisionFilter()
+            subdivision_filter.SetInputConnection(triangle_filter.GetOutputPort())
+            subdivision_filter.SetNumberOfSubdivisions(self.mesh_resolution)
+            subdivision_filter.Update()
+
             mapper = vtkPolyDataMapper()
-            mapper.SetInputConnection(cylinder_source.GetOutputPort())
+            mapper.SetInputConnection(subdivision_filter.GetOutputPort())
 
             actor = vtkActor()
             actor.SetMapper(mapper)
 
             return actor
+        
         except Exception as e:
             self.log_console.printError(
                 f"An error occurred while creating the cylinder with VTK: {e}")
@@ -117,8 +133,7 @@ class Cylinder:
                 initialize()
 
             model.add(f"cylinder_{get_cur_datetime()}")
-            model.occ.addCylinder(self.x, self.y, self.z, self.dx, self.dy,
-                                  self.dz, self.radius)
+            model.occ.addCylinder(self.x, self.y, self.z, self.dx, self.dy, self.dz, self.radius)
             model.occ.synchronize()
 
             finalize()

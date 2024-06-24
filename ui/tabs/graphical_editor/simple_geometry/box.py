@@ -1,5 +1,7 @@
+import meshio
+import numpy as np
 from gmsh import initialize, finalize, model, isInitialized
-from vtk import vtkCubeSource, vtkPolyDataMapper, vtkActor
+from vtk import vtkCubeSource, vtkPolyDataMapper, vtkActor, vtkTriangleFilter, vtkLinearSubdivisionFilter, vtkIdList, vtkFeatureEdges
 from logger import LogConsole
 from util import get_cur_datetime
 
@@ -22,6 +24,8 @@ class Box:
         The width of the box.
     height : float
         The height of the box.
+    mesh_resolution : int
+        The triangle vtkLinearSubdivisionFilter count of the subdivisions.
 
     Methods
     -------
@@ -34,7 +38,7 @@ class Box:
     """
 
     def __init__(self, log_console: LogConsole, x: float, y: float, z: float,
-                 length: float, width: float, height: float):
+                 length: float, width: float, height: float, mesh_resolution: int):
         """
         Constructs all the necessary attributes for the box object.
 
@@ -52,6 +56,8 @@ class Box:
                 The width of the box.
             height : float
                 The height of the box.
+            mesh_resolution : int
+                The triangle vtkLinearSubdivisionFilter count of the subdivisions.
         """
         self.log_console = log_console
         self.x = x
@@ -60,6 +66,7 @@ class Box:
         self.length = length
         self.width = width
         self.height = height
+        self.mesh_resolution = mesh_resolution
 
     def create_box_with_vtk(self) -> vtkActor:
         """
@@ -72,24 +79,37 @@ class Box:
         """
         try:
             cube_source = vtkCubeSource()
-            cube_source.SetXLength(self.length)
-            cube_source.SetYLength(self.width)
-            cube_source.SetZLength(self.height)
-            cube_source.SetCenter(self.x + self.length / 2,
-                                  self.y + self.width / 2,
-                                  self.z + self.height / 2)
+        
+            x_min = min(self.x, self.x + self.length)
+            x_max = max(self.x, self.x + self.length)
+            y_min = min(self.y, self.y + self.width)
+            y_max = max(self.y, self.y + self.width)
+            z_min = min(self.z, self.z + self.height)
+            z_max = max(self.z, self.z + self.height)
+            
+            cube_source.SetBounds(x_min, x_max, y_min, y_max, z_min, z_max)
             cube_source.Update()
 
+            triangle_filter = vtkTriangleFilter()
+            triangle_filter.SetInputConnection(cube_source.GetOutputPort())
+            triangle_filter.Update()
+
+            subdivision_filter = vtkLinearSubdivisionFilter()
+            subdivision_filter.SetInputConnection(triangle_filter.GetOutputPort())
+            subdivision_filter.SetNumberOfSubdivisions(self.mesh_resolution)
+            subdivision_filter.Update()
+
             mapper = vtkPolyDataMapper()
-            mapper.SetInputConnection(cube_source.GetOutputPort())
+            mapper.SetInputConnection(subdivision_filter.GetOutputPort())
 
             actor = vtkActor()
             actor.SetMapper(mapper)
 
             return actor
+
         except Exception as e:
-            self.log_console.printError(
-                f"An error occurred while creating the box with VTK: {e}")
+            self.log_console.printError(f"An error occurred while creating the box with VTK: {e}")
+            return None
 
     def create_box_with_gmsh(self):
         """
@@ -100,14 +120,11 @@ class Box:
                 initialize()
 
             model.add(f"box_{get_cur_datetime()}")
-            model.occ.add_box(self.x, self.y, self.z, self.length, self.width,
-                              self.height)
+            model.occ.addBox(self.x, self.y, self.z, self.length, self.width, self.height)
             model.occ.synchronize()
-
-            finalize()
+        
         except Exception as e:
-            self.log_console.printError(
-                f"An error occurred while creating the box with Gmsh: {e}")
+            self.log_console.printError(f"An error occurred while creating the box with Gmsh: {e}")
         finally:
             if isInitialized():
                 finalize()

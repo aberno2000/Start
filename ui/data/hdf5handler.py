@@ -67,9 +67,7 @@ class HDF5Handler:
             group = self.file[group_name]
             return group[dataset_name][:]
         except Exception as e:
-            raise RuntimeError(
-                f"Failed to open dataset {dataset_name} in group: {group_name}"
-            ) from e
+            raise RuntimeError(f"Failed to open dataset {dataset_name} in group: {group_name}") from e
 
     def read_mesh_from_hdf5(self):
         """
@@ -85,8 +83,7 @@ class HDF5Handler:
         for id in range(self.first_id, last_id):
             group_name = f"Triangle_{id}"
 
-            coordinates = self.read_dataset(
-                group_name, "Coordinates").reshape(3, 3)
+            coordinates = self.read_dataset(group_name, "Coordinates").reshape(3, 3)
             area = self.read_dataset(group_name, "Area")[0]
             counter = self.read_dataset(group_name, "Counter")[0]
 

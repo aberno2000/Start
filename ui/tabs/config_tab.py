@@ -1,4 +1,3 @@
-import gmsh
 from os.path import dirname
 from json import load, dump, JSONDecodeError
 from util import *
@@ -6,10 +5,12 @@ from field_validators import CustomIntValidator, CustomDoubleValidator
 from styles import *
 from .configurations import *
 from dialogs import MeshDialog
-from PyQt5.QtWidgets import (QVBoxLayout, QHBoxLayout, QWidget, QComboBox,
-                             QMessageBox, QLabel, QLineEdit, QFormLayout,
-                             QGroupBox, QFileDialog, QPushButton, QSizePolicy,
-                             QSpacerItem, QDialog)
+from PyQt5.QtWidgets import (
+    QVBoxLayout, QHBoxLayout, QWidget, QComboBox,
+    QMessageBox, QLabel, QLineEdit, QFormLayout,
+    QGroupBox, QFileDialog, QPushButton, QSizePolicy,
+    QSpacerItem, QDialog
+)
 from PyQt5.QtCore import QSize, pyqtSignal, QRegExp
 from PyQt5.QtGui import QRegExpValidator
 
@@ -257,25 +258,17 @@ class ConfigTab(QWidget):
         fem_layout.addRow(QLabel("FEM calculation accuracy:"), h1_layout)
 
         # Add Load Magnetic Induction button
-        self.load_magnetic_induction_button = QPushButton(
-            "Load Magnetic Induction")
-        self.load_magnetic_induction_button.setToolTip(
-            HINT_CONFIG_LOAD_MAGNETIC_INDUCTION)
-        self.load_magnetic_induction_button.setFixedWidth(
-            DEFAULT_LINE_EDIT_WIDTH)
-        self.load_magnetic_induction_button.clicked.connect(
-            self.load_magnetic_induction)
+        self.load_magnetic_induction_button = QPushButton("Load Magnetic Induction")
+        self.load_magnetic_induction_button.setToolTip(HINT_CONFIG_LOAD_MAGNETIC_INDUCTION)
+        self.load_magnetic_induction_button.setFixedWidth(DEFAULT_LINE_EDIT_WIDTH)
+        self.load_magnetic_induction_button.clicked.connect(self.load_magnetic_induction)
         fem_layout.addRow(self.load_magnetic_induction_button)
 
         # Add Select Boundary Conditions button
-        self.select_boundary_conditions_button = QPushButton(
-            "Select Boundary Conditions")
-        self.select_boundary_conditions_button.setToolTip(
-            HINT_CONFIG_SELECT_BOUNDARY_CONDITIONS)
-        self.select_boundary_conditions_button.setFixedWidth(
-            DEFAULT_LINE_EDIT_WIDTH)
-        self.select_boundary_conditions_button.clicked.connect(
-            self.emit_select_boundary_conditions_signal)
+        self.select_boundary_conditions_button = QPushButton("Select Boundary Conditions")
+        self.select_boundary_conditions_button.setToolTip(HINT_CONFIG_SELECT_BOUNDARY_CONDITIONS)
+        self.select_boundary_conditions_button.setFixedWidth(DEFAULT_LINE_EDIT_WIDTH)
+        self.select_boundary_conditions_button.clicked.connect(self.emit_select_boundary_conditions_signal)
         fem_layout.addRow(self.select_boundary_conditions_button)
 
         # Create additional fields group box
@@ -521,13 +514,10 @@ class ConfigTab(QWidget):
             with open(config_file_path, 'r') as file:
                 config = load(file)
         except FileNotFoundError:
-            QMessageBox.warning(self, "Warning",
-                                f"File not found: {config_file_path}")
+            QMessageBox.warning(self, "Warning", f"File not found: {config_file_path}")
             return None
         except JSONDecodeError:
-            QMessageBox.warning(
-                self, "Warning",
-                f"Failed to decode JSON from {config_file_path}")
+            QMessageBox.warning(self, "Warning", f"Failed to decode JSON from {config_file_path}")
             return None
         if not self.apply_config(config):
             return None
@@ -583,10 +573,7 @@ class ConfigTab(QWidget):
             self.pressure_units.setCurrentIndex(1)
 
         except Exception as e:
-            QMessageBox.critical(
-                self, "Error Applying Configuration",
-                f"An error occurred while applying the configuration: Exception: {e}"
-            )
+            QMessageBox.critical(self, "Error Applying Configuration", f"An error occurred while applying the configuration: Exception: {e}")
             return None
 
     def save_solver_params_to_dict(self):
@@ -789,37 +776,42 @@ class ConfigTab(QWidget):
             self.upload_mesh_file()
 
     def convert_stp_to_msh(self, file_path, mesh_size, mesh_dim):
+        from gmsh import initialize, finalize, isInitialized, write, model, option
+        
         try:
-            gmsh.initialize()
-            gmsh.model.add("model")
-            gmsh.model.occ.importShapes(file_path)
-            gmsh.model.occ.synchronize()
-            gmsh.option.setNumber("Mesh.MeshSizeMin", mesh_size)
-            gmsh.option.setNumber("Mesh.MeshSizeMax", mesh_size)
+            if not isInitialized():
+                initialize()
+            
+            model.add("model")
+            model.occ.importShapes(file_path)
+            model.occ.synchronize()
+            option.setNumber("Mesh.MeshSizeMin", mesh_size)
+            option.setNumber("Mesh.MeshSizeMax", mesh_size)
 
             if mesh_dim == 2:
-                gmsh.model.mesh.generate(2)
+                model.mesh.generate(2)
             elif mesh_dim == 3:
-                gmsh.model.mesh.generate(3)
+                model.mesh.generate(3)
 
             output_file = file_path.replace(".stp", ".msh")
-            gmsh.write(output_file)
+            write(output_file)
+        
         except Exception as e:
             QMessageBox.critical(
                 self, "Error",
                 f"An error occurred during conversion: {str(e)}")
             return None
         finally:
-            gmsh.finalize()
+            if isInitialized():
+                finalize()
+            
             self.mesh_file = output_file
-            self.log_console.logSignal.emit(
-                f'Successfully converted {file_path} to {output_file}. Mesh size is {mesh_size}. Mesh dimension: {mesh_dim}\n'
-            )
+            self.log_console.logSignal.emit(f'Successfully converted {file_path} to {output_file}. Mesh size is {mesh_size}. Mesh dimension: {mesh_dim}\n')
 
     def load_magnetic_induction(self):
         # TODO: Implement the functionality to load and parse the generated magnetic induction file from Ansys
         pass
-
+    
     def emit_select_boundary_conditions_signal(self):
         self.selectBoundaryConditionsSignal.emit()
 

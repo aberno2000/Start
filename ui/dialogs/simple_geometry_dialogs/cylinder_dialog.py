@@ -5,6 +5,7 @@ from PyQt5.QtGui import QIntValidator, QDoubleValidator
 from styles import *
 from tabs.graphical_editor.simple_geometry.simple_geometry_constraints import *
 from tabs.graphical_editor.simple_geometry.simple_geometry_constants import *
+from tabs.graphical_editor.simple_geometry.simple_geometry_constants import SIMPLE_GEOMETRY_MESH_RESOLUTION_HINT, SIMPLE_GEOMETRY_MESH_RESOLUTION_VALUE
 
 
 class CylinderDialog(QDialog):
@@ -24,6 +25,7 @@ class CylinderDialog(QDialog):
         self.dyInput = QLineEdit("5.0")
         self.dzInput = QLineEdit("5.0")
         self.resolutionInput = QLineEdit(str(DEFAULT_CYLINDER_RESOLUTION))
+        self.meshResolutionInput = QLineEdit(f"{SIMPLE_GEOMETRY_MESH_RESOLUTION_VALUE}")
 
         self.xInput.setValidator(
             CustomSignedDoubleValidator(
@@ -60,6 +62,9 @@ class CylinderDialog(QDialog):
         self.resolutionInput.setValidator(
             CustomIntValidator(SIMPLE_GEOMETRY_CYLINDER_MIN_RESOLUTION,
                                SIMPLE_GEOMETRY_CYLINDER_MAX_RESOLUTION))
+        self.meshResolutionInput.setValidator(
+            CustomIntValidator(SIMPLE_GEOMETRY_BOX_MESH_RESOLUTION_MIN,
+                               SIMPLE_GEOMETRY_BOX_MESH_RESOLUTION_MAX))
 
         self.xInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
         self.yInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
@@ -69,8 +74,9 @@ class CylinderDialog(QDialog):
         self.dyInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
         self.dzInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
         self.resolutionInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
-        self.resolutionInput.setToolTip(
-            SIMPLE_GEOMETRY_CYLINDER_RESOLUTION_HINT)
+        self.resolutionInput.setToolTip(SIMPLE_GEOMETRY_CYLINDER_RESOLUTION_HINT)
+        self.meshResolutionInput.setStyleSheet(DEFAULT_QLINEEDIT_STYLE)
+        self.meshResolutionInput.setToolTip(SIMPLE_GEOMETRY_MESH_RESOLUTION_HINT)
 
         formLayout.addRow("Base center X:", self.xInput)
         formLayout.addRow("Base center Y:", self.yInput)
@@ -80,6 +86,7 @@ class CylinderDialog(QDialog):
         formLayout.addRow("Top center Y:", self.dyInput)
         formLayout.addRow("Top center Z:", self.dzInput)
         formLayout.addRow("Resolution: ", self.resolutionInput)
+        formLayout.addRow("Mesh resolution: ", self.meshResolutionInput)
 
         layout.addLayout(formLayout)
 
@@ -93,7 +100,8 @@ class CylinderDialog(QDialog):
     def validate_and_accept(self):
         inputs = [
             self.xInput, self.yInput, self.zInput, self.radiusInput,
-            self.dxInput, self.dyInput, self.dzInput, self.resolutionInput
+            self.dxInput, self.dyInput, self.dzInput, self.resolutionInput,
+            self.meshResolutionInput
         ]
         all_valid = True
 
@@ -101,8 +109,7 @@ class CylinderDialog(QDialog):
             validator = input_field.validator()
             state, _, _ = validator.validate(input_field.text(), 0)
 
-            if isinstance(validator, QDoubleValidator) or isinstance(
-                    validator, QIntValidator):
+            if isinstance(validator, QDoubleValidator) or isinstance(validator, QIntValidator):
                 if state != QDoubleValidator.Acceptable:
                     input_field.setStyleSheet(INVALID_QLINEEDIT_STYLE)
                     all_valid = False
@@ -119,6 +126,7 @@ class CylinderDialog(QDialog):
         values = (float(self.xInput.text()), float(self.yInput.text()),
                   float(self.zInput.text()), float(self.radiusInput.text()),
                   float(self.dxInput.text()), float(self.dyInput.text()),
-                  float(self.dzInput.text()), int(self.resolutionInput.text()))
+                  float(self.dzInput.text()), int(self.resolutionInput.text()),
+                  int(self.meshResolutionInput.text()))
 
         return values

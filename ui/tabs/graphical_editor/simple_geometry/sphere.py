@@ -1,5 +1,5 @@
 from gmsh import initialize, finalize, model, isInitialized
-from vtk import vtkSphereSource, vtkPolyDataMapper, vtkActor
+from vtk import vtkSphereSource, vtkPolyDataMapper, vtkActor, vtkTriangleFilter, vtkLinearSubdivisionFilter
 from logger import LogConsole
 from util import get_cur_datetime
 from .simple_geometry_constants import *
@@ -21,6 +21,12 @@ class Sphere:
         The z-coordinate of the sphere's center.
     radius : float
         The radius of the sphere.
+    mesh_resolution : int
+        The triangle vtkLinearSubdivisionFilter count of the subdivisions.
+    phi_resolution : int, optional
+        The phi resolution of the sphere (default is DEFAULT_SPHERE_PHI_RESOLUTION).
+    theta_resolution : int, optional
+        The theta resolution of the sphere (default is DEFAULT_SPHERE_THETA_RESOLUTION).
 
     Methods
     -------
@@ -38,6 +44,7 @@ class Sphere:
                  y: float,
                  z: float,
                  radius: float,
+                 mesh_resolution: int,
                  phi_resolution: int = DEFAULT_SPHERE_PHI_RESOLUTION,
                  theta_resolution: int = DEFAULT_SPHERE_THETA_RESOLUTION):
         """
@@ -55,6 +62,8 @@ class Sphere:
                 The z-coordinate of the sphere's center.
             radius : float
                 The radius of the sphere.
+            mesh_resolution : int
+                The triangle vtkLinearSubdivisionFilter count of the subdivisions.
             phi_resolution : int, optional
                 The phi resolution of the sphere (default is DEFAULT_SPHERE_PHI_RESOLUTION).
             theta_resolution : int, optional
@@ -65,6 +74,7 @@ class Sphere:
         self.y = y
         self.z = z
         self.radius = radius
+        self.mesh_resolution = mesh_resolution
         self.phi_resolution = phi_resolution
         self.theta_resolution = theta_resolution
 
@@ -84,9 +94,18 @@ class Sphere:
             sphere_source.Update()
             sphere_source.SetPhiResolution(self.phi_resolution)
             sphere_source.SetThetaResolution(self.theta_resolution)
+            
+            triangle_filter = vtkTriangleFilter()
+            triangle_filter.SetInputConnection(sphere_source.GetOutputPort())
+            triangle_filter.Update()
+            
+            subdivision_filter = vtkLinearSubdivisionFilter()
+            subdivision_filter.SetInputConnection(triangle_filter.GetOutputPort())
+            subdivision_filter.SetNumberOfSubdivisions(self.mesh_resolution)
+            subdivision_filter.Update()
 
             mapper = vtkPolyDataMapper()
-            mapper.SetInputConnection(sphere_source.GetOutputPort())
+            mapper.SetInputConnection(subdivision_filter.GetOutputPort())
 
             actor = vtkActor()
             actor.SetMapper(mapper)
