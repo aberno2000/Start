@@ -57,7 +57,7 @@ def convert_vtk_to_msh(vtk_filename: str):
             mesh.cell_data.setdefault("gmsh:physical", []).append([1] * len(cell_block.data))
             mesh.cell_data.setdefault("gmsh:geometrical", []).append([1] * len(cell_block.data))
         
-        write(msh_filename, mesh, file_format="gmsh2")
+        write(msh_filename, mesh, file_format="gmsh")
         return msh_filename
     except Exception as e:
         print(f"Error converting VTK to Msh: {e}")
