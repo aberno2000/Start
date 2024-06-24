@@ -2,6 +2,7 @@ from .simple_geometry_constants import SIMPLE_GEOMETRY_TRANSFORMATION_MOVE, SIMP
 from vtk import vtkTransform, vtkTransformFilter, vtkActor, vtkCleanPolyData, vtkBooleanOperationPolyDataFilter, vtkPolyDataMapper
 from util import convert_unstructured_grid_to_polydata
 from logger import InternalLogger
+from styles import DEFAULT_ACTOR_COLOR
 
 
 class SimpleGeometryTransformer:
@@ -113,3 +114,25 @@ class SimpleGeometryTransformer:
         booleanOperation = vtkBooleanOperationPolyDataFilter()
         booleanOperation.SetOperationToIntersection()
         return SimpleGeometryTransformer.object_operation_executor_helper(obj_from, obj_to, booleanOperation)
+    
+    @staticmethod
+    def remove_gradient(actor):
+        """
+        Removes gradient (scalar visibility) of the given vtkActor.
+
+        Parameters:
+        actor (vtkActor): The actor whose color needs to be set.
+        """
+        if actor and isinstance(actor, vtkActor):
+            actor.GetMapper().ScalarVisibilityOff()             
+        
+    @staticmethod
+    def remove_shadows(actor):
+        """
+        Removes shadows of the given vtkActor.
+
+        Parameters:
+        actor (vtkActor): The actor whose color needs to be set.
+        """
+        if actor and isinstance(actor, vtkActor):
+            actor.GetProperty().SetInterpolationToFlat()

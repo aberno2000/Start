@@ -101,9 +101,7 @@ class MeshTreeManager:
                 entities = volumes if volumes else gmsh.model.getEntities(dim=2)
 
                 for dim, tag in entities:
-                    surfaces = gmsh.model.getBoundary(
-                        [(dim, tag)], oriented=False,
-                        recursive=False) if volumes else [(dim, tag)]
+                    surfaces = gmsh.model.getBoundary([(dim, tag)], oriented=False, recursive=False) if volumes else [(dim, tag)]
 
                     surface_map = {}
                     for surf_dim, surf_tag in surfaces:

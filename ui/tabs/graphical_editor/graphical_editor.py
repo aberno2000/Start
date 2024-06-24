@@ -51,7 +51,7 @@ class GraphicalEditor(QFrame):
         self.setup_particle_source_manager()
         self.setup_axes()
 
-        self.objectsAddingHistory = ActionHistory()
+        self.action_history = ActionHistory()
         self.global_undo_stack = []
         self.global_redo_stack = []
 
@@ -178,7 +178,7 @@ class GraphicalEditor(QFrame):
         self.axes_widget.EnabledOn()
         self.axes_widget.InteractiveOff()
 
-    def get_treedict_by_extern_row(self, extern_row):
+    def get_tree_dict_by_extern_row(self, extern_row):
         return self.externRow_treedict.get(extern_row, None)
 
     def get_extern_row_by_treedict(self, treedict):
@@ -371,6 +371,8 @@ class GraphicalEditor(QFrame):
         adjust_size_action = QAction('Scale', self)
         remove_action = QAction('Remove', self)
         colorize_action = QAction('Colorize', self)
+        remove_gradient_action = QAction('Remove gradient (scalar visibility)', self)       
+        remove_shadows_action = QAction('Remove shadows', self)
         merge_surfaces_action = QAction('Merge surfaces', self)
         add_material_action = QAction('Add Material', self)
         hide_action = QAction('Hide', self)
@@ -380,6 +382,8 @@ class GraphicalEditor(QFrame):
         adjust_size_action.triggered.connect(self.scale_actors)
         remove_action.triggered.connect(self.permanently_remove_actors)
         colorize_action.triggered.connect(self.colorize_actors)
+        remove_gradient_action.triggered.connect(self.remove_gradient)
+        remove_shadows_action.triggered.connect(self.remove_shadows)
         merge_surfaces_action.triggered.connect(self.merge_surfaces)
         add_material_action.triggered.connect(self.add_material)
         hide_action.triggered.connect(self.hide_actors)
@@ -393,6 +397,8 @@ class GraphicalEditor(QFrame):
         menu.addAction(adjust_size_action)
         menu.addAction(remove_action)
         menu.addAction(colorize_action)
+        menu.addAction(remove_gradient_action)
+        menu.addAction(remove_shadows_action)
         menu.addAction(merge_surfaces_action)
         menu.addAction(add_material_action)
         menu.addAction(hide_action)
@@ -672,9 +678,8 @@ class GraphicalEditor(QFrame):
 
                     self.remove_row_from_tree(row)
                     self.remove_actors(actors)
-                    self.objectsAddingHistory.remove_by_id(
-                        self.objectsAddingHistory.get_id())
-                    self.objectsAddingHistory.decrementIndex()
+                    self.action_history.remove_by_id(self.action_history.get_id())
+                    self.action_history.decrementIndex()
 
     def colorize_actors(self):
         actorColor = QColorDialog.getColor()
@@ -686,6 +691,18 @@ class GraphicalEditor(QFrame):
                     actor.GetProperty().SetColor(r, g, b)
                     self.actor_color[actor] = (r, g, b)
             self.deselect()
+            
+    def remove_gradient(self):
+        for actor in self.selected_actors:
+            if actor and isinstance(actor, vtkActor):
+                SimpleGeometryTransformer.remove_gradient(actor)
+        self.deselect()
+        
+    def remove_shadows(self):
+        for actor in self.selected_actors:
+            if actor and isinstance(actor, vtkActor):
+                SimpleGeometryTransformer.remove_shadows(actor)
+        self.deselect()
 
     def remove_all_actors(self):
         actors = self.renderer.GetActors()
@@ -697,11 +714,14 @@ class GraphicalEditor(QFrame):
         self.render_editor_window()
 
     def add_custom(self, meshfilename: str):
-        initialize()
+        if not isInitialized():
+            initialize()
+        
         customTreeDict = MeshTreeManager.get_tree_dict(meshfilename)
-        self.add_actors_and_populate_tree_view(
-            customTreeDict, meshfilename, 'volume')
-        finalize()
+        self.add_actors_and_populate_tree_view(customTreeDict, meshfilename, 'volume')
+        
+        if isInitialized():
+            finalize()
 
     def global_undo(self):
         if not self.global_undo_stack:
@@ -709,7 +729,9 @@ class GraphicalEditor(QFrame):
         action = self.global_undo_stack.pop()
         self.global_redo_stack.append(action)
 
-        if action == ACTION_ACTOR_CREATING:
+        if action == ACTION_ACTOR_ADDING:
+            self.undo_object_adding()
+        elif action == ACTION_ACTOR_CREATING:
             self.undo_object_creating()
         elif action == ACTION_ACTOR_TRANSFORMATION:
             self.undo_transform()
@@ -721,22 +743,22 @@ class GraphicalEditor(QFrame):
         action = self.global_redo_stack.pop()
         self.global_undo_stack.append(action)
 
-        if action == ACTION_ACTOR_CREATING:
+        if action == ACTION_ACTOR_ADDING:
+            self.redo_object_adding()
+        elif action == ACTION_ACTOR_CREATING:
             self.redo_object_creating()
         elif action == ACTION_ACTOR_TRANSFORMATION:
             self.redo_transform()
         # TODO: Make other actions
 
     def undo_transform(self):
-        # TODO: implement
-        pass
+        pass # TODO: implement
 
     def redo_transform(self):
-        # TODO: implement
-        pass
+        pass # TODO: implement
 
-    def undo_object_creating(self):
-        res = self.objectsAddingHistory.undo()
+    def undo_object_adding(self):
+        res = self.action_history.undo()
         if not res:
             return
         row, actors, treedict, objType = res
@@ -748,14 +770,20 @@ class GraphicalEditor(QFrame):
         else:
             self.remove_rows_from_tree(row)
 
-    def redo_object_creating(self):
-        res = self.objectsAddingHistory.redo()
+    def redo_object_adding(self):
+        res = self.action_history.redo()
         if not res:
             return
         row, actors, treedict, objType = res
 
         self.add_actors(actors)
         self.populate_tree(treedict, objType)
+        
+    def undo_object_creating(self):
+        pass # TODO: implement
+
+    def redo_object_creating(self):
+        pass # TODO: implement
 
     def remove_row_from_tree(self, row):
         self.model.removeRow(row)
@@ -972,11 +1000,9 @@ class GraphicalEditor(QFrame):
         self.actor_nodes.update(MeshTreeManager.form_actor_nodes_dictionary(treedict, self.actor_rows, objType))
 
     def populate_tree(self, treedict: dict, objType: str, filename: str) -> list:
-        row = MeshTreeManager.populate_tree_view(
-            treedict, self.objectsAddingHistory.id, self.model, self.treeView, objType)
+        row = MeshTreeManager.populate_tree_view(treedict, self.action_history.id, self.model, self.treeView, objType)
         self.treeView.setSelectionMode(QAbstractItemView.ExtendedSelection)
-        self.treeView.selectionModel().selectionChanged.connect(
-            self.on_tree_selection_changed)
+        self.treeView.selectionModel().selectionChanged.connect(self.on_tree_selection_changed)
         actors = MeshTreeManager.create_actors_from_tree_dict(treedict, objType)
 
         self.fill_dicts(row, actors, objType, filename)
@@ -985,7 +1011,7 @@ class GraphicalEditor(QFrame):
         return row, actors
 
     def add_actors_and_populate_tree_view(self, treedict: dict, filename: str, objType: str = 'volume'):
-        self.objectsAddingHistory.incrementIndex()
+        self.action_history.incrementIndex()
         row, actors = self.populate_tree(treedict, objType, filename)
         self.add_actors(actors)
 
@@ -994,8 +1020,8 @@ class GraphicalEditor(QFrame):
             self.externRow_actors[row] = []
         self.externRow_actors[row].append(actors)
 
-        self.objectsAddingHistory.add_action((row, actors, treedict, objType))
-        self.global_undo_stack.append(ACTION_ACTOR_CREATING)
+        self.action_history.add_action((row, actors, treedict, objType))
+        self.global_undo_stack.append(ACTION_ACTOR_ADDING)
 
     def restore_actor_colors(self):
         try:
@@ -1229,6 +1255,14 @@ class GraphicalEditor(QFrame):
         colorize_object_action = QAction('Colorize', self)
         colorize_object_action.triggered.connect(self.colorize_actors)
         menu.addAction(colorize_object_action)
+        
+        remove_gradient_action = QAction('Remove gradient (scalar visibility)', self)
+        remove_gradient_action.triggered.connect(self.remove_gradient)
+        menu.addAction(remove_gradient_action)
+        
+        remove_shadows_action = QAction('Remove shadows', self)
+        remove_shadows_action.triggered.connect(self.remove_shadows)
+        menu.addAction(remove_shadows_action)
 
         merge_surfaces_action = QAction('Merge surfaces', self)
         merge_surfaces_action.triggered.connect(self.merge_surfaces)
@@ -1447,7 +1481,7 @@ class GraphicalEditor(QFrame):
         if (choice == QMessageBox.Yes):
             self.erase_all_from_tree_view()
             self.remove_all_actors()
-        self.objectsAddingHistory.clearIndex()
+        self.action_history.clearIndex()
 
     def subtract_button_clicked(self):
         self.deselect()
