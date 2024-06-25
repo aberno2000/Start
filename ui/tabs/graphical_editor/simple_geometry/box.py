@@ -1,7 +1,5 @@
-import meshio
-import numpy as np
 from gmsh import initialize, finalize, model, isInitialized
-from vtk import vtkCubeSource, vtkPolyDataMapper, vtkActor, vtkTriangleFilter, vtkLinearSubdivisionFilter, vtkIdList, vtkFeatureEdges
+from vtk import vtkCubeSource, vtkPolyDataMapper, vtkActor, vtkTriangleFilter, vtkLinearSubdivisionFilter
 from logger import LogConsole
 from util import get_cur_datetime
 
