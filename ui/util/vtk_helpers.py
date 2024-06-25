@@ -1,10 +1,10 @@
 from gmsh import initialize, finalize, isInitialized, write
 from tempfile import NamedTemporaryFile
-from meshio import read, write
+from meshio import read
 from vtk import (
     vtkUnstructuredGrid, vtkPolyData, vtkPolyDataWriter, vtkActor,
     vtkGeometryFilter, vtkPoints, vtkCellArray, vtkTriangle, vtkTransform,
-    vtkAppendPolyData, vtkPolyDataMapper,
+    vtkAppendPolyData, vtkPolyDataMapper, vtkFeatureEdges, vtkPolyDataConnectivityFilter,
     VTK_TRIANGLE
 )
 from styles import DEFAULT_ACTOR_COLOR
@@ -133,26 +133,19 @@ def convert_unstructured_grid_to_polydata(data):
 
 
 def convert_vtkPolyData_to_vtkUnstructuredGrid(polydata):
-    """
-    Converts vtkPolyData to vtkUnstructuredGrid.
-
-    Args:
-        polydata (vtkPolyData): The polydata to convert.
-
-    Returns:
-        vtkUnstructuredGrid: The converted unstructured grid.
-    """
-    if not polydata.IsA("vtkPolyData"):
-        return None
+    """Convert vtkPolyData to vtkUnstructuredGrid with boundaries and surfaces."""
+    boundaries = extract_boundaries(polydata)
+    surfaces = extract_surfaces(polydata)
 
     ugrid = vtkUnstructuredGrid()
     points = vtkPoints()
     points.SetDataTypeToDouble()
     cells = vtkCellArray()
 
-    for i in range(polydata.GetNumberOfPoints()):
-        points.InsertNextPoint(polydata.GetPoint(i))
+    # Copy points
+    points.DeepCopy(polydata.GetPoints())
 
+    # Copy cells
     for i in range(polydata.GetNumberOfCells()):
         cell = polydata.GetCell(i)
         cell_type = cell.GetCellType()
@@ -160,15 +153,88 @@ def convert_vtkPolyData_to_vtkUnstructuredGrid(polydata):
 
         if cell_type == VTK_TRIANGLE:
             triangle = vtkTriangle()
-            triangle.GetPointIds().SetId(0, ids.GetId(0))
-            triangle.GetPointIds().SetId(1, ids.GetId(1))
-            triangle.GetPointIds().SetId(2, ids.GetId(2))
+            for j in range(3):
+                triangle.GetPointIds().SetId(j, ids.GetId(j))
             cells.InsertNextCell(triangle)
 
     ugrid.SetPoints(points)
     ugrid.SetCells(VTK_TRIANGLE, cells)
 
-    return ugrid
+    return ugrid, boundaries, surfaces
+
+
+def extract_geometry_data(actor: vtkActor):
+    """Extract points and cells from a vtkActor."""
+    from vtkmodules.util.numpy_support import vtk_to_numpy
+    
+    mapper = actor.GetMapper()
+    polydata = mapper.GetInput()
+
+    ug, boundaries, surfaces = convert_vtkPolyData_to_vtkUnstructuredGrid(polydata)
+    if ug is None:
+        raise ValueError("Failed to convert PolyData to UnstructuredGrid")
+
+    points = vtk_to_numpy(ug.GetPoints().GetData()).astype('float64')
+    if points is None or len(points) == 0:
+        raise ValueError("No points found in the UnstructuredGrid")
+
+    cells = vtk_to_numpy(ug.GetCells().GetData())
+    if cells is None or len(cells) == 0:
+        raise ValueError("No cells found in the UnstructuredGrid")
+
+    cell_offsets = vtk_to_numpy(ug.GetCellLocationsArray())
+    cell_types = vtk_to_numpy(ug.GetCellTypesArray())
+    cells = extract_cells(cells, cell_offsets, cell_types)
+    if not cells:
+        raise ValueError("Failed to extract cells")
+
+    return points, cells, boundaries, surfaces
+
+def extract_boundaries(polydata):
+    """Extract boundaries from vtkPolyData using vtkFeatureEdges."""
+    feature_edges = vtkFeatureEdges()
+    feature_edges.SetInputData(polydata)
+    feature_edges.BoundaryEdgesOn()
+    feature_edges.FeatureEdgesOff()
+    feature_edges.ManifoldEdgesOff()
+    feature_edges.NonManifoldEdgesOff()
+    feature_edges.Update()
+
+    return feature_edges.GetOutput()
+
+def extract_surfaces(polydata):
+    """Extract surfaces from vtkPolyData using vtkPolyDataConnectivityFilter."""
+    connectivity_filter = vtkPolyDataConnectivityFilter()
+    connectivity_filter.SetInputData(polydata)
+    connectivity_filter.SetExtractionModeToAllRegions()
+    connectivity_filter.ColorRegionsOn()
+    connectivity_filter.Update()
+
+    return connectivity_filter.GetOutput()
+
+def extract_cells(cells, cell_offsets, cell_types):
+        """
+        Helper function to extract cells in the format meshio expects.
+        """
+        from numpy import array
+        from vtk import VTK_TRIANGLE, VTK_TETRA
+
+        cell_dict = {}
+        for offset, ctype in zip(cell_offsets, cell_types):
+            if ctype in cell_dict:
+                cell_dict[ctype].append(cells[offset + 1:offset + 4])
+            else:
+                cell_dict[ctype] = [cells[offset + 1:offset + 4]]
+
+        meshio_cells = []
+        for ctype, cell_list in cell_dict.items():
+            cell_list = array(cell_list)
+            if ctype == VTK_TRIANGLE:
+                meshio_cells.append(("triangle", cell_list[:, :3]))
+            elif ctype == VTK_TETRA:
+                meshio_cells.append(("tetra", cell_list[:, :4]))
+
+        return meshio_cells
 
 
 def extract_transform_from_actor(actor: vtkActor):
