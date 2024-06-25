@@ -2,7 +2,7 @@ import sys
 from util.inst_deps import check_and_install_packages
 
 # Installing dependencies
-check_and_install_packages(["numpy", "h5py", "gmsh", "matplotlib", "PyQt5", "vtk", "nlohmann-json", "meshio"])
+check_and_install_packages(["numpy", "h5py", "gmsh", "matplotlib", "PyQt5", "vtk", "nlohmann-json"])
 
 from PyQt5.QtWidgets import QApplication
 from window import WindowApp

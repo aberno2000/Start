@@ -11,7 +11,7 @@ from styles import DEFAULT_ARROW_SCALE, DEFAULT_ARROW_ACTOR_COLOR
 
 
 class ParticleSourceManager:
-    def __init__(self, vtk_widget, renderer, log_console, config_tab, selected_actors, statusBar, parent=None):
+    def __init__(self, vtk_widget, renderer, log_console, config_tab, selected_actors, statusBar, geditor):
         self.vtkWidget = vtk_widget
         self.renderer = renderer
         self.log_console = log_console
@@ -19,8 +19,8 @@ class ParticleSourceManager:
         self.selected_actors = selected_actors
         self.particleSourceArrowActor = None
         self.expansion_angle = None
-        self.parent = parent
         self.statusBar = statusBar
+        self.geditor = geditor
 
     def save_point_particle_source_to_config(self):
         try:
@@ -38,7 +38,7 @@ class ParticleSourceManager:
 
             config_file = self.config_tab.config_file_path
             if not config_file:
-                QMessageBox.warning(self.parent, "Saving Particle Source as Point",
+                QMessageBox.warning(self.geditor, "Saving Particle Source as Point",
                                     "Can't save pointed particle source, first you need to choose a configuration file, then set the source")
                 self.reset_particle_source_arrow()
                 return
@@ -55,23 +55,22 @@ class ParticleSourceManager:
                 sources_to_remove.append("ParticleSourceSurface")
 
             if sources_to_remove:
-                reply = QMessageBox.question(self.parent, "Remove Existing Sources",
+                reply = QMessageBox.question(self.geditor, "Remove Existing Sources",
                                              f"The configuration file contains existing sources: {', '.join(sources_to_remove)}. Do you want to remove them?",
                                              QMessageBox.Yes | QMessageBox.No)
                 if reply == QMessageBox.Yes:
                     for source in sources_to_remove:
                         del config_data[source]
 
-            self.particle_source_dialog = ParticleSourceDialog(self.parent)
+            self.particle_source_dialog = ParticleSourceDialog(self.geditor)
             self.particle_source_dialog.accepted_signal.connect(lambda params: self.handle_particle_source_point_accepted(
                 params, config_file, config_data, theta, phi, base_coords))
-            self.particle_source_dialog.rejected_signal.connect(
-                self.reset_particle_source_arrow)
+            self.particle_source_dialog.rejected_signal.connect(self.reset_particle_source_arrow)
             self.particle_source_dialog.show()
 
         except Exception as e:
             self.log_console.printError(f"Error defining particle source. {e}")
-            QMessageBox.warning(self.parent, "Particle Source",
+            QMessageBox.warning(self.geditor, "Particle Source",
                                 f"Error defining particle source. {e}")
             return None
 
@@ -83,7 +82,7 @@ class ParticleSourceManager:
 
             config_file = self.config_tab.config_file_path
             if not config_file:
-                QMessageBox.warning(self.parent, "Saving Particle Source as Point",
+                QMessageBox.warning(self.geditor, "Saving Particle Source as Point",
                                     "Can't save pointed particle source, first you need to choose a configuration file, then set the source")
                 self.reset_particle_source_arrow()
                 return
@@ -100,14 +99,14 @@ class ParticleSourceManager:
                 sources_to_remove.append("ParticleSourceSurface")
 
             if sources_to_remove:
-                reply = QMessageBox.question(self.parent, "Remove Existing Sources",
+                reply = QMessageBox.question(self.geditor, "Remove Existing Sources",
                                              f"The configuration file contains existing sources: {', '.join(sources_to_remove)}. Do you want to remove them?",
                                              QMessageBox.Yes | QMessageBox.No)
                 if reply == QMessageBox.Yes:
                     for source in sources_to_remove:
                         del config_data[source]
 
-            self.particle_source_dialog = ParticleSourceDialog(self.parent)
+            self.particle_source_dialog = ParticleSourceDialog(self.geditor)
             self.particle_source_dialog.accepted_signal.connect(lambda params: self.handle_particle_source_point_accepted(
                 params, config_file, config_data, theta, phi, [x, y, z]))
             self.particle_source_dialog.rejected_signal.connect(
@@ -116,9 +115,60 @@ class ParticleSourceManager:
 
         except Exception as e:
             self.log_console.printError(f"Error defining particle source. {e}")
-            QMessageBox.warning(self.parent, "Particle Source",
+            QMessageBox.warning(self.geditor, "Particle Source",
                                 f"Error defining particle source. {e}")
             return None
+        
+    def update_config_with_particle_source(self, particle_params, surface_and_normals_dict):
+        config_file = self.config_tab.config_file_path
+        if not config_file:
+            QMessageBox.warning(self.geditor, "Configuration File", "No configuration file selected.")
+            return
+
+        # Read the existing configuration file
+        with open(config_file, 'r') as file:
+            config_data = json.load(file)
+
+        # Check for existing sources
+        sources_to_remove = []
+        if "ParticleSourcePoint" in config_data:
+            sources_to_remove.append("ParticleSourcePoint")
+        if "ParticleSourceSurface" in config_data:
+            sources_to_remove.append("ParticleSourceSurface")
+
+        # Ask user if they want to remove existing sources
+        if sources_to_remove:
+            reply = QMessageBox.question(self.geditor, "Remove Existing Sources",
+                                        f"The configuration file contains existing sources: {', '.join(sources_to_remove)}. Do you want to remove them?",
+                                        QMessageBox.Yes | QMessageBox.No)
+            if reply == QMessageBox.Yes:
+                for source in sources_to_remove:
+                    del config_data[source]
+
+        # Prepare new ParticleSourceSurface entry
+        if "ParticleSourceSurface" not in config_data:
+            config_data["ParticleSourceSurface"] = {}
+
+        new_surface_row = str(len(config_data["ParticleSourceSurface"]) + 1)
+        config_data["ParticleSourceSurface"][new_surface_row] = {
+            "Type": particle_params["particle_type"],
+            "Count": particle_params["num_particles"],
+            "Energy": particle_params["energy"],
+            "BaseCoordinates": {}
+        }
+
+        # Add cell center coordinates and normals to the entry
+        for arrow_address, values in surface_and_normals_dict.items():
+            cell_center = values['cell_center']
+            normal = values['normal']
+            coord_key = f"{cell_center[0]:.2f}, {cell_center[1]:.2f}, {cell_center[2]:.2f}"
+            config_data["ParticleSourceSurface"][new_surface_row]["BaseCoordinates"][coord_key] = normal
+
+        # Write the updated configuration back to the file
+        with open(config_file, 'w') as file:
+            json.dump(config_data, file, indent=4)
+
+        self.log_console.printInfo(f"Particle source surface added to configuration file: {config_file}")
 
     def handle_particle_source_point_accepted(self, particle_params, config_file, config_data, theta, phi, base_coords):
         try:
@@ -158,12 +208,12 @@ class ParticleSourceManager:
             self.reset_particle_source_arrow()
         except Exception as e:
             self.log_console.printError(f"Error saving particle source. {e}")
-            QMessageBox.warning(self.parent, "Particle Source",
+            QMessageBox.warning(self.geditor, "Particle Source",
                                 f"Error saving particle source. {e}")
             return None
 
     def reset_particle_source_arrow(self):
-        self.parent.remove_actor(self.particleSourceArrowActor)
+        self.geditor.remove_actor(self.particleSourceArrowActor)
         self.particleSourceArrowActor = None
 
     def get_particle_source_base_coords(self):
@@ -192,7 +242,7 @@ class ParticleSourceManager:
             theta, phi = calculate_thetaPhi(base_coords, tip_coords)
         except Exception as e:
             self.log_console.printError(f"An error occured when calculating polar (colatitude) θ and azimuthal φ: {e}\n")
-            QMessageBox.warning(self.parent, "Invalid Angles", f"An error occured when calculating polar (colatitude) θ and azimuthal φ: {e}")
+            QMessageBox.warning(self.geditor, "Invalid Angles", f"An error occured when calculating polar (colatitude) θ and azimuthal φ: {e}")
             return None
 
         return theta, phi
@@ -220,15 +270,15 @@ class ParticleSourceManager:
         self.particleSourceArrowActor = vtkActor()
         self.particleSourceArrowActor.SetMapper(mapper)
         self.particleSourceArrowActor.GetProperty().SetColor(DEFAULT_ARROW_ACTOR_COLOR)
-        self.parent.add_actor(self.particleSourceArrowActor)
+        self.geditor.add_actor(self.particleSourceArrowActor)
 
     def set_particle_source(self):
         if not self.config_tab.mesh_file:
-            QMessageBox.warning(self.parent, "Setting Particle Source",
+            QMessageBox.warning(self.geditor, "Setting Particle Source",
                                 "First you need to upload mesh/config, then you can set particle source")
             return
 
-        dialog = ParticleSourceTypeDialog(self.parent)
+        dialog = ParticleSourceTypeDialog(self.geditor)
         if dialog.exec_() == QDialog.Accepted:
             selected_source_type = dialog.getSelectedSourceType()
 
@@ -239,21 +289,21 @@ class ParticleSourceManager:
 
     def set_particle_source_as_point(self):
         if not self.particleSourceArrowActor:
-            method_dialog = ArrowMethodSelectionDialog(self.parent)
+            method_dialog = ArrowMethodSelectionDialog(self.geditor)
             if method_dialog.exec_() == QDialog.Accepted:
                 method = method_dialog.get_selected_method()
                 if method == "manual":
-                    dialog = ArrowPropertiesDialog(self.vtkWidget, self.renderer, self.particleSourceArrowActor, self.parent)
+                    dialog = ArrowPropertiesDialog(self.vtkWidget, self.renderer, self.particleSourceArrowActor, self.geditor)
                     dialog.properties_accepted.connect(self.on_arrow_properties_accepted)
                     dialog.show()
                 elif method == "interactive":
                     self.create_direction_arrow_interactively()
 
-                    self.expansion_angle_dialog = ExpansionAngleDialogNonModal(self.vtkWidget, self.renderer, self.parent)
+                    self.expansion_angle_dialog = ExpansionAngleDialogNonModal(self.vtkWidget, self.renderer, self.geditor)
                     self.expansion_angle_dialog.accepted_signal.connect(self.handle_theta_signal)
                     self.expansion_angle_dialog.show()
                 else:
-                    QMessageBox.information(self.parent, "Pointed Particle Source",
+                    QMessageBox.information(self.geditor, "Pointed Particle Source",
                                             f"Can't apply method {method} to the pointed particle source")
                     self.reset_particle_source_arrow()
                     return
@@ -262,7 +312,7 @@ class ParticleSourceManager:
         x, y, z, angle_x, angle_y, angle_z, arrow_size = properties
         theta, phi = calculate_thetaPhi_with_angles(
             x, y, z, angle_x, angle_y, angle_z)
-        self.expansion_angle_dialog = ExpansionAngleDialogNonModal(self.vtkWidget, self.renderer, self.parent)
+        self.expansion_angle_dialog = ExpansionAngleDialogNonModal(self.vtkWidget, self.renderer, self.geditor)
         self.expansion_angle_dialog.accepted_signal.connect(
             lambda thetaMax: self.handle_theta_signal_with_thetaPhi(x, y, z, thetaMax, theta, phi))
         self.expansion_angle_dialog.show()
@@ -285,7 +335,7 @@ class ParticleSourceManager:
 
         except Exception as e:
             self.reset_particle_source_arrow()
-            QMessageBox.critical(self.parent, "Scattering angles", f"Exception while assigning expansion angle θ: {e}")
+            QMessageBox.critical(self.geditor, "Scattering angles", f"Exception while assigning expansion angle θ: {e}")
             self.log_console.printError(f"Exception while assigning expansion angle θ: {e}\n")
             return
 
@@ -302,10 +352,10 @@ class ParticleSourceManager:
 
         except Exception as e:
             self.reset_particle_source_arrow()
-            QMessageBox.critical(self.parent, "Scattering angles", f"Exception while assigning expansion angle θ: {e}")
+            QMessageBox.critical(self.geditor, "Scattering angles", f"Exception while assigning expansion angle θ: {e}")
             self.log_console.printError(f"Exception while assigning expansion angle θ: {e}\n")
             return
 
     def set_particle_source_as_surface(self):
-        manager = SurfaceAndArrowManager(self.vtkWidget, self.renderer, self.log_console, self.selected_actors, self)
+        manager = SurfaceArrowManager(self.vtkWidget, self.renderer, self.log_console, self.selected_actors, self, self.geditor)
         manager.set_particle_source_as_surface()

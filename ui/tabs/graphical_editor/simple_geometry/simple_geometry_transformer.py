@@ -2,7 +2,6 @@ from .simple_geometry_constants import SIMPLE_GEOMETRY_TRANSFORMATION_MOVE, SIMP
 from vtk import vtkTransform, vtkTransformFilter, vtkActor, vtkCleanPolyData, vtkBooleanOperationPolyDataFilter, vtkPolyDataMapper
 from util import convert_unstructured_grid_to_polydata
 from logger import InternalLogger
-from styles import DEFAULT_ACTOR_COLOR
 
 
 class SimpleGeometryTransformer:

@@ -11,13 +11,11 @@ from PyQt5.QtWidgets import (
 from vtk import (
     vtkRenderer, vtkPoints, vtkPolyData, vtkPolyLine, vtkCellArray, vtkPolyDataMapper,
     vtkActor, vtkAxesActor, vtkOrientationMarkerWidget, vtkGenericDataObjectReader, 
-    vtkDataSetMapper, vtkCellPicker, vtkPlane, vtkClipPolyData,
-    vtkCommand, vtkMatrix4x4, vtkInteractorStyleTrackballCamera, vtkInteractorStyleTrackballActor,
-    vtkInteractorStyleRubberBandPick
+    vtkDataSetMapper, vtkCellPicker, vtkPlane, vtkClipPolyData, vtkCommand, vtkMatrix4x4, 
+    vtkInteractorStyleTrackballCamera, vtkInteractorStyleTrackballActor, vtkInteractorStyleRubberBandPick, 
 )
 from util import (
-    convert_unstructured_grid_to_polydata, compare_matrices, convert_vtk_to_msh,
-    merge_actors, align_view_by_axis, get_polydata_from_actor,
+    convert_unstructured_grid_to_polydata, compare_matrices, merge_actors, align_view_by_axis,
     ActionHistory, ProjectManager
 )
 from logger import LogConsole
@@ -116,8 +114,10 @@ class GraphicalEditor(QFrame):
         self.crossSectionButton = self.create_button('icons/cross-section.png', 'Cross section of the object')
         self.setBoundaryConditionsSurfaceButton = self.create_button('icons/boundary-conditions-surface.png', 'Turning on mode to select boundary nodes on surface')
         self.setParticleSourceButton = self.create_button('icons/particle-source.png', 'Set particle source as surface')
-        self.meshCreatedObjectsButton = self.create_button('icons/mesh-objects.png', 'Mesh created objects. WARNING: After this action list of the created objects will be zeroed up')
-
+        self.meshSimpleObjectsButton = self.create_button('icons/mesh-simple.png', 'Mesh created objects. WARNING: After this action list of the created objects will be zeroed up')
+        self.meshDifficultObjectsButton = self.create_button('icons/mesh-difficult.png', 'Mesh difficult objects which were recieved using the operations like subtract, union, intersection and section. WARNING: After this action list of the difficult objects will be zeroed up')
+        self.testButton = self.create_button('', '')
+        
         self.spacer = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
         self.toolbarLayout.addSpacerItem(self.spacer)
 
@@ -141,10 +141,9 @@ class GraphicalEditor(QFrame):
         self.crossSectionButton.clicked.connect(self.cross_section_button_clicked)
         self.setBoundaryConditionsSurfaceButton.clicked.connect(self.activate_selection_boundary_conditions_mode_for_surface)
         self.setParticleSourceButton.clicked.connect(self.set_particle_source)
-        self.meshCreatedObjectsButton.clicked.connect(self.save_and_mesh_objects)
-
-        self.tmpButton = self.create_button('', '')
-        self.tmpButton.clicked.connect(self.test)
+        self.meshSimpleObjectsButton.clicked.connect(self.save_and_mesh_simple_objects)
+        self.meshDifficultObjectsButton.clicked.connect(self.save_and_mesh_difficult_objects)
+        self.testButton.clicked.connect(self.test) # TODO: Remove test button
         
     def setup_ui(self):
         self.vtkWidget = QVTKRenderWindowInteractor(self)
@@ -604,7 +603,6 @@ class GraphicalEditor(QFrame):
             if not isInitialized():
                 initialize()
             
-            initialize()
             model.add("model")
             model.occ.importShapes(filename)
             model.occ.synchronize()
@@ -615,15 +613,19 @@ class GraphicalEditor(QFrame):
                 model.mesh.generate(2)
             elif mesh_dim == 3:
                 model.mesh.generate(3)
+            else:
+                QMessageBox.warning(self, "Convert STP to MSH", f"Failed to generate mesh with mesh dim = {mesh_dim}")
+                self.log_console.printWarning(f"Failed to generate mesh with mesh dim = {mesh_dim}")
+                return None
 
             output_file = filename.replace(".stp", ".msh")
             write(output_file)
         except Exception as e:
-            QMessageBox.critical(
-                self, "Error", f"An error occurred during conversion: {str(e)}")
+            QMessageBox.critical(self, "Error", f"An error occurred during conversion: {str(e)}")
             return None
         finally:
-            finalize()
+            if isInitialized():
+                finalize()
             return output_file
 
     def add_actor(self, actor: vtkActor):
@@ -819,59 +821,6 @@ class GraphicalEditor(QFrame):
                 self.actor_matrix[actor] = (initial_transform, new_transform)
 
         return transformed_actors
-
-    def update_gmsh_files(self):
-        """
-        Update Gmsh files for all transformed actors.
-        """
-        from os import remove
-        
-        transformed_actors = self.get_transformed_actors()
-        if not transformed_actors:
-            return
-
-        for actor, key, filename in transformed_actors:
-            if not isInitialized():
-                initialize()
-            
-            treedict = MeshTreeManager.get_tree_dict(filename)
-            if not treedict:
-                continue
-
-            success, vtk_filename = MeshTreeManager.write_treedict_to_vtk(treedict, filename)
-            if not success:
-                self.log_console.printWarning(
-                    f"Failed to update Gmsh file for temporary filename {vtk_filename}")
-                QMessageBox.warning(
-                    self, "Gmsh Update Warning", f"Failed to update Gmsh file for temporary filename {vtk_filename}")
-                
-                if isInitialized():
-                    finalize()
-                return
-            else:
-                self.log_console.printInfo(f"Object in temporary mesh file {vtk_filename} was successfully written")
-
-            msh_filename = convert_vtk_to_msh(vtk_filename)
-            if not msh_filename:
-                self.log_console.printWarning(f"Failed to write data from the {vtk_filename} to {msh_filename}")
-                QMessageBox.warning(self, "Gmsh Update Warning", 
-                                    f"Failed to write data from the {vtk_filename} to {msh_filename}")
-                if isInitialized():
-                    finalize()
-                return
-
-            self.log_console.printInfo(
-                f"Successfully updated object in {msh_filename}")
-
-            try:
-                remove(vtk_filename)
-                self.log_console.printInfo(f"Successfully removed temporary vtk mesh file: {vtk_filename}")
-            except Exception as e:
-                self.log_console.printError(f"Can't remove temporary vtk mesh file {vtk_filename}: {e}")
-            finally:
-                if isInitialized():
-                    finalize()
-
 
     def fill_dicts(self, row, actors, objType: str, filename: str):
         """
@@ -1481,6 +1430,10 @@ class GraphicalEditor(QFrame):
         if (choice == QMessageBox.Yes):
             self.erase_all_from_tree_view()
             self.remove_all_actors()
+            
+            SimpleGeometryManager.clear_geometry_objects()
+            self.difficult_geometries.clear()
+            
         self.action_history.clearIndex()
 
     def subtract_button_clicked(self):
@@ -1513,28 +1466,25 @@ class GraphicalEditor(QFrame):
         result_actor = SimpleGeometryTransformer.subtract(obj_from, obj_to)
         if not result_actor:
             return
-        
-        self.remove_actor(obj_from)
-        self.remove_actor(obj_to)
-        self.add_actor(result_actor)
+        self.object_operation_helper(obj_from, obj_to, result_actor)
 
     def combine_objects(self, obj_from: vtkActor, obj_to: vtkActor):
         result_actor = SimpleGeometryTransformer.combine(obj_from, obj_to)
         if not result_actor:
             return
-
-        self.remove_actor(obj_from)
-        self.remove_actor(obj_to)
-        self.add_actor(result_actor)
+        self.object_operation_helper(obj_from, obj_to, result_actor)
 
     def intersect_objects(self, obj_from: vtkActor, obj_to: vtkActor):
         result_actor = SimpleGeometryTransformer.intersect(obj_from, obj_to)
         if not result_actor:
             return
-
-        self.remove_actor(obj_from)
-        self.remove_actor(obj_to)
-        self.add_actor(result_actor)
+        self.object_operation_helper(obj_from, obj_to, result_actor)
+        
+    def object_operation_helper(self, first: vtkActor, second: vtkActor, result: vtkActor):
+        self.remove_actor(first)
+        self.remove_actor(second)
+        self.add_actor(result)
+        self.difficult_geometries.add(result)
 
     def create_cross_section(self):
         from numpy import cross
@@ -1602,7 +1552,7 @@ class GraphicalEditor(QFrame):
         self.add_actor(actor1)
         self.add_actor(actor2)
 
-        self.log_console.printInfo("Successfully created a cross-section")        
+        self.log_console.printInfo("Successfully created a cross-section")
 
     def save_boundary_conditions(self, node_ids, value):
         from json import dump, load, JSONDecodeError
@@ -1657,7 +1607,12 @@ class GraphicalEditor(QFrame):
                 self.log_console.printInfo(f"Object: {hex(id(actor))}, Nodes: {nodes}, Value: {value}")
         self.deselect()
 
-    def save_and_mesh_objects(self):
+    def save_and_mesh_simple_objects(self):
+        if not SimpleGeometryManager.get_created_objects():
+            QMessageBox.information(self, "Mesh Simple Objects", "There is no objects to mesh")
+            self.log_console.printInfo("There is no objects to mesh")
+            return
+        
         mesh_filename = self.get_filename_from_dialog()
         if mesh_filename:
             dialog = mesh_dialog.MeshDialog(self)
@@ -1672,6 +1627,18 @@ class GraphicalEditor(QFrame):
                     self.log_console.printInfo("Deleting objects from the list of the created objects...")
                     SimpleGeometryManager.clear_geometry_objects()
 
+    def save_and_mesh_difficult_objects(self):
+        if not self.difficult_geometries:
+            QMessageBox.information(self, "Mesh Complex Objects", "There is no objects to mesh")
+            self.log_console.printInfo("There is no objects to mesh")
+            return
+
+        from gmsh import isInitialized, initialize, finalize, write, open, model, option
+
+        # TODO: implement
+
+        self.difficult_geometries.clear()
+
     def add_material(self):
         dialog = AddMaterialDialog(self)
         if dialog.exec_() == QDialog.Accepted:
@@ -1682,8 +1649,20 @@ class GraphicalEditor(QFrame):
                 return
             # TODO: Handle the selected material here (e.g., add it to the application)
             pass
-
+    
     def test(self):
-        actor = list(self.selected_actors)[0]
-        polydata = get_polydata_from_actor(actor)
+        if not isInitialized():
+            initialize()
+        model.occ.addBox(0, 0, 0, 5, 5, 5)
+        model.occ.addBox(2.5, 2.5, 2.5, 5, 5, 5)
+        # model.occ.fuse([(3, 1)], [(3, 2)]) # Union
+        model.occ.intersect([(3, 1)], [(3, 2)]) # Intersection
+        # model.occ.cut([(3, 1)], [(3, 2)]) # Subtract
+        model.occ.synchronize()
+        model.mesh.generate(3)
+        option.setNumber("Mesh.MeshSizeMin", 0.1)
+        option.setNumber("Mesh.MeshSizeMax", 0.1)
+        write("test.msh")
+        if isInitialized():
+            finalize()
     

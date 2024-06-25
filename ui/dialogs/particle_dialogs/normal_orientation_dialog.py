@@ -13,18 +13,20 @@ class NormalOrientationDialog(QDialog):
     orientation_accepted = pyqtSignal(bool, float)
     size_changed = pyqtSignal(float)  # Signal for size change in real-time
 
-    def __init__(self, initial_size=1.0, parent=None):
-        super(NormalOrientationDialog, self).__init__(parent)
+    def __init__(self, initial_size=1.0, geditor=None):
+        super(NormalOrientationDialog, self).__init__(geditor)
+        self.geditor = geditor
 
         self.setWindowTitle("Normal Orientation and Arrow Size")
+        self.setMinimumWidth(300)
+        self.setMaximumWidth(300)
 
         layout = QVBoxLayout(self)
 
         self.msg_label = QLabel("Do you want to set normals outside?")
         layout.addWidget(self.msg_label)
 
-        button_box = QDialogButtonBox(
-            QDialogButtonBox.Yes | QDialogButtonBox.No, self)
+        button_box = QDialogButtonBox(QDialogButtonBox.Yes | QDialogButtonBox.No, self)
         layout.addWidget(button_box)
 
         self.size_slider = QSlider(Qt.Horizontal, self)
@@ -47,21 +49,20 @@ class NormalOrientationDialog(QDialog):
         button_box.rejected.connect(self.accepted_no)
 
         self.size_slider.valueChanged.connect(self.update_size_input)
-        self.size_slider.valueChanged.connect(
-            lambda: self.size_changed.emit(float(self.size_input.text())))
+        self.size_slider.valueChanged.connect(lambda: self.size_changed.emit(float(self.size_input.text())))
         self.size_input.textChanged.connect(self.update_size_slider)
 
     def update_size_input(self, value):
         size = value / 100.0
         self.size_input.setText(f"{size:.2f}")
-        self.size_changed.emit(size)  # Emit the size change signal
+        self.size_changed.emit(size)
 
     def update_size_slider(self):
         try:
             size = float(self.size_input.text())
             if 0.01 <= size <= 100:
                 self.size_slider.setValue(int(size * 100))
-                self.size_changed.emit(size)  # Emit the size change signal
+                self.size_changed.emit(size)
         except ValueError:
             pass
 

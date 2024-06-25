@@ -12,15 +12,21 @@ from .particle_source_dialog import ParticleSourceDialog
 from .normal_orientation_dialog import NormalOrientationDialog
 
 
-class SurfaceAndArrowManager:
-    def __init__(self, vtkWidget: QVTKRenderWindowInteractor, renderer: vtkRenderer, log_console: LogConsole, selected_actors: set, parent=None):
+class SurfaceArrowManager:
+    def __init__(self, vtkWidget: QVTKRenderWindowInteractor, 
+                 renderer: vtkRenderer, 
+                 log_console: LogConsole, 
+                 selected_actors: set, 
+                 particle_source_manager, 
+                 geditor):
         self.vtkWidget = vtkWidget
         self.renderer = renderer
         self.log_console = log_console
         self.selected_actors = selected_actors
         self.arrow_size = DEFAULT_ARROW_SCALE[0]
         self.selected_actor = None
-        self.parent = parent
+        self.particle_source_manager = particle_source_manager
+        self.geditor = geditor
 
     def render_editor_window(self):
         self.renderer.ResetCamera()
@@ -28,10 +34,8 @@ class SurfaceAndArrowManager:
 
     def set_particle_source_as_surface(self):
         if not self.selected_actors:
-            self.log_console.printWarning(
-                "There is no selected surfaces to apply particle source on them")
-            QMessageBox.information(self.parent, "Set Particle Source",
-                                    "There is no selected surfaces to apply particle source on them")
+            self.log_console.printWarning("There is no selected surfaces to apply particle source on them")
+            QMessageBox.information(self.geditor, "Set Particle Source", "There is no selected surfaces to apply particle source on them")
             return
 
         self.selected_actor = list(self.selected_actors)[0]
@@ -39,9 +43,8 @@ class SurfaceAndArrowManager:
         if not self.selected_actor:
             return
 
-        self.particle_source_dialog = ParticleSourceDialog(self.parent)
-        self.particle_source_dialog.accepted_signal.connect(
-            lambda params: self.handle_particle_source_surface_accepted(params, self.data))
+        self.particle_source_dialog = ParticleSourceDialog(self.geditor)
+        self.particle_source_dialog.accepted_signal.connect(lambda params: self.handle_particle_source_surface_accepted(params, self.data))
 
     def handle_particle_source_surface_accepted(self, particle_params, surface_and_normals_dict):
         try:
@@ -55,12 +58,10 @@ class SurfaceAndArrowManager:
                                        f"Number of Particles: {num_particles}")
             self.log_console.addNewLine()
 
-            self.parent.update_config_with_particle_source(
-                particle_params, surface_and_normals_dict)
+            self.particle_source_manager.update_config_with_particle_source(particle_params, surface_and_normals_dict)
         except Exception as e:
             self.log_console.printError(f"Error setting particle source. {e}")
-            QMessageBox.warning(self.parent, "Particle Source",
-                                f"Error setting particle source. {e}")
+            QMessageBox.warning(self.geditor, "Particle Source", f"Error setting particle source. {e}")
             return None
 
     def add_arrows(self, arrows):
@@ -103,7 +104,7 @@ class SurfaceAndArrowManager:
         if not normals:
             self.log_console.printWarning(
                 "No normals found for the selected surface")
-            QMessageBox.warning(self.parent, "Normals Calculation",
+            QMessageBox.warning(self.geditor, "Normals Calculation",
                                 "No normals found for the selected surface")
             return
 
@@ -127,12 +128,9 @@ class SurfaceAndArrowManager:
             self.arrows_inside.append((arrow_inside, cell_center, rev_normal))
         self.add_arrows(self.arrows_outside)
 
-        self.normal_orientation_dialog = NormalOrientationDialog(
-            self.arrow_size, self.parent)
-        self.normal_orientation_dialog.orientation_accepted.connect(
-            self.handle_outside_confirmation)
-        self.normal_orientation_dialog.size_changed.connect(
-            self.update_arrow_sizes)  # Connect the size change signal
+        self.normal_orientation_dialog = NormalOrientationDialog(self.arrow_size, self.geditor)
+        self.normal_orientation_dialog.orientation_accepted.connect(self.handle_outside_confirmation)
+        self.normal_orientation_dialog.size_changed.connect(self.update_arrow_sizes)  # Connect the size change signal
         self.normal_orientation_dialog.show()
 
     def handle_outside_confirmation(self, confirmed, size):
@@ -144,14 +142,10 @@ class SurfaceAndArrowManager:
         else:
             self.remove_arrows(self.arrows_outside)
             self.add_arrows(self.arrows_inside)
-            self.normal_orientation_dialog = NormalOrientationDialog(
-                self.arrow_size, self.parent)
-            self.normal_orientation_dialog.msg_label.setText(
-                "Do you want to set normals inside?")
-            self.normal_orientation_dialog.orientation_accepted.connect(
-                self.handle_inside_confirmation)
-            self.normal_orientation_dialog.size_changed.connect(
-                self.update_arrow_sizes)  # Connect the size change signal
+            self.normal_orientation_dialog = NormalOrientationDialog(self.arrow_size, self.geditor)
+            self.normal_orientation_dialog.msg_label.setText("Do you want to set normals inside?")
+            self.normal_orientation_dialog.orientation_accepted.connect(self.handle_inside_confirmation)
+            self.normal_orientation_dialog.size_changed.connect(self.update_arrow_sizes)  # Connect the size change signal
             self.normal_orientation_dialog.show()
 
     def handle_inside_confirmation(self, confirmed, size):
@@ -178,10 +172,10 @@ class SurfaceAndArrowManager:
             self.log_console.printInfo(f"<{surface_address}> | <{arrow_address}>: [{cellCentre[0]:.2f}, {cellCentre[1]:.2f}, {cellCentre[2]:.2f}] - ({normal[0]:.2f}, {normal[1]:.2f}, {normal[2]:.2f})")
             surface_address = next(iter(self.data))
 
-        self.parent.deselect()
+        self.geditor.deselect()
 
     def confirm_normal_orientation(self, orientation):
-        msg_box = QMessageBox(self.parent)
+        msg_box = QMessageBox(self.geditor)
         msg_box.setWindowTitle("Normal Orientation")
         msg_box.setText(f"Do you want to set normals {orientation}?")
         msg_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)

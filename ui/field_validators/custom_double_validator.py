@@ -1,5 +1,4 @@
 from PyQt5.QtGui import QDoubleValidator
-from re import match
 
 
 class CustomDoubleValidator(QDoubleValidator):
@@ -10,26 +9,25 @@ class CustomDoubleValidator(QDoubleValidator):
     def validate(self, input_str, pos):
         # Replace comma with dot for uniform interpretation
         input_str = input_str.replace(',', '.')
-        
+
         # Allow empty input initially
         if not input_str:
             return self.Intermediate, input_str, pos
 
-        # Generate regex pattern for intermediate values based on decimals
-        intermediate_pattern = f"^0(\\.0{{0,{self.decimals}}})?$"
-        complete_pattern = f"^-?\\d*\\.?\\d{{0,{self.decimals}}}$"
-
-        if match(intermediate_pattern, input_str):
-            return self.Intermediate, input_str, pos
-
-        if match(complete_pattern, input_str):
-            try:
-                value = float(input_str)
-                if self.bottom() <= value <= self.top():
+        # Check if the input string is a valid number
+        try:
+            value = float(input_str)
+            # Allow zero value regardless of format
+            if value == 0:
+                return self.Acceptable, input_str, pos
+            # Check if the value is within the valid range
+            if self.bottom() <= value <= self.top():
+                parts = input_str.split('.')
+                if len(parts) == 2 and len(parts[1]) <= self.decimals:
                     return self.Acceptable, input_str, pos
-                else:
-                    return self.Invalid, input_str, pos
-            except ValueError:
-                return self.Invalid, input_str, pos
-
-        return self.Invalid, input_str, pos
+                elif len(parts) == 1:
+                    return self.Acceptable, input_str, pos
+            return self.Invalid, input_str, pos
+        except ValueError:
+            # Allow intermediate state for partial inputs
+            return self.Intermediate, input_str, pos
