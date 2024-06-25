@@ -15,8 +15,7 @@ from vtk import (
     vtkInteractorStyleTrackballCamera, vtkInteractorStyleTrackballActor, vtkInteractorStyleRubberBandPick, 
 )
 from util import (
-    convert_unstructured_grid_to_polydata, compare_matrices, convert_vtk_to_msh,
-    merge_actors, align_view_by_axis,
+    convert_unstructured_grid_to_polydata, compare_matrices, merge_actors, align_view_by_axis,
     ActionHistory, ProjectManager
 )
 from logger import LogConsole
@@ -822,59 +821,6 @@ class GraphicalEditor(QFrame):
                 self.actor_matrix[actor] = (initial_transform, new_transform)
 
         return transformed_actors
-
-    def update_gmsh_files(self):
-        """
-        Update Gmsh files for all transformed actors.
-        """
-        from os import remove
-        
-        transformed_actors = self.get_transformed_actors()
-        if not transformed_actors:
-            return
-
-        for actor, key, filename in transformed_actors:
-            if not isInitialized():
-                initialize()
-            
-            treedict = MeshTreeManager.get_tree_dict(filename)
-            if not treedict:
-                continue
-
-            success, vtk_filename = MeshTreeManager.write_treedict_to_vtk(treedict, filename)
-            if not success:
-                self.log_console.printWarning(
-                    f"Failed to update Gmsh file for temporary filename {vtk_filename}")
-                QMessageBox.warning(
-                    self, "Gmsh Update Warning", f"Failed to update Gmsh file for temporary filename {vtk_filename}")
-                
-                if isInitialized():
-                    finalize()
-                return
-            else:
-                self.log_console.printInfo(f"Object in temporary mesh file {vtk_filename} was successfully written")
-
-            msh_filename = convert_vtk_to_msh(vtk_filename)
-            if not msh_filename:
-                self.log_console.printWarning(f"Failed to write data from the {vtk_filename} to {msh_filename}")
-                QMessageBox.warning(self, "Gmsh Update Warning", 
-                                    f"Failed to write data from the {vtk_filename} to {msh_filename}")
-                if isInitialized():
-                    finalize()
-                return
-
-            self.log_console.printInfo(
-                f"Successfully updated object in {msh_filename}")
-
-            try:
-                remove(vtk_filename)
-                self.log_console.printInfo(f"Successfully removed temporary vtk mesh file: {vtk_filename}")
-            except Exception as e:
-                self.log_console.printError(f"Can't remove temporary vtk mesh file {vtk_filename}: {e}")
-            finally:
-                if isInitialized():
-                    finalize()
-
 
     def fill_dicts(self, row, actors, objType: str, filename: str):
         """
@@ -1709,12 +1655,14 @@ class GraphicalEditor(QFrame):
             initialize()
         model.occ.addBox(0, 0, 0, 5, 5, 5)
         model.occ.addBox(2.5, 2.5, 2.5, 5, 5, 5)
-        model.occ.cut([(3, 1)], [(3, 2)])
+        # model.occ.fuse([(3, 1)], [(3, 2)]) # Union
+        model.occ.intersect([(3, 1)], [(3, 2)]) # Intersection
+        # model.occ.cut([(3, 1)], [(3, 2)]) # Subtract
         model.occ.synchronize()
         model.mesh.generate(3)
         option.setNumber("Mesh.MeshSizeMin", 0.1)
         option.setNumber("Mesh.MeshSizeMax", 0.1)
-        write("subtracted_cubes.msh")
+        write("test.msh")
         if isInitialized():
             finalize()
     

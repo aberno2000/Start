@@ -1,6 +1,5 @@
 from gmsh import initialize, finalize, isInitialized, write
 from tempfile import NamedTemporaryFile
-from meshio import read
 from vtk import (
     vtkUnstructuredGrid, vtkPolyData, vtkPolyDataWriter, vtkActor,
     vtkGeometryFilter, vtkPoints, vtkCellArray, vtkTriangle, vtkTransform,
@@ -33,35 +32,6 @@ def convert_msh_to_vtk(msh_filename: str):
         if isInitialized():
             finalize()
 
-
-def convert_vtk_to_msh(vtk_filename: str):
-    """
-    Converts a VTK file to a Gmsh (.msh) file.
-
-    Args:
-        vtk_filename (str): The filename of the VTK file to convert.
-
-    Returns:
-        str: The filename of the converted Gmsh file if successful, None otherwise.
-    """
-    if not vtk_filename.endswith('.vtk'):
-        return None
-
-    msh_filename = vtk_filename.replace('.vtk', '.msh')
-    msh_filename = msh_filename.replace('.msh.msh', '.msh')
-    try:
-        mesh = read(vtk_filename)
-        
-        for cell_block in mesh.cells:
-            cell_block.data = cell_block.data
-            mesh.cell_data.setdefault("gmsh:physical", []).append([1] * len(cell_block.data))
-            mesh.cell_data.setdefault("gmsh:geometrical", []).append([1] * len(cell_block.data))
-        
-        write(msh_filename, mesh, file_format="gmsh")
-        return msh_filename
-    except Exception as e:
-        print(f"Error converting VTK to Msh: {e}")
-        return None
     
 def get_polydata_from_actor(actor: vtkActor):
     mapper = actor.GetMapper()
